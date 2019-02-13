@@ -1,0 +1,16 @@
+body .container { flex: 1 1 100vh; display: flex; flex-flow: row wrap; align-content: stretch; align-items: flex-start; justify-content: flex-start; }
+body .container > .site { flex: 1 1 auto; }
+body .container > .full { flex: 0 0 100%; align-self: flex-end; }
+
+.container > .full.footer { position: relative; height: auto; margin-top: 100px; background-color: #f5f5f5; }
+.container > .full.footer > .site { width: 100% !important; padding: 20px 0; }
+
+.container > .full.footer .body { color: #666666; }
+.container > .full.footer .body a:not(:hover) { color: #666666; }
+
+.container > .full.footer .mod { font-size: 11px; text-align: center; }
+.container > .full.footer .mod > a.nodegoat-logo { display: block; width: 60px; height: 60px; margin: 0px auto 15px auto; background-color: #a3ce6c; background-image: url('/css/images/nodegoat.svg'); background-size: 37px 39px; background-repeat: no-repeat; background-position: 11px 10px; }
+.container > .full.footer .mod > p { margin: 0px; }
+.container > .full.footer .mod > a + p > * { vertical-align: middle; }
+.container > .full.footer .mod > a + p + p { font-size: 0.9em; opacity: 0.6; margin-top: 4px; }
+.container > .full.footer .mod a.LAB1100 { display: inline-block; margin-left: 5px; width: 70px; height: 14px; background-image: url('/CMS/css/images/lab1100.svg'); background-repeat: no-repeat; background-size: contain; }

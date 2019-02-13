@@ -1,0 +1,94 @@
+
+.labmap { position: relative; width: 100%; height:100%; overflow: hidden; }
+
+.labmap > .map { position: relative; width: 100%; height:100%; overflow: hidden; z-index: 1; }
+.labmap .map .paint svg * { cursor: pointer; }
+.labmap .map .paint > * { position: absolute; left: 0px; top: 0px; }
+
+.labmap.plot .legends > figure.object-sub-details,
+.labmap.line .legends > figure.object-sub-details { margin-top: 0px; }
+.labmap.soc .legends > figure.types { margin-top: 0px; }
+
+.labmap.plot .legends > figure.types,
+.labmap.line .legends > figure.types { display: none; margin-top: 0px; }
+.labmap.soc .legends > figure.object-sub-details { display: none; margin-top: 0px; }
+
+.labmap.soc .legends > figure.selected-node dt,
+.labmap.soc .legends > figure.selected-node dd { white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.labmap.soc .legends > figure.selected-node span { cursor: pointer; }
+.labmap.soc .legends > figure.selected-node > span { display: block; white-space: nowrap; width: 200px; overflow: hidden; text-overflow: ellipsis;}
+.labmap.soc .legends > figure.search-nodes > ul { max-width: 190px;  }
+.labmap.soc .legends > figure.search-nodes > ul > li { text-align: left; }
+.labmap.soc .legends > figure.search-nodes > ul > li > a { overflow: hidden; text-overflow: ellipsis; }
+
+.labmap.soc div.hover-node-label,
+.labmap.soc div.top-node-label { position: absolute; display: block; padding: 2px; font-size: 11px; background: rgba(245, 245, 245, 0.6); white-space: nowrap; }
+.labmap.soc div.top-node-label { max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+
+.labmap.soc .background,
+.labmap.line .background { background-color: #fafafa; }
+
+.labmap.soc { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; -o-user-select: none; user-select: none; }
+.labmap.soc .paint.hovering { cursor: pointer; }
+
+.labmap.line .zoomer { display: none; }
+.labmap.line rect { fill-opacity: 0.4 }
+
+.labmap > .controls {  }
+
+.labmap > .controls fieldset > ul { margin: -2px 0; border-spacing: 0px 2px; }
+.labmap > .controls fieldset > ul > li > label:first-child { font-size: 11px; font-weight: normal; }
+.labmap > .controls .options { border: 0px; margin: 0px; }
+
+.labmap > .controls .geo,
+.labmap > .controls .soc { position: absolute; padding: 10px; background: rgba(128, 128, 128, 0.35); z-index: 1; font-size: 11px; }
+.labmap > .controls .geo { bottom: 40px; left: 40px; }
+.labmap > .controls .soc { top: 140px; right: 40px; }
+.labmap > .controls .soc ul li select { width: 130px;  }
+.labmap > .controls .soc ul li input[type=range] { margin: 0; padding: 0; width: 70%; }
+.labmap > .controls .soc ul li .filter_min,
+.labmap > .controls .soc ul li .filter_max { display: inline-block; width: 10%; }
+.labmap > .controls .soc ul li .filter_value { display: inline-block; width: 60%; text-align: center;}
+.labmap > .controls .soc span { display: block; }
+
+.labmap > .controls .timeline { position: absolute; bottom: 40px; width: 100%; text-align: center; }
+.labmap > .controls .timeline > div { display: inline-block; position: relative; text-align: left; width: calc(100% - 500px); min-width: 380px; max-width: 700px; padding: 10px; background: rgba(128, 128, 128, 0.35); z-index: 1; }
+.labmap > .controls .timeline .slider { position: relative; z-index: 1; }
+.labmap > .controls .timeline .buttons { position: relative; float: right; margin-top: 8px; }
+.labmap > .controls .timeline .buttons input { margin: 0px; }
+
+.labmap > .controls .legends { position: absolute; top: 40px; right: 40px; z-index: 1; }
+.labmap > .controls .legends > figure { margin: 0px; margin-top: 10px; float: right; clear: both; padding: 10px; font-size: 11px; background: rgba(245, 245, 245, 0.75); }
+
+.labmap > .controls .legends > figure dl { margin: -5px 0; display: table; border-collapse: separate; border-spacing: 0px 5px; }
+.labmap > .controls .legends > figure dl > li { display: table-row; }
+.labmap > .controls .legends > figure dl > li > dt { display: table-cell; vertical-align: middle; text-align: right; white-space: nowrap; }
+.labmap > .controls .legends > figure dl > li > dt + dd { display: table-cell; vertical-align: middle; padding-left: 8px; }
+.labmap > .controls .legends > figure dl > li > dt + dd > span { display: inline-block; width: 50px; height: 5px; }
+
+.labmap > .controls .legends > figure.types dl > li,
+.labmap > .controls .legends > figure.object-sub-details dl > li,
+.labmap > .controls .legends > figure.conditions dl > li { cursor: pointer; }
+.labmap > .controls .legends > figure.types dl > li[data-state="0"],
+.labmap > .controls .legends > figure.object-sub-details dl > li[data-state="0"],
+.labmap > .controls .legends > figure.conditions dl > li[data-state="0"] { opacity: 0.3; }
+
+.labmap > .controls .legends > figure.metrics-container { display: table-row;text-align: left; white-space: nowrap; vertical-align: top; }
+.labmap > .controls .legends > figure.metrics-container > ul { display: table-cell; display: inline-block; vertical-align: top; margin-right: 3px; }
+.labmap > .controls .legends > figure.metrics-container > ul > li { width: 150px; overflow: hidden; text-overflow: ellipsis; padding: 3px; cursor: pointer; }
+.labmap > .controls .legends > figure.metrics-container > ul > li:hover { background-color: #eee; }
+.labmap > .controls .legends > figure.metrics-container > span { display: table-cell; cursor: pointer; width: 15px; height: 15px; display: inline-block; vertical-align: top;}
+
+.labmap > .controls .legends > figure.metric { min-width: 150px; margin: 0; padding: 0; }
+.labmap > .controls .legends > figure.metric > span { cursor: move; line-height: 20px; display: block; width: 100%; }
+.labmap > .controls .legends > figure.metric > span:active { cursor: all-scroll; }
+.labmap > .controls .legends > figure.metric > div > span { padding: 5px; margin: 5px; background-color: #eee; cursor: pointer; }
+.labmap > .controls .legends > figure.metric > div > span:hover { background-color: #aaa; color: #fff; }
+.labmap > .controls .legends > figure.metric > div > span.active { background-color: #000; color: #fff; }
+.labmap > .controls .legends > figure.metric > .result {  padding: 5px; }
+.labmap > .controls .legends > figure.metric > .result > ul > li span { display: inline-block; width: 25px; }
+.labmap > .controls .legends > figure.metric > .result > ul > li span.name { white-space: nowrap; width: 150px; overflow: hidden; text-overflow: ellipsis;  }
+.labmap > .controls .legends > figure.metric.repositioned { position: fixed; }
+
+.labmap[data-tools=""] > .controls .timeline { display: none; }
+.labmap[data-tools=""] > .map > .controls > .zoomer { display: none; }
