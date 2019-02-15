@@ -3776,40 +3776,61 @@ class data_entry extends base_module {
 				
 				if ($arr['referenced_type_objects']) {
 					
-					$arr_storage_referenced_objects = [];
+					$arr_type_storage = [];
+					
+					// Let's try to update all referenced Objects, if not, rollback all changes.
 					
 					try {
 						
 						foreach ($arr['referenced_type_objects'] as $ref_type_id => $arr_referenced_objects) {
+							
+							$storage = new StoreTypeObjects($ref_type_id, false, $_SESSION['USER_ID'], 'type_'.$ref_type_id);
+							
+							$arr_type_storage[$ref_type_id] = $storage;
+							
 							foreach ($arr_referenced_objects as $ref_object_id => $arr_referenced_object) {
 								
-								$storage = new StoreTypeObjects($ref_type_id, $ref_object_id, $_SESSION['USER_ID']);
+								$storage->setObjectID($ref_object_id);
+							
 								$storage->handleLockObject();
-								
-								$arr_storage_referenced_objects[] = ['storage' => $storage, 'arr_referenced_object' => $arr_referenced_object];
 							}
 						}
+						
+						DB::startTransaction('data_entry_insert_update');
 					
-						foreach ($arr_storage_referenced_objects as $arr_storage_referenced_object) {
+						foreach ($arr['referenced_type_objects'] as $ref_type_id => $arr_referenced_objects) {
 							
-							$storage = $arr_storage_referenced_object['storage'];
-							$arr_referenced_object = $arr_storage_referenced_object['arr_referenced_object'];
+							$storage = $arr_type_storage[$ref_type_id];
+							
+							foreach ($arr_referenced_objects as $ref_object_id => $arr_referenced_object) {
 								
-							if ($arr_referenced_object['object_definitions']) {
-								$storage->setAppend(['object_definitions' => array_keys($arr_referenced_object['object_definitions'])]);
+								$storage->setObjectID($ref_object_id);
+								
+								if ($arr_referenced_object['object_definitions']) {
+									$storage->setAppend(['object_definitions' => array_keys($arr_referenced_object['object_definitions'])]);
+								}
+								
+								$storage->store([], (array)$arr_referenced_object['object_definitions'], (array)$arr_referenced_object['object_subs']);
 							}
 							
-							$storage->store([], (array)$arr_referenced_object['object_definitions'], (array)$arr_referenced_object['object_subs']);
+							$storage->save();
 							$storage->commit(($_SESSION['NODEGOAT_CLEARANCE'] >= NODEGOAT_CLEARANCE_USER));
-							$storage->removeLockObject();
 						}
 					} catch (Exception $e) {
-			
-						foreach ($arr_storage_referenced_objects as $arr_storage_referenced_object) {
-
-							$arr_storage_referenced_object['storage']->removeLockObject();
+						
+						DB::rollbackTransaction('data_entry_insert_update');
+						
+						foreach ($arr_type_storage as $storage) {
+							$storage->removeLockObject();
 						}
+					
 						throw($e);
+					}
+					
+					DB::commitTransaction('data_entry_insert_update');
+					
+					foreach ($arr_type_storage as $storage) {
+						$storage->removeLockObject();
 					}
 				}
 			}

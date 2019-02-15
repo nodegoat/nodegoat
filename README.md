@@ -29,4 +29,3 @@ Work on nodegoat started in 2011 thanks to Joep Leerssen. His [Study Platform on
 nodegoat would not be possible and brought to its current level without the support from the many research projects that run and support nodegoat, see the [nodegoat About](https://nodegoat.net/about) page. 
 
 Thanks to all the users at nodegoat.net, especially those who joined nodegoat from the start (check out the [nodegoat Use Cases](https://nodegoat.net/usecases)!).
-
