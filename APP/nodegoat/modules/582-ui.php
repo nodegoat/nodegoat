@@ -1765,7 +1765,7 @@ class ui extends base_module {
 		
 		if ($arr) {
 			
-			$arr_request_vars = SiteStartVars::getModuleVars(0);
+			$arr_request_vars = SiteStartVars::getModVariables(0);
 			
 			if ($arr['display_mode'] === false && $arr_request_vars[4]) {
 				
@@ -1795,7 +1795,7 @@ class ui extends base_module {
 			$arr_public_user_interface_module_vars = [$public_user_interface_id, $public_user_interface_active_custom_project_id];
 		}
 
-		SiteEndVars::setModuleVars(0, $arr_public_user_interface_module_vars);
+		SiteEndVars::setModVariables(0, $arr_public_user_interface_module_vars);
 	}
 	
 	public static function getPublicUserInterfaceModuleVars() {
@@ -1803,7 +1803,7 @@ class ui extends base_module {
 		self::setPublicUserInterfaceId();
 		self::setPublicUserInterfaceActiveCustomProjectId();
 		
-		$arr_request_vars = SiteStartVars::getModuleVars(0);
+		$arr_request_vars = SiteStartVars::getModVariables(0);
 
 		if ($arr_request_vars[2]) {
 
@@ -1855,9 +1855,9 @@ class ui extends base_module {
 		
 		if (!SiteStartVars::getFeedback('public_user_interface_id')) {
 			
-			if (SiteStartVars::getModuleVars(0)[0]) {
+			if (SiteStartVars::getModVariables(0)[0]) {
 				
-				$url_public_user_interface_id = SiteStartVars::getModuleVars(0)[0];
+				$url_public_user_interface_id = SiteStartVars::getModVariables(0)[0];
 			
 				if (cms_nodegoat_public_interfaces::getPublicInterfaces($url_public_user_interface_id)) {
 					$public_user_interface_id = $url_public_user_interface_id;
@@ -1877,7 +1877,7 @@ class ui extends base_module {
 		
 		$public_user_interface_id = SiteStartVars::getFeedback('public_user_interface_id');
 		$arr_public_user_interface = cms_nodegoat_public_interfaces::getPublicInterfaces($public_user_interface_id);	
-		$url_project_id = SiteStartVars::getModuleVars(0)[1];
+		$url_project_id = SiteStartVars::getModVariables(0)[1];
 		
 		if ((int)$id) {
 			

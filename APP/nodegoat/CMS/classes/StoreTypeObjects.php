@@ -910,6 +910,11 @@ class StoreTypeObjects {
 					
 					$version = ($this->versioning ? 1 : -2);
 					
+					if ($arr_object_sub['object_sub']['object_sub_location_geometry']) {
+						
+						$arr_object_sub['object_sub']['object_sub_location_geometry_version'] = $version;
+					}
+					
 					if ($arr_object_sub['object_sub']['object_sub_date_start']) {
 						
 						$arr_object_sub['object_sub']['object_sub_date_version'] = $version;

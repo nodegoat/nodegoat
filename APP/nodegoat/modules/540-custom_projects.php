@@ -28,7 +28,7 @@ class custom_projects extends base_module {
 				error(getLabel('msg_missing_information'));
 			}
 			
-			$arr_request_vars = SiteStartVars::getModuleVars(0);
+			$arr_request_vars = SiteStartVars::getModVariables(0);
 
 			if ($arr_request_vars[0]) {
 				
@@ -111,7 +111,7 @@ class custom_projects extends base_module {
 			$_SESSION['custom_projects']['project_id'] = false;
 			toolbar::setActionSpace('api');
 			
-			$arr_request_vars = SiteStartVars::getModuleVars(0);
+			$arr_request_vars = SiteStartVars::getModVariables(0);
 			
 			if (!$_SESSION['CUR_USER']) {
 				error(getLabel('msg_missing_information').' Unknown '.getLabel('name', 'D').' domain.', TROUBLE_INVALID_REQUEST, LOG_CLIENT);
@@ -178,11 +178,11 @@ class custom_projects extends base_module {
 					$_SESSION['custom_projects']['project_id'] = (!$_SESSION['custom_projects']['project_id'] || $arr_project_link['is_active'] ? $project_id : $_SESSION['custom_projects']['project_id']);
 				}
 				
-				$arr_request_vars = SiteStartVars::getModuleVars(0);
+				$arr_request_vars = SiteStartVars::getModVariables(0);
 				
 				if ($arr_request_vars['project'][0]) {
 					
-					SiteEndVars::setModuleVars(0, ['project' => false]);
+					SiteEndVars::setModVariables(0, ['project' => false]);
 					
 					if ($arr_request_vars['project'][0] != $_SESSION['custom_projects']['project_id'] && $_SESSION['CUR_USER'][DB::getTableName('USER_LINK_NODEGOAT_CUSTOM_PROJECTS')][$arr_request_vars['project'][0]]) {
 						

@@ -1,6 +1,6 @@
-INSERT INTO `cms_language` (`lang_code`, `flag`, `label`, `user`, `is_default`) VALUES
-('en', 'uk.gif', 'English', 1, 1),
-('nl', 'nl.gif', 'Nederlands', 0, 0);
+INSERT INTO `cms_language` (`lang_code`,`label`, `user`, `is_default`) VALUES
+('en', 'English', 1, 1),
+('nl', 'Nederlands', 0, 0);
 
 INSERT INTO `site_apis` (`id`, `name`, `clients_user_group_id`, `client_users_user_group_id`, `module`, `request_limit_amount`, `request_limit_unit`, `request_limit_ip`, `request_limit_global`, `documentation_url`) VALUES
 (1, 'Data', 0, 1, 'data_api', 15, 1, 30, 10000, 'https://nodegoat.net/documentation.p/usage/API/');

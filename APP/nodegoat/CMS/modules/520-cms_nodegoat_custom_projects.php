@@ -1112,6 +1112,8 @@ class cms_nodegoat_custom_projects extends base_module {
 					'".(str2Color($arr_visual_settings['social']['dot']['color']) != $arr_default['social']['dot']['color'] ? str2Color($arr_visual_settings['social']['dot']['color']) : '')."',
 					".(float)((float)$arr_visual_settings['social']['dot']['size']['min'] != $arr_default['social']['dot']['size']['min'] ? $arr_visual_settings['social']['dot']['size']['min'] : '').",
 					".(float)((float)$arr_visual_settings['social']['dot']['size']['max'] != $arr_default['social']['dot']['size']['max'] ? $arr_visual_settings['social']['dot']['size']['max'] : '').",
+					".(int)((int)$arr_visual_settings['social']['dot']['size']['start'] != $arr_default['social']['dot']['size']['start'] ? $arr_visual_settings['social']['dot']['size']['start'] : '').",
+					".(int)((int)$arr_visual_settings['social']['dot']['size']['stop'] != $arr_default['social']['dot']['size']['stop'] ? $arr_visual_settings['social']['dot']['size']['stop'] : '').",
 					'".(str2Color($arr_visual_settings['social']['dot']['stroke_color']) != $arr_default['social']['dot']['stroke_color'] ? str2Color($arr_visual_settings['social']['dot']['stroke_color']) : '')."',
 					".((string)$arr_visual_settings['social']['dot']['stroke_width'] !== '' && (float)$arr_visual_settings['social']['dot']['stroke_width'] != $arr_default['social']['dot']['stroke_width'] ? (float)$arr_visual_settings['social']['dot']['stroke_width'] : 'NULL').",
 					".((string)$arr_visual_settings['social']['line']['show'] !== '' && (int)$arr_visual_settings['social']['line']['show'] != $arr_default['social']['line']['show'] ? (int)$arr_visual_settings['social']['line']['show'] : 'NULL').",
@@ -1127,7 +1129,7 @@ class cms_nodegoat_custom_projects extends base_module {
 					".((string)$arr_visual_settings['time']['settings']['conditions_cumulative'] !== '' && (int)$arr_visual_settings['time']['settings']['conditions_cumulative'] != $arr_default['time']['settings']['conditions_cumulative'] ? (int)$arr_visual_settings['time']['settings']['conditions_cumulative'] : 'NULL')."
 			)
 			".DBFunctions::onConflict('project_id, user_id, id', ['name', 'description',
-				'dot_show', 'dot_color', 'dot_opacity', 'dot_color_condition', 'dot_size_min', 'dot_size_max', 'dot_size_start', 'dot_size_stop', 'dot_stroke_color', 'dot_stroke_opacity', 'dot_stroke_width', 'location_show', 'location_color', 'location_size', 'location_threshold', 'location_condition', 'line_show', 'line_color', 'line_opacity', 'line_width_min', 'line_width_max', 'line_offset', 'visual_hints_show', 'visual_hints_color', 'visual_hints_opacity', 'visual_hints_size', 'visual_hints_stroke_color', 'visual_hints_stroke_opacity', 'visual_hints_stroke_width', 'visual_hints_duration', 'visual_hints_delay', 'geometry_show', 'geometry_color', 'geometry_opacity', 'geometry_stroke_color', 'geometry_stroke_opacity', 'geometry_stroke_width', 'map_url', 'map_attribution', 'geo_info_show', 'geo_background_color', 'geo_mode', 'geo_display', 'geo_advanced', 'social_dot_color', 'social_dot_size_min', 'social_dot_size_max', 'social_dot_stroke_color', 'social_dot_stroke_width', 'social_line_show', 'social_line_arrowhead_show', 'social_disconnected_dot_show', 'social_include_location_references', 'social_background_color', 'social_display', 'social_static_layout', 'social_static_layout_interval', 'social_advanced', 'time_conditions_relative', 'time_conditions_cumulative'
+				'dot_show', 'dot_color', 'dot_opacity', 'dot_color_condition', 'dot_size_min', 'dot_size_max', 'dot_size_start', 'dot_size_stop', 'dot_stroke_color', 'dot_stroke_opacity', 'dot_stroke_width', 'location_show', 'location_color', 'location_size', 'location_threshold', 'location_condition', 'line_show', 'line_color', 'line_opacity', 'line_width_min', 'line_width_max', 'line_offset', 'visual_hints_show', 'visual_hints_color', 'visual_hints_opacity', 'visual_hints_size', 'visual_hints_stroke_color', 'visual_hints_stroke_opacity', 'visual_hints_stroke_width', 'visual_hints_duration', 'visual_hints_delay', 'geometry_show', 'geometry_color', 'geometry_opacity', 'geometry_stroke_color', 'geometry_stroke_opacity', 'geometry_stroke_width', 'map_url', 'map_attribution', 'geo_info_show', 'geo_background_color', 'geo_mode', 'geo_display', 'geo_advanced', 'social_dot_color', 'social_dot_size_min', 'social_dot_size_max', 'social_dot_size_start', 'social_dot_size_stop', 'social_dot_stroke_color', 'social_dot_stroke_width', 'social_line_show', 'social_line_arrowhead_show', 'social_disconnected_dot_show', 'social_include_location_references', 'social_background_color', 'social_display', 'social_static_layout', 'social_static_layout_interval', 'social_advanced', 'time_conditions_relative', 'time_conditions_cumulative'
 			])."
 		");
 		
@@ -1201,6 +1203,8 @@ class cms_nodegoat_custom_projects extends base_module {
 				'social_dot_color' => $arr_settings_use['social']['dot']['color'],
 				'social_dot_size_min' => $arr_settings_use['social']['dot']['size']['min'],
 				'social_dot_size_max' => $arr_settings_use['social']['dot']['size']['max'],
+				'social_dot_size_start' => $arr_settings_use['social']['dot']['size']['start'],
+				'social_dot_size_stop' => $arr_settings_use['social']['dot']['size']['stop'],
 				'social_dot_stroke_color' => $arr_settings_use['social']['dot']['stroke_color'],
 				'social_dot_stroke_width' => $arr_settings_use['social']['dot']['stroke_width'],
 				'social_line_show' => $arr_settings_use['social']['line']['show'],
@@ -1273,7 +1277,7 @@ class cms_nodegoat_custom_projects extends base_module {
 			'social' => [
 				'dot' => [
 					'color' => ($arr_settings['social_dot_color'] ?: '#ffffff'),
-					'size' => ['min' => (float)($arr_settings['social_dot_size_min'] ?: 3), 'max' => (float)($arr_settings['social_dot_size_max'] ?: 20)],
+					'size' => ['min' => (float)($arr_settings['social_dot_size_min'] ?: 3), 'max' => (float)($arr_settings['social_dot_size_max'] ?: 20), 'start' => ((int)$arr_settings['social_dot_size_start'] ?: ''), 'stop' => ((int)$arr_settings['social_dot_size_stop'] ?: '')],
 					'stroke_color' => ($arr_settings['social_dot_stroke_color'] ?: '#aaaaaa'),
 					'stroke_width' => ((string)$arr_settings['social_dot_stroke_width'] !== '' ? (float)$arr_settings['social_dot_stroke_width'] : 1)
 				],

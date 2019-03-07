@@ -29,7 +29,6 @@
 	];
 	
 	$arr_core['js'] = [
-		DIR_CMS.DIR_JS.'jquery.mousewheel.js',
 		DIR_CMS.DIR_JS.'jquery.minicolors.js',
 		DIR_CMS.DIR_JS.'DeepMerge.js',
 		DIR_JS.'MapScroller.js'

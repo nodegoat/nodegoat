@@ -16,6 +16,15 @@ class header extends base_module {
 		static::$parent_label = getLabel('ttl_site');
 	}
 	
+	public static function moduleVariables() {
+		
+		$return .= '<select name="directory_id" title="Directory">';
+		$return .= directories::createDirectoriesDropdown(directories::getDirectories(), false, true);
+		$return .= '</select>';
+		
+		return $return;
+	}
+	
 	function __construct() {
 		
 		if ($_SESSION['USER_ID']) {
@@ -71,6 +80,7 @@ class header extends base_module {
 		}
 		
 		$navigation = new navigation;
+		$navigation->setModVariables(['directory_id' => $this->arr_variables['directory_id']]);
 		$navigation = $navigation->contents();
 		$search_box = new search_box;
 		$search_box = $search_box->contents();

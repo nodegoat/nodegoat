@@ -14,3 +14,6 @@ body .container > .full { flex: 0 0 100%; align-self: flex-end; }
 .container > .full.footer .mod > a + p > * { vertical-align: middle; }
 .container > .full.footer .mod > a + p + p { font-size: 0.9em; opacity: 0.6; margin-top: 4px; }
 .container > .full.footer .mod a.LAB1100 { display: inline-block; margin-left: 5px; width: 70px; height: 14px; background-image: url('/CMS/css/images/lab1100.svg'); background-repeat: no-repeat; background-size: contain; }
+
+.page-viewer .container:after { padding-bottom: 0px; }
+.page-viewer .full .site { min-width: 100%; max-width: 100%; padding: 0px; }

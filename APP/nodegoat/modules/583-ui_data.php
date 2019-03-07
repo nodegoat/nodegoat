@@ -925,7 +925,7 @@ class ui_data extends base_module {
 				
 			}
 
-			$return = '<div data-method="view_object" data-location="'.SiteEndVars::getModuleLocation(0, [$public_user_interface_id, $public_user_interface_active_custom_project_id, 'object', $location_id]).'" data-type_id="'.$type_id.'" data-object_id="'.$object_id.'">
+			$return = '<div data-method="view_object" data-location="'.SiteEndVars::getModLocation(0, [$public_user_interface_id, $public_user_interface_active_custom_project_id, 'object', $location_id]).'" data-type_id="'.$type_id.'" data-object_id="'.$object_id.'">
 						<div class="head">
 							'.($arr_object['object_thumbnail'] ? '<div class="object-thumbnail-image" style="background-image: url('.$arr_object['object_thumbnail'].');"></div>' : '').'
 							<h1>'.$arr_object['object']['object_name'].'</h1>

@@ -610,7 +610,7 @@ function MapTimeline(element, obj_parent, options) {
 			var object = arr_data.objects[object_sub.object_id];
 			var type_id = getObjectSubTypeId(object_sub.object_sub_details_id);
 			
-			if (arr_date_intervals[key].sorted_object_sub_ids[type_id][object_sub.object_sub_details_id]) {
+			if (arr_date_intervals[key].sorted_object_sub_ids[type_id] && arr_date_intervals[key].sorted_object_sub_ids[type_id][object_sub.object_sub_details_id]) {
 				
 				arr_date_intervals[key].unsorted_weighted_object_sub_ids_amount += (object_sub.style.weight ? object_sub.style.weight : 1);
 				

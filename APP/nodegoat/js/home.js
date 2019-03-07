@@ -1033,10 +1033,10 @@ function TSchuifje(elm, options) {
 	});
 	
 	elm_date_min.on('change', function(e) {
-		obj.update({min: DATEPARSER.int2Date(strDate2Int(elm_date_min.val()))});
+		obj.update({min: DATEPARSER.int2Date(DATEPARSER.strDate2Int(elm_date_min.val()))});
 	});
 	elm_date_max.on('change', function(e) {
-		obj.update({max: DATEPARSER.int2Date(strDate2Int(elm_date_max.val()))});
+		obj.update({max: DATEPARSER.int2Date(DATEPARSER.strDate2Int(elm_date_max.val()))});
 	});
 	
 	elm_speed_amount.on('change update', function(e) {

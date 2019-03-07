@@ -175,6 +175,7 @@ function MapGeo(element, obj_parent, options) {
 	arr_assets_texture_info = {},
 	arr_assets_texture_icons = {},
 	func_interact_stop = function() {},
+	is_weighted = false,
 	count_dot_weight_min = 0,
 	count_dot_weight_max = 0,
 	count_line_weight_max = 0,
@@ -439,11 +440,13 @@ function MapGeo(element, obj_parent, options) {
 					
 					var arr_condition = arr_data.legend.conditions[key];
 					
-					if (!arr_condition.icon) {
-						continue;
+					if (arr_condition.icon) {			
+						arr_media.push(arr_condition.icon);
 					}
 					
-					arr_media.push(arr_condition.icon);
+					if (arr_condition.weight) {
+						is_weighted = true;
+					}
 				}
 				
 				if (arr_media.length) {
@@ -3085,7 +3088,16 @@ function MapGeo(element, obj_parent, options) {
 		}
 		
 		arr_object_sub_dot.count++;
-		arr_object_sub_dot.weight += arr_object_sub.connected_object_ids.length * (arr_object_sub.style.weight != null ? arr_object_sub.style.weight : 1);
+		
+		if (is_weighted) {
+			if (arr_object_sub.style.weight != null) {
+				arr_object_sub_dot.weight += (arr_object_sub.connected_object_ids.length * arr_object_sub.style.weight);
+			} else if (!arr_object_sub_dot.weight) {
+				arr_object_sub_dot.weight = 1;
+			}
+		} else {
+			arr_object_sub_dot.weight += (arr_object_sub.connected_object_ids.length * 1);
+		}
 		
 		return arr_object_sub_dot.ref.push(object_sub_id) - 1;
 	};
@@ -3100,7 +3112,15 @@ function MapGeo(element, obj_parent, options) {
 				
 				arr_object_sub_dot.ref[pos] = 0;
 				arr_object_sub_dot.count--;
-				arr_object_sub_dot.weight -= arr_object_sub.connected_object_ids.length * (arr_object_sub.style.weight != null ? arr_object_sub.style.weight : 1);
+				if (is_weighted) {
+					if (arr_object_sub.style.weight != null) {
+						arr_object_sub_dot.weight -= (arr_object_sub.connected_object_ids.length * arr_object_sub.style.weight);
+					} else if (!arr_object_sub_dot.count) {
+						arr_object_sub_dot.weight = 0;
+					}
+				} else {
+					arr_object_sub_dot.weight -= (arr_object_sub.connected_object_ids.length * 1);
+				}
 				arr_object_sub_dot.updated = count_loop;
 			}
 		} else {
@@ -3108,7 +3128,15 @@ function MapGeo(element, obj_parent, options) {
 				
 				arr_object_sub_dot.ref[pos] = object_sub_id;
 				arr_object_sub_dot.count++;
-				arr_object_sub_dot.weight += arr_object_sub.connected_object_ids.length * (arr_object_sub.style.weight != null ? arr_object_sub.style.weight : 1);
+				if (is_weighted) {
+					if (arr_object_sub.style.weight != null) {
+						arr_object_sub_dot.weight += (arr_object_sub.connected_object_ids.length * arr_object_sub.style.weight);
+					} else if (!arr_object_sub_dot.weight) {
+						arr_object_sub_dot.weight = 1;
+					}
+				} else {
+					arr_object_sub_dot.weight += (arr_object_sub.connected_object_ids.length * 1);
+				}
 				arr_object_sub_dot.updated = count_loop;
 				
 				return true;
@@ -3186,8 +3214,16 @@ function MapGeo(element, obj_parent, options) {
 		arr_object_sub_lines_loc.count++;
 		arr_object_sub_line.count++;
 		
-		arr_object_sub_line.weight += (arr_connect_object_sub.style.weight != null ? arr_connect_object_sub.style.weight : 1);
-
+		if (is_weighted) {
+			if (arr_connect_object_sub.style.weight != null) {
+				arr_object_sub_line.weight += arr_connect_object_sub.style.weight;
+			} else if (!arr_object_sub_line.weight) {
+				arr_object_sub_line.weight = 1;
+			}
+		} else {
+			arr_object_sub_line.weight += 1;
+		}
+		
 		return arr_object_sub_line.ref.push(object_sub_id) - 1;
 	};
 	
@@ -3345,7 +3381,15 @@ function MapGeo(element, obj_parent, options) {
 				
 				arr_object_sub_line_ref[pos] = 0;
 				arr_object_sub_line.count--;
-				arr_object_sub_line.weight -= (arr_connect_object_sub.style.weight != null ? arr_connect_object_sub.style.weight : 1);
+				if (is_weighted) {
+					if (arr_connect_object_sub.style.weight != null) {
+						arr_object_sub_line.weight -= arr_connect_object_sub.style.weight;
+					} else if (!arr_object_sub_line.count) {
+						arr_object_sub_line.weight = 0;
+					}
+				} else {
+					arr_object_sub_line.weight -= 1;
+				}
 				arr_object_sub_line.updated = count_loop;
 				arr_object_sub_lines_loc.updated = count_loop;
 				arr_object_sub_lines_loc.count--;
@@ -3362,7 +3406,15 @@ function MapGeo(element, obj_parent, options) {
 				
 				arr_object_sub_line_ref[pos] = object_sub_id;
 				arr_object_sub_line.count++;
-				arr_object_sub_line.weight += (arr_connect_object_sub.style.weight != null ? arr_connect_object_sub.style.weight : 1);
+				if (is_weighted) {
+					if (arr_connect_object_sub.style.weight != null) {
+						arr_object_sub_line.weight += arr_connect_object_sub.style.weight;
+					} else if (!arr_object_sub_line.weight) {
+						arr_object_sub_line.weight = 1;
+					}
+				} else {
+					arr_object_sub_line.weight += 1;
+				}
 				arr_object_sub_line.updated = count_loop;
 				arr_object_sub_lines_loc.updated = count_loop;
 				arr_object_sub_lines_loc.count++;

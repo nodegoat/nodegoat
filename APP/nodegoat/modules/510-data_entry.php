@@ -122,7 +122,7 @@ class data_entry extends base_module {
 		}
 		
 		if ($this->arr_query) {
-			SiteEndVars::setModuleVars($this->mod_id, [], true); // Clear the settings in the url
+			SiteEndVars::setModVariables($this->mod_id, [], true); // Clear the settings in the url
 		}
 				
 		$return .= cms_general::createDataTableHeading('d:data_entry:data-'.$type_id, ['filter' => 'y:data_filter:open_filter-'.$type_id, 'filter_settings' => $arr_filter_settings['filter'], 'filter_search' => $arr_filter_settings['search'], 'order' => true]).'

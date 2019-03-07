@@ -50,6 +50,10 @@ class cms_nodegoat_details extends base_module {
 									<label>'.getLabel('lbl_view_limit').'</label>
 									<span><input type="text" name="details[limit_view]" value="'.$arr['limit_view'].'" /></span>
 								</li>
+								<li>
+									<label>'.getLabel('lbl_import_limit').'</label>
+									<span><input type="text" name="details[limit_import]" value="'.$arr['limit_import'].'" /></span>
+								</li>
 							</ul></fieldset>
 						</div>
 						

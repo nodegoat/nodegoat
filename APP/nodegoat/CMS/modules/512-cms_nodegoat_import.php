@@ -448,7 +448,9 @@ class cms_nodegoat_import extends base_module {
 		memoryBoost();
 		
 		$arr_delimiter_enclosure = self::getFileDelimiterEnclosure($file, $extension);
-
+		$arr_nodegoat_details = cms_nodegoat_details::getDetails();
+		$limit_import = $arr_nodegoat_details['limit_import'];
+		
 		$delimiter = $arr_delimiter_enclosure[0];
 		$enclosure = $arr_delimiter_enclosure[1];
 
@@ -465,6 +467,11 @@ class cms_nodegoat_import extends base_module {
 					$columns_count = count($arr_row);
 					$column_labels = $arr_row;
 					
+				} else if ($row_count > $limit_import) {
+					
+					Labels::setVariable('limit', $limit_import);
+					error(getLabel('msg_import_limit_exceeded'));
+
 				} else {
 				
 					for ($column = 0; $column < $columns_count; $column++) {

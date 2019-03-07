@@ -259,6 +259,8 @@ CREATE TABLE `def_nodegoat_custom_project_visual_settings` (
   `social_dot_color` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
   `social_dot_size_min` float NOT NULL,
   `social_dot_size_max` float NOT NULL,
+  `social_dot_size_start` int(11) NOT NULL,
+  `social_dot_size_stop` int(11) NOT NULL,
   `social_dot_stroke_color` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
   `social_dot_stroke_width` float DEFAULT NULL,
   `social_line_arrowhead_show` tinyint(1) DEFAULT NULL,
@@ -276,7 +278,8 @@ CREATE TABLE `def_nodegoat_custom_project_visual_settings` (
 
 CREATE TABLE `def_nodegoat_details` (
   `unique_row` tinyint(1) NOT NULL DEFAULT '1',
-  `limit_view` int(11) NOT NULL
+  `limit_view` int(11) NOT NULL,
+  `limit_import` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `def_nodegoat_import_files` (

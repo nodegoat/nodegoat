@@ -102,7 +102,8 @@ span.icon ~ sub { background-color: #fafafa; color: #131617; }
 .login > h1 { display: none; }
 .login > h1 + section { margin-top: 0px; }
 
-.entry.object-subs fieldset,
+.entry.object-subs div > fieldset,
+.entry.object-subs > fieldset,
 .entry.object-various > fieldset,
 .filter .fieldsets > div > fieldset,
 .data_import .rows > div > div > fieldset > fieldset,
@@ -113,17 +114,20 @@ span.icon ~ sub { background-color: #fafafa; color: #131617; }
 .filter .object-sub-descriptions.fieldsets > div > fieldset,
 .filter .external-references.fieldsets > div > fieldset { padding: 6px 10px; }
 .data_import .rows > div > div > fieldset > fieldset > legend,
-.entry.object-subs fieldset > legend,
+.entry.object-subs div > fieldset > legend,
+.entry.object-subs > fieldset > legend,
 .filter .object-sub-details.fieldsets > div > fieldset > legend,
 .data_model .object-sub-details > .sorter > li > div > fieldset > legend,
 .data_model .import_confirm .options #tab-object-sub .options > fieldset > legend { background-color: #e1e1e1; padding: 4px 8px 0px 8px; }
 .data_import .rows > div > div > fieldset > fieldset > legend + *,
-.entry.object-subs fieldset > legend + *,
+.entry.object-subs div > fieldset > legend + *,
+.entry.object-subs > fieldset > legend + *,
 .filter .object-sub-details.fieldsets > div > fieldset > legend + *,
 .data_model .object-sub-details > .sorter > li > div > fieldset > legend + *,
 .data_model .import_confirm .options #tab-object-sub .options > fieldset > legend + * { margin-top: 0px; }
 .data_import .rows > div > div > fieldset > fieldset > *:last-child,
-.entry.object-subs fieldset > *:last-child,
+.entry.object-subs div > fieldset > *:last-child,
+.entry.object-subs > fieldset > *:last-child,
 .filter .fieldsets > div > fieldset > *:last-child,
 .data_model .object-sub-details > .sorter > li > div > fieldset > *:last-child,
 .data_model .import_confirm .options #tab-object-sub .options > fieldset > *:last-child { margin-bottom: 0px; }

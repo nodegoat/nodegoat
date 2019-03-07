@@ -620,7 +620,10 @@ class data_model extends base_module {
 		
 		$arr_values = ($arr_value_type_options['default']['value'] ?: '');
 		
-		if ($value_type == 'type' || $value_type == 'classification') {
+		if ($value_type == 'reversal') {
+			
+			return '';
+		} else if ($value_type == 'type' || $value_type == 'classification') {
 			
 			$arr_type_object_names = ($arr_values ? FilterTypeObjects::getTypeObjectNames($ref_type_id, $arr_values) : []);
 			

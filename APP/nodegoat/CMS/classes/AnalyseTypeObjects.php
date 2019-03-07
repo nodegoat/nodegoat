@@ -178,15 +178,16 @@ class AnalyseTypeObjects {
 		return true;
 	}
 	
-	protected function runCount() {
-
-		$mode = $this->arr_analyse['settings']['mode'];
+	protected function runDegreeCentrality() {
+		
+		$mode_weighted = $this->arr_analyse['settings']['weighted']['mode'];
+		$num_weight_limit_max = (int)$this->arr_analyse['settings']['weighted']['max'];
 		
 		$this->arr_store = [];
 		
 		$arr_row = fgetcsv($this->resource, 0, ','); // Heading
 		
-		if ($mode == 'unique') {
+		if ($mode_weighted == 'unweighted') {
 			
 			$arr_check = [];
 			
@@ -212,7 +213,9 @@ class AnalyseTypeObjects {
 				$s_arr++;
 			}
 		} else {
-
+			
+			$num_weight_max = 0;
+			
 			while (($arr_row = fgetcsv($this->resource, 0, ',')) !== false) {
 				
 				$object_id_from = explode('-', $arr_row[1]);
@@ -225,6 +228,28 @@ class AnalyseTypeObjects {
 				}
 			
 				$s_arr++;
+				
+				if ($s_arr > $num_weight_max) {
+					$num_weight_max = $s_arr;
+				}
+			}
+					
+			if ($num_weight_limit_max) {
+				$num_weight_max = $num_weight_limit_max;
+			}
+			
+			foreach ($this->arr_store as $object_id => &$arr_value) {
+				
+				$s_arr = &$arr_value[0];
+			
+				if ($s_arr > $num_weight_max) {
+					$s_arr = $num_weight_max;
+				}
+				
+				if ($mode_weighted == 'closeness') { // Reverse weight based on maximum weight
+
+					$s_arr = 1 + ($num_weight_max - $s_arr);
+				}
 			}
 		}
 	}
@@ -290,33 +315,20 @@ class AnalyseTypeObjects {
 	public static function getAlgorithms($algorithm = false) {
 		
 		$arr = [
-			'count' => [
-				'id' => 'count',
-				'name' => getLabel('lbl_analysis_count'),
+			'degree_centrality' => [
+				'id' => 'degree_centrality',
+				'name' => getLabel('lbl_analysis_degree_centrality'),
 				'options' => function($type_id, $form_name, $arr_options = []) {
 
-					$arr_modes = [
-						['id' => 'unique', 'name' => getLabel('lbl_analysis_count_unique')],
-						['id' => 'sum', 'name' => getLabel('lbl_analysis_count_sum')]
-					];
-					
-					$arr_html = [
-						getLabel('lbl_mode') => '<div>'.cms_general::createSelectorRadio($arr_modes, $form_name.'[mode]', ($arr_options['mode'] ?: 'unique')).'</div>'
-					];
-					
-					return $arr_html;
+					return false;
 				},
 				'parse' => function($arr_settings) {
 					
-					$arr_settings_parsed = [];
-					
-					$arr_settings_parsed['mode'] = ($arr_settings['mode'] ?: 'unique');
-
-					return $arr_settings_parsed;
+					return $arr_settings;
 				},
-				'function' => 'runCount',
+				'function' => 'runDegreeCentrality',
 				'graph' => false,
-				'weighted' => false
+				'weighted' => true
 			],
 			'shortest_path' => [
 				'id' => 'shortest_path',

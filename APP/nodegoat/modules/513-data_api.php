@@ -43,7 +43,7 @@ class data_api extends base_module {
 		
 	public function api() {
 
-		$arr_request_vars = SiteStartVars::getModuleVars(0);
+		$arr_request_vars = SiteStartVars::getModVariables(0);
 		
 		if ($arr_request_vars && !end($arr_request_vars)) { // Remove the last empty request variable to allow for a final '/'
 			unset($arr_request_vars[key($arr_request_vars)]);

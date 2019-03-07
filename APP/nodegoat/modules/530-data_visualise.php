@@ -316,8 +316,14 @@ class data_visualise extends base_module {
 				<div class="options fieldsets"><div>
 					<fieldset><legend>'.getLabel('lbl_design').'</legend><ul>
 						<li><label>'.getLabel('lbl_dot').' '.getLabel('lbl_color').'</label><span><input name="visual_settings[social][dot][color]" type="text" value="'.$arr_settings['social']['dot']['color'].'" class="colorpicker" /></span></li>
-						<li><label>'.getLabel('lbl_dot').' '.getLabel('lbl_size_min').'</label><input name="visual_settings[social][dot][size][min]" type="number" step="0.5" min="1" value="'.$arr_settings['social']['dot']['size']['min'].'" /></li>
-						<li><label>'.getLabel('lbl_dot').' '.getLabel('lbl_size_max').'</label><input name="visual_settings[social][dot][size][max]" type="number" step="0.5" min="1" value="'.$arr_settings['social']['dot']['size']['max'].'" /></li>
+						<li><label>'.getLabel('lbl_dot').' '.getLabel('lbl_size_min').'</label><span>'
+							.'<input name="visual_settings[social][dot][size][min]" type="number" step="0.5" min="1" value="'.$arr_settings['social']['dot']['size']['min'].'" />'
+							.'<input name="visual_settings[social][dot][size][start]" type="number" step="1" min="0" value="'.$arr_settings['social']['dot']['size']['start'].'" title="'.getLabel('inf_size_start').'" />'
+						.'</span></li>
+						<li><label>'.getLabel('lbl_dot').' '.getLabel('lbl_size_max').'</label><span>'
+							.'<input name="visual_settings[social][dot][size][max]" type="number" step="0.5" min="1" value="'.$arr_settings['social']['dot']['size']['max'].'" />'
+							.'<input name="visual_settings[social][dot][size][stop]" type="number" step="1" min="0" value="'.$arr_settings['social']['dot']['size']['stop'].'" title="'.getLabel('inf_size_stop').'" />'
+						.'<span></li>
 						<li><label>'.getLabel('lbl_dot').' '.getLabel('lbl_stroke_color').'</label><span><input name="visual_settings[social][dot][stroke_color]" type="text" value="'.$arr_settings['social']['dot']['stroke_color'].'" class="colorpicker" /></span></li>
 						<li><label>'.getLabel('lbl_dot').' '.getLabel('lbl_stroke_width').'</label><input name="visual_settings[social][dot][stroke_width]"  type="number" step="0.5" min="0" value="'.$arr_settings['social']['dot']['stroke_width'].'" /></li>
 						<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_line').'</label><span>'.cms_general::createSelectorRadio($arr_yes_no, 'visual_settings[social][line][show]', $arr_settings['social']['line']['show']).'</span></li>

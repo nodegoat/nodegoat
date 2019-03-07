@@ -963,7 +963,7 @@ class GenerateTypeObjects {
 								
 										$column_index = $column_index_object_conditions_subs_values + $arr_condition_setting['condition_value_column_index'];
 										
-										$arr_condition_setting['condition_actions']['weight']['object_description_value'] = $arr_row[$column_index];
+										$arr_condition_setting['condition_actions']['weight']['object_description_value'] = (int)$arr_row[$column_index];
 									}
 									
 									$this->setObjectConditions('object_sub', $arr_condition_setting['condition_actions']);
@@ -999,7 +999,7 @@ class GenerateTypeObjects {
 										
 												$column_index = $column_index_object_conditions_subs_values + $arr_condition_setting['condition_value_column_index'];
 												
-												$arr_condition_setting['condition_actions']['weight']['object_description_value'] = $arr_row[$column_index];
+												$arr_condition_setting['condition_actions']['weight']['object_description_value'] = (int)$arr_row[$column_index];
 											}
 										}
 										
@@ -1297,7 +1297,7 @@ class GenerateTypeObjects {
 								
 								$column_index = $column_index_object_conditions_values + $arr_condition_setting['condition_value_column_index'];
 								
-								$arr_condition_setting['condition_actions']['weight']['object_description_value'] = $arr_row[$column_index];
+								$arr_condition_setting['condition_actions']['weight']['object_description_value'] = (int)$arr_row[$column_index];
 							}
 							
 							$this->setObjectConditions('object', $arr_condition_setting['condition_actions']);
@@ -1336,7 +1336,7 @@ class GenerateTypeObjects {
 								
 										$column_index = $column_index_object_conditions_values + $arr_condition_setting['condition_value_column_index'];
 										
-										$arr_condition_setting['condition_actions']['weight']['object_description_value'] = $arr_row[$column_index];
+										$arr_condition_setting['condition_actions']['weight']['object_description_value'] = (int)$arr_row[$column_index];
 									}
 								}
 								
@@ -2801,26 +2801,38 @@ class GenerateTypeObjects {
 						$object_analysis_id = $arr_condition_setting['condition_value']['object_analysis_id'];
 						
 						if ($object_analysis_id) {
-							
-							$column_name = 'an_'.$object_analysis_id;
-							
+														
 							$table_name = 'nodegoat_to_an';
 							
 							$arr_object_analysis_id = explode('_', $object_analysis_id);
 							
+							$analysis_id = (int)$arr_object_analysis_id[0];
 							$analysis_user_id = (int)$arr_object_analysis_id[1];
-							$analysis_user_id = ($this->arr_scope['users'] && in_array($analysis_user_id, $this->arr_scope['users']) ? $analysis_user_id : 0);
+							
+							if ($analysis_id && !$analysis_user_id) {
+								$analysis_user_id = 0;
+							} else if ($analysis_user_id) {
+								$analysis_user_id = ($this->arr_scope['users'] && in_array($analysis_user_id, $this->arr_scope['users']) ? $analysis_user_id : false);
+							} else if (!$analysis_id) {
+								$analysis_user_id = ($this->arr_scope['users'] ? current($this->arr_scope['users']) : false);
+							}
+							
+							if (!$analysis_user_id) { // Make sure we have something
+								$analysis_user_id = 0;
+							}
+							
+							$column_name = 'an_'.$analysis_id.'_'.$analysis_user_id;
 							
 							$arr_sql_value[$column_name] = "(SELECT
 								".$table_name.".number
 									FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_ANALYSES')." AS ".$table_name."
 								WHERE ".$table_name.".object_id = nodegoat_to.id
 									AND ".$table_name.".user_id = ".$analysis_user_id."
-									AND ".$table_name.".analysis_id = ".(int)$arr_object_analysis_id[0]."
+									AND ".$table_name.".analysis_id = ".$analysis_id."
 									AND ".$table_name.".state = 1
 							)";
 						}
-						
+												
 						$column_name = 'object_condition_value_';
 						
 						if (count($arr_sql_value) > 1) {
@@ -2890,7 +2902,18 @@ class GenerateTypeObjects {
 							
 							$analysis_id = (int)$arr_object_analysis_id[0];
 							$analysis_user_id = (int)$arr_object_analysis_id[1];
-							$analysis_user_id = ($this->arr_scope['users'] && in_array($analysis_user_id, $this->arr_scope['users']) ? $analysis_user_id : 0);
+							
+							if ($analysis_id && !$analysis_user_id) {
+								$analysis_user_id = 0;
+							} else if ($analysis_user_id) {
+								$analysis_user_id = ($this->arr_scope['users'] && in_array($analysis_user_id, $this->arr_scope['users']) ? $analysis_user_id : false);
+							} else if (!$analysis_id) {
+								$analysis_user_id = ($this->arr_scope['users'] ? current($this->arr_scope['users']) : false);
+							}
+							
+							if (!$analysis_user_id) { // Make sure we have something
+								$analysis_user_id = 0;
+							}
 							
 							$column_name = 'an_'.$analysis_id.'_'.$analysis_user_id;
 							
@@ -4700,8 +4723,11 @@ class GenerateTypeObjects {
 						case 'weight':
 							if ($this->conditions == 'visual') {
 								$amount = (int)$arr_action['number'];
-								if ($arr_action['object_description_value']) {
-									$amount = $amount * $arr_action['object_description_value'];
+								if ($arr_action['object_description_value'] !== null) {
+									if ($arr_action['object_description_value'] == 0 || ($arr_action['number'] !== null && $amount == 0)) { // Do not apply if weight calculation would end up 0
+										break;
+									}
+									$amount = (($amount ?: 1) * $arr_action['object_description_value']);
 								}
 								if ($arr_style['weight'] === null || !$arr_action['check']) {
 									$arr_style['weight'] = 0;
@@ -4721,6 +4747,7 @@ class GenerateTypeObjects {
 									$arr_style['geometry_opacity'] = $arr_action['opacity'];
 								}
 							}
+							break;
 						case 'geometry_stroke_color':
 							if ($this->conditions == 'visual') {
 								if ($arr_action['color']) {
