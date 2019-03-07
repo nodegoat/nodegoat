@@ -13,3 +13,5 @@ Initial release.
 * Renamed Analysis metric 'Count' to 'Degree Centrality' and added the weight option.
 * Fixed/improved the combination of touch an mouse interaction in MapScroller.js and MapSocial.js.
 * Added the option to limit the amount of rows from one CSV when importing data. This can be adjusted in the CMS under nodegoat Details.
+
+## VERSION x.x
