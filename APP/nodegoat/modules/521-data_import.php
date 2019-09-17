@@ -25,7 +25,7 @@ class data_import extends base_module {
 	public function contents() {
 		
 		$arr_types = StoreType::getTypes(); 
-				
+								
 		if (count((array)$arr_types) == 0) {
 					
 			return '<section class="info attention">
@@ -135,12 +135,13 @@ class data_import extends base_module {
 			
 			$arr_details = cms_nodegoat_import::getImportTemplates($id);
 			$type_id = $arr_details['import_template']['type_id'];
+			$source_file_id = $arr_details['import_template']['source_file_id'];
 			
 			if ($arr_details['columns']) {
 				
 				foreach ($arr_details['columns'] as $key => $arr_column) {
 					
-					if ($arr_column['is_filter']) {
+					if ($arr_column['use_as_filter']) {
 						
 						$template_has_filter = true;
 					}
@@ -149,15 +150,18 @@ class data_import extends base_module {
 						
 						$template_has_filter_type_object_id = true;
 					}
-				}			
+				}	
+						
+			} else {
+				
+				$arr_details['columns'] = [];
 			}
 			
 			if (!$type_id || !$arr_type_sets[$type_id]) {
 				error(getLabel('msg_type_does_not_exist'));
 			}
 		}
-		
-		
+	
 		$return = '<h1>'.($id ? getLabel('lbl_import_template').': '.$arr_details['import_template']['name'] : getLabel('lbl_import_template')).'</h1>
 
 				<div class="options">
@@ -166,11 +170,11 @@ class data_import extends base_module {
 						<ul>
 							<li>
 								<label>CSV '.getLabel('lbl_file').'</label>
-								<span><select name="template_source_file_id">'.cms_general::createDropdown($arr_source_files, $arr_details['import_template']['source_file_id'], true).'</select></span>
+								<select name="template_source_file_id">'.cms_general::createDropdown($arr_source_files, $source_file_id, true).'</select>
 							</li>
 							<li>
 								<label>'.getLabel('lbl_target').'</label>
-								<span><select name="template_type_id">'.Labels::parseTextVariables(cms_general::createDropdown($arr_type_sets, $type_id, true)).'</select></span>
+								<select name="template_type_id">'.Labels::parseTextVariables(cms_general::createDropdown($arr_type_sets, $type_id, true)).'</select>
 							</li>
 							<li>
 								<label>'.getLabel('lbl_name').'</label>
@@ -178,7 +182,9 @@ class data_import extends base_module {
 							</li>
 							<li>
 								<label>'.getLabel('lbl_mode').'</label>
-								<span>'.cms_general::createSelectorRadio([['id' => 'add', 'name' => getLabel('lbl_import_add_new_objects')], ['id' => 'update', 'name' => getLabel('lbl_import_update_objects')]], 'template_mode', ($template_has_filter ? 'update' : 'add')).'</span>
+								'.cms_general::createSelectorRadio([['id' => 'add', 'name' => getLabel('lbl_import_add_new_objects')], ['id' => 'update', 'name' => getLabel('lbl_import_update_objects')]], 'template_mode', ($template_has_filter ? 'update' : 'add')).'
+								<span class="split"></span>
+								<label><input type="checkbox" name="use_log" value="1" '.($arr_details['import_template']['use_log'] ? 'checked="checked"' : '').'/><span>'.getLabel('lbl_import_show_log').'</span></label>
 							</li>
 						</ul>
 					</fieldset>
@@ -191,60 +197,19 @@ class data_import extends base_module {
 						<ul>
 							<li>
 								<label>'.getLabel('lbl_import_identify_objects').'</label>
-								<span>'.cms_general::createSelectorRadio([['id' => 'id', 'name' => 'nodegoat ID'], ['id' => 'filter', 'name' => getLabel('lbl_filter')]], 'filter_mode', ($template_has_filter && !$template_has_filter_type_object_id ? 'filter' : 'id')).'</span>
+								'.cms_general::createSelectorRadio([['id' => 'id', 'name' => 'nodegoat ID'], ['id' => 'filter', 'name' => getLabel('lbl_filter')]], 'filter_mode', ($template_has_filter && !$template_has_filter_type_object_id ? 'filter' : 'id')).'
 							</li>
 							<li class="'.($template_has_filter && $template_has_filter_type_object_id ? '' : 'hide').'">
 								<label>nodegoat ID</label>
-								<div id="y:data_import:set_columns-filter_id">';
-
-									$arr_sorter = [];
-									
-									if ($arr_details['columns']) {
-										
-										foreach ($arr_details['columns'] as $key => $arr_column) {
-											
-											if ($arr_column['target_type_id'] == $type_id && $arr_column['is_filter'] && $arr_column['use_object_id_as_filter']) { 
-												
-												$arr_column['is_filter'] = true;
-												$arr_column['use_object_id_as_filter'] = true;
-												
-												$arr_sorter[] = ['value' => self::createColumn($arr_column)];
-												
-												break;
-											}
-										}
-									}
-									
-									$return .= cms_general::createSorter($arr_sorter, false);
-																	
-								$return .= '</div>
-							
+								<div id="y:data_import:set_columns-filter_id">'.($arr_details ? self::createColumns($source_file_id, $type_id, $arr_details['columns'], 'filter_id') : '').'</div>
 							</li>
 							<li class="'.($template_has_filter && !$template_has_filter_type_object_id ? '' : 'hide').'">
 								<label></label>
-								<span><input type="button" class="data add" value="add" /></span>
+								<input type="button" class="data add" value="add" />
 							</li>
 							<li class="'.($template_has_filter && !$template_has_filter_type_object_id ? '' : 'hide').'">
 								<label>'.getLabel('lbl_filter').' '.getLabel('lbl_columns').'</label>
-								<div id="y:data_import:set_columns-filter">';
-								
-									$arr_sorter = [];
-									
-									if ($arr_details['columns']) {
-										
-										foreach ($arr_details['columns'] as $key => $arr_column) {
-											
-											if ($arr_column['target_type_id'] == $type_id && $arr_column['is_filter'] && !$arr_column['use_object_id_as_filter']) { 
-												
-												$arr_column['is_filter'] = true;
-												
-												$arr_sorter[] = ['value' => self::createColumn($arr_column)];
-											}
-										}
-									}
-									
-									$return .= cms_general::createSorter($arr_sorter, true);
-					$return .= '</div>
+								<div id="y:data_import:set_columns-filter">'.($arr_details ? self::createColumns($source_file_id, $type_id, $arr_details['columns'], 'filter') : '').'</div>
 							</li>
 						</ul>
 					</fieldset>
@@ -257,26 +222,11 @@ class data_import extends base_module {
 						<ul>
 							<li>
 								<label></label>
-								<span><input type="button" class="data add" value="add" /></span>
+								<input type="button" class="data add" value="add" />
 							</li>
 							<li>
 								<label>'.getLabel('lbl_columns').'</label>
-								<div id="y:data_import:set_columns-0">';
-									$arr_sorter = [];
-									
-									if ($arr_details['columns']){
-										
-										foreach ($arr_details['columns'] as $key => $arr_column) {
-											
-											if (!$arr_column['is_filter'] && $arr_column['target_type_id'] == $type_id) { 
-											
-												$arr_sorter[] = ['value' => self::createColumn($arr_column)];
-											}
-										}
-									}
-									
-									$return .= cms_general::createSorter($arr_sorter, true);
-					$return .= '</div>
+								<div id="y:data_import:set_columns-0">'.($arr_details ? self::createColumns($source_file_id, $type_id, $arr_details['columns'], false, ($template_has_filter ? 'update' : 'store')) : '').'</div>
 							</li>
 						</ul>
 					</fieldset>
@@ -313,7 +263,8 @@ class data_import extends base_module {
 				<li class="file">
 					<label>'.getLabel('lbl_file').':</label>'.cms_general::createFileBrowser();
 				$return .= '</li>
-			</ul></fieldset>
+				</ul>
+			</fieldset>
 		</div>
 		
 		<menu class="options">
@@ -361,14 +312,56 @@ class data_import extends base_module {
 		<menu class="options">
 			<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_string_object_pair').'" /><input type="submit" name="discard" value="'.getLabel('lbl_cancel').'" />
 		</menu>';
-			
+				
 		return $return;
 		
 	}
 	
-	private function createColumn($arr_column = []) {
+	private function createColumns($source_file_id, $type_id, $arr_columns = [], $filter = false, $template_mode = 'store') {
 		
-		$arr_type_set = cms_nodegoat_import::flattenTypeSet($arr_column['target_type_id'], false, $arr_column['is_filter']);
+		$arr_sorter = [];
+		
+		array_unshift($arr_columns, ['target_type_id' => $type_id, 'source_file_id' => $source_file_id, 'use_as_filter' => $filter]); // Empty run for sorter source
+
+		foreach ((array)$arr_columns as $key => $arr_column) {
+
+			if ($arr_column['target_type_id'] != $type_id) {
+				
+				continue;
+			}
+			
+			$set_column = false;
+			
+			if ($filter == 'filter_id' && $arr_column['use_as_filter'] && $arr_column['use_object_id_as_filter']) {
+	
+				$set_column = true;
+				
+			} else if ($filter == 'filter' && $arr_column['use_as_filter'] && !$arr_column['use_object_id_as_filter']) {
+					
+				$set_column = true;
+		
+			} else if (!$filter && !$arr_column['use_as_filter']) {
+							
+				if ($template_mode == 'update') {
+						
+					$arr_column['template_mode'] = $template_mode;
+				}
+				
+				$set_column = true;
+			}
+			
+			if ($set_column) {
+				
+				$arr_sorter[] = ['source' => ($key == 0 ? true : false), 'value' => self::createColumn($arr_column)];
+			}
+		}
+
+		return cms_general::createSorter($arr_sorter, ($filter == 'filter_id' ? false : true));
+	}
+	
+	private function createColumn($arr_column = []) {
+
+		$arr_type_set = cms_nodegoat_import::flattenTypeSet($arr_column['target_type_id'], false, $arr_column['use_as_filter']);
 		$column_heading = $arr_column['column_heading'];
 	
 		if (!$arr_column['arr_column_headings']) {
@@ -390,65 +383,78 @@ class data_import extends base_module {
 			$element_id = key($arr_type_set);
 		}
 
-		$input_elms = '<input name="column_id[]" data-name="column_id" type="hidden" value="'.$arr_column['column_id'].'" />'
-			.'<input name="source_file_id[]" data-name="source_file_id" type="hidden" value="'.$arr_column['source_file_id'].'" />'
-			.'<select name="column_heading[]" data-name="column_heading" title="'.getLabel('inf_import_column_heading').'">'.cms_general::createDropdown((array)$arr_column['arr_column_headings'], $column_heading, false).'</select>'
-			.'<input name="target_type_id[]" data-name="target_type_id" type="hidden" value="'.$arr_column['target_type_id'].'" />'
-			.'<input name="is_filter[]" data-name="is_filter" type="hidden" value="'.$arr_column['is_filter'].'" />'
-			.'<input name="use_object_id_as_filter[]" data-name="use_object_id_as_filter" type="hidden" value="'.$arr_column['use_object_id_as_filter'].'" />'
-			.'<input name="splitter[]" '.($arr_column['is_filter'] ? 'class="hide"' : '').' data-name="splitter" type="text" value="'.$arr_column['splitter'].'" title="'.getLabel('inf_import_use_splitter_character').'" />'
-			.'<select name="generate[]" '.($arr_column['is_filter'] ? 'class="hide"' : '').' data-name="generate" '.($arr_column['generate'] && $arr_column['splitter'] ? '' : 'class="hide"').' title="'.getLabel('inf_import_specify_multiple_contents').'">'.cms_general::createDropdown(cms_nodegoat_import::getGenerateOptions(), $arr_column['generate']).'</select>';
-
-					
-		$input_elms .= '<select name="element_id[]" '.($arr_column['is_filter'] && $arr_column['use_object_id_as_filter'] ? 'class="hide"' : '').' data-name="element_id" title="'.getLabel('inf_import_target_in_data_model').'">'.cms_general::createDropdown((array)$arr_type_set, $element_id, false).'</select>';
-
-		if ($arr_type_set[$element_id]['ref_type_id'] || $arr_type_set[$element_id]['location_reference']) {
-			
-			if ($arr_type_set[$element_id]['ref_type_is_changeable']) {
-				
-				$ref_type_id = ($arr_column['element_type_id'] ? $arr_column['element_type_id'] : $arr_type_set[$element_id]['ref_type_id']);
-			} else {
-				
-				$disabled = true;
-				$ref_type_id = $arr_type_set[$element_id]['ref_type_id'];
-			}
+		$unique = uniqid('array_');
 		
-			$arr_ref_type_set = cms_nodegoat_import::flattenTypeSet($ref_type_id, true, true);
-			$arr_types = StoreType::getTypes();
-		
-			$input_elms .= '<select name="element_type_id[]" data-name="element_type_id" '.($disabled ? 'disabled' : '').' title="'.getLabel('inf_import_type_of_target_element').'">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types, $ref_type_id, false)).'</select>';
-			
-			if ($arr_type_set[$element_id]['location_reference']) {
+		$elm_column = '<input name="columns['.$unique.'][column_id]" data-name="column_id" type="hidden" value="'.$arr_column['column_id'].'" />'
+			.'<input name="columns['.$unique.'][source_file_id]" data-name="source_file_id" type="hidden" value="'.$arr_column['source_file_id'].'" />'
+			.'<select name="columns['.$unique.'][column_heading]" data-name="column_heading" title="'.getLabel('inf_import_column_heading').'">'.cms_general::createDropdown((array)$arr_column['arr_column_headings'], $column_heading, false).'</select>'
+			.'<input name="columns['.$unique.'][target_type_id]" data-name="target_type_id" type="hidden" value="'.$arr_column['target_type_id'].'" />'
+			.'<input name="columns['.$unique.'][use_as_filter]" data-name="use_as_filter" type="hidden" value="'.$arr_column['use_as_filter'].'" />'
+			.'<input name="columns['.$unique.'][use_object_id_as_filter]" data-name="use_object_id_as_filter" type="hidden" value="'.$arr_column['use_object_id_as_filter'].'" />'
+			.'<input name="columns['.$unique.'][cell_splitter]" '.($arr_column['use_as_filter'] ? 'class="hide"' : '').' data-name="cell_splitter" type="text" value="'.$arr_column['cell_splitter'].'" title="'.getLabel('inf_import_use_splitter_character').'" />'
+			.'<select name="columns['.$unique.'][generate_from_split]" '.($arr_column['use_as_filter'] ? 'class="hide"' : '').' data-name="generate_from_split" '.($arr_column['generate_from_split'] && $arr_column['cell_splitter'] ? '' : 'class="hide"').' title="'.getLabel('inf_import_specify_multiple_contents').'">'.cms_general::createDropdown(cms_nodegoat_import::getGenerateOptions(), $arr_column['generate_from_split']).'</select>'
+			.'<select name="columns['.$unique.'][element_id]" '.($arr_column['use_as_filter'] && $arr_column['use_object_id_as_filter'] ? 'class="hide"' : '').' data-name="element_id" title="'.getLabel('inf_import_target_in_data_model').'">'.cms_general::createDropdown((array)$arr_type_set, $element_id, false).'</select>';
+
+			if ($arr_type_set[$element_id]['ref_type_id'] || $arr_type_set[$element_id]['location_reference']) {
 				
-				if ($arr_type_set[$element_id]['object_sub_details_is_changeable']) {
+				if ($arr_type_set[$element_id]['ref_type_is_changeable']) {
 					
-					$object_sub_details_id = ($arr_column['element_type_object_sub_id'] ? $arr_column['element_type_object_sub_id'] : $arr_type_set[$element_id]['object_sub_details_id']);
+					$ref_type_id = ($arr_column['element_type_id'] ? $arr_column['element_type_id'] : $arr_type_set[$element_id]['ref_type_id']);
 					
 				} else {
 					
-					$sub_disabled = true;
-					$object_sub_details_id = $arr_type_set[$element_id]['object_sub_details_id'];
+					$disabled = true;
+					$ref_type_id = $arr_type_set[$element_id]['ref_type_id'];
 				}
+			
+				$arr_ref_type_set = cms_nodegoat_import::flattenTypeSet($ref_type_id, true, true);
+				$arr_types = StoreType::getTypes();
+				
+				$elm_column .= '<select name="columns['.$unique.'][element_type_id]" data-name="element_type_id" '.($disabled ? 'disabled' : '').' title="'.getLabel('inf_import_type_of_target_element').'">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types, $ref_type_id, false)).'</select>';
+				
+				if ($arr_type_set[$element_id]['location_reference']) {
+					
+					if ($arr_type_set[$element_id]['object_sub_details_is_changeable']) {
 						
-				$input_elms .= '<select name="element_type_object_sub_id[]" data-name="element_type_object_sub_id" '.($sub_disabled ? 'disabled' : '').' title="'.getLabel('inf_import_sub_object_of_location_reference_type').'">'.Labels::parseTextVariables(cms_general::createDropdown(StoreType::getTypeObjectSubsDetails($ref_type_id), $object_sub_details_id, false, 'object_sub_details_name', 'object_sub_details_id')).'</select>';
+						$object_sub_details_id = ($arr_column['element_type_object_sub_id'] ? $arr_column['element_type_object_sub_id'] : $arr_type_set[$element_id]['object_sub_details_id']);
+						
+					} else {
+						
+						$sub_disabled = true;
+						$object_sub_details_id = $arr_type_set[$element_id]['object_sub_details_id'];
+					}
+							
+					$elm_column .= '<select name="columns['.$unique.'][element_type_object_sub_id]" data-name="element_type_object_sub_id" '.($sub_disabled ? 'disabled' : '').' title="'.getLabel('inf_import_sub_object_of_location_reference_type').'">'.Labels::parseTextVariables(cms_general::createDropdown(StoreType::getTypeObjectSubsDetails($ref_type_id), $object_sub_details_id, false, 'object_sub_details_name', 'object_sub_details_id')).'</select>';
+				
+				} else {
+					
+					$elm_column .= '<input name="columns['.$unique.'][element_type_object_sub_id]" type="hidden"/>';
+					
+				}
+				 
+				$elm_column .= '<select name="columns['.$unique.'][element_type_element_id]" data-name="element_type_element_id" title="'.getLabel('inf_import_element_used_for_reference').'">'.cms_general::createDropdown((array)$arr_ref_type_set, $arr_column['element_type_element_id'], true).'</select>';
+				
 			} else {
 				
-				$input_elms .= '<input name="element_type_object_sub_id[]" type="hidden"/>';
+				$elm_column .= '<input name="columns['.$unique.'][element_type_id]" type="hidden" value="0" />'
+					.'<input name="columns['.$unique.'][element_type_object_sub_id]" type="hidden" value="0" />'
+					.'<input name="columns['.$unique.'][element_type_element_id]" type="hidden" value="0" />';
 			}
-			 
-			$input_elms .= '<select name="element_type_element_id[]" data-name="element_type_element_id" title="'.getLabel('inf_import_element_used_for_reference').'">'.cms_general::createDropdown((array)$arr_ref_type_set, $arr_column['element_type_element_id'], true).'</select>';
-			
-		} else {
-			
-			$input_elms .= '<input name="element_type_id[]" type="hidden" value="0" />'
-				.'<input name="element_type_object_sub_id[]" type="hidden" value="0" />'
-				.'<input name="element_type_element_id[]" type="hidden" value="0" />';
-		}
 		
-		$input_elms .= '<input type="button" class="data del '.($arr_column['is_filter'] && $arr_column['use_object_id_as_filter'] ? 'hide' : '').'" value="del" title="'.getLabel('inf_import_remove_column').'" />';
+			$options_set = $arr_column['overwrite'] || $arr_column['ignore_when'];
+			$elm_column .= '<input type="button" class="data neutral '.($arr_column['use_as_filter'] ? 'hide' : ($arr_column['template_mode'] == 'update' ? ($options_set ? 'hide' : '') : 'hide')).' column-options" name="options" value="more" title="'.getLabel('lbl_import_specify_additional_options').'" /><input type="button" class="data del '.($arr_column['use_as_filter'] && $arr_column['use_object_id_as_filter'] ? 'hide' : '').'" value="del" title="'.getLabel('lbl_import_remove_column').'" />';
+			$elm_column = '<div id="y:data_import:create_column-'.$arr_column['source_file_id'].'_'.$arr_column['target_type_id'].($arr_column['use_as_filter'] ? '_filter' : '').'">'.$elm_column.'</div>';
 
-		
-		return '<div id="y:data_import:create_column-'.$arr_column['source_file_id'].'_'.$arr_column['target_type_id'].($arr_column['is_filter'] ? '_filter' : '').'">'.$input_elms.'</div>';
+			$elm_options = '<fieldset class="column-options '.($arr_column['template_mode'] == 'update' && $options_set ? '' : 'hide').'">
+							<ul><li><div>
+								<label><input type="radio" name="columns['.$unique.'][write]" value="overwrite" '.($arr_column['overwrite'] ? 'checked="checked"' : '').'/><span>'.getLabel('lbl_overwrite').'</span></label>
+								<label><input type="radio" name="columns['.$unique.'][write]" value="append" '.(!$arr_column['overwrite'] ? 'checked="checked"' : '').' /><span>'.getLabel('lbl_append').'</span></label>
+								<label><input type="checkbox" name="columns['.$unique.'][ingore_empty]" value="1" '.($arr_column['ignore_when'] == 1 || $arr_column['ignore_when'] == 3 ? 'checked="checked"' : '').'/><span>'.getLabel('lbl_import_ignore_empty').'</span></label>
+								<label><input type="checkbox" name="columns['.$unique.'][ingore_identical]" value="2" '.($arr_column['ignore_when'] == 2 || $arr_column['ignore_when'] == 3 ? 'checked="checked"' : '').'/><span>'.getLabel('lbl_import_ignore_identical').'</span></label>
+							</div></li></ul>
+						</fieldset>';
+
+		return [$elm_column, $elm_options];
 	}
 	
 	private function createFileSelection($import_template_id) {
@@ -468,28 +474,28 @@ class data_import extends base_module {
 		}
 
 		$return = '<form id="f:data_import:run_import-'.$import_template_id.'">
-		<h1>'.getLabel('lbl_run').' '.getLabel('lbl_import_template').': "'.$arr_import_template['import_template']['name'].'"</h1>
-		<div class="options">
-			<section class="info attention body">'.parseBody(getLabel('inf_import_select_file')).'</section>
-			<fieldset>
-				<ul>
-					<li>
-						<label>Select File</label>
-						<span>
-							<select id="y:data_import:check_template-'.$import_template_id.'" name="source_file_id">'.cms_general::createDropdown(cms_nodegoat_import::getSourceFiles(false), $arr_import_template['import_template']['source_file_id'], true).'</select>
-						</span>
-					</li>
-				</ul>
-			</fieldset>
-		</div>
-		<div class="options">';
-		
+			<h1>'.getLabel('lbl_run').' '.getLabel('lbl_import_template').': "'.$arr_import_template['import_template']['name'].'"</h1>
+			<div class="options">
+				<section class="info attention body">'.parseBody(getLabel('inf_import_select_file')).'</section>
+				<fieldset>
+					<ul>
+						<li>
+							<label>Select File</label>
+							<span>
+								<select id="y:data_import:check_template-'.$import_template_id.'" name="source_file_id">'.cms_general::createDropdown(cms_nodegoat_import::getSourceFiles(false), $arr_import_template['import_template']['source_file_id'], true).'</select>
+							</span>
+						</li>
+					</ul>
+				</fieldset>
+			</div>
+			<div class="options">';
+			
 			if ($arr_import_template['import_template']['source_file_id']) {
 
 				$return .= self::createCheckTemplate($import_template_id, $arr_import_template['import_template']['source_file_id']);
 			}
-			
-		$return .= '</div>
+		
+			$return .= '</div>
 			<menu>
 				<input type="submit" value="'.getLabel('lbl_exit').'" name="exit" /><input type="submit" value="'.getLabel('lbl_next').'" class="continue" />
 			</menu>
@@ -528,16 +534,16 @@ class data_import extends base_module {
 			foreach ($arr_import_template['columns'] as $arr_column) {
 				
 				$column_heading = $arr_column['column_heading'];
-				$splitter = $arr_column['splitter'];
-				$generate = $arr_column['generate'];
+				$cell_splitter = $arr_column['cell_splitter'];
+				$generate_from_split = $arr_column['generate_from_split'];
 				$value = htmlspecialchars($arr_source_file_contents[$row][$column_heading]);
 				
 				$return .= '<li><label>'.$column_heading.'</label>';
 				
-				if ($splitter) {
+				if ($cell_splitter) {
 					
-					$arr_split_values = explode($splitter, $value);
-					$return .= '<input type="text" value="'.($generate == 'multiple' ? implode(', ', $arr_split_values) : $arr_split_values[$generate-1]).'" disabled />';
+					$arr_split_values = explode($cell_splitter, $value);
+					$return .= '<input type="text" value="'.($generate_from_split == 'multiple' ? implode(', ', $arr_split_values) : $arr_split_values[$generate_from_split-1]).'" disabled />';
 					
 				} else {
 					
@@ -561,6 +567,7 @@ class data_import extends base_module {
 			return false;
 		}
 		
+		$arr_import_template = cms_nodegoat_import::getImportTemplates($import_template_id);
 		$arr_source_file = cms_nodegoat_import::getSourceFiles($source_file_id);
 		
 		if (!$arr_source_file) {
@@ -569,63 +576,77 @@ class data_import extends base_module {
 							
 		$import = new ImportTypeObjects($import_template_id, $source_file_id);
 		
-		$arr_filter_results = $import->resolveFilter();
+		$arr_unresolved_filters = $import->resolveFilters();
 		
-		if (count($arr_filter_results)) {
-
-			$total = 0;
-			foreach ((array)$arr_filter_results as $type_id => $arr_results) {
-				$total = $total + count($arr_results);
-			}
+		if ($arr_unresolved_filters) {
 			
-			if ($total > 250) {
-				
+			if ($arr_unresolved_filters['error_msg']) {
+
 				$done = true;
-				$elm_legend = '<legend>'.getLabel('inf_import_over_250_unmatched_filters').'</legend>';
+				$legend = getLabel('msg_import_error_resolving_filters').' '.getLabel('msg_import_error_message_was').' '.implode(',', $arr_unresolved_filters['error_msg']).' '.getLabel('msg_import_inspect_template_source');
+				$elm_done = '<section class="info attention body"><strong>'.getLabel('msg_import_error_at_value').'</strong> <i>'.implode(',', $arr_unresolved_filters['error_values']).'</i></section>';
 			
 			} else {
-			
-				$elm_check = self::checkResults($arr_filter_results);
-			}
-		} 
-		
-		if (!count($arr_filter_results)) {
-				
-			$arr_string_object_pair_results = $import->resolveStringObjectPairs();
-			
-			if (count($arr_string_object_pair_results)) {
-				
+
 				$total = 0;
-				foreach ((array)$arr_string_object_pair_results as $type_id => $arr_results) {
+				foreach ((array)$arr_unresolved_filters as $type_id => $arr_results) {
 					$total = $total + count($arr_results);
 				}
 				
 				if ($total > 250) {
 					
 					$done = true;
-					$elm_legend = '<legend>'.getLabel('inf_import_over_250_unmatched_filters').'</legend>';
-					
+					$legend = getLabel('msg_import_over_250_unmatched_filters');
+				
 				} else {
 					
-					$elm_check = self::checkResults($arr_string_object_pair_results);
+					$legend = getLabel('msg_import_resolve_unmatched_results');
+					$elm_check = self::createResultsCheck($arr_unresolved_filters);
 				}
 			}
-		}
-		
-		if (!count($arr_filter_results) && !count($arr_string_object_pair_results)) {
-				
-			$arr_objects = $import->store();
 			
-			if ($arr_objects) {
+		} else {
 				
-				$done = true;
-				$elm_legend = '<legend>Done ('.count($arr_objects).' objects).</legend>';
+			$arr_result = $import->store();
+			$update_objects = $import->update_objects;
+			
+			$done = true;
+			
+			if ($arr_result['locked'] !== false) {
+
+				$str_locked = '<ul><li>'.implode('</li><li>', $arr_result['locked']).'</li></ul>';
+				
+				Labels::setVariable('total', count($arr_result['locked']));
+				$message = parseBody(getLabel('msg_import_stopped').' '.getLabel('msg_object_locked_multi')).parseBody($str_locked);
+				
+			} else if ($arr_result['error_row_number'] !== false) {
+					
+				$error_row_number = $arr_result['error_row_number'] + 1;
+				Labels::setVariable('row_number', $error_row_number);				
+				$message = parseBody(getLabel('msg_import_error_at_row_number'));
+				
+			} else {
+
+				Labels::setVariable('object_amount', $arr_result['object_amount']);
+				Labels::setVariable('verb', ($update_objects ? getLabel('lbl_import_updated') : getLabel('lbl_import_added')));
+				
+				$message = parseBody(getLabel('msg_import_done'));
+				
 			}
+			
+			if ($arr_import_template['import_template']['use_log']) {
+				
+				$message .= parseBody(getLabel('msg_import_log_created').' <span class="a popup" id="y:data_import:log_template-'.$import_template_id.'">'.getLabel('lbl_import_log_open').'</span>');
+			} 
+			
+			$elm_done = '<section class="info attention body">'.$message.'</section>';
 		}
 		
-		$return .= '<form id="f:data_import:run_import-'.$import_template_id.'">
-			'.($elm_legend ? '<div class="options">'.$elm_legend.'</div>' : '<div class="options"><legend>'.getLabel('inf_import_resolve_unmatched_results').'</legend></div>'.$elm_check).'
-			<input name="source_file_id" type="hidden" value="'.$source_file_id.'" />
+		$return .= '<form id="f:data_import:run_import-'.$import_template_id.'">'.
+			($legend ? '<div class="options"><legend>'.$legend.'</legend></div>' : '').
+			$elm_done.
+			$elm_check.
+			'<input name="source_file_id" type="hidden" value="'.$source_file_id.'" />
 			<menu>
 				<input type="submit" value="'.getLabel('lbl_exit').'" name="exit" /><input '.($done ? 'class="hide"' : '').' type="submit" value="'.getLabel('lbl_next').'" class="continue" />
 			</menu>
@@ -634,76 +655,139 @@ class data_import extends base_module {
 		return $return;
 	}
 	
-	private function checkResults($arr_type_results) {
+	private function createImportTemplateLog($import_template_id) {
+
+		$arr_import_template = cms_nodegoat_import::getImportTemplates($import_template_id);
+		$elm_filter_columns = false;
+		$colspan = 0;
+		
+		foreach ((array)$arr_import_template['columns'] as $arr_column) {
+		
+			$column_heading = $arr_column['column_heading'];
+
+			if ($arr_column['use_as_filter'] && !$arr_column['use_object_id_as_filter']) {
+				
+				$elm_filter_columns .= '<th class="disable-sort">'.getLabel('lbl_filter').': '.$column_heading.'</th>';
+				$colspan++;
+				
+			} else if (!$arr_column['use_as_filter'] && !$arr_column['use_object_id_as_filter']) {
+				
+				$elm_data_columns .= '<th class="disable-sort">'.$column_heading.'</th>';
+				$colspan++;
+			}
+		}
+		
+		$colspan = $colspan + 2;
+		
+		if ($elm_filter_columns) {
+			
+			$colspan++;
+		}
+		
+		$date = new DateTime($arr_import_template['import_template']['last_run']);
+		$date->modify('+1 month');
+		Labels::setVariable('removal_date', $date->format('d-m-Y'));
+						
+		$return = '<div class="options"><form class="filter">
+						<label>'.getLabel('lbl_filter').':</label>
+						<div class="input">
+							<label><input type="checkbox" name="no_object" value="1" /><span>'.getLabel('lbl_import_log_no_object').'</span></label>
+							<label><input type="checkbox" name="no_reference" value="1" /><span>'.getLabel('lbl_import_log_no_reference').'</span></label>
+							<label><input type="checkbox" name="ignore_identical" value="1" /><span>'.getLabel('lbl_import_log_ignored_identical').'</span></label>
+							<label><input type="checkbox" name="ignore_empty" value="1" /><span>'.getLabel('lbl_import_log_ignored_empty').'</span></label>
+							<label><input type="checkbox" name="error" value="1" /><span>Error</span></label>
+						</div>
+					</form></div>
+					<table class="display" id="d:data_import:data_log-'.$import_template_id.'_'.($elm_filter_columns ? '1' : '0').'">
+					<thead>
+						<tr>			
+							<th class="limit">'.getLabel('lbl_import_row_number').'</th>'.
+							$elm_filter_columns.
+							($elm_filter_columns ? '<th class="disable-sort">'.getLabel('lbl_filter').'</th>' : '').
+							'<th class="disable-sort">'.getLabel('lbl_object').'</th>'.
+							$elm_data_columns.
+							'</tr> 
+					</thead>
+					<tbody>
+						<tr>
+							<td colspan="'. $colspan .'" class="empty">'.getLabel('msg_loading_server_data').'</td>
+						</tr>
+					</tbody>
+				</table>
+				<section class="info attention body">'.parseBody(getLabel('inf_import_log_info')).'</section>';
+			
+		return $return;	
+	}
+	
+	private function createResultsCheck($arr_type_results) {
 	
 		$arr_types = StoreType::getTypes();
 		
 		foreach ((array)$arr_type_results as $type_id => $arr_results) {
 			
 			$return .= '<div class="options"><fieldset><legend>'.count($arr_results).' unmatched results in "'.Labels::parseTextVariables($arr_types[$type_id]['name']).'"</legend>
-			<section class="info attention body">'.parseBody(getLabel('inf_import_unmatched_results')).'</section>
-			<ul class="results">';
+				<section class="info attention body">'.parseBody(getLabel('inf_import_unmatched_results')).'</section>
+				<ul class="results">';
 			
-			foreach ((array)$arr_results as $arr_result) {
-				
-				$unique_id = uniqid();
-				$string = '';
+				foreach ((array)$arr_results as $arr_result) {
 					
-				foreach ((array)$arr_result['filter_values'] as $value) {
-					
-					if (!$value) {
-						$value = '[no value]';
+					$unique_id = uniqid();
+					$string = '';
+						
+					foreach ((array)$arr_result['filter_values'] as $value) {
+						
+						if (!$value) {
+							$value = '[no value]';
+						}
+						
+						if ($string) {
+							
+							$string .= ', "'.mb_strimwidth($value, 0, 100, '...').'"';
+							
+						} else {
+							
+							$string = '"'.mb_strimwidth($value, 0, 100, '...').'"';
+						}
 					}
 					
-					if ($string) {
-						
-						$string .= ', "'.$value.'"';
-						
-					} else {
-						
-						$string = '"'.$value.'"';
-					}
-				}
-				
-				$return .= '<li><label>'.$string.'</label><div class="fieldsets"><div>';
-				
-				if (count($arr_result['object_ids'])) {
+					$return .= '<li><label>'.$string.'</label><div class="fieldsets"><div>';
 					
-					$arr_object_names = GenerateTypeObjects::getTypeObjectNames($type_id, (array)$arr_result['object_ids'], false);
+					if (count($arr_result['object_ids'])) {
+						
+						$arr_object_names = GenerateTypeObjects::getTypeObjectNames($type_id, (array)$arr_result['object_ids'], false);
 
-					foreach ((array)$arr_result['object_ids'] as $object_id) {
-						
-						$return .= '<fieldset>
-							<span id="y:data_view:view_type_object-'.$type_id.'_'.$object_id.'" class="a popup" title="Click to inspect object">'.$arr_object_names[$object_id].'</span> 
-							<input type="hidden" name="filter_values" value="'.htmlspecialchars(json_encode($arr_result['filter_values'])).'" />
-							<input type="hidden" name="type_id" value="'.$type_id.'" />
-							<input type="hidden" name="object_id" value="'.$object_id.'" />
-							<input type="radio" name="'.$unique_id.'" id="y:data_import:store_object_string_pair-0" value="'.$arr_result['string'].'" title="Click to assign object to this string"/>
-						</fieldset>';
+						foreach ((array)$arr_result['object_ids'] as $object_id) {
+							
+							$return .= '<fieldset>
+								<span id="y:data_view:view_type_object-'.$type_id.'_'.$object_id.'" class="a popup" title="Click to inspect object">'.$arr_object_names[$object_id].'</span> 
+								<input type="hidden" name="filter_values" value="'.htmlspecialchars(json_encode($arr_result['filter_values'])).'" />
+								<input type="hidden" name="type_id" value="'.$type_id.'" />
+								<input type="hidden" name="object_id" value="'.$object_id.'" />
+								<input type="radio" name="'.$unique_id.'" id="y:data_import:store_object_string_pair-0" value="'.$arr_result['string'].'" title="'.getLabel('inf_import_assign_object_to_string').'"/>
+							</fieldset>';
+						}
 					}
-				}
-					
-				$return .= '<fieldset>
-								<input type="hidden" name="filter_values" value="'.htmlspecialchars(json_encode($arr_result['filter_values'])).'" />
-								<input type="hidden" name="type_id" value="'.$type_id.'" />
-								<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$type_id.'" name="object_id" value="" />
-								<input type="search" id="y:data_filter:lookup_type_object-'.$type_id.'" class="autocomplete" value="" />
-								<input type="radio" name="'.$unique_id.'" id="y:data_import:store_object_string_pair-0" value="'.$arr_result['string'].'" title="Click to assign object to this string"/>
-							</fieldset>
-							<fieldset>
-								<span>N/A</span> 
-								<input type="hidden" name="filter_values" value="'.htmlspecialchars(json_encode($arr_result['filter_values'])).'" />
-								<input type="hidden" name="type_id" value="'.$type_id.'" />
-								<input type="hidden" name="object_id" value="no-reference" />
-								<input type="radio" name="'.$unique_id.'" id="y:data_import:store_object_string_pair-0" value="'.$arr_result['string'].'" title="Click to assign no object to this string"/>
-							</fieldset>
+						
+					$return .= '<fieldset>
+									<input type="hidden" name="filter_values" value="'.htmlspecialchars(json_encode($arr_result['filter_values'])).'" />
+									<input type="hidden" name="type_id" value="'.$type_id.'" />
+									<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$type_id.'" name="object_id" value="" />
+									<input type="search" id="y:data_filter:lookup_type_object-'.$type_id.'" class="autocomplete" value="" />
+									<input type="radio" name="'.$unique_id.'" id="y:data_import:store_object_string_pair-0" value="'.$arr_result['string'].'" title="'.getLabel('inf_import_assign_object_to_string').'"/>
+								</fieldset>
+								<fieldset>
+									<span>N/A</span> 
+									<input type="hidden" name="filter_values" value="'.htmlspecialchars(json_encode($arr_result['filter_values'])).'" />
+									<input type="hidden" name="type_id" value="'.$type_id.'" />
+									<input type="hidden" name="object_id" value="no-reference" />
+									<input type="radio" name="'.$unique_id.'" id="y:data_import:store_object_string_pair-0" value="'.$arr_result['string'].'" title="'.getLabel('inf_import_assign_no_object_to_string').'"/>
+								</fieldset>
+							</div>
 						</div>
-					</div>
-				</li>';
-			}
+					</li>';
+				}
 			
 			$return .= '</ul></fieldset></div>';
-			
 		}
 		
 		return $return;
@@ -724,7 +808,9 @@ class data_import extends base_module {
 					.data_import form .options > fieldset > ul.results > li > label { padding: 0 8px; text-align: right; vertical-align: middle;} 
 					.data_import form .options > fieldset > ul.results > li > .fieldsets > div { margin: 3px !important; } 
 					.data_import form .options > fieldset > ul.results > li > .fieldsets > div > fieldset { background-color: #e1e1e1; padding: 4px 8px; margin: 4px !important;} 
-					.data_import form .options > fieldset > ul.results > li > .fieldsets > div > fieldset span { line-height: 26px; }';
+					.data_import form .options > fieldset > ul.results > li > .fieldsets > div > fieldset span { line-height: 26px; }
+					
+					.data_import .import-log-template input.del {pointer-events: none; }';
 
 		return $return;
 	}
@@ -771,24 +857,51 @@ class data_import extends base_module {
 			});
 		});
 		
+		SCRIPTER.dynamic('.import-log-template', function(elm_scripter) {
+		
+			elm_scripter.on('change', 'form input', function() {
+				var target = $(this).closest('form').closest('div').next('div').find('table[id^=d\\\:data_import\\\:data_log]');
+				var value = (target.data('value') ? target.data('value') : {});
+				value.filter = JSON.stringify(serializeArrayByName($(this).closest('form')));
+				target.data('value', value).dataTable('refresh');
+			});
+		});
+		
 		SCRIPTER.dynamic('[id^=f\\\:data_import\\\:import_template]', function(elm_scripter) {		
 
 			elm_scripter.on('click', '.add', function() {
+			
 				var elm_sorter = $(this).closest('li').next('li').find('.sorter')
-				elm_sorter.sorter('addRow').children('li').last().find('select').first().trigger('change');
+				elm_sorter.sorter('addRow')
+				elm_new = elm_sorter.children('li').last()
+				elm_new.find('select').first().trigger('change');
+				
 			}).on('click', '.del', function() {
-				$(this).closest('li').remove();
+			
+				$(this).closest('ul').closest('li').remove();
+				
+			}).on('click', '[id^=y\\\:data_import\\\:create_column-] input[name=options]', function() {
+			
+				$(this).closest('li').next('li').find('fieldset').removeClass('hide');
+				$(this).addClass('hide');
+				
 			}).on('change', '[id^=y\\\:data_import\\\:create_column-] select', function() {
 			
 				var elm_column = $(this).parent();
 				var values = {};
-	
+				
+				values['template_mode'] = elm_column.closest('form').find('[name=template_mode]:checked').val();
+				
 				elm_column.children().each(function() {
 					var elm_child = $(this);
 					values[elm_child.attr('data-name')] = elm_child.val();
 				});
 				
-				elm_column.data('value', values).quickCommand(elm_column, {html: 'replace'});
+				elm_column.data('value', values).quickCommand(function(data) {
+		
+					elm_column.parent().next('li').html(data[1]);	
+					elm_column.parent().html(data[0]);
+				});
 				
 			}).on('change init_data_template update_filter', '[name=template_source_file_id], [name=template_type_id]', function(e) {
 
@@ -807,6 +920,8 @@ class data_import extends base_module {
 				
 					elm_form.find('.columns').addClass('hide');
 					elm_form.find('[name=template_mode]').attr('disabled', true);
+					
+					return;
 
 				} else {
 				
@@ -820,22 +935,28 @@ class data_import extends base_module {
 					var target = elm_form.find('[id^=y\\\:data_import\\\:set_columns-]');
 				}
 				
-				target.data('value', {source_file_id: source_file_id, target_type_id: type_id}).quickCommand(function(elm) {
+				var template_mode = elm_form.find('[name=template_mode]:checked').val();
+				
+				target.data('value', {source_file_id: source_file_id, target_type_id: type_id, template_mode: template_mode}).quickCommand(function(elm) {
 					$(this).html(elm);
 				});
 				
 			}).on('change', '[name=template_mode]', function() {	
-				
-				var mode = $(this).val();
+			
+				var elm = $(this);
+				var mode = elm.val();
+				var elm_form = elm.closest('form');
 				
 				if (mode == 'update' && !$(this).closest('form').find('.columns').hasClass('hide')) {
 				
-					$(this).closest('form').find('.filter').removeClass('hide');
-					$(this).closest('ul').find('[name=template_type_id]').trigger('update_filter');
+					elm_form.find('.filter').removeClass('hide');
+					elm_form.find('.columns').find('input[name=options]').removeClass('hide');
+					elm.closest('ul').find('[name=template_type_id]').trigger('update_filter');
 					
 				} else {
 				
-					$(this).closest('form').find('.filter').addClass('hide');
+					elm_form.find('.filter').addClass('hide');
+					elm_form.find('.columns').find('.column-options').addClass('hide');
 				}
 				
 				$(this).closest('form').find('[name=filter_mode]:checked').trigger('update_data_template');
@@ -894,7 +1015,6 @@ class data_import extends base_module {
 				$return = '<form id="f:data_import:import_template_insert-0">'.$this->createImportTemplate().'</form>';
 			}
 		
-		
 			$this->html = $return;
 		}
 		
@@ -919,15 +1039,15 @@ class data_import extends base_module {
 			$arr_ids = explode('_', $id);
 			$source_file_id = $arr_ids[0];
 			$type_id = $arr_ids[1];
-			$is_filter = $arr_ids[2];
+			$use_as_filter = $arr_ids[2];
 			
 			$arr_column['source_file_id'] = $source_file_id;
 			$arr_column['target_type_id'] = $type_id;
 			
-			if ($is_filter) {
-				$arr_column['is_filter'] = true;
+			if ($use_as_filter) {
+				$arr_column['use_as_filter'] = true;
 			}
-	
+
 			$this->html = self::createColumn($arr_column);
 		}
 		
@@ -937,39 +1057,42 @@ class data_import extends base_module {
 				
 				$type_id = $value['target_type_id'];
 			}
-			
+		
 			if ($value['source_file_id']) {
 				
 				$arr_column_headings = cms_nodegoat_import::getColumnHeadings($value['source_file_id']);
 
 				$arr_columns = [];
 				
-				foreach ((array)$arr_column_headings as $column_heading => $row) {
-					
-					$arr_columns[] = ['source_file_id' => $value['source_file_id'], 'arr_column_headings' => $arr_column_headings, 'column_heading' => $column_heading, 'target_type_id' => $type_id];
-				}
-			
 				if ($id == 'filter') {
-					$arr_columns = [['source_file_id' => $value['source_file_id'], 'arr_column_headings' => $arr_column_headings, 'target_type_id' => $type_id, 'is_filter' => true], ['source_file_id' => $value['source_file_id'], 'arr_column_headings' => $arr_column_headings, 'target_type_id' => $type_id, 'is_filter' => true]];
-				}
 				
-				if ($id == 'filter_id') {
-					$arr_columns = [['source_file_id' => $value['source_file_id'], 'arr_column_headings' => $arr_column_headings, 'target_type_id' => $type_id, 'is_filter' => true, 'use_object_id_as_filter' => true]];
+					$arr_columns = [['source_file_id' => $value['source_file_id'], 'arr_column_headings' => $arr_column_headings, 'target_type_id' => $type_id, 'use_as_filter' => true], ['source_file_id' => $value['source_file_id'], 'arr_column_headings' => $arr_column_headings, 'target_type_id' => $type_id, 'use_as_filter' => true]];
+				
+				} else if ($id == 'filter_id') {
+					
+					$arr_columns = [['source_file_id' => $value['source_file_id'], 'arr_column_headings' => $arr_column_headings, 'target_type_id' => $type_id, 'use_as_filter' => true, 'use_object_id_as_filter' => true]];
+				
+				} else {
+					
+					foreach ((array)$arr_column_headings as $column_heading => $row) {
+						
+						$arr_columns[] = ['source_file_id' => $value['source_file_id'], 'arr_column_headings' => $arr_column_headings, 'column_heading' => $column_heading, 'target_type_id' => $type_id];
+					}
 				}
 			}
 			
-			$arr_sorter = [];
-			
-			foreach ((array)$arr_columns as $arr_column) {
-				$arr_sorter[] = ['value' => self::createColumn($arr_column)];
-			}
-			
-			$this->html = cms_general::createSorter($arr_sorter, ($id == 'filter_id' ? false : true));
+			$this->html = self::createColumns($value['source_file_id'], $type_id, $arr_columns, $id, $value['template_mode']);
 		}
 		
 		if ($method == "run_template") {
+			
 			$arr_ids = explode('_', $id);
 			$this->html = $this->createFileSelection($arr_ids[1]);
+		}
+		
+		if ($method == "log_template") {
+			
+			$this->html = '<div class="import-log-template">'.$this->createImportTemplateLog($id).'</div>';
 		}
 		
 		if ($method == "check_template") {
@@ -981,6 +1104,7 @@ class data_import extends base_module {
 		}
 		
 		if ($method == "run_import" && $_POST['exit']) {
+			
 			$this->html = $this->contents(); 
 			return;
 		}
@@ -995,6 +1119,8 @@ class data_import extends base_module {
 			if (!$compatible) {
 				return false;
 			}
+			
+			cms_nodegoat_import::emptyImportTemplateLog($import_template_id);
 			
 			$this->html = $this->createImportTemplateRun($import_template_id, $source_file_id);
 		}
@@ -1021,7 +1147,7 @@ class data_import extends base_module {
 			if ($id == 'template') {
 				
 				$arr_sql_columns = ['nodegoat_it.name', 'nodegoat_t.name', 'nodegoat_if.name', 'nodegoat_it.id'];
-				$arr_sql_columns_search = ['nodegoat_it.name', 'nodegoat_t.name', 'nodegoat_f.name'];
+				$arr_sql_columns_search = ['nodegoat_it.name', 'nodegoat_t.name', 'nodegoat_if.name'];
 				$arr_sql_columns_as = ['nodegoat_it.id', 'nodegoat_it.name', 'nodegoat_t.name AS type_name', 'nodegoat_if.name AS source_file_name'];
 				
 				if (Settings::get('domain_administrator_mode')) {
@@ -1036,6 +1162,7 @@ class data_import extends base_module {
 				";
 				
 				$sql_index = 'nodegoat_it.id';
+				
 			} else if ($id == 'file') {
 
 				$arr_sql_columns = ['nodegoat_if.name', 'nodegoat_if.total_objects', 'nodegoat_if.id'];
@@ -1043,7 +1170,8 @@ class data_import extends base_module {
 				$arr_sql_columns_as = ['nodegoat_if.id', 'nodegoat_if.name', 'nodegoat_if.total_objects'];
 			
 				$sql_table = DB::getTable('DEF_NODEGOAT_IMPORT_FILES').' nodegoat_if';
-				$sql_index = 'nodegoat_if.id';				
+				$sql_index = 'nodegoat_if.id';
+				
 			} else if ($id == 'pair') {
 
 				$arr_sql_columns = ['nodegoat_isop.string', 'nodegoat_t.name', 'nodegoat_isop.id', 'nodegoat_isop.filter_values'];
@@ -1092,6 +1220,8 @@ class data_import extends base_module {
 					$arr_data[] = Labels::parseTextVariables($arr_row['type_label'] ? $arr_row['type_label'].' '.$arr_row['type_name'] : $arr_row['type_name']);
 					$arr_data[] = Labels::parseTextVariables($arr_row['source_file_name']);
 					
+					$result = cms_nodegoat_import::getImportTemplateLog($arr_row['id'], 0);
+					
 				} else if ($id == 'file') {
 					
 					$arr_data[] = Labels::parseTextVariables($arr_row['name']);
@@ -1099,12 +1229,186 @@ class data_import extends base_module {
 				}
 				
 				$arr_data[] = '';
-				$arr_data[] = ($id == 'template' ? '<input type="button" class="data add run_template" value="run" />' : '').'<input type="button" class="data edit" value="edit" /><input type="button" class="data del msg del" value="del" /><input class="multi" value="'.$id.'_'.$arr_row['id'].'" type="checkbox" />';
+				
+				$arr_data[] = ($id == 'template' ? ($result ? '<input type="button" class="data neutral popup" value="log" id="y:data_import:log_template-'.$arr_row['id'].'" />' : '').'<input type="button" class="data add run_template" value="run" />' : '').'<input type="button" class="data edit" value="edit" /><input type="button" class="data del msg del" value="del" /><input class="multi" value="'.$id.'_'.$arr_row['id'].'" type="checkbox" />';
 				
 				$arr_datatable['output']['data'][] = $arr_data;
 			}
 			
 			$this->data = $arr_datatable['output'];
+		}
+		
+		if ($method == "data_log") {
+
+			$arr_ids = explode('_', $id);
+			$import_template_id = $arr_ids[0];
+			$template_has_filter = $arr_ids[1];
+			
+			$arr_import_template = cms_nodegoat_import::getImportTemplates($import_template_id);
+			$type_id = $arr_import_template['import_template']['type_id'];
+			
+			$arr_log_filter = ($value && $value['filter'] ? json_decode($value['filter'], true) : []);
+					
+			$arr_sql_columns = ['nodegoat_itl.row_number', 'nodegoat_itl.object_id', 'nodegoat_itl.row_data', 'nodegoat_itl.row_filter', 'nodegoat_itl.row_results'];
+			$arr_sql_columns_search = ['nodegoat_itl.object_id', 'nodegoat_itl.row_data', 'nodegoat_itl.row_filter', 'nodegoat_itl.row_results'];
+			$arr_sql_columns_as = ['nodegoat_itl.row_number', 'nodegoat_itl.object_id', 'nodegoat_itl.row_data', 'nodegoat_itl.row_filter', 'nodegoat_itl.row_results'];
+
+			$sql_table = DB::getTable('DATA_NODEGOAT_IMPORT_TEMPLATE_LOG')." nodegoat_itl";
+			
+			$sql_index = 'nodegoat_itl.row_number';
+			$sql_where = "nodegoat_itl.template_id = ".$import_template_id;
+
+			if ($arr_log_filter['no_object']) {
+				
+				 $sql_where .= " AND nodegoat_itl.object_id IS NULL";
+			}
+			
+			if ($arr_log_filter['no_reference']) {
+				
+				 $sql_where .= " AND nodegoat_itl.row_results LIKE '%unmatched_reference%'";
+			}
+			
+			if ($arr_log_filter['ignore_empty']) {
+				
+				 $sql_where .= " AND nodegoat_itl.row_results LIKE '%ignore_empty%'";
+			}
+			
+			if ($arr_log_filter['ignore_identical']) {
+				
+				 $sql_where .= " AND nodegoat_itl.row_results LIKE '%ignore_identical%'";
+			}
+			
+			if ($arr_log_filter['error']) {
+				
+				 $sql_where .= " AND nodegoat_itl.row_results LIKE '%error%'";
+			}
+			
+			$arr_datatable = cms_general::prepareDataTable($arr_sql_columns, $arr_sql_columns_search, $arr_sql_columns_as, $sql_table, $sql_index, '', '', $sql_where);			
+			
+			while ($arr_row = $arr_datatable['result']->fetchAssoc()) {
+				
+				$count = 0;
+				$arr_data = [];
+				
+				$arr_row_data = json_decode(($arr_row['row_data'] != '' ? $arr_row['row_data'] : ''), true);
+				$arr_row_results = json_decode(($arr_row['row_results'] != '' ? $arr_row['row_results'] : ''), true);
+				
+				$row_number = (int)$arr_row['row_number'] + 1;
+				
+				if ($arr_row_results['error']) {
+					
+					$arr_data[] = $row_number . ' <input type="button" class="data del" value="error" />';
+					$arr_data['cell'][$count]['attr']['title'] = getLabel($arr_row_results['error']);
+				
+				} else {
+					
+					$arr_data[] = $row_number;
+				}
+				$count++;
+				
+				if ($template_has_filter) {
+
+					foreach ($arr_import_template['columns'] as $arr_column) {
+
+						if (!$arr_column['use_as_filter'] || $arr_column['use_object_id_as_filter']) {
+							continue;
+						}
+						
+						$arr_data[] = $arr_row_data[$arr_column['column_heading']];
+						$count++;
+					}
+					
+					if ($arr_row['row_filter'] != '') {
+						
+						$arr_row_filter = '<input type="button" id="y:data_import:view_filter-'.$import_template_id.'_'.$arr_row['row_number'].'" class="data edit popup" value="filter" />';
+						
+					} else {
+						
+						$arr_row_filter = '<input type="button" class="data del" value="no filter" />';
+					}
+					
+					$arr_data[] = $arr_row_filter;
+					$count++;
+				}
+					
+				$arr_data[] = ($arr_row['object_id'] ? '<input type="button" id="y:data_view:view_type_object-'.$type_id.'_'.$arr_row['object_id'].'" class="popup data add" value="object" />' : '<input type="button" class="data del" value="n/a"/>');
+				$count++;
+				
+				foreach ($arr_import_template['columns'] as $arr_column) {
+					
+					if ($arr_column['use_as_filter'] || $arr_column['use_object_id_as_filter']) {
+						continue;
+					}
+					
+					$column_heading = $arr_column['column_heading'];
+					$elm = '';
+					
+					if ($arr_column['element_type_id']) {
+						
+						foreach ((array)$arr_row_results[$column_heading]['objects'] as $ref_type_id => $arr_ref_objects) {
+							
+							foreach ((array)$arr_ref_objects as $ref_object_id => $value) {
+								
+								$elm .= '<input type="button" id="y:data_view:view_type_object-'.$ref_type_id.'_'.$ref_object_id.'" class="popup data add" value="reference" />';
+							}
+						}
+					}
+					
+					if ($arr_row_results[$column_heading]['options']['ignore_identical']) {
+						
+						$elm .= '<input type="button" class="data del" value="identical" />';
+					}
+					
+					if ($arr_row_results[$column_heading]['options']['unmatched_reference']) {
+						
+						$elm .= '<input type="button" class="data del" value="n/a" />';
+					}
+					
+					if ($arr_row_data[$column_heading]) {
+						
+						$elm .= ' <span>'.$arr_row_data[$column_heading].'</span>';
+						
+					} else if ($arr_row_results[$column_heading]['options']['ignore_empty']) {
+							
+						$elm .= '<input type="button" class="data del" value="empty" />';
+						
+					}
+					
+					$arr_data[] = $elm;
+					
+					
+					$count++;
+				}
+				
+				$arr_datatable['output']['data'][] = $arr_data;
+			}
+
+			$this->data = $arr_datatable['output'];
+		}
+		
+		if ($method == "view_filter") {
+			
+			$arr_ids = explode('_', $id);
+			$import_template_id = $arr_ids[0];
+			$row_number = $arr_ids[1];
+			
+			$arr_import_template = cms_nodegoat_import::getImportTemplates($import_template_id);
+			$type_id = $arr_import_template['import_template']['type_id'];
+			$arr_log = cms_nodegoat_import::getImportTemplateLog($import_template_id, $row_number);
+
+			$arr_filter = json_decode($arr_log['row_filter'], true);
+			$arr_filter_form = ['form' => ['filter_1' => ['type_id' => $type_id]]];
+		
+			foreach ($arr_filter as $key => $value) {
+				
+				$arr_filter_form['form']['filter_1'][$key] = $value;
+			}			
+			
+			$create_filter = new data_filter();
+			$create_filter->form_name = 'filter['.$type_id.']';
+			$html_filter = $create_filter->createFilter($type_id, $arr_filter_form);
+			
+			$this->html = $html_filter;
 		}
 
 		// QUERY
@@ -1126,6 +1430,7 @@ class data_import extends base_module {
 		if ($method == "source_file_insert" || ($method == "source_file_update" && (int)$id)) {
 
 			$arr_details = ['name' => $_POST['name'], 'description' => $_POST['description']];
+			
 			cms_nodegoat_import::handleSourceFile((int)$id, $_POST['type'], $arr_details, ($_FILES ? $_FILES : ''));
 					
 			$this->html = $this->createAddButtons('file');
@@ -1139,35 +1444,38 @@ class data_import extends base_module {
 			
 			$template_mode = $_POST['template_mode'];
 			$filter_mode = $_POST['filter_mode'];
-		
-			foreach ((array)$_POST['column_heading'] as $key => $value) {
+
+			foreach ((array)$_POST['columns'] as $key => $value) {
 				
-				$is_filter = (int)$_POST['is_filter'][$key];
+				$use_as_filter = (int)$value['use_as_filter'];
 			
-				if (($is_filter && $template_mode != 'update') || 
-					($filter_mode == 'filter' && ($is_filter && (int)$_POST['use_object_id_as_filter'][$key])) || 
-					($filter_mode == 'id' && ($is_filter && !(int)$_POST['use_object_id_as_filter'][$key]))) {
+				if (($use_as_filter && $template_mode != 'update') || 
+					($filter_mode == 'filter' && ($use_as_filter && (int)$value['use_object_id_as_filter'])) || 
+					($filter_mode == 'id' && ($use_as_filter && !(int)$value['use_object_id_as_filter']))) {
 					
 					continue;
 				}
-				
+							
+				$ignore_when = (int)$value['ingore_empty'] + (int)$value['ingore_identical'];
+
 				$arr_column_headings[] = [
-					'id' => $_POST['column_id'][$key],
-					'column_heading' => $_POST['column_heading'][$key],
-					'splitter' => $_POST['splitter'][$key],
-					'generate' => $_POST['generate'][$key],
-					'target_type_id' => (int)$_POST['target_type_id'][$key],
-					'element_id' => $_POST['element_id'][$key],
-					'element_type_id' => (int)$_POST['element_type_id'][$key],
-					'element_type_element_id' => $_POST['element_type_element_id'][$key],
-					'element_type_object_sub_id' => (int)$_POST['element_type_object_sub_id'][$key],
-					'is_filter' => $is_filter,
-					'use_object_id_as_filter' => (int)$_POST['use_object_id_as_filter'][$key]
+					'id' => $value['column_id'],
+					'column_heading' => $value['column_heading'],
+					'cell_splitter' => $value['cell_splitter'],
+					'generate_from_split' => $value['generate_from_split'],
+					'target_type_id' => (int)$value['target_type_id'],
+					'element_id' => $value['element_id'],
+					'element_type_id' => (int)$value['element_type_id'],
+					'element_type_element_id' => $value['element_type_element_id'],
+					'element_type_object_sub_id' => (int)$value['element_type_object_sub_id'],
+					'use_as_filter' => $use_as_filter,
+					'use_object_id_as_filter' => (int)$value['use_object_id_as_filter'],
+					'overwrite' => ($value['write'] == 'overwrite' ? 1 : 0),
+					'ignore_when' =>(int)$ignore_when
 				];
 			}
 
-			
-			$arr_details = ['name' => $_POST['name'], 'source_file_id' => (int)$_POST['template_source_file_id'], 'type_id' => (int)$_POST['template_type_id'], 'arr_column_headings' => $arr_column_headings];
+			$arr_details = ['name' => $_POST['name'], 'source_file_id' => (int)$_POST['template_source_file_id'], 'type_id' => (int)$_POST['template_type_id'], 'use_log' => (int)$_POST['use_log'], 'arr_column_headings' => $arr_column_headings];
 		
 			cms_nodegoat_import::handleImportTemplate((int)$id, $arr_details);
 			

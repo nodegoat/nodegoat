@@ -16,7 +16,7 @@ class data_filter extends base_module {
 		static::$parent_label = 'nodegoat';
 	}
 	
-	public static $arr_date_options = ['range' => ['id' => 'range', 'name' => 'Range'], 'point' => ['id' => 'point', 'name' => 'Point']];
+	public static $arr_date_options = ['range' => ['id' => 'range', 'name' => 'Range'], 'chronology' => ['id' => 'chronology', 'name' => 'Chronology'], 'point' => ['id' => 'point', 'name' => 'Point']];
 	public static $arr_location_options = ['reference' => ['id' => 'reference', 'name' => 'Reference'], 'geometry' => ['id' => 'geometry', 'name' => 'Geometry'], 'point' => ['id' => 'point', 'name' => 'Point']];
 	public $form_name = 'filter';
 		
@@ -139,13 +139,14 @@ class data_filter extends base_module {
 		}
 		
 		$return_link = '<li'.($arr_source['filter_code'] ? ' data-parent_id="'.$arr_source['filter_code'].'"' : '').'><a href="#'.$filter_code.'">'.$filter_name.'</a><span><input type="button" class="data del" value="del" /></span></li>';
-	
+		
 		$return = '<div id="'.$filter_code.'">
 			<div class="options">
 			
 				<fieldset>
 					<input type="hidden" name="'.$name.'[type_id]" value="'.$type_id.'" />
 					<input type="hidden" name="'.$name.'[source][filter_code]" value="'.($arr_source['filter_code'] ?: '').'" />
+					<input type="hidden" name="'.$name.'[source][filter_type_id]" value="'.($arr_source['filter_type_id'] ?: '').'" />
 					<input type="hidden" name="'.$name.'[source][filter_beacon]" value="'.($arr_source['filter_beacon'] ?: '').'" />
 					<input type="hidden" name="'.$name.'[source][type_id]" value="'.$arr_source['type_id'].'" />
 					<input type="hidden" name="'.$name.'[source][object_description_id]" value="'.$arr_source['object_description_id'].'" />
@@ -153,11 +154,20 @@ class data_filter extends base_module {
 					<input type="hidden" name="'.$name.'[source][object_sub_description_id]" value="'.$arr_source['object_sub_description_id'].'" />
 					<input type="hidden" name="'.$name.'[source][direction]" value="'.($arr_source['direction'] ?: '').'" />
 					<ul>
-						<li><label>'.getLabel('lbl_mode').'</label><span>'
-							.cms_general::createSelectorRadio([
-								['id' => 'or', 'name' => '<span title="'.getLabel('inf_filter_or').'">'.getLabel('lbl_filter_or').'</span>'],
-								['id' => 'and', 'name' => '<span title="'.getLabel('inf_filter_and').'">'.getLabel('lbl_filter_and').'</span>']
-							], $name.'[options][operator]', ($arr_filter['options']['operator'] ?: 'or'))
+						<li><label>'.getLabel('lbl_mode').'</label><span>';
+							
+							$str_operator = $arr_filter['options']['operator'];
+							if (!$str_operator || $str_operator == 'or') {
+								$str_operator = 'object_or_sub_or';
+							} else if ($str_operator == 'and') {
+								$str_operator = 'object_and_sub_or';
+							}
+						
+							$return .= cms_general::createSelectorRadio([
+								['id' => 'object_or_sub_or', 'name' => '<span title="'.getLabel('inf_filter_object_or_sub_or').'">'.getLabel('lbl_filter_object_or_sub_or').'</span>'],
+								['id' => 'object_and_sub_or', 'name' => '<span title="'.getLabel('inf_filter_object_and_sub_or').'">'.getLabel('lbl_filter_object_and_sub_or').'</span>'],
+								['id' => 'object_and_sub_and', 'name' => '<span title="'.getLabel('inf_filter_object_and_sub_and').'">'.getLabel('lbl_filter_object_and_sub_and').'</span>']
+							], $name.'[options][operator]', $str_operator)
 							.'<span class="split"></span>'
 							.'<label><em>n</em> <span>=</span><input type="number" name="'.$name.'[options][operator_extra]" value="'.((int)$arr_filter['options']['operator_extra'] ?: 1).'"/></label>'
 						.'</span></li>
@@ -194,11 +204,11 @@ class data_filter extends base_module {
 									}
 									
 									$return .= '<li>
-										<label></label><span>
+										<label>'.getLabel('lbl_name').'</label><span>
 											<input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" />'
 										.'</span>
 									</li><li>
-										<label>'.getLabel('lbl_name').'</label>
+										<label></label>
 										'.cms_general::createSorter($arr_sorter, false, true).'
 									</li>';
 								}
@@ -219,11 +229,11 @@ class data_filter extends base_module {
 								}
 								
 								$return .= '<li>
-									<label></label><span>
+									<label>'.getLabel('lbl_analysis').'</label><span>
 										<input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" />'
 									.'</span>
 								</li><li>
-									<label>'.getLabel('lbl_analysis').'</label>
+									<label></label>
 									'.cms_general::createSorter($arr_sorter, false, true).'
 								</li>';
 										
@@ -400,7 +410,7 @@ class data_filter extends base_module {
 				
 				$arr_object_description = $arr_type_set['object_descriptions'][$object_description_id];
 				
-				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
 					continue;
 				}
 				
@@ -420,7 +430,7 @@ class data_filter extends base_module {
 				
 				$arr_object_description = $arr_type_set['object_descriptions'][$object_description_id];
 					
-				if (!($arr_object_definitions[$object_description_id]) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+				if (!($arr_object_definitions[$object_description_id]) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
 					continue;
 				}
 					
@@ -455,7 +465,7 @@ class data_filter extends base_module {
 				
 				$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 				
-				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
 					continue;
 				}
 				
@@ -467,7 +477,7 @@ class data_filter extends base_module {
 						
 						$arr_object_sub_description = $arr_object_sub_details['object_sub_descriptions'][$object_sub_description_id];
 					
-						if ($_SESSION['NODEGOAT_CLEARANCE'] >= $arr_object_sub_description['object_sub_description_clearance_view'] && custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] >= $arr_object_sub_description['object_sub_description_clearance_view'] && custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 							
 							$has_object_sub_descriptions = true;
 							break;
@@ -501,7 +511,7 @@ class data_filter extends base_module {
 				
 				$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 								
-				if (!$arr_object_subs[$object_sub_details_id] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+				if (!$arr_object_subs[$object_sub_details_id] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
 					continue;
 				}
 
@@ -574,7 +584,7 @@ class data_filter extends base_module {
 			
 			if ($arr_object_sub_description['object_sub_description_ref_type_id'] && (!$arr_object_sub_description['object_sub_description_is_dynamic'] || $referenced)) {
 				
-				if ($arr_object_sub_description['object_sub_description_has_multi'] || !$arr_object_sub_details['object_sub_details_is_unique'] || $referenced) {
+				if ($arr_object_sub_description['object_sub_description_has_multi'] || !$arr_object_sub_details['object_sub_details_is_single'] || $referenced) {
 					$arr_options['relationality'] = $arr_object_sub_definition['relationality'];
 					$arr_options['relationality_options']['filter'] = true;
 					if ($referenced) {
@@ -641,7 +651,7 @@ class data_filter extends base_module {
 				
 				$return .= '<ul>';
 					
-					if (!$object_sub_details_id || !$arr_object_sub_details['object_sub_details']['object_sub_details_is_unique']) {
+					if (!$object_sub_details_id || !$arr_object_sub_details['object_sub_details']['object_sub_details_is_single']) {
 						
 						$return .= '<li>
 							<label>'.getLabel('lbl_amount').'</label>
@@ -658,7 +668,7 @@ class data_filter extends base_module {
 					if (!$object_sub_details_id || $arr_object_sub_details['object_sub_details']['object_sub_details_has_date']) {
 							
 						$return .= '<li>
-							<label></label>
+							<label>'.getLabel('lbl_date').'</label>
 							<span><input type="button" class="data del" data-section="date" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" data-section="date" value="add" /></span>
 						</li>';
 						
@@ -667,35 +677,45 @@ class data_filter extends base_module {
 							$unique_date = uniqid('array_');
 								
 							$return .= '<li class="date-section start">
-								<label>'.getLabel('lbl_date').'</label>
-								<select name="'.$name.'[object_sub_dates]['.$unique_date.'][object_sub_date_type]">'.cms_general::createDropdown(self::$arr_date_options, $arr_object_sub_date['object_sub_date_type']).'</select>
+								<label></label>
+								<div><select name="'.$name.'[object_sub_dates]['.$unique_date.'][object_sub_date_type]">'.cms_general::createDropdown(self::$arr_date_options, $arr_object_sub_date['object_sub_date_type']).'</select></div>
 							</li>
 							<li class="date-section">
-								<label>'.getLabel('lbl_date_from').'</label>
-								<input type="text" class="date" name="'.$name.'[object_sub_dates]['.$unique_date.'][object_sub_date_from]" value="'.$arr_object_sub_date['object_sub_date_from'].'" />
+								<label></label>
+								<div><input type="text" class="date" name="'.$name.'[object_sub_dates]['.$unique_date.'][object_sub_date_from]" value="'.$arr_object_sub_date['object_sub_date_from'].'" /></div>
 							</li>
 							<li class="date-section">
-								<label>'.getLabel('lbl_date_to').'</label>
-								<input type="text" class="date" name="'.$name.'[object_sub_dates]['.$unique_date.'][object_sub_date_to]" value="'.$arr_object_sub_date['object_sub_date_to'].'" />
+								<label></label>
+								<div><input type="text" class="date" name="'.$name.'[object_sub_dates]['.$unique_date.'][object_sub_date_to]" value="'.$arr_object_sub_date['object_sub_date_to'].'" /></div>
+							</li>
+							<li class="date-section">
+								<label></label>
+								<div>'.StoreTypeObjects::formatToFormValueFilter('date', $arr_object_sub_date['object_sub_date_start'], $name.'[object_sub_dates]['.$unique_date.'][object_sub_date_start]').'</div>
 							</li>';
-							
-							if (!$object_sub_details_id || $arr_object_sub_details['object_sub_details']['object_sub_details_is_date_range']) {
+								
+							if (!$object_sub_details_id || $arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period']) {
 								
 								$return .= '<li class="date-section">
-									<label>'.getLabel('lbl_date_start').'</label>
-									<span>'.StoreTypeObjects::formatToFormValueFilter('date', $arr_object_sub_date['object_sub_date_start'], $name.'[object_sub_dates]['.$unique_date.'][object_sub_date_start]').'</span>
-								</li>
-								<li class="date-section">
-									<label>'.getLabel('lbl_date_end').'</label>
-									<span>'.StoreTypeObjects::formatToFormValueFilter('date', $arr_object_sub_date['object_sub_date_end'], $name.'[object_sub_dates]['.$unique_date.'][object_sub_date_end]').'</span>
-								</li>';
-							} else {
-								
-								$return .= '<li class="date-section">
-									<label>'.getLabel('lbl_date').'</label>
-									<span>'.StoreTypeObjects::formatToFormValueFilter('date', $arr_object_sub_date['object_sub_date_start'], $name.'[object_sub_dates]['.$unique_date.'][object_sub_date_start]').'</span>
+									<label></label>
+									<div>'.StoreTypeObjects::formatToFormValueFilter('date', $arr_object_sub_date['object_sub_date_end'], $name.'[object_sub_dates]['.$unique_date.'][object_sub_date_end]').'</div>
 								</li>';
 							}
+							
+							if ($arr_object_sub_date['object_sub_date_chronology']) {
+								if (!is_array($arr_object_sub_date['object_sub_date_chronology'])) {
+									$arr_object_sub_date['object_sub_date_chronology'] = json_decode($arr_object_sub_date['object_sub_date_chronology'], true);
+								}
+								$arr_object_sub_date['object_sub_date_chronology'] = json_encode($arr_object_sub_date['object_sub_date_chronology'], JSON_PRETTY_PRINT);
+							}
+														
+							$return .= '<li class="date-section">
+								<label></label>
+								<textarea name="'.$name.'[object_sub_dates]['.$unique_date.'][object_sub_date_chronology]" placeholder="ChronoJSON">'.($arr_object_sub_date['object_sub_date_chronology'] ?: '').'</textarea>
+							</li>
+							<li class="date-section">
+								<label></label>
+								<div><input type="button" class="data add popup" id="y:data_entry:select_chronology-'.$type_id.'_'.$object_sub_details_id.'_'.$object_id.'_1" value="create" /></div>
+							</li>';
 							
 							$return .= '<li class="date-section">
 								<label></label>
@@ -729,7 +749,7 @@ class data_filter extends base_module {
 					if (!$object_sub_details_id || $arr_object_sub_details['object_sub_details']['object_sub_details_has_location']) {
 							
 						$return .= '<li>
-							<label></label>
+							<label>'.getLabel('lbl_location').'</label>
 							<span><input type="button" class="data del" data-section="location" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" data-section="location" value="add" /></span>
 						</li>';
 						
@@ -740,16 +760,16 @@ class data_filter extends base_module {
 								$unique_location = uniqid('array_');
 								
 								$return .= '<li class="location-section start">
-									<label>'.getLabel('lbl_location').'</label>
-									<select name="'.$name.'[object_sub_locations]['.$unique_location.'][object_sub_location_type]">'.cms_general::createDropdown(self::$arr_location_options, $arr_object_sub_location['object_sub_location_type']).'</select>
+									<label></label>
+									<div><select name="'.$name.'[object_sub_locations]['.$unique_location.'][object_sub_location_type]">'.cms_general::createDropdown(self::$arr_location_options, $arr_object_sub_location['object_sub_location_type']).'</select></div>
 								</li>
 								<li class="location-section">
-									<label>'.getLabel('lbl_location').' '.getLabel('lbl_latitude').'</label>
-									<input type="text" name="'.$name.'[object_sub_locations]['.$unique_location.'][object_sub_location_latitude]" value="'.$arr_object_sub_location['object_sub_location_latitude'].'" />
+									<label></label>
+									<div><input type="text" name="'.$name.'[object_sub_locations]['.$unique_location.'][object_sub_location_latitude]" value="'.$arr_object_sub_location['object_sub_location_latitude'].'" placeholder="'.getLabel('lbl_latitude').'" /><label title="'.getLabel('lbl_latitude').'">λ</label></div>
 								</li>
 								<li class="location-section">
-									<label>'.getLabel('lbl_location').' '.getLabel('lbl_longitude').'</label>
-									<input type="text" name="'.$name.'[object_sub_locations]['.$unique_location.'][object_sub_location_longitude]" value="'.$arr_object_sub_location['object_sub_location_longitude'].'" />
+									<label></label>
+									<div><input type="text" name="'.$name.'[object_sub_locations]['.$unique_location.'][object_sub_location_longitude]" value="'.$arr_object_sub_location['object_sub_location_longitude'].'" placeholder="'.getLabel('lbl_longitude').'" /><label title="'.getLabel('lbl_longitude').'">φ</label></div>
 								</li>
 								<li class="location-section">
 									<label></label>
@@ -780,12 +800,12 @@ class data_filter extends base_module {
 									$return .= '</ul>
 								</li>
 								<li class="location-section">
-									<label>'.getLabel('lbl_location').' '.getLabel('lbl_geometry').'</label>
-									<textarea name="'.$name.'[object_sub_locations]['.$unique_location.'][object_sub_location_geometry]">'.$arr_object_sub_location['object_sub_location_geometry'].'</textarea>
+									<label></label>
+									<textarea name="'.$name.'[object_sub_locations]['.$unique_location.'][object_sub_location_geometry]" placeholder="GeoJSON">'.$arr_object_sub_location['object_sub_location_geometry'].'</textarea>
 								</li>
 								<li class="location-section">
 									<label></label>
-									<span><input type="button" class="data add select_geometry" value="create" /></span>
+									<div><input type="button" class="data add select_geometry" value="create" /></div>
 								</li>
 								<li class="location-section">
 									<label></label>
@@ -814,10 +834,10 @@ class data_filter extends base_module {
 									$return .= '</ul>
 								</li>
 								<li class="location-section">
-									<label>'.getLabel('lbl_location_reference').'</label>
+									<label></label>
 									<ul class="sorter">
 										<li>
-											<select name="'.$name.'[object_sub_locations]['.$unique_location.'][object_sub_location_ref_type_id]" id="y:data_filter:selector_object_sub-0" class="update_object_type">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types, ($arr_object_sub_location['object_sub_location_ref_type_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id']))).'</select>'
+											<select name="'.$name.'[object_sub_locations]['.$unique_location.'][object_sub_location_ref_type_id]" id="y:data_filter:selector_object_sub_details-0" class="update_object_type">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types, ($arr_object_sub_location['object_sub_location_ref_type_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id']))).'</select>'
 											.'<select name="'.$name.'[object_sub_locations]['.$unique_location.'][object_sub_location_ref_object_sub_details_id]">'.Labels::parseTextVariables(cms_general::createDropdown(StoreType::getTypeObjectSubsDetails((($arr_object_sub_location['object_sub_location_ref_type_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id']) ?: key($arr_types))), ($arr_object_sub_location['object_sub_location_ref_object_sub_details_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_object_sub_details_id']), false, 'object_sub_details_name', 'object_sub_details_id')).'</select>
 										</li>
 										<li>
@@ -866,7 +886,7 @@ class data_filter extends base_module {
 				
 				$arr_object_sub_description = $arr_object_sub_details['object_sub_descriptions'][$object_sub_description_id];
 				
-				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 					continue;
 				}
 				
@@ -1017,10 +1037,10 @@ class data_filter extends base_module {
 				
 				$return = self::createFilterValueType('text', $arr_values['text'], $name.'[text]', false, $label, $arr_options_extra).'
 				<li>
-					<label></label>
+					<label>'.getLabel('lbl_tags').'</label>
 					<span><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></span>
 				</li><li>
-					<label>'.getLabel('lbl_tags').'</label>
+					<label></label>
 					'.cms_general::createSorter($arr_sorter, false, true).'
 				</li>';
 
@@ -1035,10 +1055,10 @@ class data_filter extends base_module {
 				}
 				
 				$return = '<li>
-					<label></label>
+					<label>'.htmlspecialchars($label).'</label>
 					<span><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></span>
 				</li><li>
-					<label>'.htmlspecialchars($label).'</label>
+					<label></label>
 					'.cms_general::createSorter($arr_sorter, false, true).'
 				</li>';
 		}
@@ -1110,7 +1130,7 @@ class data_filter extends base_module {
 		}
 		
 		$return = '<li>
-			<label></label>
+			<label>'.htmlspecialchars($label).'</label>
 			<span>'
 				.'<input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" />'
 				.(keyIsUncontested('filter_deep', $arr_options) ? 
@@ -1120,7 +1140,7 @@ class data_filter extends base_module {
 				.(array_key_exists('beacon', $arr_options) ? '<input type="hidden" name="'.$name.$name_extra.'[beacon]" value="'.$arr_options['beacon'].'" />' : '')
 			.'</span>
 		</li><li>
-			<label>'.htmlspecialchars($label).'</label>
+			<label></label>
 			'.cms_general::createSorter($arr_sorter, false, true).'
 		</li>';
 		
@@ -1306,7 +1326,7 @@ class data_filter extends base_module {
 					
 					if ($_SESSION['USER_ID']) {
 						
-						$arr_users = user_management::filterUsers(false, ['group_id' => $_SESSION['CUR_USER'][DB::getTableName('TABLE_USERS')]['group_id']], false);
+						$arr_users = user_management::filterUsers(false, [], false);
 						
 						//$arr_user_found = StoreTypeObjects::getTypeUsers($type_id, array_keys($arr_users));
 						$arr_user_found = StoreTypeObjects::getActiveUsers(array_keys($arr_users));
@@ -1335,20 +1355,21 @@ class data_filter extends base_module {
 			
 	public static function css() {
 	
-		$return = '.filter fieldset ul > li > div > input[name*=object_sub_location_radius],
-					.filter fieldset ul > li.extra > div > input[type=number],
-					.filter fieldset ul > li.extra > div > ul > li > input[type=number],
-					.filter fieldset input[type=number][name*="[object_sub][relationality]"] { width: 50px; }
-					.filter fieldset input[type=number][name*="[operator_extra]"] { margin-left: 6px; width: 35px; }
-					.filter .tags li.general {  }
-					.filter .object-descriptions > div:empty,
-					.filter .object-sub-details > div:empty,
-					.filter .object-sub-descriptions > div:empty,
-					.filter .external-references > div:empty { display: none; }
-					.point.labmap { width: 600px; height: 400px; }
-					
-					.filter-storage ul > li > label:first-child + div > textarea[name=plain] { width: 400px; height: 300px; }
-				';
+		$return = '
+			.filter fieldset ul > li > div > input[name*=object_sub_location_radius],
+			.filter fieldset ul > li.extra > div > input[type=number],
+			.filter fieldset ul > li.extra > div > ul > li > input[type=number],
+			.filter fieldset input[type=number][name*="[object_sub][relationality]"] { width: 50px; }
+			.filter fieldset input[type=number][name*="[operator_extra]"] { margin-left: 6px; width: 35px; }
+			.filter .tags li.general {  }
+			.filter .object-descriptions > div:empty,
+			.filter .object-sub-details > div:empty,
+			.filter .object-sub-descriptions > div:empty,
+			.filter .external-references > div:empty { display: none; }
+			.point.labmap { height: 750px; }
+			
+			.filter-storage ul > li > label:first-child + div > textarea[name=plain] { width: 400px; height: 300px; }
+		';
 		
 		return $return;
 	}
@@ -1357,110 +1378,214 @@ class data_filter extends base_module {
 	
 		$return = "SCRIPTER.dynamic('filtering', function(elm_scripter) {
 		
+			var func_find_select_type = function(elm) {
+				
+				var elm_target = elm.parent().closest('li');
+				
+				var elm_target_find = elm_target.prev('li').find('.update_object_type');
+				
+				if (elm_target.length && !elm_target_find.length) {
+					elm_target_find = func_find_select_type(elm_target);
+				}
+				
+				return elm_target_find;
+			};
+		
 			elm_scripter.on('ajaxloaded scripter', function(e) {
 			
 				if (!getElement(e.detail.elm)) {
 					return;
 				}
 			
-				e.detail.elm.find('[name*=object_sub_date_type]').trigger('update_date_type');
-				e.detail.elm.find('[name*=object_sub_location_type]').trigger('update_location_type');
-			}).on('change update_date_type', '[name*=object_sub_date_type]', function() {
+				runElementsSelectorFunction(e.detail.elm, '[name*=object_sub_date_type], [name*=\"chronology[start][type]\"], [name*=\"chronology[end][type]\"], [name*=\"_infinite]\"]', function(elm_found) {
+					SCRIPTER.triggerEvent(elm_found, 'update_date_type');
+				});
+				runElementsSelectorFunction(e.detail.elm, '[name*=object_sub_location_type]', function(elm_found) {
+					SCRIPTER.triggerEvent(elm_found, 'update_location_type');
+				});
+			}).on('change update_date_type', '.filter [name*=\"[object_sub_date_type]\"]', function() { // Filter
 			
 				var cur = $(this);
-				var value = cur.val();
-				var target = cur.closest('.date-section');
-				if (target.is('li')) { // Filter & basic data entry
-					target = target.add(target.nextUntil('.start, :not(.date-section)'));
-					var target_range = target.find('[name*=object_sub_date_from], [name*=object_sub_date_to]').closest('.date-section');
-					var target_point = target.find('[name*=\"[object_sub_date_start][value]\"], [name*=\"[object_sub_date_end][value]\"], [name*=object_sub_date_value]').closest('.date-section');
-				} else { // Multi data entry
-					var target_range = target.find('[name*=object_sub_date_from], [name*=object_sub_date_to]');
-					var target_point = target.find('[name*=\"[object_sub_date_start][value]\"], [name*=\"[object_sub_date_end][value]\"]').parent('span');
+				var elm_target = cur.closest('.date-section');
+		
+				elm_target = elm_target.add(elm_target.nextUntil('.start, :not(.date-section)'));
+				var elm_target_range = elm_target.find('[name*=object_sub_date_from], [name*=object_sub_date_to]').closest('.date-section');
+				var elm_target_point = elm_target.find('[name*=\"[object_sub_date_start][value]\"], [name*=\"[object_sub_date_end][value]\"]').closest('.date-section');
+				var elm_target_chronology = elm_target.find('[name*=\"[object_sub_date_chronology]\"], [name*=object_sub_date_value], [id^=y\\\:data_entry\\\:select_chronology-]').closest('.date-section');
+					
+				if (this.value == 'range') {
+					elm_target_range.removeClass('hide');
+					elm_target_point.addClass('hide');
+					elm_target_chronology.addClass('hide');
+				} else if (this.value == 'point') {
+					elm_target_range.addClass('hide');
+					elm_target_point.removeClass('hide');
+					elm_target_chronology.addClass('hide');
+				} else if (this.value == 'chronology') {
+					elm_target_range.addClass('hide');
+					elm_target_point.addClass('hide');
+					elm_target_chronology.removeClass('hide');
+				}
+			}).on('change update_date_type', '[name*=\"[object_sub][object_sub_date_type]\"]', function() { // Entry
+			
+				var cur = $(this);
+				var elm_target = cur.closest('.date-section');
+				
+				if (elm_target.closest('ul.full').length) { // Multi data entry
+					var elm_target_point = elm_target.find('[name*=\"[object_sub_date_start]\"], [name*=\"[object_sub_date_end]\"]').parent('span');
+					var elm_target_chronology = elm_target.find('[name*=object_sub_date_chronology], [id^=y\\\:data_entry\\\:select_chronology-]').parent('span');
+				} else { // Basic data entry
+					elm_target = elm_target.add(elm_target.nextUntil('.start, :not(.date-section)'));	
+					var elm_target_point = elm_target.find('[name*=\"[object_sub_date_start]\"], [name*=\"[object_sub_date_end]\"]').closest('.date-section');
+					var elm_target_chronology = elm_target.find('[name*=object_sub_date_chronology], [id^=y\\\:data_entry\\\:select_chronology-]').closest('.date-section');
 				}
 					
-				if (value == 'range') {
-					target_range.show();
-					target_point.hide();
-				} else if (value == 'point') {
-					target_range.hide();
-					target_point.show();
+				if (this.value == 'chronology') {
+					elm_target_chronology.removeClass('hide');
+					elm_target_point.addClass('hide');
+				} else if (this.value == 'point') {
+					elm_target_chronology.addClass('hide');
+					elm_target_point.removeClass('hide');
 				}
+			}).on('change update_date_type', '[name*=\"chronology[start][type]\"], [name*=\"chronology[end][type]\"]', function() {
+			
+				var cur = $(this);
+				var elm_target = cur.closest('.date-section');
+				
+				elm_target = elm_target.add(elm_target.nextUntil('.start, :not(.date-section)'));
+				var elm_target_point = elm_target.find('[name*=\"[date][start]\"], [name*=\"[date][end]\"]').closest('.date-section');
+				var elm_target_statement = elm_target.find('[name*=\"[start][start]\"], [name*=\"[end][end]\"]').closest('.date-section');
+				var elm_target_statement_between = elm_target_statement.add(elm_target.find('[name*=\"[start][end]\"], [name*=\"[end][start]\"]').closest('.date-section'));
+				var elm_target_statement_inifite = elm_target_statement_between.find('[name*=\"[date_infinite]\"]');
+					
+				if (this.value == 'point') {
+					elm_target_point.removeClass('hide');
+					elm_target_statement_between.addClass('hide');
+				} else if (this.value == 'statement') {
+					elm_target_point.addClass('hide');
+					elm_target_statement_between.addClass('hide');
+					elm_target_statement.removeClass('hide');
+					SCRIPTER.triggerEvent(elm_target_statement.find('[name$=\"[date_value_type]\"]'), 'update_date_value_type');
+					elm_target_statement_inifite.addClass('hide');
+				} else if (this.value == 'statement_between') {
+					elm_target_point.addClass('hide');
+					elm_target_statement_between.removeClass('hide');
+					runElementsSelectorFunction(elm_target_statement_between, '[name$=\"[date_value_type]\"]', function(elm_found) {
+						SCRIPTER.triggerEvent(elm_found, 'update_date_value_type');
+					});
+					elm_target_statement_inifite.removeClass('hide');
+				}
+			}).on('change update_date_type', '[name*=\"[start_infinite]\"], [name*=\"[end_infinite]\"]', function() {
+				$(this).prevAll('input, select').prop('disabled', this.checked);
+			}).on('change update_date_type', '[name*=\"[date_infinite]\"]', function() { // Date infinite in chronology
+				$(this).closest('.date-section').find('input, select').not(this).prop('disabled', this.checked);
+			}).on('change update_date_value_type', '[name$=\"[date_value_type]\"]', function() {
+				
+				var cur = $(this);
+				var elm_target = cur.closest('ul');
+				
+				var elm_target_value = elm_target.find('[name$=\"[date_value]\"]').closest('li');
+				var elm_target_object_sub = elm_target.find('[name$=\"[date_type_id]\"], [name$=\"[date_object_id]\"], [name$=\"[date_object_sub_id]\"]').closest('li');
+				var elm_target_path = elm_target.find('[name*=\"[date_path]\"]').closest('li');
+				
+				if (this.value == 'path') {
+					elm_target_value.addClass('hide');
+					elm_target_object_sub.addClass('hide');
+					elm_target_path.removeClass('hide');
+				} else if (this.value == 'object_sub') {
+					elm_target_value.addClass('hide');
+					elm_target_object_sub.removeClass('hide');
+					elm_target_path.addClass('hide');
+				} else {
+					elm_target_value.removeClass('hide');
+					elm_target_object_sub.addClass('hide');
+					elm_target_path.addClass('hide');
+				}				
 			}).on('change update_location_type', '[name*=object_sub_location_type]', function() {
 			
 				var cur = $(this);
-				var value = cur.val();
-				var target = cur.closest('.location-section');
-				if (target.is('li')) { // Filter & basic data entry
-					target = target.add(target.nextUntil('.start, :not(.location-section)'));
-					var target_point = target.find('[name*=object_sub_location_longitude], [name*=object_sub_location_latitude], [name*=\"[object_sub_location_value][radius]\"], [id=y\\\:data_filter\\\:select_geometry-0]').closest('.location-section');
-					var target_geometry = target.find('[name*=object_sub_location_geometry], [name*=\"[object_sub_location_value][transcension]\"], *[type=button].select_geometry').closest('.location-section');
-					var target_reference = target.find('[name*=object_sub_location_ref], span[data-type=reference]').closest('.location-section');
+				var elm_target = cur.closest('.location-section');
+				
+				if (elm_target.is('li')) { // Filter & basic data entry
+					elm_target = elm_target.add(elm_target.nextUntil('.start, :not(.location-section)'));
+					var elm_target_point = elm_target.find('[name*=object_sub_location_longitude], [name*=object_sub_location_latitude], [name*=\"[object_sub_location_value][radius]\"], [id=y\\\:data_filter\\\:select_geometry-0]').closest('.location-section');
+					var elm_target_geometry = elm_target.find('[name*=object_sub_location_geometry], [name*=\"[object_sub_location_value][transcension]\"], *[type=button].select_geometry').closest('.location-section');
+					var elm_target_reference = elm_target.find('[name*=object_sub_location_ref], span[data-type=reference]').closest('.location-section');
 				} else { // Multi data entry
-					var target_point = target.find('[name*=object_sub_location_longitude], [name*=object_sub_location_latitude], [id=y\\\:data_filter\\\:select_geometry-0]');
-					var target_geometry = target.find('[name*=object_sub_location_geometry], *[type=button].select_geometry');
-					var target_reference = target.find('[name*=object_sub_location_ref], [id^=y\\\:data_filter\\\:lookup_type_object-], span[data-type=reference]');
+					var elm_target_point = elm_target.find('[name*=object_sub_location_longitude]').closest('span');
+					var elm_target_geometry = elm_target.find('[name*=object_sub_location_geometry]').closest('span');
+					var elm_target_reference = elm_target.find('[name*=object_sub_location_ref], [id^=y\\\:data_filter\\\:lookup_type_object-], span[data-type=reference]').closest('span');
 				}
 					
-				if (value == 'point') {
-					target_point.show();
-					target_geometry.hide();
-					target_reference.hide();
-				} else if (value == 'geometry') {
-					target_point.hide();
-					target_geometry.show();
-					target_reference.hide();
-				} else if (value == 'reference') {
-					target_point.hide();
-					target_geometry.hide();
-					target_reference.show();
+				if (this.value == 'point') {
+					elm_target_point.removeClass('hide');
+					elm_target_geometry.addClass('hide');
+					elm_target_reference.addClass('hide');
+				} else if (this.value == 'geometry') {
+					elm_target_point.addClass('hide');
+					elm_target_geometry.removeClass('hide');
+					elm_target_reference.addClass('hide');
+				} else if (this.value == 'reference') {
+					elm_target_point.addClass('hide');
+					elm_target_geometry.addClass('hide');
+					elm_target_reference.removeClass('hide');
 				}
 			}).on('change', '[id^=y\\\:data_filter\\\:lookup_type_object_pick-]', function() {
-				var cur = $(this);
-				if (cur.val()) {
-					$(this).quickCommand();
+				if (this.value) {
+					COMMANDS.quickCommand(this);
 				}
-			}).on('change', '[id=y\\\:data_filter\\\:selector_object_sub-0]', function() {
-				var target = $(this).next('select');
-				if (target.length) {
-					$(this).quickCommand(target);
+			}).on('change', '[id=y\\\:data_filter\\\:selector_object_sub_details-0]', function() {
+				var elm_target = $(this).next('select');
+				if (elm_target.length) {
+					COMMANDS.quickCommand(this, elm_target);
 				}
 			}).on('focus', '[id^=y\\\:data_filter\\\:lookup_type_object-]', function() {
 				var cur = $(this);
-				if (!cur.data('value')) {
-					cur.data('value', {});
-				}
-					
+
 				if (cur.closest('.entry, .select-object').length) {
-					cur.data('value').new = true;
+					COMMANDS.setData(cur, {new: true});
 				}
-				
-				var func_find_type = function(elm) {
-					
-					var target = elm.parent().closest('li');
-					
-					var target_find = target.prev('li').find('.update_object_type');
-					
-					if (target.length && !target_find.length) {
-						target_find = func_find_type(target);
-					}
-					
-					return target_find;
-				};
-				
+
 				if (cur.is('[id=y\\\:data_filter\\\:lookup_type_object-0]')) {
 					
-					var target = cur.siblings('.update_object_type');
-					if (!target.length) {
-						target = func_find_type(cur);
+					var elm_target = cur.siblings('.update_object_type');
+					if (!elm_target.length) {
+						elm_target = func_find_select_type(cur);
 					}
 					
-					if (target.length) {
-						var value = target.val();
-
-						cur.data('value').type_id = value;
-						cur.parent().find('[id=y\\\:data_filter\\\:lookup_type_object_pick-0]').data('value', {'type_id': value});
+					if (elm_target.length) {
+						COMMANDS.setData(cur, {type_id: elm_target[0].value});
+						COMMANDS.setData(cur.parent().find('[id=y\\\:data_filter\\\:lookup_type_object_pick-0]'), {type_id: elm_target[0].value});
 					}
+				}
+			}).on('click', '[id^=y\\\:data_filter\\\:select_type_object_sub-]', function() {
+			
+				var cur = $(this);
+				
+				var elm_object_id = cur.closest('li').prev().children('input[type=hidden]');
+				
+				var elm_target = elm_object_id.siblings('.update_object_type');
+				if (!elm_target.length) {
+					elm_target = func_find_select_type(elm_object_id);
+				}
+				
+				var type_id = elm_target[0].value;
+				var object_sub_details_id = elm_target.next()[0].value;
+				var object_id = elm_object_id[0].value;
+				var object_sub_id = cur.prev()[0].value;
+				
+				if (elm_target.length) {
+					COMMANDS.setData(this, {type_id: type_id, object_id: object_id, object_sub_details_id: object_sub_details_id, object_sub_id: object_sub_id});
+					COMMANDS.setTarget(this, function(data) {
+					
+						if (!data || !data.id) {
+							var data = {id: '', value: ''};
+						}
+
+						this.value = data.value;
+						cur.prev()[0].value = data.id;
+					});
+					COMMANDS.popupCommand(this);
 				}
 			});
 		
@@ -1506,7 +1631,13 @@ class data_filter extends base_module {
 				var elm_parent = cur.closest('.filter');
 				var elm_filter_form = elm_parent.children('div:visible');
 				
-				var filter_code = (!$(this).closest('.tabs > ul').length ? elm_filter_form.attr('id') : 0);
+				if (!$(this).closest('.tabs > ul').length) {
+					var filter_code = elm_filter_form.attr('id');
+					var filter_type_id = elm_filter_form.find('[name=\"filter[form]['+filter_code+'][type_id]\"]').val();
+				} else {
+					var filter_code = 0;
+					var filter_type_id = 0;
+				}
 				var elm_filter_beacon = cur.next('[name$=\"[beacon]\"]');
 				var filter_beacon = elm_filter_beacon.val();
 				if (!filter_beacon && elm_filter_beacon.length) {
@@ -1529,7 +1660,7 @@ class data_filter extends base_module {
 					}
 				}
 										
-				COMMANDS.setData(cur, {filter_code: filter_code, filter_beacon: filter_beacon, type_id: type_id, name: name});
+				COMMANDS.setData(cur, {filter_code: filter_code, filter_type_id: filter_type_id, filter_beacon: filter_beacon, type_id: type_id, name: name});
 				COMMANDS.setTarget(cur, function(data) {
 				
 					var elm_collect = $();
@@ -1585,7 +1716,31 @@ class data_filter extends base_module {
 				
 				var func_has_value = function() { return (this.value != '' && this.value != 0) };
 				
-				if (cur.attr('data-section') == 'location') {
+				if (cur.attr('data-section') == 'date') {
+				
+					elm_ul.find('[name*=object_sub_date_type]').each(function(i) {
+						var cur = $(this);
+						var value = cur.val();
+						var target = cur.closest('li');
+						target = target.add(target.nextUntil('.start, :not(.date-section)'));
+
+						if (elm_ul.find('[name*=object_sub_date_type]').length === 1) { // Keep last target
+							return;
+						}
+						
+						if (value == 'range') {
+							if (!target.find('[name*=object_sub_date_from], [name*=object_sub_date_to]').filter(func_has_value).length) {
+								target.remove();
+							}
+						} else if (value == 'point') {
+							var elm_date = target.find('[name*=\"[object_sub_date_start][value]\"], [name*=\"[object_sub_date_end][value]\"]').filter(func_has_value);
+							elm_date = elm_date.add(target.find('[name*=\"[object_sub_date_start][value_now]\"]:checked, [name*=\"[object_sub_date_end][value_now]\"]:checked'));
+							if (!elm_date.length) {
+								target.remove();
+							}
+						}
+					});
+				} else if (cur.attr('data-section') == 'location') {
 				
 					elm_ul.find('[name*=object_sub_location_type]').each(function(i) {
 						
@@ -1607,30 +1762,7 @@ class data_filter extends base_module {
 								target.remove();
 							}
 						} else if (value == 'reference') {
-							if (!target.find('[name*=object_sub_location_reference]').filter(func_has_value).length) { // Consider both references and beacons
-								target.remove();
-							}
-						}
-					});
-				} else if (cur.attr('data-section') == 'date') {
-					elm_ul.find('[name*=object_sub_date_type]').each(function(i) {
-						var cur = $(this);
-						var value = cur.val();
-						var target = cur.closest('li');
-						target = target.add(target.nextUntil('.start, :not(.date-section)'));
-
-						if (elm_ul.find('[name*=object_sub_date_type]').length === 1) { // Keep last target
-							return;
-						}
-						
-						if (value == 'range') {
-							if (!target.find('[name*=object_sub_date_from], [name*=object_sub_date_to]').filter(func_has_value).length) {
-								target.remove();
-							}
-						} else if (value == 'point') {
-							var elm_date = target.find('[name*=\"[object_sub_date_start][value]\"], [name*=\"[object_sub_date_end][value]\"]').filter(func_has_value);
-							elm_date = elm_date.add(target.find('[name*=\"[object_sub_date_start][value_now]\"]:checked, [name*=\"[object_sub_date_end][value_now]\"]:checked'));
-							if (!elm_date.length) {
+							if (!target.find('[id=y\\\:data_filter\\\:lookup_type_object_pick-0], [name*=\"[object_sub_location_reference][beacon]\"]').filter(func_has_value).length) { // Consider both references and beacons
 								target.remove();
 							}
 						}
@@ -1657,7 +1789,7 @@ class data_filter extends base_module {
 		});
 		
 		SCRIPTER.dynamic('application_filter', function(elm_scripter) {
-		
+
 			elm_scripter.on('command', '[id^=y\\\:data_filter\\\:configure_application_filter-]', function() {
 			
 				var cur = $(this);
@@ -1667,7 +1799,16 @@ class data_filter extends base_module {
 				COMMANDS.setTarget(cur, function(data) {
 					elm_target.val(data);
 				});
-			})
+			}).on('command', '[id^=y\\\:data_filter\\\:configure_application_path-]', function() {
+			
+				var cur = $(this);
+				var elm_target = cur.prev('input[type=hidden]');
+				
+				COMMANDS.setData(cur, {path: elm_target.val(), options: cur.attr('data-options')});
+				COMMANDS.setTarget(cur, function(data) {
+					elm_target.val(data.path);
+				});
+			});
 		});
 		
 		SCRIPTER.dynamic('.filter-storage.storage', function(elm_scripter) {
@@ -1686,6 +1827,21 @@ class data_filter extends base_module {
 				COMMANDS.setOptions(elm_command[0], {remove: false});
 			});
 		});
+		
+		SCRIPTER.dynamic('select_chronology', function(elm_scripter) {
+		
+			elm_scripter.on('command', '[id^=y\\\:data_entry\\\:select_chronology-]', function() {
+				var cur = $(this);
+				var elm_target = cur.prev('textarea');
+				if (!elm_target.length) {
+					elm_target = cur.closest('.date-section').prev().find('textarea');
+				}
+				COMMANDS.setData(this, {json: elm_target[0].value});
+				COMMANDS.setTarget(this, elm_target);
+			});
+		});
+		
+		SCRIPTER.dynamic('filtering', 'select_chronology');
 
 		SCRIPTER.dynamic('select_geometry', function(elm_scripter) {
 		
@@ -1701,7 +1857,9 @@ class data_filter extends base_module {
 					var elm_map = $(data.html);
 					var elm_con = cur.closest('.mod, body');
 					
-					new Overlay(elm_con, elm_map);
+					new Overlay(elm_con, elm_map, {
+						sizing: 'full-width'
+					});
 					
 					var arr_levels = [];
 					for (var i = 1; i <= 18; i++) {
@@ -1752,6 +1910,15 @@ class data_filter extends base_module {
 		SCRIPTER.dynamic('filtering', 'select_geometry');
 		
 		SCRIPTER.dynamic('[data-method=filter], .filtering, [data-method=return_application_filter]', 'filtering');
+		
+		SCRIPTER.dynamic('[data-method=return_application_path]', function(elm_scripter) {
+			
+			var elm_filtering = elm_scripter.find('.filtering');
+			SCRIPTER.runDynamic(elm_filtering);
+			
+			var elm_scope = elm_scripter.find('.network.type');
+			SCRIPTER.runDynamic(elm_scope);
+		});
 		
 		// FILTER EXTERNAL
 		
@@ -1877,7 +2044,7 @@ class data_filter extends base_module {
 			
 			$arr_id = explode('_', $id);
 			$type_id = ($value['type_id'] ?: $arr_id[0]);
-			$arr_source = ['filter_code' => $value['filter_code'], 'filter_beacon' => $value['filter_beacon'], 'type_id' => $arr_id[1], 'object_description_id' => $arr_id[2], 'object_sub_details_id' => $arr_id[3], 'object_sub_description_id' => $arr_id[4], 'direction' => ($arr_id[5] != '' ? ($arr_id[5] ? 'in' : 'out') : false)];
+			$arr_source = ['filter_code' => $value['filter_code'], 'filter_type_id' => $value['filter_type_id'], 'filter_beacon' => $value['filter_beacon'], 'type_id' => $arr_id[1], 'object_description_id' => $arr_id[2], 'object_sub_details_id' => $arr_id[3], 'object_sub_description_id' => $arr_id[4], 'direction' => ($arr_id[5] != '' ? ($arr_id[5] ? 'in' : 'out') : false)];
 			if ($value['name']) {
 				$this->form_name = $value['name'];
 			}
@@ -2005,7 +2172,7 @@ class data_filter extends base_module {
 		
 		if ($method == "add_filter_external_variable") {
 		
-			$arr_id = explode("_", $id);
+			$arr_id = explode('_', $id);
 						
 			$this->html = '<fieldset data-tag_identifier="'.htmlspecialchars($arr_id[1]).'_'.htmlspecialchars($arr_id[2]).'">
 				<ul>'.$this->createFilterExternalVariable($arr_id[0], $arr_id[1], $arr_id[2]).'</ul>
@@ -2030,6 +2197,51 @@ class data_filter extends base_module {
 			$this->html = $return;
 		}
 		
+		if ($method == "configure_application_path") {
+			
+			$arr_id = explode('_', $id);
+			$type_id = $arr_id[0];
+			
+			$arr_path = ($value['path'] ? json_decode($value['path'], true) : []);
+			$arr_type_filter = ($arr_path['filter'] ?: []);
+			$arr_type_scope = ($arr_path['scope'] ?: []);
+			
+			$arr_options = ($value['options'] ? json_decode($value['options'], true) : []);
+			
+			$html_filter = $this->createFilter($type_id, $arr_type_filter);
+			
+			$html_type_network = data_model::createTypeNetwork($type_id, false, false, ['references' => 'both', 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'name' => 'scope', 'value' => $arr_type_scope, 'descriptions' => $arr_options['descriptions'], 'functions' => ['filter' => true, 'collapse' => false]]);
+			
+			$return = '<div class="tabs">
+				<ul>
+					<li><a href="#">'.getLabel('lbl_filter').'</a></li>
+					<li><a href="#">'.getLabel('lbl_scope').'</a></li>
+				</ul>
+				<div>'.$html_filter.'</div>
+				<div>
+					<div class="options">'.$html_type_network.'</div>
+				</div>
+			</div>';
+			
+			$this->html = '<form data-method="return_application_path">'.$return.'</form>';
+		}
+		if ($method == "return_application_path") {
+						
+			$filter = new FilterTypeObjects($id);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id'])]);
+			$arr_type_filter = $filter->cleanupFilterInput(($_POST['filter'] ?: []));
+			
+			$arr_type_scope = data_model::parseTypeNetwork(($_POST['scope'] ?: []));
+			
+			if (!$arr_type_scope['paths'] && !$arr_type_scope['types']) {
+				$arr_type_scope = [];
+			}
+			
+			$arr_path = ['filter' => $arr_type_filter, 'scope' => $arr_type_scope];
+			
+			$this->html = ['path' => json_encode($arr_path)];
+		}
+		
 		if ($method == "lookup_type_object") {
 			
 			if (is_array($value)) {
@@ -2044,7 +2256,7 @@ class data_filter extends base_module {
 				return;
 			}
 			
-			if (!custom_projects::checkAccesType($type_id)) {
+			if (!custom_projects::checkAccessType('view', $type_id)) {
 				return;
 			}
 			
@@ -2119,7 +2331,7 @@ class data_filter extends base_module {
 					
 					$arr_object_description = $arr_type_set['object_descriptions'][$object_description_id];
 					
-					if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
+					if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
 						continue;
 					}
 					
@@ -2160,7 +2372,7 @@ class data_filter extends base_module {
 				$arr[] = ['id' => $arr_object['object']['object_id'], 'label' => $str_object_name, 'value' => Response::addParsePost($str_object_name, ['strip' => true]), 'title' => ($arr_title ? '<dl>'.implode('', $arr_title).'</dl>' : '')];
 			}
 		
-			if ($value['new']) {
+			if ($value['new'] && $_SESSION['NODEGOAT_CLEARANCE'] > NODEGOAT_CLEARANCE_INTERACT && data_model::checkClearanceType($type_id, false) && custom_projects::checkAccessType('edit', $type_id, false)) {
 				$arr[] = ['id' => '', 'label' => '<input type="button" id="y:data_entry:add_quick-'.$type_id.'" class="data add popup" value="new" />', 'value' => ''];
 			}
 			$arr[] = ['id' => '', 'label' => '<input type="button" id="y:data_filter:select_type_object-'.$type_id.'" class="data neutral popup" value="filter" />', 'value' => ''];
@@ -2219,11 +2431,28 @@ class data_filter extends base_module {
 		
 		if ($method == "select_type_object") {
 			
-			if (!custom_projects::checkAccesType($id)) {
+			if (!custom_projects::checkAccessType('view', $id)) {
 				return;
 			}
 			
 			$this->html = '<form data-method="return_type_object">'.data_view::createViewTypeObjects($id, ['select' => true, 'filter' => true]).'<input type="submit" value="'.getLabel('lbl_select').'" /></form>';
+		}
+		
+		if ($method == "select_type_object_sub") {
+			
+			if (!$value || !$value['type_id']) {
+				return;
+			}
+			
+			if (!custom_projects::checkAccessType('view', $value['type_id'])) {
+				return;
+			}
+			
+			if (!$value['object_sub_details_id'] || !$value['object_id']) {
+				error(getLabel('msg_missing_information'), TROUBLE_ERROR, LOG_CLIENT);
+			}
+			
+			$this->html = '<form data-method="return_type_object_sub">'.data_view::createViewTypeObjectSubs($value['type_id'], (int)$value['object_id'], (int)$value['object_sub_details_id'], ['select' => true, 'filter' => true]).'<input type="submit" value="'.getLabel('lbl_select').'" /></form>';
 		}
 		
 		if ($method == "select_external") {
@@ -2261,21 +2490,40 @@ class data_filter extends base_module {
 		if ($method == "return_type_object") {
 		
 			$object_id = (int)$_POST['type_object_id'];
+			
 			if (!$object_id) {
 				$this->html = [];
 				return;
 			}
 			
-			$filter = new FilterTypeObjects($id, 'name');
-			$filter->setFilter(['objects' => $object_id]);
-			$filter->setVersioning('added');
-			$filter->setConditions('text', toolbar::getTypeConditions($id));
-			$arr_object = $filter->init();
-			$arr_object = current($arr_object);
-			
-			$str_object_name = $arr_object['object']['object_name'];
+			$arr_objects = GenerateTypeObjects::getTypeObjectNames($id, $object_id, 'text');
+			$str_object_name = $arr_objects[$object_id];
 			
 			$this->html = ['id' => $object_id, 'value' => $str_object_name];
+		}
+		
+		if ($method == "return_type_object_sub") {
+			
+			$type_id = (int)$value['type_id'];
+			$object_id = (int)$value['object_id'];
+			$object_sub_details_id = (int)$value['object_sub_details_id'];
+			$object_sub_id = (int)$_POST['type_object_sub_id'];
+			
+			if (!$object_sub_id || !$object_id || !$type_id) {
+				$this->html = [];
+				return;
+			}
+
+			$arr_object_subs_names = GenerateTypeObjects::getTypeObjectSubsNames($type_id, $object_id, $object_sub_id, 'text');
+
+			if (!$arr_object_subs_names) {
+				$this->html = [];
+				return;
+			}
+			
+			$str_object_sub_name = $arr_object_subs_names[$object_sub_id];
+			
+			$this->html = ['id' => $object_sub_id, 'value' => $str_object_sub_name];
 		}
 		
 		if ($method == "return_external") {
@@ -2329,7 +2577,7 @@ class data_filter extends base_module {
 			}
 		}
 		
-		if ($method == "selector_object_sub") {
+		if ($method == "selector_object_sub_details") {
 			
 			$this->html = Labels::parseTextVariables(cms_general::createDropdown(StoreType::getTypeObjectSubsDetails($value), false, false, 'object_sub_details_name', 'object_sub_details_id'));
 		}
@@ -2370,12 +2618,16 @@ class data_filter extends base_module {
 		} else if ($arr_value) {
 			
 			$arr_filter_set = $arr_value;
+			
+			unset($arr_filter_set['dynamic_filtering']);
 		}
 		
 		if ($arr_filter_set) {
-			
+
 			$arr_filter = $arr_filter_set;
 			$arr_filter += FilterTypeObjects::convertFilterInput($arr_filter_set);
+			
+			$arr_filter = array_filter($arr_filter);
 		}
 		
 		return $arr_filter;

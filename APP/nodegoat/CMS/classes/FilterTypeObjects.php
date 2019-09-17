@@ -15,7 +15,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 	private $arr_translate_filter_codes = [];
 	
 	private static $arr_system_filter_keys = ['query' => true, 'queries' => true, 'query_dependent' => true, 'table' => true, 'object_filter_parsed' => true];
-		
+	
 	public function setFilter($arr_filters, $filter_object_subs = false) {
 		
 		$arr_filters = ($arr_filters ?: []);
@@ -49,6 +49,12 @@ class FilterTypeObjects extends GenerateTypeObjects {
 		$arr_filter_parse = (is_array($arr_filter_parse) ? $arr_filter_parse : ['search' => $arr_filter_parse]);
 
 		$arr_filter = [];
+		
+		if ($arr_filter_parse['none']) {
+			
+			$this->arr_sql_filter['filter'][] = 'FALSE';
+			$arr_filter['none'] = true;
+		}
 		
 		if ($arr_filter_parse['objects']) {
 			
@@ -296,8 +302,12 @@ class FilterTypeObjects extends GenerateTypeObjects {
 		
 		if (!is_array($arr_filter_search)) {
 			
-			$str_filter_search = trim($arr_filter_search);
-			$arr_filter_search = [];
+			$str_filter_search = $arr_filter_search;
+			$arr_filter_search = explode(' ', $str_filter_search);
+			
+			// Information Retrieval patterns
+			
+			/*$arr_filter_search = [];
 				
 			$pos = strpos($str_filter_search, '[');
 			
@@ -305,7 +315,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 
 				while ($pos !== false) {
 					
-					$pos_end = strpos($str_filter_search, ']');
+					$pos_end = strpos($str_filter_search, ']', $pos);
 					
 					if (!$pos_end) {
 						break;
@@ -325,9 +335,11 @@ class FilterTypeObjects extends GenerateTypeObjects {
 			if ($str_filter_search) {
 				
 				$arr_filter_search = array_merge($arr_filter_search, explode(' ', $str_filter_search));
-			}
+			}*/
 		}
+		
 		$arr_filter_search = arrParseRecursive($arr_filter_search, 'trim');
+		$arr_filter_search = array_unique(array_filter($arr_filter_search));
 		
 		$search_object_id = false;
 		$search_object_sub_id = false;
@@ -411,7 +423,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 										
 					foreach (array_reverse($arr_sql_connect, true) as $connect_table_id => $arr_connect_from_table_ids) { // Reversed order (start from the end); 'org' connects based on 'ref' instead of 'ref' from 'org'
 						
-						$table_name = "nodegoat_to_def_con_".$connect_table_id;
+						$table_name = DBFunctions::str2Name('nodegoat_to_def_con_'.$connect_table_id);
 						$version_select = $this->generateVersion('record', $table_name);
 						
 						if ($arr_connect_from_table_ids[1]) {
@@ -657,7 +669,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 			$arr_filter_date['end'] = (int)$arr_filter_parse['date_int']['end'];
 		}
 		
-		$arr_sql_date = $this->generateTablesColumnsObjectSubDate('[X]', true);
+		$arr_sql_date = $this->generateTablesColumnsObjectSubDate('[X]');
 		
 		if ($arr_filter_date['start'] && $arr_filter_date['end']) {
 			$sql_date = "((".$arr_sql_date['column_start']." BETWEEN ".(int)$arr_filter_date['start']." AND ".(int)$arr_filter_date['end'].") OR (".$arr_sql_date['column_end']." BETWEEN ".(int)$arr_filter_date['start']." AND ".(int)$arr_filter_date['end'].") OR (".$arr_sql_date['column_start']." < ".(int)$arr_filter_date['start']." AND ".$arr_sql_date['column_end']." > ".(int)$arr_filter_date['end']."))";
@@ -858,7 +870,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 		
 		if ($arr_filter_collect['object_versioning']['date']) {
 			$sql_date = self::format2SQLDateRange($arr_filter_collect['object_versioning']['date']['start'], $arr_filter_collect['object_versioning']['date']['end'], 'ver.date');
-			$sql_date_object = self::format2SQLDateRange($arr_filter_collect['object_versioning']['date']['start'], $arr_filter_collect['object_versioning']['date']['end'], 'nodegoat_to_date.date_object');
+			$sql_date_object = self::format2SQLDateRange($arr_filter_collect['object_versioning']['date']['start'], $arr_filter_collect['object_versioning']['date']['end'], 'nodegoat_to_status.date_object');
 		}
 		
 		if ($arr_filter_collect['object_versioning']['source'] && ($sql_user_ids || $sql_versions || $sql_date)) {
@@ -910,7 +922,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 		
 			$arr_filter_parse['queries'][] = "SELECT nodegoat_to.id
 						FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
-						JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DATING')." nodegoat_to_date ON (nodegoat_to_date.object_id = nodegoat_to.id)
+						JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')." nodegoat_to_status ON (nodegoat_to_status.object_id = nodegoat_to.id)
 						WHERE nodegoat_to.type_id = ".$this->type_id."
 							AND ".$sql_date_object."
 			";
@@ -921,7 +933,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 		
 		$arr_filter_collect['object_discussion'] = $arr_filter_parse['object_discussion'];
 		
-		$sql_date = self::format2SQLDateRange($arr_filter_collect['object_discussion']['date']['start'], $arr_filter_collect['object_discussion']['date']['end'], 'nodegoat_to_date.date_discussion');
+		$sql_date = self::format2SQLDateRange($arr_filter_collect['object_discussion']['date']['start'], $arr_filter_collect['object_discussion']['date']['end'], 'nodegoat_to_status.date_discussion');
 					
 		if ($arr_filter_collect['object_versioning']['users']['selection'] || $arr_filter_collect['object_versioning']['users']['self']) {
 			
@@ -937,7 +949,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 		
 		$arr_filter_parse['queries'][] = "SELECT nodegoat_to.id
 					FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
-					JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DATING')." nodegoat_to_date ON (nodegoat_to_date.object_id = nodegoat_to.id)
+					JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')." nodegoat_to_status ON (nodegoat_to_status.object_id = nodegoat_to.id)
 					".($sql_user_ids ? " JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DISCUSSION')." nodegoat_to_disc ON (nodegoat_to_disc.object_id = nodegoat_to.id)" : "")."
 					WHERE nodegoat_to.type_id = ".$this->type_id."
 						AND ".$sql_date."
@@ -949,11 +961,11 @@ class FilterTypeObjects extends GenerateTypeObjects {
 		
 		$arr_filter_collect['object_dating'] = $arr_filter_parse['object_dating'];
 		
-		$sql_date = self::format2SQLDateRange($arr_filter_collect['object_dating']['date']['start'], $arr_filter_collect['object_dating']['date']['end'], 'nodegoat_to_date.date');
+		$sql_date = self::format2SQLDateRange($arr_filter_collect['object_dating']['date']['start'], $arr_filter_collect['object_dating']['date']['end'], 'nodegoat_to_status.date');
 		
 		$arr_filter_parse['queries'][] = "SELECT nodegoat_to.id
 					FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
-					JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DATING')." nodegoat_to_date ON (nodegoat_to_date.object_id = nodegoat_to.id)
+					JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')." nodegoat_to_status ON (nodegoat_to_status.object_id = nodegoat_to.id)
 					WHERE nodegoat_to.type_id = ".$this->type_id."
 						AND ".$sql_date."
 		";
@@ -1188,7 +1200,17 @@ class FilterTypeObjects extends GenerateTypeObjects {
 			$table_name_to = 'nodegoat_to';
 			$table_name_tos_all = 'nodegoat_tos_all';
 			
-			$sql_operator = ($arr_object_filter['options']['operator'] == 'and' || !$count_filter ? 'AND' : 'OR');
+			if ($arr_object_filter['options']['operator'] == 'object_and_sub_or' || $arr_object_filter['options']['operator'] == 'object_and_sub_and' || !$count_filter) {
+				$sql_operator = 'AND';
+				if ($arr_object_filter['options']['operator'] == 'object_and_sub_and' || !$count_filter) {
+					$sql_operator_sub = 'AND'; // 'object_and_sub_and'
+				} else {
+					$sql_operator_sub = 'OR'; // 'object_and_sub_or'
+				}
+			} else { // 'object_or_sub_or'
+				$sql_operator = 'OR';
+				$sql_operator_sub = 'OR';
+			}
 			$sql_operator_not = ($arr_object_filter['options']['exclude'] ? 'NOT' : '');
 			
 			$filter_pre = ($arr_object_filter['options']['exclude'] == 'hard' ? true : false);
@@ -1213,7 +1235,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 					
 					if ($arr_object_filter['source']['object_sub_description_id'] === 'location') {
 						
-						$arr_sql_location = $this->generateTablesColumnsObjectSubLocationReference('nodegoat_tos', true, true);
+						$arr_sql_location = $this->generateTablesColumnsObjectSubLocationReference('nodegoat_tos', true);
 						
 						$arr_sql['filtering'] = "EXISTS (SELECT TRUE
 								FROM ".$this->table_name_filtering." ".$arr_object_filter['source']['filter_code']."
@@ -1339,11 +1361,11 @@ class FilterTypeObjects extends GenerateTypeObjects {
 				$arr_options = ['object_description_id' => $object_description_id];
 				$is_filtering = $this->isFilteringObjectDescription($object_description_id, false, true);
 				if ($filter_pre) {
-					$table_name = "nodegoat_to_def_".$object_description_id."_".$arr_object_filter['filter_code'];
+					$table_name = DBFunctions::str2Name('nodegoat_to_def_'.$object_description_id.'_'.$arr_object_filter['filter_code']);
 				} else {
 					$nr_object_description_table = count((array)$this->arr_nr_object_tables['object_descriptions'][$object_description_id]);
 					$nr_object_description_table = (!$nr_object_description_table || $sql_operator == 'AND' ? $nr_object_description_table : $nr_object_description_table-1); // Use new tables when filtering on a previous filter (AND, taking into account the possibility for multiple values)
-					$table_name = "nodegoat_to_def_".$object_description_id."_".$nr_object_description_table."_".($is_filtering ? $arr_object_filter['filter_code'] : 0);
+					$table_name = DBFunctions::str2Name('nodegoat_to_def_'.$object_description_id.'_'.$nr_object_description_table.'_'.($is_filtering ? $arr_object_filter['filter_code'] : 0));
 				}
 				
 				$arr_object_description = $this->arr_type_set['object_descriptions'][$object_description_id];
@@ -1439,10 +1461,10 @@ class FilterTypeObjects extends GenerateTypeObjects {
 			
 				$arr_object_sub = $arr_object_filter['object_subs'][$object_sub_details_id];
 				$is_filtering = $this->isFilteringObjectSubDetails($object_sub_details_id, false, true);
-				$table_name_tos = 'nodegoat_tos_'.$object_sub_details_id;
+				$table_name_tos = DBFunctions::str2Name('nodegoat_tos_'.$object_sub_details_id);
 				$table_name_query_object_sub_self = $table_name_tos.'_self';
 				$nr_object_sub_details_table = count((array)$this->arr_nr_object_tables['object_sub_details'][$object_sub_details_id]);
-				$nr_object_sub_details_table = (!$nr_object_sub_details_table || $sql_operator == 'AND' ? $nr_object_sub_details_table : $nr_object_sub_details_table-1); // Use new tables when filtering on a previous filter (AND, taking into account the possibility for multiple values)
+				$nr_object_sub_details_table = (!$nr_object_sub_details_table || ($sql_operator == 'AND' && $sql_operator_sub == 'OR') ? $nr_object_sub_details_table : $nr_object_sub_details_table-1); // Use new tables when filtering on a previous filter (AND, taking into account the possibility for multiple values)
 				$table_name_query_object_sub = $table_name_tos."_".$nr_object_sub_details_table."_".($is_filtering ? $arr_object_filter['filter_code'] : 0);
 
 				// Sub-object definitions
@@ -1452,13 +1474,14 @@ class FilterTypeObjects extends GenerateTypeObjects {
 					$arr_options = ['object_sub_details_id' => $object_sub_details_id, 'object_sub_description_id' => $object_sub_description_id];
 					$is_filtering = $this->isFilteringObjectSubDescription($object_sub_details_id, $object_sub_description_id, false, true);
 					if ($filter_pre) {
-						$table_name = "nodegoat_tos_def_".$object_sub_description_id."_".$arr_object_filter['filter_code'];
+						$table_name = DBFunctions::str2Name('nodegoat_tos_def_'.$object_sub_description_id.'_'.$arr_object_filter['filter_code']);
 					} else {
-						$table_name = "nodegoat_tos_def_".$object_sub_description_id."_".$nr_object_sub_details_table."_".($is_filtering ? $arr_object_filter['filter_code'] : 0);
+						$table_name = DBFunctions::str2Name('nodegoat_tos_def_'.$object_sub_description_id.'_'.$nr_object_sub_details_table."_".($is_filtering ? $arr_object_filter['filter_code'] : 0));
 					}
 					
 					if ($arr_sub_definitions['filtering']) {
 						
+						/*
 						$sql_filter = "EXISTS (SELECT TRUE
 								FROM ".$this->table_name_filtering." ".$arr_object_filter['source']['filter_code']."
 							WHERE ".$arr_object_filter['source']['filter_code'].".id_".$arr_object_filter['source']['filter_code']." = 1
@@ -1466,11 +1489,25 @@ class FilterTypeObjects extends GenerateTypeObjects {
 						)";
 						
 						$this->query_object_subs[$object_sub_details_id][$table_name_query_object_sub]['object_sub_descriptions'][$object_sub_description_id][$arr_object_filter['filter_code']] = ['table_name' => $table_name, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter], 'filter_object_subs' => $filter_object_subs];
+						*/
+						
+						$version_select = $this->generateVersion('record', 'nodegoat_tos_def');
+						$version_select_tos = $this->generateVersion('object_sub', 'nodegoat_tos');
+						
+						$sql_filter = "EXISTS (SELECT TRUE
+								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos
+								JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').StoreType::getValueTypeTable('type')." nodegoat_tos_def ON (nodegoat_tos_def.object_sub_id = nodegoat_tos.id AND nodegoat_tos_def.object_sub_description_id = ".(int)$object_sub_description_id." AND ".$version_select.")
+								JOIN ".$this->table_name_filtering." ".$arr_object_filter['source']['filter_code']." ON (".$arr_object_filter['source']['filter_code'].".id = nodegoat_tos_def.ref_object_id AND ".$arr_object_filter['source']['filter_code'].".id_".$arr_object_filter['source']['filter_code']." = 1)
+							WHERE nodegoat_tos.object_id = ".$table_name_query_object_sub.".object_id
+								AND ".$version_select_tos."
+						)";
+						
+						$this->query_object_subs[$object_sub_details_id][$table_name_query_object_sub]['referencing'][$object_sub_description_id][$arr_object_filter['filter_code']] = ['table_name' => $table_name_query_object_sub, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter], 'filter_object_subs' => $filter_object_subs];
 						$this->arr_nr_object_tables['object_sub_details'][$object_sub_details_id][$table_name_query_object_sub] = true;
 						$arr_sql['filtering'] = $sql_filter;
 						
 						unset($arr_sub_definitions['filtering']);
-					} 
+					}
 					
 					if ($arr_sub_definitions) {
 						
@@ -1520,7 +1557,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 							if (!$filter_pre) {
 								
 								$arr_sql_subs[$object_sub_details_id]['filter'][] = $sql_filter;
-								$this->query_object_subs[$object_sub_details_id][$table_name_query_object_sub]['object_sub_descriptions'][$object_sub_description_id][$arr_object_filter['filter_code']] = ['table_name' => $table_name, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter_object_sub, 'sql_operator' => $sql_operator, 'sql_operator_not' => $sql_operator_not], 'filter_object_subs' => $filter_object_subs];
+								$this->query_object_subs[$object_sub_details_id][$table_name_query_object_sub]['object_sub_descriptions'][$object_sub_description_id][$arr_object_filter['filter_code']] = ['table_name' => $table_name, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter_object_sub, 'sql_operator' => $sql_operator, 'sql_operator_sub' => $sql_operator_sub, 'sql_operator_not' => $sql_operator_not], 'filter_object_subs' => $filter_object_subs];
 								$this->arr_nr_object_tables['object_sub_details'][$object_sub_details_id][$table_name_query_object_sub] = true;
 							}
 						}
@@ -1531,7 +1568,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 				foreach ((array)$arr_object_sub['object_sub_definitions_sources'] as $object_sub_description_id => $arr_sub_definition_sources) {
 					
 					$arr_str = [];
-					$table_name = "nodegoat_tos_def_src_".$object_sub_description_id."_".$nr_object_sub_details_table;
+					$table_name = DBFunctions::str2Name('nodegoat_tos_def_src_'.$object_sub_description_id.'_'.$nr_object_sub_details_table);
 					
 					foreach ((array)$arr_sub_definition_sources as $value) {
 						$arr_str[] = $func_sql_sources('object_sub_definition', $value, $table_name);
@@ -1561,12 +1598,14 @@ class FilterTypeObjects extends GenerateTypeObjects {
 				if ($arr_object_sub_dates) {
 
 					$arr_str = [];
-					$table_name = $table_name_query_object_sub_self;
+					$table_name = $table_name_query_object_sub;
 					
 					$table_name_date = 'nodegoat_tos';
 					$arr_sql_date = $this->generateTablesColumnsObjectSubDate($table_name_date, true);
 					
 					$column_start = $arr_sql_date['column_start'];
+					$column_start_end = $arr_sql_date['column_start_end'];
+					$column_end_start = $arr_sql_date['column_end_start'];
 					$column_end = $arr_sql_date['column_end'];
 					
 					foreach ((array)$arr_object_sub_dates as $arr_object_sub_date) {
@@ -1579,6 +1618,194 @@ class FilterTypeObjects extends GenerateTypeObjects {
 							$date_end = StoreTypeObjects::date2Int($arr_object_sub_date['object_sub_date_to'], '<');
 							
 							$arr_sql_date_filter[] = self::format2SQLDateIntMatch($date_start, $date_end, $column_start, $column_end);
+						} else if ($arr_object_sub_date['object_sub_date_chronology']) {
+							
+							$arr_chronology = $arr_object_sub_date['object_sub_date_chronology'];
+							
+							$table_name_chronology_date = $this->generateTemporaryTableName('temp_chronology_date_'.$this->type_id, serialize($arr_chronology));
+							
+							$func_collect = false;
+							$sql_static = false;
+
+							// Relational date statement collection
+							
+							if (arrHasKeysRecursive('date_path', $arr_chronology)) {
+
+								$func_sql_statement = function($arr_statement, $int_identifier) use ($table_name_chronology_date, $object_sub_details_id) {
+									
+									if (!$arr_statement || !$arr_statement['date_path']) {
+										return false;
+									}
+									
+									$arr_time_directions = StoreType::getTimeDirectionsInternal();
+									$int_direction = $arr_time_directions[$arr_statement['date_direction']];
+									
+									$collect_values = new CollectTypeObjectsValues($this->type_id, 'set', 'date', ['int_identifier' => $int_identifier, 'int_direction' => $int_direction]);
+									$collect_values->setScope($this->arr_scope);
+									$collect_values->setConditions(false);
+									$collect_values->prepare($arr_statement['date_path']['scope'], $arr_statement['date_path']['filter']);
+									$collect_values->collectToTable($table_name_chronology_date, $object_sub_details_id);
+									
+									if ($arr_statement['offset_amount'] || $arr_statement['cycle_object_id']) {
+										
+										$arr_time_units = StoreType::getTimeUnitsInternal();
+									
+										DB::query("
+											UPDATE ".DB::getTableTemporary(DATABASE_NODEGOAT_TEMP.'.'.$table_name_chronology_date)." SET
+												date_value = ".DATABASE_NODEGOAT_TEMP.".PARSE_NODEGOAT_DATE(
+													date_value,
+													".(int)$arr_statement['offset_amount'].", ".(int)$arr_time_units[$arr_statement['offset_unit']].", ".$int_direction.",
+													".(int)$arr_statement['cycle_object_id'].", ".(int)$arr_time_directions[$arr_statement['cycle_direction']].",
+													".$int_identifier."
+												)
+											WHERE identifier = ".$int_identifier."
+										");
+									}
+								};
+								
+								$func_collect = function() use ($table_name_chronology_date, $func_sql_statement, $arr_chronology) {
+
+									$func_sql_statement($arr_chronology['start']['start'], StoreType::DATE_START_START);
+									$func_sql_statement($arr_chronology['start']['end'], StoreType::DATE_START_END);
+									$func_sql_statement($arr_chronology['end']['start'], StoreType::DATE_END_START);
+									$func_sql_statement($arr_chronology['end']['end'], StoreType::DATE_END_END);
+								};
+							}			
+
+							// Static date statements
+							
+							if (arrHasKeysRecursive(['date_object_sub_id' => true, 'date_value' => true], $arr_chronology, true)) {
+								
+								$arr_sql_chronology = StoreTypeObjects::formatToSQLChronology($arr_chronology);
+								
+								$sql_chronology = '('.implode('),(', $arr_sql_chronology['chronology']).')';
+								
+								$table_name_chronology_statement = $this->generateTemporaryTableName('temp_chronology_statement_'.$this->type_id, $sql_chronology);
+								
+								$this->addPre($table_name_chronology_statement,
+									[
+										'table_name' => $table_name_chronology_statement,
+										'settings' => "
+											offset_amount SMALLINT,
+											offset_unit SMALLINT,
+											cycle_object_id INT,
+											cycle_direction SMALLINT,
+											date_value BIGINT DEFAULT NULL,
+											date_object_sub_id INT DEFAULT NULL,
+											date_direction SMALLINT,
+											identifier SMALLINT,
+											PRIMARY KEY (identifier)",
+										'sql' => "
+											INSERT INTO ".DB::getTableTemporary(DATABASE_NODEGOAT_TEMP.'.'.$table_name_chronology_statement)."
+												VALUES
+											".$sql_chronology."
+										;"
+									]
+								);
+								
+								$sql_static = "
+									INSERT INTO ".DB::getTableTemporary(DATABASE_NODEGOAT_TEMP.'.'.$table_name_chronology_date)."
+									(identifier, date_value)
+									SELECT identifier, date_value
+										FROM (".self::format2SQLObjectSubDateStatement(DB::getTableTemporary(DATABASE_NODEGOAT_TEMP.'.'.$table_name_chronology_statement)).") AS foo
+								";
+							}
+							
+							// Combine date statements
+							
+							$this->addPre($table_name_chronology_date,
+								[
+									'table_name' => $table_name_chronology_date,
+									'settings' => "
+										identifier SMALLINT,
+										object_id INT DEFAULT 0,
+										object_sub_id INT DEFAULT 0,
+										date_value BIGINT,
+										PRIMARY KEY (identifier, object_id, object_sub_id)",
+									'function' => function() use ($func_collect, $sql_static) {
+										
+										if ($func_collect) {
+											$func_collect();
+										}
+										
+										if ($sql_static) {
+											DB::query($sql_static);
+										}
+									}
+								]
+							);
+							
+							$func_sql_statement = function($arr_statement, $int_identifier) use ($table_name_date, $table_name_chronology_date, $object_sub_details_id) {
+								
+								if (!$arr_statement) {
+									return false;
+								}
+								
+								if ($arr_statement['date_path']) {
+									
+									$use_object_sub_id = false;
+										
+									if ($object_sub_details_id != 'all' && $arr_statement['date_path']['scope']['paths']) { // Check whether the sub-object is used specifically 
+		
+										$trace = new TraceTypeNetwork($this->arr_scope['types'], true, true);
+										$trace->filterTypeNetwork($arr_statement['date_path']['scope']['paths']);
+										$trace->run($this->type_id, false, 1); // Limit trace as only the first step is needed
+										$arr_type_network_paths = $trace->getTypeNetworkPaths(true);
+										
+										$arr_find_ids = $arr_type_network_paths['connections'][$this->type_id]['out'];
+										
+										if ($arr_find_ids && in_array($object_sub_details_id, arrValuesRecursive('object_sub_details_id', $arr_find_ids))) {
+											$use_object_sub_id = true;
+										}
+									}
+									
+									$sql_where = "
+										identifier = ".$int_identifier."
+										AND object_id = ".$table_name_date.".object_id
+										AND object_sub_id = ".($use_object_sub_id ? $table_name_date.'.id' : 0)."
+									";
+								} else {
+								
+									$sql_where = "
+										identifier = ".$int_identifier."
+										AND object_id = 0
+										AND object_sub_id = 0
+									";
+								}
+								
+								return $sql = "(SELECT
+									date_value
+										FROM ".DB::getTableTemporary(DATABASE_NODEGOAT_TEMP.'.'.$table_name_chronology_date)."
+									WHERE ".$sql_where."
+								)";
+							};
+							
+							$sql_chronology_start_start = $func_sql_statement($arr_chronology['start']['start'], StoreType::DATE_START_START);
+							$sql_chronology_start_end = $func_sql_statement($arr_chronology['start']['end'], StoreType::DATE_START_END);
+							$sql_chronology_end_start = $func_sql_statement($arr_chronology['end']['start'], StoreType::DATE_END_START);
+							$sql_chronology_end_end = $func_sql_statement($arr_chronology['end']['end'], StoreType::DATE_END_END);
+							
+							if ($sql_chronology_start_start || $sql_chronology_start_end) {
+								
+								if ($sql_chronology_start_start && $sql_chronology_start_end) {
+									$arr_sql_date_filter[]  = '('.$column_start.' >= '.$sql_chronology_start_start.' AND COALESCE('.$column_start_end.', '.$column_start.') <= '.$sql_chronology_start_end.')';
+								} else if ($sql_chronology_start_end) {
+									$arr_sql_date_filter[]  = '(COALESCE('.$column_start_end.', '.$column_start.') <= '.$sql_chronology_start_end.')';
+								} else {
+									$arr_sql_date_filter[]  = '('.$column_start.' >= '.$sql_chronology_start_start.')';
+								}
+							}
+							
+							if ($sql_chronology_end_start || $sql_chronology_end_end) {
+								
+								if ($sql_chronology_end_start && $sql_chronology_end_end) {
+									$arr_sql_date_filter[]  = '(COALESCE('.$column_end_start.', '.$column_end.') >= '.$sql_chronology_end_start.' AND '.$column_end.' <= '.$sql_chronology_end_end.')';
+								} else if ($sql_chronology_end_start) {
+									$arr_sql_date_filter[]  = '(COALESCE('.$column_end_start.', '.$column_end.') >= '.$sql_chronology_end_start.')';
+								} else {
+									$arr_sql_date_filter[]  = '('.$column_end.' <= '.$sql_chronology_end_end.')';
+								}
+							}
 						} else {
 							
 							$arr_date_start = $arr_object_sub_date['object_sub_date_start'];
@@ -1608,35 +1835,6 @@ class FilterTypeObjects extends GenerateTypeObjects {
 								$arr_sql_date_filter[] = StoreTypeObjects::formatToSQLTranscension('null', $arr_object_sub_date['object_sub_date_value']['transcension'], [$column_start, $column_end]);
 							}
 						}
-
-						/*
-						
-						$version_select_to = $this->generateVersion('object', 'nodegoat_to');
-						$version_select_tos = $this->generateVersion('object_sub', $table_name_date);
-						
-						$column_select = ($filter_pre ? $table_name_date.".object_id AS id" : $table_name_date.".id");
-						$column_target = ($filter_pre ? "nodegoat_to.id" : $table_name.".id");
-
-						$sql_query = "SELECT DISTINCT ".$column_select."
-							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." ".$table_name_date."
-							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = ".$table_name_date.".object_id AND ".$version_select_to.")
-							".$arr_sql_date['tables']."
-							WHERE ".$table_name_date.".object_sub_details_id ".($object_sub_details_id == 'all' ? "IN (".implode(',', $this->arr_type_set_object_sub_details_ids).")" : "= ".$object_sub_details_id)." AND ".$version_select_tos."
-								AND ".implode(' AND ', $arr_sql_date_filter)."
-						";
-						
-						$temp_table_name_date_match = $this->generateTemporaryTableName('temp_date_match', $sql_query);
-						
-						$this->addPre($temp_table_name_date_match, array(
-							'table_name' => $temp_table_name_date_match,
-							'settings' => "
-								id INT,
-								PRIMARY KEY (id)",
-							'query' => $sql_query)
-						);
-						
-						$arr_str[] = "EXISTS (SELECT TRUE FROM ".DB::getTableTemporary(DATABASE_NODEGOAT_TEMP.'.'.$temp_table_name_date_match)." WHERE ".$temp_table_name_date_match.".id = ".$column_target.")";
-						*/
 						
 						$version_select_tos = $this->generateVersion('object_sub', $table_name_date);
 						
@@ -1670,8 +1868,8 @@ class FilterTypeObjects extends GenerateTypeObjects {
 						if (!$filter_pre) {
 							
 							$arr_sql_subs[$object_sub_details_id]['filter'][] = $sql_filter;
-							$this->query_object_subs[$object_sub_details_id][$table_name_query_object_sub_self]['date'][$arr_object_filter['filter_code']] = ['table_name' => $table_name, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter_object_sub, 'sql_operator' => $sql_operator, 'sql_operator_not' => $sql_operator_not], 'filter_object_subs' => $filter_object_subs];
-							$this->arr_nr_object_tables['object_sub_details'][$object_sub_details_id][$table_name_query_object_sub_self] = true;
+							$this->query_object_subs[$object_sub_details_id][$table_name_query_object_sub]['date'][$arr_object_filter['filter_code']] = ['table_name' => $table_name, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter_object_sub, 'sql_operator' => $sql_operator, 'sql_operator_sub' => $sql_operator_sub, 'sql_operator_not' => $sql_operator_not], 'filter_object_subs' => $filter_object_subs];
+							$this->arr_nr_object_tables['object_sub_details'][$object_sub_details_id][$table_name_query_object_sub] = true;
 						}
 					}
 				}
@@ -1692,10 +1890,10 @@ class FilterTypeObjects extends GenerateTypeObjects {
 				if ($arr_object_sub_locations) {
 
 					$arr_str = [];
-					$table_name = $table_name_query_object_sub_self;
+					$table_name = $table_name_query_object_sub;
 					
 					$table_name_location = 'nodegoat_tos';
-					$arr_sql_location = $this->generateTablesColumnsObjectSubLocationReference($table_name_location, true);
+					$arr_sql_location = $this->generateTablesColumnsObjectSubLocationReference($table_name_location);
 					
 					$column_geometry = $arr_sql_location['column_geometry'];
 					$column_object_sub_id = $arr_sql_location['column_geometry_object_sub_id'];
@@ -1703,17 +1901,17 @@ class FilterTypeObjects extends GenerateTypeObjects {
 					if ($arr_object_sub_locations['filtering']) {
 						
 						$sql_filter = "EXISTS (SELECT TRUE
-								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos
+								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." ".$table_name_location."
 								".$arr_sql_location['tables']."
 								JOIN ".$this->table_name_filtering." ".$arr_object_filter['source']['filter_code']." ON (".$arr_object_filter['source']['filter_code'].".id_".$arr_object_filter['source']['filter_code']." = 1)
-							WHERE nodegoat_tos.id = ".$table_name.".id AND ".$this->generateVersion('object_sub', 'nodegoat_tos')."
-								AND ".$arr_sql_location['column_ref_type_id']." = ".(int)$arr_object_filter['source']['type_id']."
+							WHERE ".$table_name_location.".id = ".$table_name.".id AND ".$this->generateVersion('object_sub', $table_name_location)."
+								AND ".$arr_sql_location['column_ref_type_id']." = ".(int)$arr_object_filter['source']['filter_type_id']."
 								AND ".$arr_sql_location['column_object_sub_details_id']." = ".(int)$object_sub_details_id."							
 								AND ".$arr_sql_location['column_ref_object_id']." = ".$arr_object_filter['source']['filter_code'].".id
 						)";
 						
-						$this->query_object_subs[$object_sub_details_id][$table_name_query_object_sub_self]['location'][$arr_object_filter['filter_code']] = ['table_name' => $table_name, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter], 'filter_object_subs' => $filter_object_subs];
-						$this->arr_nr_object_tables['object_sub_details'][$object_sub_details_id][$table_name_query_object_sub_self] = true;
+						$this->query_object_subs[$object_sub_details_id][$table_name_query_object_sub]['location'][$arr_object_filter['filter_code']] = ['table_name' => $table_name, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter], 'filter_object_subs' => $filter_object_subs];
+						$this->arr_nr_object_tables['object_sub_details'][$object_sub_details_id][$table_name_query_object_sub] = true;
 						$arr_sql['filtering'] = $sql_filter;
 						
 						unset($arr_object_sub_locations['filtering']);
@@ -1765,7 +1963,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 								// Select the resolved sub-object IDs and the object's own sub-object IDs that do not resolve (no location), but can be resolved to by other sub-objects
 								
 								$table_name_location_against = 'nodegoat_tos_against';
-								$arr_sql_location_against = $this->generateTablesColumnsObjectSubLocationReference($table_name_location_against, true);
+								$arr_sql_location_against = $this->generateTablesColumnsObjectSubLocationReference($table_name_location_against);
 								
 								$column_geometry_against = $arr_sql_location_against['column_geometry'];
 								$column_object_sub_id_against = $arr_sql_location_against['column_geometry_object_sub_id'];
@@ -1792,7 +1990,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 								$arr_sql_pre_settings = $filter->getPre();
 								$this->arr_sql_pre_settings += $arr_sql_pre_settings;
 								
-								$table_name_location_against = $this->generateTemporaryTableName('temp_'.$arr_object_sub_location['object_sub_location_ref_type_id'], $sql_filter);
+								$table_name_location_against = $this->generateTemporaryTableName('temp_location_'.$arr_object_sub_location['object_sub_location_ref_type_id'], $sql_filter);
 									
 								$this->addPre($table_name_location_against,
 									[
@@ -1931,8 +2129,8 @@ class FilterTypeObjects extends GenerateTypeObjects {
 						if (!$filter_pre) {
 							
 							$arr_sql_subs[$object_sub_details_id]['filter'][] = $sql_filter;
-							$this->query_object_subs[$object_sub_details_id][$table_name_query_object_sub_self]['location'][$arr_object_filter['filter_code']] = ['table_name' => $table_name, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter_object_sub, 'sql_operator' => $sql_operator,  'sql_operator_not' => $sql_operator_not], 'filter_object_subs' => $filter_object_subs];
-							$this->arr_nr_object_tables['object_sub_details'][$object_sub_details_id][$table_name_query_object_sub_self] = true;
+							$this->query_object_subs[$object_sub_details_id][$table_name_query_object_sub]['location'][$arr_object_filter['filter_code']] = ['table_name' => $table_name, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter_object_sub, 'sql_operator' => $sql_operator, 'sql_operator_sub' => $sql_operator_sub, 'sql_operator_not' => $sql_operator_not], 'filter_object_subs' => $filter_object_subs];
+							$this->arr_nr_object_tables['object_sub_details'][$object_sub_details_id][$table_name_query_object_sub] = true;
 						}
 					}
 				}
@@ -1941,7 +2139,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 				if ($arr_object_sub['object_sub_sources']) {
 					
 					$arr_str = [];
-					$table_name = "nodegoat_tos_src_".$object_sub_details_id."_".$nr_object_sub_details_table;
+					$table_name = DBFunctions::str2Name('nodegoat_tos_src_'.$object_sub_details_id.'_'.$nr_object_sub_details_table);
 					
 					foreach ((array)$arr_object_sub['object_sub_sources'] as $value) {
 						$arr_str[] = $func_sql_sources('object_sub', $value, $table_name);
@@ -1968,7 +2166,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 					$sql_filter = $arr_sql_format['filter'];
 					
 					$arr_sql_subs[$object_sub_details_id]['filter'][] = $sql_filter;
-					$this->query_object_subs[$object_sub_details_id][$table_name_query_object_sub_self]['referenced'][$arr_object_filter['filter_code']] = ['table_name' => $table_name, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter, 'sql_operator' => $sql_operator,  'sql_operator_not' => $sql_operator_not], 'filter_object_subs' => $filter_object_subs];
+					$this->query_object_subs[$object_sub_details_id][$table_name_query_object_sub_self]['referenced'][$arr_object_filter['filter_code']] = ['table_name' => $table_name, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter, 'sql_operator' => $sql_operator, 'sql_operator_sub' => $sql_operator_sub, 'sql_operator_not' => $sql_operator_not], 'filter_object_subs' => $filter_object_subs];
 					$this->arr_nr_object_tables['object_sub_details'][$object_sub_details_id][$table_name_query_object_sub_self] = true;
 					
 					if ($this->arr_type_set['object_sub_details']['all']) {
@@ -1980,7 +2178,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 						$sql_filter = "CASE WHEN ".$table_name_tos_all.".object_sub_details_id = ".$use_object_sub_details_id." THEN ".$arr_sql_format['filter']." ELSE TRUE END";
 						
 						$arr_sql_subs['all']['filter'][] = $sql_filter;
-						$this->query_object_subs['all']['nodegoat_tos_all_self']['referenced'][$arr_object_filter['filter_code']] = ['table_name' => $table_name, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter_object_sub, 'sql_operator' => $sql_operator, 'sql_operator_not' => $sql_operator_not], 'filter_object_subs' => $filter_object_subs];
+						$this->query_object_subs['all']['nodegoat_tos_all_self']['referenced'][$arr_object_filter['filter_code']] = ['table_name' => $table_name, 'filter_code' => $arr_object_filter['filter_code'], 'arr_source' => $arr_object_filter['source'], 'purpose' => $purpose, 'arr_sql' => ['sql_filter' => $sql_filter_object_sub, 'sql_operator' => $sql_operator_sub, 'sql_operator_not' => $sql_operator_not], 'filter_object_subs' => $filter_object_subs];
 						$this->arr_nr_object_tables['object_sub_details']['all']['nodegoat_tos_all_self'] = true;
 					}
 				}
@@ -2183,7 +2381,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 			}
 	
 			// Store object filter, either including or excluding, matching EVERYTHING in filter => AND (NOT)
-			$arr_sql_build[$count_filter] = ['filter_code' => $arr_object_filter['filter_code'], 'sql_operator' => $sql_operator, 'sql_filter' => ''];
+			$arr_sql_build[$count_filter] = ['filter_code' => $arr_object_filter['filter_code'], 'sql_operator' => $sql_operator, 'sql_operator_sub' => $sql_operator_sub, 'sql_filter' => ''];
 			
 			if ($arr_sql_collect['filter']) {
 			
@@ -2214,7 +2412,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 			
 			foreach ($arr_filter as $arr_object_filter) {
 
-				$sql_operator = ($arr_object_filter['options']['operator'] == 'and' || !$count_filter ? 'AND' : 'OR');
+				$sql_operator = ($arr_object_filter['options']['operator'] == 'object_and_sub_or' || $arr_object_filter['options']['operator'] == 'object_and_sub_and' || !$count_filter ? 'AND' : 'OR');
 				
 				if ($count_filter && $sql_operator == 'AND') {
 					
@@ -2259,7 +2457,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 			
 			foreach (array_reverse($arr_filter) as $arr_object_filter) {
 
-				$sql_operator = ($arr_object_filter['options']['operator'] == 'and' || !$count_filter ? 'AND' : 'OR');
+				$sql_operator = ($arr_object_filter['options']['operator'] == 'object_and_sub_or' || $arr_object_filter['options']['operator'] == 'object_and_sub_and' || !$count_filter ? 'AND' : 'OR');
 				
 				if ($count_filter && $sql_operator == 'OR') {
 					
@@ -2346,8 +2544,8 @@ class FilterTypeObjects extends GenerateTypeObjects {
 					
 					$sql_open = str_pad('', $arr_sql_operator['open'][$count_filter], '(', STR_PAD_LEFT);
 					$sql_close = str_pad('', $arr_sql_operator['close'][$count_filter], ')', STR_PAD_RIGHT);
-					$sql_operator = ($count_filter > 0 ? $arr_sql['sql_operator'] : '');
-					$sql_ignore = ($count_filter == 0 || ($count_filter > 0 && $arr_sql['sql_operator'] == 'AND') ? 'TRUE' : 'FALSE'); // Use operator to determine whether to use TRUE or FALSE to ignore empty filters
+					$sql_operator = ($count_filter > 0 ? $arr_sql['sql_operator_sub'] : '');
+					$sql_ignore = ($count_filter == 0 || ($count_filter > 0 && $arr_sql['sql_operator_sub'] == 'AND') ? 'TRUE' : 'FALSE'); // Use operator to determine whether to use TRUE or FALSE to ignore empty filters
 					
 					$sql_add = ($arr_sql_build_object_subs[$object_sub_details_id][$count_filter] ?: $sql_ignore);
 					$arr_sql_filter['object_subs'][$object_sub_details_id]['filter'][] = $sql_operator." ".$sql_open." ".$sql_add." ".$sql_close;
@@ -2357,7 +2555,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 		
 		return $arr_sql_filter;
 	}
-		
+			
 	public function format2SQLValueType($type, $arr_values, $table_name, $arr_options = []) {
 		
 		$arr_values = ($arr_values ? (array)$arr_values : []);
@@ -2506,7 +2704,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 		$sql_object_sub_details_ids = (is_array($arr_object_sub_details_ids) ? implode(',', $arr_object_sub_details_ids) : $arr_object_sub_details_ids);
 		
 		$column_name_relationality = "(SELECT ".($do_exists ? "1" : "COUNT(*)")."
-				FROM ".DB::getTable("DATA_NODEGOAT_TYPE_OBJECT_SUBS")." nodegoat_tos
+				FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos
 			WHERE nodegoat_tos.object_id = ".$table_name.".id
 				".($arr_object_sub_details_ids ? "AND nodegoat_tos.object_sub_details_id IN (".$sql_object_sub_details_ids.")" : "")."
 				AND ".$version_select_tos."
@@ -2621,7 +2819,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 			
 				$column_name_value = $table_name."_cache.ref_object_id";
 				
-				$arr_sql_location = $this->generateTablesColumnsObjectSubLocationReference('nodegoat_tos', true, true);
+				$arr_sql_location = $this->generateTablesColumnsObjectSubLocationReference('nodegoat_tos', true);
 				
 				$column_name_relationality = "(SELECT COUNT(*)
 						FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos
@@ -2927,7 +3125,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 						break;
 					}
 					
-					$arr_sql_location = $this->generateTablesColumnsObjectSubLocationReference('nodegoat_tos', true, true);
+					$arr_sql_location = $this->generateTablesColumnsObjectSubLocationReference('nodegoat_tos', true);
 					
 					$arr[$arr_sql_location['column_ref_object_id']] = [
 						'sql' => "FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos
@@ -3438,7 +3636,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 				
 				$filter = new FilterTypeObjects(0);
 				$filter->setScope(['types'=> $ref_type_ids]);
-				$arr_sql_location = $filter->generateTablesColumnsObjectSubLocationReference('nodegoat_tos', true, true);
+				$arr_sql_location = $filter->generateTablesColumnsObjectSubLocationReference('nodegoat_tos', true);
 				
 				$version_select_to2 = self::generateVersioning($versioning, 'object', 'nodegoat_to2');
 			}
@@ -3461,7 +3659,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 								FROM ".$arr_sql_location['table_name_cache']."
 								JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.id = ".$arr_sql_location['table_name_cache'].".object_sub_id AND ".$version_select_tos.")
 								JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = nodegoat_tos.object_id AND ".$version_select_to.")
-							WHERE ".$arr_sql_location['table_name_cache'].".ref_type_id IN (".$sql_type_ids.") AND ".$arr_sql_location['table_name_cache'].".object_sub_details_id = nodegoat_tos_det.id AND ".$arr_sql_location['table_cache_status']."
+							WHERE ".$arr_sql_location['table_name_cache'].".ref_type_id IN (".$sql_type_ids.") AND ".$arr_sql_location['table_name_cache'].".object_sub_details_id = nodegoat_tos_det.id AND ".$arr_sql_location['table_cache_state']."
 						)" : "")."
 				";
 			}
@@ -3820,19 +4018,47 @@ class FilterTypeObjects extends GenerateTypeObjects {
 				AND ".$version_select."
 		");
 		
-		while ($row = $res->fetchAssoc()) {
+		$arr = [];
+		
+		while ($arr_row = $res->fetchAssoc()) {
 
-			$arr[$row['type_id']][$row['object_id']] = $row['object_id'];
+			$arr[$arr_row['type_id']][$arr_row['object_id']] = $arr_row['object_id'];
 		}
 
 		return $arr;
 	}
 	
-	public static function getTypesUpdatedSince($date, $arr_type_ids = [], $peek = false) {
+	public static function getObjectSubsTypeObjects($arr_object_sub_ids, $arr_options = []) {
+				
+		$sql_object_sub_ids = implode(',', (array)arrParseRecursive($arr_object_sub_ids));
 		
-		// Use $peek to have a quick peek if anything has been updated. Use $peek = 'date' to get last update date
+		$versioning = (isset($arr_options['versioning']) ? $arr_options['versioning'] : 'active');
+		$version_select_tos = self::generateVersioning($versioning, 'object_sub', 'nodegoat_tos');
+		$version_select_to = self::generateVersioning($versioning, 'object', 'nodegoat_to');
 		
-		$date = str2SQlDate($date);
+		$res = DB::query("SELECT
+			nodegoat_tos.id AS object_sub_id, nodegoat_tos.object_sub_details_id AS object_sub_details_id, nodegoat_to.id AS object_id, nodegoat_to.type_id
+				FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos
+				JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = nodegoat_tos.object_id AND ".$version_select_to.")
+			WHERE nodegoat_tos.id IN (".$sql_object_sub_ids.")
+				AND ".$version_select_tos."
+		");
+		
+		$arr = [];
+		
+		while ($arr_row = $res->fetchAssoc()) {
+
+			$arr[$arr_row['object_sub_id']] = $arr_row;
+		}
+
+		return $arr;
+	}
+		
+	public static function getTypesUpdatedAfter($date, $arr_type_ids = [], $peek = false) {
+		
+		// Use $peek to have a quick peek if anything has been updated. Use $peek = 'last' to get last update date
+		
+		$date = DBFunctions::str2Date($date);
 		if ($arr_type_ids) {
 			$sql_type_ids = (is_array($arr_type_ids) ? implode(',', $arr_type_ids) : $arr_type_ids);
 		}
@@ -3841,51 +4067,53 @@ class FilterTypeObjects extends GenerateTypeObjects {
 		
 		if ($peek) {
 			
+			$sql_select = "TRUE";
+			if ($peek === 'last') {
+				$sql_select = "MAX(nodegoat_to_status.date)";
+			}
+			
 			$res = DB::query("SELECT
-				".($peek === 'date' ? "MAX(nodegoat_to_date.date) AS date" : "TRUE")."
+				".$sql_select."
 					FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
-					JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DATING')." nodegoat_to_date ON (nodegoat_to_date.object_id = nodegoat_to.id)
-				WHERE nodegoat_to_date.date >= '".$date."'
+					JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')." nodegoat_to_status ON (nodegoat_to_status.object_id = nodegoat_to.id)
+				WHERE nodegoat_to_status.date > '".$date."'
 					".($arr_type_ids ? "AND nodegoat_to.type_id IN (".$sql_type_ids.")" : "")."
 				LIMIT 1
 			");
 			
 			if (!$res->getRowCount()) {
-				
 				return false;
 			}
 			
-			if ($peek === 'date') {
+			if (!is_bool($peek)) {
 				
-				$row = $res->fetchAssoc();
-				return $row['date'];
+				$arr_row = $res->fetchRow();
+				return $arr_row[0];
 			} else {
-				
 				return true;
 			}
 		} else {
 			
 			$res = DB::query("SELECT
-				nodegoat_to.type_id, MAX(nodegoat_to_date.date) AS date
+				nodegoat_to.type_id, MAX(nodegoat_to_status.date) AS date
 					FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
-					JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DATING')." nodegoat_to_date ON (nodegoat_to_date.object_id = nodegoat_to.id)
-				WHERE nodegoat_to_date.date >= '".$date."'
+					JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')." nodegoat_to_status ON (nodegoat_to_status.object_id = nodegoat_to.id)
+				WHERE nodegoat_to_status.date > '".$date."'
 					".($arr_type_ids ? "AND nodegoat_to.type_id IN (".$sql_type_ids.")" : "")."
 				GROUP BY nodegoat_to.type_id
 			");
 			
-			while ($row = $res->fetchAssoc()) {
-				
-				$arr[$row['type_id']] = $row;
+			while ($arr_row = $res->fetchAssoc()) {
+				$arr[$arr_row['type_id']] = $arr_row;
 			}
 		}
 		
 		return $arr;
 	}
 	
-	public static function getTypesAnalysesUpdatedSince($date, $arr_ids) {
+	public static function getTypesAnalysesUpdateAfter($date, $arr_ids) {
 				
-		$date = str2SQlDate($date);
+		$date = DBFunctions::str2Date($date);
 		
 		$arr_sql_ids = [];
 		
@@ -3902,7 +4130,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 		$res = DB::query("SELECT
 			TRUE
 				FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_ANALYSIS_STATUS')." nodegoat_to_an_stat
-			WHERE nodegoat_to_an_stat.date >= '".$date."'
+			WHERE nodegoat_to_an_stat.date = '".$date."'
 				AND (".implode(' OR ', $arr_sql_ids).")
 			LIMIT 1
 		");
@@ -3925,6 +4153,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 			
 			$arr_filter['source'] = [
 				'filter_code' => $arr_filter['source']['filter_code'],
+				'filter_type_id' => (int)$arr_filter['source']['filter_type_id'],
 				'filter_beacon' => $arr_filter['source']['filter_beacon'],
 				'type_id' => (int)$arr_filter['source']['type_id'],
 				'object_description_id' => (int)$arr_filter['source']['object_description_id'],
@@ -3938,6 +4167,24 @@ class FilterTypeObjects extends GenerateTypeObjects {
 		}
 		
 		// Options
+		if ($arr_filter['options']['operator']) {
+			
+			switch ($arr_filter['options']['operator']) {
+				case 'object_or_sub_or':
+				case 'object_and_sub_or':
+				case 'object_and_sub_and':		
+					$arr_filter['options']['operator'] = $arr_filter['options']['operator'];
+					break;
+				case 'or':
+					$arr_filter['options']['operator'] = 'object_or_sub_or';
+					break;
+				case 'and':
+					$arr_filter['options']['operator'] = 'object_and_sub_or';
+					break;
+				default:
+					$arr_filter['options']['operator'] = false;
+			}
+		}
 		if ($arr_filter['options']['exclude'] && $arr_filter['options']['exclude'] == '1') {
 			$arr_filter['options']['exclude'] = 'soft';
 		}
@@ -4067,7 +4314,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 					}
 					
 					if ($legacy_date_end) {
-						if ($arr_object_sub_details && !$arr_object_sub_details['object_sub_details']['object_sub_details_is_date_range']) {
+						if ($arr_object_sub_details && !$arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period']) {
 							if ($arr_date_start) {
 								$arr_date_start['equality'] = '≥≤';
 								$arr_date_start['range'] = $legacy_date_end;
@@ -4099,7 +4346,13 @@ class FilterTypeObjects extends GenerateTypeObjects {
 							unset($arr_object_sub_date['object_sub_date_value']);
 						}
 						
-						if ($arr_object_sub_date['object_sub_date_start'] || $arr_object_sub_date['object_sub_date_end'] || $arr_object_sub_date['object_sub_date_value']['transcension']) {
+						if ($arr_object_sub_date['object_sub_date_chronology'] || $arr_object_sub_date['object_sub_date_value']['transcension']) {
+							
+							unset($arr_object_sub_date['object_sub_date_from'], $arr_object_sub_date['object_sub_date_to'], $arr_object_sub_date['object_sub_date_start'], $arr_object_sub_date['object_sub_date_end']);
+							$arr_object_sub_date['object_sub_date_type'] = 'chronology';
+							
+							$arr_object_sub_date['object_sub_date_chronology'] = ($arr_object_sub_date['object_sub_date_chronology'] ? current(self::cleanupFilterFormTypeValues('chronology', [$arr_object_sub_date['object_sub_date_chronology']], false, $arr_options)) : '');
+						} else if ($arr_object_sub_date['object_sub_date_start'] || $arr_object_sub_date['object_sub_date_end']) {
 							unset($arr_object_sub_date['object_sub_date_from'], $arr_object_sub_date['object_sub_date_to']);
 							if (!$arr_object_sub_date['object_sub_date_start']) {
 								unset($arr_object_sub_date['object_sub_date_start']);
@@ -4119,7 +4372,7 @@ class FilterTypeObjects extends GenerateTypeObjects {
 							$arr_object_sub_date['object_sub_date_type'] = 'range';
 						}
 						
-						if (!$arr_object_sub_date['object_sub_date_start'] && !$arr_object_sub_date['object_sub_date_end'] && !$arr_object_sub_date['object_sub_date_from'] && !$arr_object_sub_date['object_sub_date_to'] && !$arr_object_sub_date['object_sub_date_value']) {
+						if (!$arr_object_sub_date['object_sub_date_chronology'] && !$arr_object_sub_date['object_sub_date_start'] && !$arr_object_sub_date['object_sub_date_end'] && !$arr_object_sub_date['object_sub_date_from'] && !$arr_object_sub_date['object_sub_date_to'] && !$arr_object_sub_date['object_sub_date_value']) {
 							unset($arr_object_sub['object_sub_dates'][$key]);
 						}
 					}
@@ -4503,6 +4756,11 @@ class FilterTypeObjects extends GenerateTypeObjects {
 				if (StoreTypeObjects::date2Int($use_value)) {
 					$arr_clean[] = $value;
 				}
+			} else if ($type == 'chronology') {
+				$value = StoreTypeObjects::formatToChronology($value);
+				if ($value) {
+					$arr_clean[] = $value;
+				}
 			} else if ($type == 'geometry') {
 				$value = StoreTypeObjects::formatToSQLGeometry($value);
 				if ($value) {
@@ -4576,8 +4834,8 @@ class FilterTypeObjects extends GenerateTypeObjects {
 	
 	public static function format2SQLDateRange($date_start, $date_end, $column_name) {
 		
-		$date_start = str2SQlDate($date_start);
-		$date_end = str2SQlDate($date_end);
+		$date_start = DBFunctions::str2Date($date_start);
+		$date_end = DBFunctions::str2Date($date_end);
 		
 		if ($date_start && $date_end) {
 			$sql = $column_name." BETWEEN '".$date_start."' AND '".$date_end."'";

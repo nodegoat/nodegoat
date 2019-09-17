@@ -54,10 +54,7 @@ class StoreTypeObjects {
 	protected $identifier = false;
 	protected $lock_key = false;
 	protected $is_trusted = false;
-	
-	protected static $nr_store_reversal_objects_buffer = 1000;
-	protected static $nr_store_reversal_objects_stream = 10000;
-	
+
 	public static $timeout_lock = 30; // Lock object, in seconds
 	public static $dir_media = 'media/';
 	
@@ -317,7 +314,7 @@ class StoreTypeObjects {
 			$this->insert = true;
 		} else {
 								
-			if ($this->mode == 'overwrite' && !isset($arr_object_self['object_name_plain'])) {
+			if ($this->mode == 'overwrite' && $this->arr_type_set['type']['use_object_name'] && !isset($arr_object_self['object_name_plain'])) {
 				$arr_object_self['object_name_plain'] = '';
 			}
 			
@@ -427,13 +424,13 @@ class StoreTypeObjects {
 					if ($is_ref_type_id) {
 						
 						if ($arr_object_description['object_description_has_multi']) {
-							$arr_object_definition['object_definition_ref_object_id'] = array_unique(array_filter((array)$arr_object_definition['object_definition_ref_object_id']));
+							$arr_object_definition['object_definition_ref_object_id'] = array_values(array_unique(array_filter((array)$arr_object_definition['object_definition_ref_object_id'])));
 						} else {
 							$arr_object_definition['object_definition_ref_object_id'] = (is_array($arr_object_definition['object_definition_ref_object_id']) ? reset($arr_object_definition['object_definition_ref_object_id']) : $arr_object_definition['object_definition_ref_object_id']);
 						}
 					} else if ($arr_object_description['object_description_has_multi']) {
 						
-						$arr_object_definition['object_definition_value'] = array_unique(array_filter((array)$arr_object_definition['object_definition_value']));
+						$arr_object_definition['object_definition_value'] = (array)$arr_object_definition['object_definition_value'];
 					}
 					
 					if ($this->insert) {
@@ -497,10 +494,6 @@ class StoreTypeObjects {
 										
 										$arr_compare_object_definition = $arr_object_definition['object_definition_ref_object_id'];
 									}
-									
-									// Sort to make equal comparison of arrays possible
-									sort($arr_compare_object_definition);
-									sort($this->arr_object_set['object_definitions'][$object_description_id]['object_definition_ref_object_id']);
 								} else {
 									
 									if ($arr_compare_object_definition != 'last') {
@@ -531,10 +524,6 @@ class StoreTypeObjects {
 																				
 										// Update object definition record, find existing version or insert new version
 										foreach ($this->getTypeObjectDescriptionVersions($object_description_id) as $arr_version) {
-											
-											if ($arr_object_description['object_description_has_multi']) {
-												sort($arr_version['object_definition_ref_object_id']);
-											}
 											
 											if ($arr_compare_object_definition == $arr_version['object_definition_ref_object_id'] && $arr_version['object_definition_version'] > 0) {
 												
@@ -569,13 +558,9 @@ class StoreTypeObjects {
 									
 									if ($is_appendable) {
 										
-										$arr_object_definition['object_definition_value'] = array_unique(array_merge($arr_compare_object_definition, $arr_cur_object_definition));
+										$arr_object_definition['object_definition_value'] = arrMergeValues([$arr_compare_object_definition, $arr_cur_object_definition]);
 										$arr_compare_object_definition = $arr_object_definition['object_definition_value'];
 									}
-									
-									// Sort to make equal comparison of arrays possible
-									sort($arr_compare_object_definition);
-									sort($arr_cur_object_definition);
 								} else {
 									
 									if ($is_appendable) {
@@ -599,12 +584,7 @@ class StoreTypeObjects {
 											
 										// Update object definition record, find existing version or insert new version
 										foreach ($this->getTypeObjectDescriptionVersions($object_description_id) as $arr_version) {
-											
-											if ($arr_object_description['object_description_has_multi']) {
-												
-												sort($arr_version['object_definition_value']);
-											}
-											
+
 											if ($arr_compare_object_definition == $arr_version['object_definition_value'] && $arr_version['object_definition_version'] > 0) {
 												
 												$version = $arr_version['object_definition_version'];
@@ -661,6 +641,8 @@ class StoreTypeObjects {
 									AND version >= -2
 							";
 						}
+						
+						$arr_object_definition['object_definition_sources'] = []; // Also remove sources
 						
 						$version = 0;
 					}
@@ -778,7 +760,7 @@ class StoreTypeObjects {
 			
 			$object_sub_details_id = $arr_object_sub['object_sub']['object_sub_details_id'];
 			
-			$parse_object_sub = ($arr_object_sub['object_sub']['object_sub_date_start'] !== null);
+			$parse_object_sub = ($arr_object_sub['object_sub']['object_sub_date_chronology'] !== null);
 			$action_object_sub = false;
 			$object_sub_id = false;
 			
@@ -810,8 +792,8 @@ class StoreTypeObjects {
 						
 						$arr_cur_object_sub = $this->arr_object_set['object_subs'][$object_sub_id];
 						
-						$str_compare = $arr_object_sub['object_sub']['object_sub_date_start'].'-'.$arr_object_sub['object_sub']['object_sub_date_end'].'-'.$arr_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id'].'-'.$arr_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.$arr_object_sub['object_sub']['object_sub_location_geometry'];
-						$str_compare_cur = $arr_cur_object_sub['object_sub']['object_sub_date_start'].'-'.$arr_cur_object_sub['object_sub']['object_sub_date_end'].'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] && $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] ? 0 : $arr_cur_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id']).'-'.$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] ? $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] : '');
+						$str_compare = $arr_object_sub['object_sub']['object_sub_date_chronology'].'-'.$arr_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id'].'-'.$arr_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.$arr_object_sub['object_sub']['object_sub_location_geometry'];
+						$str_compare_cur = self::formatToSQLValue('chronology', $arr_cur_object_sub['object_sub']['object_sub_date_chronology']).'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] && $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] ? 0 : $arr_cur_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id']).'-'.$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] ? $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] : '');
 						
 						if ($str_compare != $str_compare_cur) {
 											
@@ -819,7 +801,7 @@ class StoreTypeObjects {
 							
 							foreach ($arr_object_sub_versions as $arr_object_sub_version) {
 								
-								$str_compare_version = $arr_object_sub_version['object_sub_date_start'].'-'.$arr_object_sub_version['object_sub_date_end'].'-'.$arr_object_sub_version['object_sub_location_ref_object_sub_details_id'].'-'.$arr_object_sub_version['object_sub_location_ref_object_id'].'-'.$arr_object_sub_version['object_sub_location_geometry'];
+								$str_compare_version = self::formatToSQLValue('chronology', $arr_object_sub_version['object_sub_date_chronology']).'-'.$arr_object_sub_version['object_sub_location_ref_object_sub_details_id'].'-'.$arr_object_sub_version['object_sub_location_ref_object_id'].'-'.$arr_object_sub_version['object_sub_location_geometry'];
 						
 								if ($str_compare == $str_compare_version && $arr_object_sub_version['object_sub_version'] > 0) {
 									
@@ -827,8 +809,7 @@ class StoreTypeObjects {
 									$action_object_sub = 'version';
 									
 									$arr_object_sub['object_sub']['object_sub_date_version'] = $arr_object_sub_version['object_sub_date_version'];
-									$arr_object_sub['object_sub']['object_sub_date_start'] = false;
-									$arr_object_sub['object_sub']['object_sub_date_end'] = false;
+									$arr_object_sub['object_sub']['object_sub_date_chronology'] = false;
 									
 									$arr_object_sub['object_sub']['object_sub_location_geometry_version'] = $arr_object_sub_version['object_sub_location_geometry_version'];
 									$arr_object_sub['object_sub']['object_sub_location_geometry'] = false;
@@ -883,7 +864,7 @@ class StoreTypeObjects {
 						}
 					}
 					
-					if ($arr_object_sub['object_sub']['object_sub_date_start']) {
+					if ($arr_object_sub['object_sub']['object_sub_date_chronology']) {
 						
 						$arr_object_sub['object_sub']['object_sub_date_version'] = 1;
 						
@@ -893,10 +874,9 @@ class StoreTypeObjects {
 								continue;
 							}
 							
-							if ($arr_object_sub['object_sub']['object_sub_date_start'] == $arr_object_sub_version['object_sub_date_start'] && $arr_object_sub['object_sub']['object_sub_date_end'] == $arr_object_sub_version['object_sub_date_end']) {
+							if ($arr_object_sub['object_sub']['object_sub_date_chronology'] == self::formatToSQLValue('chronology', $arr_object_sub_version['object_sub_date_chronology'])) {
 								
-								$arr_object_sub['object_sub']['object_sub_date_start'] = false;
-								$arr_object_sub['object_sub']['object_sub_date_end'] = false;
+								$arr_object_sub['object_sub']['object_sub_date_chronology'] = false;
 								$arr_object_sub['object_sub']['object_sub_date_version'] = $arr_object_sub_version['object_sub_date_version'];
 								
 								break;
@@ -915,9 +895,18 @@ class StoreTypeObjects {
 						$arr_object_sub['object_sub']['object_sub_location_geometry_version'] = $version;
 					}
 					
-					if ($arr_object_sub['object_sub']['object_sub_date_start']) {
+					if ($arr_object_sub['object_sub']['object_sub_date_chronology']) {
 						
 						$arr_object_sub['object_sub']['object_sub_date_version'] = $version;
+						
+						if (!$this->versioning && !$this->insert_sub) {
+							
+							$this->arr_sql_delete['object_sub_date_chronology_version'][] = "UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE_CHRONOLOGY')."
+								SET active = FALSE
+								WHERE object_sub_id = ".$object_sub_id."
+									AND version = -2
+							";
+						}
 					}
 				}
 				
@@ -934,7 +923,9 @@ class StoreTypeObjects {
 							AND version >= -2
 					";
 				}
-								
+				
+				$arr_object_sub['object_sub']['object_sub_sources'] = []; // Also remove sources
+				
 				$version = 0;
 			}
 			
@@ -1179,7 +1170,9 @@ class StoreTypeObjects {
 										AND object_sub_id = ".$object_sub_id."
 										AND version >= -2
 								";
-							}	
+							}
+							
+							$arr_object_sub_definition['object_sub_definition_sources'] = []; // Also remove sources
 							
 							$version = 0;
 						}
@@ -1254,7 +1247,7 @@ class StoreTypeObjects {
 
 		$arr_object_sub_details = $this->arr_type_set['object_sub_details'][$object_sub_details_id];
 		
-		if ($arr_object_sub_details['object_sub_details']['object_sub_details_is_unique']) { // Overwrite a possible existing sub-object when it's unique
+		if ($arr_object_sub_details['object_sub_details']['object_sub_details_is_single']) { // Overwrite a possible existing sub-object when it's unique
 			
 			if ($this->object_id && !$arr_object_sub['object_sub']['object_sub_id'] && $this->arr_object_set['object_subs']) {
 				
@@ -1275,45 +1268,75 @@ class StoreTypeObjects {
 		
 		// Subobject
 		
-		if (($arr_object_sub['object_sub']['object_sub_self'] || $arr_object_sub['object_sub']['object_sub_date_start'] !== null || $arr_object_sub['object_sub']['object_sub_date_end'] !== null || $arr_object_sub['object_sub']['object_sub_location_type'] || $arr_object_sub['object_sub']['object_sub_location_ref_object_id'] !== null) && $arr_object_sub['object_sub']['object_sub_version'] != 'deleted') { // Subobject wants to be inserted/updated
+		$has_date = ($arr_object_sub['object_sub']['object_sub_date_type'] !== null || $arr_object_sub['object_sub']['object_sub_date_chronology'] !== null || $arr_object_sub['object_sub']['object_sub_date_start'] !== null || $arr_object_sub['object_sub']['object_sub_date_end'] !== null);
+		$has_location = ($arr_object_sub['object_sub']['object_sub_location_type'] !== null || $arr_object_sub['object_sub']['object_sub_location_ref_object_id'] !== null);
+		
+		if (($arr_object_sub['object_sub']['object_sub_self'] || $has_date || $has_location) && $arr_object_sub['object_sub']['object_sub_version'] != 'deleted') { // Subobject wants to be inserted/updated
 			
 			$arr_cur_object_sub = $this->arr_object_set['object_subs'][$object_sub_id];
-			$date_is_locked = ($arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_sub_details_id'] || $arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_sub_description_id'] || $arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_description_id']);
+			$date_is_locked = ($arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_sub_details_id'] || $arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_sub_description_id'] || $arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_description_id']);
 			$location_is_locked = ($arr_object_sub_details['object_sub_details']['object_sub_details_location_use_object_sub_details_id'] || $arr_object_sub_details['object_sub_details']['object_sub_details_location_use_object_sub_description_id'] || $arr_object_sub_details['object_sub_details']['object_sub_details_location_use_object_description_id'] || $arr_object_sub_details['object_sub_details']['object_sub_details_location_use_object_id']);
 			
-			if ($date_is_locked || ($arr_object_sub['object_sub']['object_sub_date_start'] === null && $arr_object_sub['object_sub']['object_sub_date_end'] === null)) {
+			if ($date_is_locked || !$has_date) {
 				
-				$object_sub_date_start = $arr_cur_object_sub['object_sub']['object_sub_date_start'];
-				$object_sub_date_end = $arr_cur_object_sub['object_sub']['object_sub_date_end'];
+				$object_sub_date_chronology = self::formatToSQLValue('chronology', $arr_cur_object_sub['object_sub']['object_sub_date_chronology']);
 			} else {
+				
+				$arr_chronology = [];
 
-				if ($arr_object_sub_details['object_sub_details']['object_sub_details_is_date_range']) {
+				if (!$arr_object_sub['object_sub']['object_sub_date_type']) {
 					
-					$object_sub_date_start = ($arr_object_sub['object_sub']['object_sub_date_start'] === null ? DATE_INT_MIN : self::formatToSQLValue('date', $arr_object_sub['object_sub']['object_sub_date_start']));
-					
-					if ($arr_object_sub['object_sub']['object_sub_date_end'] === null) {
-						$object_sub_date_end = DATE_INT_MAX;
-					} else if ($arr_object_sub['object_sub']['object_sub_date_end']) {
-						$object_sub_date_end = self::formatToSQLValue('date', $arr_object_sub['object_sub']['object_sub_date_end']);
-					} else if ($object_sub_date_start != DATE_INT_MIN) {
-						$object_sub_date_end = $object_sub_date_start;
-					} else {
-						$object_sub_date_end = 0;
+					if ($arr_object_sub['object_sub']['object_sub_date_chronology']) {
+						$arr_object_sub['object_sub']['object_sub_date_type'] = 'chronology';
+					} else { // Make sure its point only, when applicable
+						$arr_object_sub['object_sub']['object_sub_date_type'] = 'point';
 					}
-					
-					if (!$object_sub_date_start && $object_sub_date_end) {
-						$object_sub_date_start = DATE_INT_MIN;
-					} else if ($object_sub_date_start && !$object_sub_date_end) {
-						$object_sub_date_end = DATE_INT_MAX;
-					}
-				} else {
-					
-					$object_sub_date_start = self::formatToSQLValue('date', $arr_object_sub['object_sub']['object_sub_date_start']);
-					$object_sub_date_end = $object_sub_date_start;
 				}
+				
+				switch ($arr_object_sub['object_sub']['object_sub_date_type']) {
+					case 'point':
+					
+						if ($arr_object_sub['object_sub']['object_sub_date_start'] === null) {
+							$arr_object_sub['object_sub']['object_sub_date_start'] = '-∞';
+						}
+							
+						$arr_chronology['start'] = [
+							'start' => ['date_value' => $arr_object_sub['object_sub']['object_sub_date_start']]
+						];
+						
+						if ($arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period']) {
+							
+							if ($arr_object_sub['object_sub']['object_sub_date_end'] === null) {
+								$arr_object_sub['object_sub']['object_sub_date_end'] = '∞';
+							}
+							
+							$arr_chronology['end'] = [
+								'end' => ['date_value' => $arr_object_sub['object_sub']['object_sub_date_end']]
+							];
+							
+							$arr_chronology['type'] = 'period';
+						} else {
+							
+							$arr_chronology['type'] = 'point';
+						}
+
+						break;
+					case 'chronology':
+						
+						$arr_chronology = $arr_object_sub['object_sub']['object_sub_date_chronology'];
+						$arr_chronology = ($arr_chronology && !is_array($arr_chronology) ? self::formatToChronology($arr_chronology) : $arr_chronology);
+						
+						if ($arr_chronology) {
+							$arr_chronology['type'] = ($arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period'] ? 'period' : 'point');
+						}
+						
+						break;
+				}
+
+				$object_sub_date_chronology = self::formatToSQLValue('chronology', $arr_chronology);
 			}
 			
-			if ($arr_object_sub['object_sub']['object_sub_location_type'] === null && $arr_object_sub['object_sub']['object_sub_location_ref_object_id'] === null) {
+			if (!$has_location) {
 				
 				$object_sub_location_geometry = $arr_cur_object_sub['object_sub']['object_sub_location_geometry'];
 				$object_sub_location_ref_object_id = $arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'];
@@ -1328,17 +1351,22 @@ class StoreTypeObjects {
 				}
 				switch ($arr_object_sub['object_sub']['object_sub_location_type']) {
 					case 'point':
+					
 						if ($arr_object_sub['object_sub']['object_sub_location_latitude'] || $arr_object_sub['object_sub']['object_sub_location_longitude']) {
 							$arr_geometry = ['type' => 'Point', 'coordinates' => [(float)$arr_object_sub['object_sub']['object_sub_location_longitude'], (float)$arr_object_sub['object_sub']['object_sub_location_latitude']]];
 							$object_sub_location_geometry = self::formatToSQLValue('geometry', $arr_geometry);
 						} else {
 							$object_sub_location_geometry = '';
 						}
+						
 						break;
 					case 'geometry':
+					
 						$object_sub_location_geometry = self::formatToSQLValue('geometry', $arr_object_sub['object_sub']['object_sub_location_geometry']);
+						
 						break;
 					case 'reference':
+					
 						if ($location_is_locked) {
 							$object_sub_location_ref_object_id = $arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'];
 						} else {
@@ -1346,6 +1374,7 @@ class StoreTypeObjects {
 						}
 						$object_sub_location_ref_type_id = ($arr_object_sub['object_sub']['object_sub_location_ref_type_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id']);
 						$object_sub_location_ref_object_sub_details_id = ($arr_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_object_sub_details_id']);
+						
 						break;
 				}
 			}
@@ -1353,8 +1382,7 @@ class StoreTypeObjects {
 			$arr_object_sub['object_sub'] = [
 				'object_sub_id' => $object_sub_id,
 				'object_sub_details_id' => $object_sub_details_id,
-				'object_sub_date_start' => (int)$object_sub_date_start,
-				'object_sub_date_end' => (int)$object_sub_date_end,
+				'object_sub_date_chronology' => $object_sub_date_chronology,
 				'object_sub_location_geometry' => $object_sub_location_geometry,
 				'object_sub_location_ref_object_id' => (int)$object_sub_location_ref_object_id,
 				'object_sub_location_ref_type_id' => (int)$object_sub_location_ref_type_id,
@@ -1365,9 +1393,9 @@ class StoreTypeObjects {
 			// Do not parse empty subobject on new insert
 			if ($object_sub_id) {
 				$parse_object_sub = true;
-			} else if ($date_is_locked && $location_is_locked) {
+			} else if ((!$arr_object_sub_details['object_sub_details']['object_sub_details_has_date'] || $date_is_locked) && (!$arr_object_sub_details['object_sub_details']['object_sub_details_has_location'] || $location_is_locked)) {
 				$parse_object_sub = true;
-			} else if ($object_sub_date_start || $object_sub_date_end || $object_sub_location_geometry || $object_sub_location_ref_object_id) {
+			} else if ($object_sub_date_chronology || $object_sub_location_geometry || $object_sub_location_ref_object_id) {
 				$parse_object_sub = true;
 			}
 		}
@@ -1445,7 +1473,7 @@ class StoreTypeObjects {
 			
 			if (($this->arr_append['all'] || (is_array($this->arr_append['object_subs']) && $this->arr_append['object_subs'][$object_sub_details_id])) && $this->object_id) { // Appending and overwriting sub-objects to the existing set of sub-objects
 				
-				if ($arr_object_sub_details['object_sub_details']['object_sub_details_is_unique']) {
+				if ($arr_object_sub_details['object_sub_details']['object_sub_details_is_single']) {
 				
 					$arr_object_sub['object_sub']['object_sub_id'] = false;
 					
@@ -1473,8 +1501,8 @@ class StoreTypeObjects {
 							continue;
 						}
 												
-						$str_compare = $arr_object_sub['object_sub']['object_sub_date_start'].'-'.$arr_object_sub['object_sub']['object_sub_date_end'].'-'.$arr_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id'].'-'.$arr_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.$arr_object_sub['object_sub']['object_sub_location_geometry'];
-						$str_compare_cur = $arr_cur_object_sub['object_sub']['object_sub_date_start'].'-'.$arr_cur_object_sub['object_sub']['object_sub_date_end'].'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] && $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] ? 0 : $arr_cur_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id']).'-'.$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] ? $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] : '');
+						$str_compare = $arr_object_sub['object_sub']['object_sub_date_chronology'].'-'.$arr_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id'].'-'.$arr_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.$arr_object_sub['object_sub']['object_sub_location_geometry'];
+						$str_compare_cur = self::formatToSQLValue('chronology', $arr_cur_object_sub['object_sub']['object_sub_date_chronology']).'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] && $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] ? 0 : $arr_cur_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id']).'-'.$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] ? $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] : '');
 							
 						if ($str_compare == $str_compare_cur) {
 
@@ -1507,7 +1535,7 @@ class StoreTypeObjects {
 				}
 			} else if (!$object_sub_id) {
 				
-				if (!$arr_object_sub_details['object_sub_details']['object_sub_details_is_unique'] && $date_is_locked && $location_is_locked && !$arr_object_sub['object_sub_definitions']) { // Do not process sub-object when it's not unique and does not contain any information
+				if (!$arr_object_sub_details['object_sub_details']['object_sub_details_is_single'] && $date_is_locked && $location_is_locked && !$arr_object_sub['object_sub_definitions']) { // Do not process sub-object when it's not unique and does not contain any information
 					
 					$arr_object_sub = [];
 				}
@@ -1652,7 +1680,7 @@ class StoreTypeObjects {
 						continue;
 					}
 					
-					$arr_sql_delete[] = "(ref_object_id = ".(int)$ref_object_id." AND hash = ".($link ? "UNHEX('".hash('md5', $link)."')" : "CAST('' AS BINARY(16))").")";
+					$arr_sql_delete[] = "(ref_object_id = ".(int)$ref_object_id." AND hash = ".($link ? "UNHEX('".hash('md5', $link)."')" : DBFunctions::castAs("''", DBFunctions::CAST_TYPE_BINARY)).")";
 				}
 			}
 		}
@@ -1694,16 +1722,16 @@ class StoreTypeObjects {
 		}
 	}
 	
-	protected function addTypeObjectVersion($version, $value = '') {
+	protected function addTypeObjectVersion($version, $value = null) {
 		
-		$sql_value = "(".($this->object_id ? $this->object_id.", " : "").$version.", '".DBFunctions::strEscape($value)."', ".$this->type_id.", ".($this->versioning ? '0' : '1').")";
+		$sql_value = "(".($this->object_id ? $this->object_id.", " : "").$version.", ".$this->type_id.", ".($value !== null ? "'".DBFunctions::strEscape($value)."'" : 'NULL').", ".($this->versioning ? '0' : '1').")";
 								
 		if (!$this->object_id) {
 			
 			$res = DB::query("INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')."
-								(version, name, type_id, status)
-									VALUES
-								".$sql_value."
+				(version, type_id, name, status)
+					VALUES
+				".$sql_value."
 			");
 			
 			$this->object_id = DB::lastInsertID();
@@ -1741,7 +1769,7 @@ class StoreTypeObjects {
 			
 			foreach ($value as $object_definition_ref_object_id) {
 				
-				$arr_sql_insert[$object_definition_ref_object_id] = "(".$object_description_id.", ".$this->object_id.", ".$version.", ".(int)($object_definition_ref_object_id == 'last' ? self::$last_object_id : $object_definition_ref_object_id).", ".$count.", ".($this->versioning ? '0' : '1').")";
+				$arr_sql_insert[] = "(".$object_description_id.", ".$this->object_id.", ".$version.", ".(int)($object_definition_ref_object_id == 'last' ? self::$last_object_id : $object_definition_ref_object_id).", ".$count.", ".($this->versioning ? '0' : '1').")";
 				
 				$count++;
 			}
@@ -1753,7 +1781,7 @@ class StoreTypeObjects {
 				
 				foreach ($value as $object_definition_value) {
 					
-					$arr_sql_insert[DBFunctions::strEscape($object_definition_value)] = "(".$object_description_id.", ".$this->object_id.", ".$version.", '".DBFunctions::strEscape($object_definition_value)."', ".$count.", ".($this->versioning || $is_alternate ? '0' : '1').")";
+					$arr_sql_insert[] = "(".$object_description_id.", ".$this->object_id.", ".$version.", '".DBFunctions::strEscape($object_definition_value)."', ".$count.", ".($this->versioning || $is_alternate ? '0' : '1').")";
 					
 					$count++;
 				}
@@ -1816,9 +1844,16 @@ class StoreTypeObjects {
 			$this->arr_sql_insert['object_sub_version'][] = $sql_value;
 		}
 		
-		if ($arr_value['object_sub_date_start']) {
+		if ($arr_value['object_sub_date_chronology']) {
+			
+			$arr_sql_split = explode(';', $arr_value['object_sub_date_chronology']);
 
-			$this->arr_sql_insert['object_sub_date_version'][] = "(".$object_sub_id.", ".(int)$arr_value['object_sub_date_start'].", ".(int)$arr_value['object_sub_date_end'].", ".(int)$arr_value['object_sub_date_version'].")";
+			$this->arr_sql_insert['object_sub_date_version'][] = "(".$object_sub_id.", ".$arr_sql_split[0].", ".(int)$arr_value['object_sub_date_version'].")";
+			unset($arr_sql_split[0]);
+			
+			foreach ($arr_sql_split as $arr_sql_chronology) {
+				$this->arr_sql_insert['object_sub_date_chronology_version'][] = "(".$object_sub_id.", ".$arr_sql_chronology.", TRUE, ".(int)$arr_value['object_sub_date_version'].")";
+			}
 		}
 		
 		if ($arr_value['object_sub_location_geometry']) {
@@ -1873,6 +1908,7 @@ class StoreTypeObjects {
 				case 'object_definition_objects':
 				case 'object_sub_version':
 				case 'object_sub_source':
+				case 'object_sub_date_chronology_version':
 				case 'object_sub_definition_version':
 				case 'object_sub_definition_source':
 				case 'object_sub_definition_objects':
@@ -1887,7 +1923,7 @@ class StoreTypeObjects {
 				case 'object_version':
 				
 					$arr_sql_query[] = "INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')."
-						(id, version, name, type_id, status)
+						(id, version, type_id, name, status)
 							VALUES
 						".implode(',', $arr_sql_insert)."
 						".(!$this->versioning ? DBFunctions::onConflict('id, version', ['name', 'status']) : "")."
@@ -1903,12 +1939,21 @@ class StoreTypeObjects {
 					";
 					break;
 				case 'object_sub_date_version':
-				
+					
 					$arr_sql_query[] = "INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE')."
-						(object_sub_id, date_start, date_end, version)
+						(object_sub_id, span_period_amount, span_period_unit, span_cycle_object_id, version)
 							VALUES 
 						".implode(',', $arr_sql_insert)."
-						".(!$this->versioning ? DBFunctions::onConflict('object_sub_id, version', ['date_start', 'date_end']) : "")."
+						".(!$this->versioning ? DBFunctions::onConflict('object_sub_id, version', ['span_period_amount', 'span_period_unit', 'span_cycle_object_id']) : '')."
+					";
+					break;
+				case 'object_sub_date_chronology_version':
+										
+					$arr_sql_query[] = "INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE_CHRONOLOGY')."
+						(object_sub_id, offset_amount, offset_unit, cycle_object_id, cycle_direction, date_value, date_object_sub_id, date_direction, identifier, active, version)
+							VALUES 
+						".implode(',', $arr_sql_insert)."
+						".(!$this->versioning ? DBFunctions::onConflict('object_sub_id, identifier, version', ['offset_amount', 'offset_unit', 'cycle_object_id', 'cycle_direction', 'date_value', 'date_object_sub_id', 'date_direction', 'active']) : '')."
 					";
 					break;
 				case 'object_sub_location_geometry_version':
@@ -2048,7 +2093,7 @@ class StoreTypeObjects {
 					
 				case 'object_dating':
 				
-					$arr_sql_query[] = "INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DATING')."
+					$arr_sql_query[] = "INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')."
 						(object_id, date, date_object)
 							VALUES
 						".implode(',', $arr_sql_insert)."
@@ -2088,6 +2133,10 @@ class StoreTypeObjects {
 			$this->presetTypeObjectSubDescriptionVersion();
 		}
 		
+		if (!$this->arr_actions) { // When this class has not made changes i.e. through save(), do make sure the Object is touched.
+			self::touchTypeObjects($this->type_id, $this->table_name_object_updates);
+		}
+		
 		DB::commitTransaction('store_type_objects');
 	}
 	
@@ -2099,6 +2148,10 @@ class StoreTypeObjects {
 		$this->discardTypeObjectDescriptionVersion($all);
 		$this->discardTypeObjectSubVersion($all);
 		$this->discardTypeObjectSubDescriptionVersion($all);
+		
+		if (!$this->arr_actions) { // When this class has not made changes i.e. through save(), do make sure the Object is touched.
+			self::touchTypeObjects($this->type_id, $this->table_name_object_updates);
+		}
 		
 		DB::commitTransaction('store_type_objects');
 	}
@@ -2116,14 +2169,19 @@ class StoreTypeObjects {
 		
 		if ($this->object_id) {
 			
-			$res = DB::query("REPLACE INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." (id, name, type_id, version, active)
-							VALUES
-						(".$this->object_id.", '".DBFunctions::strEscape($arr_object_self['object_name_plain'])."', ".$this->type_id.", 1, TRUE)");
+			$res = DB::query("INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')."
+				(id, type_id, name, version, active)
+					VALUES
+				(".$this->object_id.", ".$this->type_id.", '".DBFunctions::strEscape($arr_object_self['object_name_plain'])."', 1, TRUE)
+				".DBFunctions::onConflict('id, version', ['name', 'active'])."
+			");
 		} else {
 		
-			$res = DB::query("INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." (name, type_id, version, active)
-							VALUES
-						('".DBFunctions::strEscape($arr_object_self['object_name_plain'])."', ".$this->type_id.", 1, TRUE)");
+			$res = DB::query("INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')."
+				(type_id, name, version, active)
+					VALUES
+				(".$this->type_id.", '".DBFunctions::strEscape($arr_object_self['object_name_plain'])."', 1, TRUE)
+			");
 						
 			$this->object_id = DB::lastInsertID();
 			$insert = true;
@@ -2154,14 +2212,13 @@ class StoreTypeObjects {
 				$arr_type_scope = $arr_object_scopes[$type_id];
 			}
 			
-			
 			$res = DB::query("DELETE FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_FILTERS')."
 				WHERE ref_type_id = ".(int)$type_id."
 					AND object_id = ".$this->object_id."
 			");
 			
 			$filter = new FilterTypeObjects($type_id, 'id');
-			$filter->setScope(['users' => $this->user_id, 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id'])]);
+			$filter->setScope(['users' => $this->user_id]);
 			$arr_type_filter = $filter->cleanupFilterInput($arr_type_filter);
 				
 			if ($arr_type_filter || $arr_type_scope) {
@@ -2177,11 +2234,11 @@ class StoreTypeObjects {
 			}
 		}
 		
-		$res = DB::query("INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DATING')."
+		$res = DB::query("INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')."
 			(object_id, date, date_object)
 				VALUES
 			(".$this->object_id.", NOW(), NOW())
-			".DBFunctions::onConflict('object_id', ['date', 'date_object'])."
+			".DBFunctions::onConflict('object_id', ['date', 'date_object', 'status'])."
 		");
 		
 		DB::commitTransaction('store_type_objects');
@@ -2309,16 +2366,16 @@ class StoreTypeObjects {
 				$arr_user = user_management::getUser($arr_check['user_id']);
 				
 				$arr_type_object_names = FilterTypeObjects::getTypeObjectNames($this->type_id, $this->object_id, false);
-				Labels::setVariable('object', GenerateTypeObjects::printSharedTypeObjectNames(current($arr_type_object_names)));
+				Labels::setVariable('object', current($arr_type_object_names));
 				Labels::setVariable('user', $arr_user['name']);
 				
-				error(getLabel(($type == 2 ? 'msg_object_locked_discussion' : 'msg_object_locked')), TROUBLE_ERROR, LOG_CLIENT);
+				error(getLabel(($type == 2 ? 'msg_object_locked_discussion' : 'msg_object_locked'), 'L', true), TROUBLE_ERROR, LOG_CLIENT);
 			} else if ($arr_check['identifier'] != $key) { // Locked by self
 				
 				$arr_type_object_names = FilterTypeObjects::getTypeObjectNames($this->type_id, $this->object_id, false);
-				Labels::setVariable('object', GenerateTypeObjects::printSharedTypeObjectNames(current($arr_type_object_names)));
+				Labels::setVariable('object', current($arr_type_object_names));
 				
-				error(getLabel(($type == 2 ? 'msg_object_locked_discussion_self' : 'msg_object_locked_self')), TROUBLE_ERROR, LOG_CLIENT);
+				error(getLabel(($type == 2 ? 'msg_object_locked_discussion_self' : 'msg_object_locked_self'), 'L', true), TROUBLE_ERROR, LOG_CLIENT);
 			} else { // Update date is equal to the existing record
 				
 				return $key;
@@ -2401,7 +2458,7 @@ class StoreTypeObjects {
 			".DBFunctions::onConflict('object_id', ['body', 'date_edited', 'user_id_edited'])."
 		;";
 		
-		$sql .= "INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DATING')."
+		$sql .= "INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')."
 			(object_id, date, date_object, date_discussion)
 				VALUES
 			(".$this->object_id.", NOW(), NOW(), NOW())
@@ -2482,7 +2539,7 @@ class StoreTypeObjects {
 				nodegoat_to_def.version, nodegoat_to_def.active
 					FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable($arr_object_description['object_description_value_type'])." nodegoat_to_def
 				WHERE nodegoat_to_def.object_id = ".DBStatement::assign('object_id', 'i')." AND nodegoat_to_def.object_description_id = ".$object_description_id."
-				ORDER BY nodegoat_to_def.version DESC
+				ORDER BY nodegoat_to_def.version DESC, nodegoat_to_def.identifier ASC
 			");
 			
 			$stmt = $this->stmt_object_description_versions[$object_description_id];
@@ -2601,7 +2658,9 @@ class StoreTypeObjects {
 		if (!$this->stmt_object_sub_versions) {
 			
 			$this->stmt_object_sub_versions = DB::prepare("SELECT
-				nodegoat_tos_date.date_start, nodegoat_tos_date.date_end, nodegoat_tos.date_version, nodegoat_tos.location_ref_object_id, nodegoat_tos.location_ref_type_id, nodegoat_tos.location_ref_object_sub_details_id, CASE WHEN nodegoat_tos_geo.object_sub_id IS NOT NULL THEN ".StoreTypeObjects::formatFromSQLValue('geometry', 'nodegoat_tos_geo.geometry')." ELSE '' END AS location_geometry, nodegoat_tos.location_geometry_version, nodegoat_tos.version, nodegoat_tos.active
+				CASE WHEN nodegoat_tos_date.object_sub_id IS NOT NULL THEN ".StoreTypeObjects::formatFromSQLValue('chronology', 'nodegoat_tos_date')." ELSE '' END AS date_chronology, nodegoat_tos.date_version,
+				nodegoat_tos.location_ref_object_id, nodegoat_tos.location_ref_type_id, nodegoat_tos.location_ref_object_sub_details_id, CASE WHEN nodegoat_tos_geo.object_sub_id IS NOT NULL THEN ".StoreTypeObjects::formatFromSQLValue('geometry', 'nodegoat_tos_geo.geometry')." ELSE '' END AS location_geometry, nodegoat_tos.location_geometry_version,
+				nodegoat_tos.version, nodegoat_tos.active
 					FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos
 					LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE')." nodegoat_tos_date ON (nodegoat_tos_date.object_sub_id = nodegoat_tos.id AND nodegoat_tos_date.version = nodegoat_tos.date_version)
 					LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_LOCATION_GEOMETRY')." nodegoat_tos_geo ON (nodegoat_tos_geo.object_sub_id = nodegoat_tos.id AND nodegoat_tos_geo.version = nodegoat_tos.location_geometry_version)
@@ -2618,22 +2677,20 @@ class StoreTypeObjects {
 
 		while ($arr_row = $res->fetchRow()) {
 			
-			$date_start = $arr_row[0];
-			$date_end = $arr_row[1];
-			$date_version = $arr_row[2];
-			$location_ref_object_id = $arr_row[3];
-			$location_ref_type_id = $arr_row[4];
-			$location_ref_object_sub_details_id = $arr_row[5];
-			$location_geometry = $arr_row[6];
-			$location_geometry_version = $arr_row[7];
-			$version = $arr_row[8];
-			$active = $arr_row[9];
+			$date_chronology = $arr_row[0];
+			$date_version = $arr_row[1];
+			$location_ref_object_id = $arr_row[2];
+			$location_ref_type_id = $arr_row[3];
+			$location_ref_object_sub_details_id = $arr_row[4];
+			$location_geometry = $arr_row[5];
+			$location_geometry_version = $arr_row[6];
+			$version = $arr_row[7];
+			$active = $arr_row[8];
 			
 			$arr[$version] = [
 				'object_sub_version' => $version,
 				'object_sub_active' => $active,
-				'object_sub_date_start' => (int)$date_start,
-				'object_sub_date_end' => (int)$date_end,
+				'object_sub_date_chronology' => $date_chronology,
 				'object_sub_date_version' => (int)$date_version,
 				'object_sub_location_type' => ($location_ref_type_id ? 'reference' : 'geometry'),
 				'object_sub_location_ref_object_id' => (int)$location_ref_object_id,
@@ -2969,8 +3026,12 @@ class StoreTypeObjects {
 					"JOIN ".$this->table_name_object_updates." nodegoat_to_updates ON (nodegoat_to_updates.id = nodegoat_to.id)",
 					['active' => 'TRUE']
 				)."
-					AND nodegoat_to.version = (SELECT IF(version = -1, 1, version) AS version
-						FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_VERSION')."
+					AND nodegoat_to.version = (SELECT
+						CASE
+							WHEN version = -1 THEN 1
+							ELSE version
+						END AS version
+							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_VERSION')."
 						WHERE object_id = nodegoat_to.id AND date_audited IS NULL
 						ORDER BY date DESC, version DESC
 						LIMIT 1
@@ -3047,8 +3108,12 @@ class StoreTypeObjects {
 						"JOIN ".$this->table_name_object_updates." nodegoat_to_updates ON (nodegoat_to_updates.id = nodegoat_to_def.object_id)",
 						['active' => 'TRUE']
 					)."
-						AND nodegoat_to_def.version = (SELECT IF(version = -1, 1, version) AS version
-							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_VERSION')."
+						AND nodegoat_to_def.version = (SELECT
+							CASE
+								WHEN version = -1 THEN 1
+								ELSE version
+							END AS version
+								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_VERSION')."
 							WHERE object_description_id = nodegoat_to_def.object_description_id AND object_id = nodegoat_to_def.object_id AND date_audited IS NULL
 							ORDER BY date DESC, version DESC
 							LIMIT 1
@@ -3122,8 +3187,12 @@ class StoreTypeObjects {
 					"JOIN ".$this->table_name_object_updates." nodegoat_to_updates ON (nodegoat_to_updates.id = nodegoat_tos.object_id)",
 					['active' => 'TRUE']
 				)."
-					AND nodegoat_tos.version = (SELECT IF(version = -1, 1, version) AS version
-						FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_VERSION')."
+					AND nodegoat_tos.version = (SELECT
+						CASE
+							WHEN version = -1 THEN 1
+							ELSE version
+						END AS version
+							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_VERSION')."
 						WHERE object_sub_id = nodegoat_tos.id AND date_audited IS NULL
 						ORDER BY date DESC, version DESC
 						LIMIT 1
@@ -3203,8 +3272,12 @@ class StoreTypeObjects {
 						JOIN ".$this->table_name_object_updates." nodegoat_to_updates ON (nodegoat_to_updates.id = nodegoat_tos.object_id)",
 						['active' => 'TRUE']
 					)."
-						AND nodegoat_tos_def.version = (SELECT IF(version = -1, 1, version) AS version
-							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_VERSION')."
+						AND nodegoat_tos_def.version = (SELECT
+							CASE
+								WHEN version = -1 THEN 1
+								ELSE version
+							END AS version
+								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_VERSION')."
 							WHERE object_sub_description_id = nodegoat_tos_def.object_sub_description_id AND object_sub_id = nodegoat_tos_def.object_sub_id AND date_audited IS NULL
 							ORDER BY date DESC, version DESC
 							LIMIT 1
@@ -3236,8 +3309,12 @@ class StoreTypeObjects {
 				[
 					"JOIN (SELECT
 						nodegoat_to_updates.id,
-						(SELECT IF(nodegoat_to_ver_last.version = -1, 1, nodegoat_to_ver_last.version) AS version
-							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_VERSION')." nodegoat_to_ver_last
+						(SELECT
+							CASE
+								WHEN nodegoat_to_ver_last.version = -1 THEN 1
+								ELSE nodegoat_to_ver_last.version
+							END AS version
+								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_VERSION')." nodegoat_to_ver_last
 							WHERE nodegoat_to_ver_last.object_id = nodegoat_to_updates.id
 								AND date_audited IS NULL
 							ORDER BY date DESC, nodegoat_to_ver_last.version DESC
@@ -3275,8 +3352,12 @@ class StoreTypeObjects {
 						"JOIN (SELECT
 							nodegoat_to_updates.id,
 							nodegoat_to_def.object_description_id,
-							(SELECT IF(nodegoat_to_def_ver_last.version = -1, 1, nodegoat_to_def_ver_last.version) AS version
-								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_VERSION')." nodegoat_to_def_ver_last
+							(SELECT
+								CASE
+									WHEN nodegoat_to_def_ver_last.version = -1 THEN 1
+									ELSE nodegoat_to_def_ver_last.version
+								END AS version
+									FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_VERSION')." nodegoat_to_def_ver_last
 								WHERE nodegoat_to_def_ver_last.object_id = nodegoat_to_def.object_id
 									AND nodegoat_to_def_ver_last.object_description_id = nodegoat_to_def.object_description_id
 									AND date_audited IS NULL
@@ -3315,8 +3396,12 @@ class StoreTypeObjects {
 					"JOIN (SELECT
 						nodegoat_to_updates.id,
 						nodegoat_tos.id AS object_sub_id,
-						(SELECT IF(nodegoat_tos_ver_last.version = -1, 1, nodegoat_tos_ver_last.version) AS version
-							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_VERSION')." nodegoat_tos_ver_last
+						(SELECT
+							CASE
+								WHEN nodegoat_tos_ver_last.version = -1 THEN 1
+								ELSE nodegoat_tos_ver_last.version
+							END AS version
+								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_VERSION')." nodegoat_tos_ver_last
 							WHERE nodegoat_tos_ver_last.object_sub_id = nodegoat_tos.id
 								AND date_audited IS NULL
 							ORDER BY date DESC, nodegoat_tos_ver_last.version DESC
@@ -3355,8 +3440,12 @@ class StoreTypeObjects {
 						"JOIN (SELECT
 							nodegoat_tos.id AS object_sub_id,
 							nodegoat_tos_def.object_sub_description_id,
-							(SELECT IF(nodegoat_tos_def_ver_last.version = -1, 1, nodegoat_tos_def_ver_last.version) AS version
-								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_VERSION')." nodegoat_tos_def_ver_last
+							(SELECT
+								CASE
+									WHEN nodegoat_tos_def_ver_last.version = -1 THEN 1
+									ELSE nodegoat_tos_def_ver_last.version
+								END AS version
+									FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_VERSION')." nodegoat_tos_def_ver_last
 								WHERE nodegoat_tos_def_ver_last.object_sub_id = nodegoat_tos_def.object_sub_id
 									AND nodegoat_tos_def_ver_last.object_sub_description_id = nodegoat_tos_def.object_sub_description_id
 									AND date_audited IS NULL
@@ -3561,7 +3650,7 @@ class StoreTypeObjects {
 							SELECT TRUE
 								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to_check
 							WHERE nodegoat_to_check.id = nodegoat_to.id
-								AND nodegoat_to_check.active = TRUE OR nodegoat_to_check.status > 0
+								AND (nodegoat_to_check.active = TRUE OR nodegoat_to_check.status > 0)
 						)
 						GROUP BY id
 				);
@@ -3601,12 +3690,25 @@ class StoreTypeObjects {
 			SELECT id
 					FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')."
 				WHERE type_id = ".$this->type_id." AND id = ".DBStatement::assign('object_id', 'i')."
-			".DBFunctions::onConflict('id', ['id'])."
+			".DBFunctions::onConflict('id', false)."
 		");
 	}
 
 	// Direct calls
-
+	
+	public static function touchTypeObjects($type_id, $sql_table) {
+			
+		$res = DB::query("
+			INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')."
+				(object_id, date, date_object)
+				(SELECT
+					id, NOW(), NOW()
+						FROM ".$sql_table."
+				)
+				".DBFunctions::onConflict('object_id', ['date'])."
+		");
+	}
+	
 	public static function getTypeUsers($type_id, $arr_users) {
 		
 		$sql_users = ($arr_users ? "IN (".implode(',', $arr_users).")" : '');
@@ -3742,13 +3844,15 @@ class StoreTypeObjects {
 			case 'text':
 			case 'text_layout':
 			case 'text_tags':
+				if ($value) {
+					$format = $value.($value_append ? PHP_EOL.$value_append : '');
+				} else {
+					$format = $value_append;
+				}
+				break;
 			case '':
 				if ($value) {
-					if ($value_append && strpos($value, $value_append) === false) {
-						$format = $value.', '.$value_append;
-					} else {
-						$format = $value;
-					}
+					$format = $value.($value_append ? ' '.$value_append : '');
 				} else {
 					$format = $value_append;
 				}
@@ -3760,11 +3864,14 @@ class StoreTypeObjects {
 		return $format;
 	}
 	
-	public static function formatToCleanValue($type, $value, $type_options = false) { // From raw database to display
+	public static function formatToCleanValue($type, $value, $arr_type_options = []) { // From raw database to display
 			
 		switch ($type) {
 			case 'date':
 				$format = ($value ? self::int2Date($value) : '');
+				break;
+			case 'chronology':
+				$format = self::formatToChronologyDetails($value);
 				break;
 			case 'geometry':
 				$format = self::formatToGeometrySummary($value);
@@ -3779,14 +3886,14 @@ class StoreTypeObjects {
 		return $format;
 	}
 	
-	public static function formatToPreviewValue($type, $value, $type_options = false, $extra = false) { // From formatted database to preview display
+	public static function formatToPreviewValue($type, $value, $arr_type_options = [], $extra = false) { // From formatted database to preview display
 		
 		switch ($type) {
-			case '':
 			case 'int':
+			case '':
 			
 				if (is_array($value)) {
-					$format = implode(' ', $value);
+					$format = implode(($arr_type_options['separator'] ?: ' '), $value);
 				} else {
 					$format = $value;
 				}
@@ -3799,19 +3906,37 @@ class StoreTypeObjects {
 				
 				if ($value) {
 					
+					$show_url = ($arr_type_options['display'] && $arr_type_options['display'] == 'url');
+					
 					if (is_array($value)) {
 						
-						$format = '';
+						$arr_html = [];
 							
 						foreach ($value as $media) {
 							
 							$media = new EnucleateMedia($media, true);
-							$format .= $media->enucleate();
+							
+							if ($show_url) {
+								$str_url = $media->enucleate(true);
+								$str_url = htmlspecialchars($str_url);
+								$arr_html[] = '<a href="'.$str_url.'" target="_blank">'.$str_url.'</a>';
+							} else {
+								$arr_html[] = $media->enucleate();
+							}
 						}
+						
+						$format = implode(($show_url ? ($arr_type_options['separator'] ?: ', ') : ''), $arr_html);
 					} else {
 								
 						$media = new EnucleateMedia($value, true);
-						$format = $media->enucleate();
+						
+						if ($show_url) {
+							$str_url = $media->enucleate(true);
+							$str_url = htmlspecialchars($str_url);
+							$format = '<a href="'.$str_url.'" target="_blank">'.$str_url.'</a>';
+						} else {
+							$format = $media->enucleate();
+						}
 					}
 				}
 				break;
@@ -3826,7 +3951,7 @@ class StoreTypeObjects {
 						$arr_html[] = $ref_value;
 					}
 					
-					$format = implode(', ', $arr_html);
+					$format = implode(($arr_type_options['separator'] ?: ', '), $arr_html);
 				} else {
 					
 					$format = $value;
@@ -3855,20 +3980,20 @@ class StoreTypeObjects {
 				break;
 			default:
 			
-				$format = self::formatToPresentationValue($type, $value, $type_options, $extra);
+				$format = self::formatToPresentationValue($type, $value, $arr_type_options, $extra);
 		}
 		
 		return $format;
 	}
 	
-	public static function formatToPresentationValue($type, $value, $type_options = false, $extra = false) { // From formatted database to display
+	public static function formatToPresentationValue($type, $value, $arr_type_options = [], $extra = false) { // From formatted database to display
 		
 		switch ($type) {
-			case '':
 			case 'int':
+			case '':
 				
 				if (is_array($value)) {
-					$format = '<span>'.implode('</span><span>', arrParseRecursive($value, 'htmlspecialchars')).'</span>';
+					$format = '<span>'.implode('</span><span class="separator">'.($arr_type_options['separator'] ?: ' ').'</span><span>', arrParseRecursive($value, 'htmlspecialchars')).'</span>';
 				} else {
 					$format = htmlspecialchars($value);
 				}
@@ -3933,7 +4058,7 @@ class StoreTypeObjects {
 								<li><a href="#">'.getLabel('lbl_referencing').'</a></li>
 
 							</ul>
-							<div><div class="body'.($type_options['marginalia'] ? ' marginalia-show' : '').'">'.$value.'</div>'.($type_options['marginalia'] ? '<div class="marginalia"></div>' : '').$html_word_count.'</div>
+							<div><div class="body'.($arr_type_options['marginalia'] ? ' marginalia-show' : '').'">'.$value.'</div>'.($arr_type_options['marginalia'] ? '<div class="marginalia"></div>' : '').$html_word_count.'</div>
 							<div class="text-references">
 								<div class="tabs">
 									<ul>
@@ -3953,24 +4078,42 @@ class StoreTypeObjects {
 			
 				if ($value) {
 					
+					$show_url = ($arr_type_options['display'] && $arr_type_options['display'] == 'url');
+					
 					if (is_array($value)) {
 						
-						$format = '';
+						$arr_html = [];
 							
 						foreach ($value as $media) {
 							
 							$media = new EnucleateMedia($media);
-							$format .= $media->enucleate();
+							
+							if ($show_url) {
+								$str_url = $media->enucleate(true);
+								$str_url = htmlspecialchars($str_url);
+								$arr_html[] = '<a href="'.$str_url.'" target="_blank">'.$str_url.'</a>';
+							} else {
+								$arr_html[] = $media->enucleate();
+							}
 						}
 						
-						if (count($value) > 1) {
+						if (!$show_url && count($arr_html) > 1) {
 							
-							$format = '<div class="album">'.$format.'</div>';
+							$format = '<div class="album">'.implode('', $arr_html).'</div>';
+						} else {
+							$format = implode('<span class="separator">'.($arr_type_options['separator'] ?: ' ').'</span>', $arr_html);
 						}
 					} else {
 								
 						$media = new EnucleateMedia($value);
-						$format = $media->enucleate();
+						
+						if ($show_url) {
+							$str_url = $media->enucleate(true);
+							$str_url = htmlspecialchars($str_url);
+							$format = '<a href="'.$str_url.'" target="_blank">'.$str_url.'</a>';
+						} else {
+							$format = $media->enucleate();
+						}
 					}
 				}
 
@@ -3979,19 +4122,31 @@ class StoreTypeObjects {
 				
 				if (is_array($value)) {
 						
-					$format = '';
+					$arr_html = [];
 					
 					foreach ($value as $ref_value) {
 													
-						$reference = new ExternalResource(data_linked_data::getLinkedDataResources($type_options['id']), $ref_value);
-						$format .= '<span>'.$reference->getURL().'</span>';
+						$reference = new ExternalResource(data_linked_data::getLinkedDataResources($arr_type_options['id']), $ref_value);
+						$arr_html[] = '<span>'.$reference->getURL().'</span>';
 					}
+					
+					$format = implode('<span class="separator">'.($arr_type_options['separator'] ?: ' ').'</span>', $arr_html);
 				} else {
 					
-					$reference = new ExternalResource(data_linked_data::getLinkedDataResources($type_options['id']), $value);
+					$reference = new ExternalResource(data_linked_data::getLinkedDataResources($arr_type_options['id']), $value);
 					$format = $reference->getURL();
 				}
 				
+				break;
+			case 'date_cycle':
+			
+				$format = getLabel('unit_month').' '.(int)$value[0].'<br />'.getLabel('unit_day').' '.(int)$value[1];
+				
+				break;
+			case 'date_compute':
+			
+				$format = getLabel('unit_year').' +'.(int)$value[0].'<br />'.getLabel('unit_month').' +'.(int)$value[1].'<br />'.getLabel('unit_day').' +'.(int)$value[2];
+			
 				break;
 			default:
 				$format = htmlspecialchars($value);
@@ -4000,11 +4155,46 @@ class StoreTypeObjects {
 		return $format;
 	}
 	
-	public static function formatToFormValue($type, $value, $name, $type_options = false, $extra = false) {
+	public static function formatToInputValue($type, $value, $arr_type_options = []) {
+			
+		switch ($type) {
+			case 'date':
+				$format = ($value ? self::int2Date($value) : '');
+				break;
+			case 'boolean':
+				$format = ($value !== '' && $value !== null ? ($value == 1 || $value === 'yes' ? 'yes' : 'no') : '');
+				break;
+			case 'date_cycle':
+			
+				if ($value) {
+					$format = [
+						'month' => $value[0],
+						'day' => $value[1],
+					];
+				}
+				break;
+			case 'date_compute':
+			
+				if ($value) {
+					$format = [
+						'year' => $value[0],
+						'month' => $value[1],
+						'day' => $value[2],
+					];
+				}
+				break;
+			default:
+				$format = $value;
+		}
+		
+		return $format;
+	}
+	
+	public static function formatToFormValue($type, $value, $name, $arr_type_options = [], $extra = false) {
 	
 		switch ($type) {
-			case '':
 			case 'media_external':
+			case '':
 			
 				if (is_array($value)) {
 					
@@ -4079,14 +4269,44 @@ class StoreTypeObjects {
 			case 'date':
 				$format = '<input type="text" class="date" name="'.$name.'" value="'.($value ? self::int2Date($value) : '').'" />';
 				break;
+			case 'date_cycle':
+				
+				$day = $month = '';
+				if ($value) {
+					$month = $value[0];
+					$day = $value[1];
+				}
+
+				$format = '<fieldset class="input"><ul>'
+					.'<li><input type="number" class="date" placeholder="'.getLabel('unit_day').'" name="'.$name.'[day]" value="'.$day.'" /><label>'.getLabel('unit_day').'</label></li>'
+					.'<li><input type="number" class="date" placeholder="'.getLabel('unit_month').'" name="'.$name.'[month]" value="'.$month.'" /><label>'.getLabel('unit_month').'</label></li>'
+				.'</ul></fieldset>';
+					
+				break;
+			case 'date_compute':
+				
+				$day = $month = $year = 0;
+				if ($value) {
+					$year = (int)$value[0];
+					$month = (int)$value[1];
+					$day = (int)$value[2];
+				}
+				
+				$format = '<fieldset class="input"><ul>'
+					.'<li><input type="number" name="'.$name.'[day]" value="'.$day.'" /><label>+ '.getLabel('unit_days').'</label></li>'
+					.'<li><input type="number" name="'.$name.'[month]" value="'.$month.'" /><label>+ '.getLabel('unit_months').'</label></li>'
+					.'<li><input type="number" name="'.$name.'[year]" value="'.$year.'" /><label>+ '.getLabel('unit_years').'</label></li>'
+				.'</ul></fieldset>';
+					
+				break;
 			case 'external':
 				
 				$is_multi = is_array($value);
 				$is_static = true;
 				
-				if ($type_options['id']) {
+				if ($arr_type_options['id']) {
 					
-					$arr_resource = data_linked_data::getLinkedDataResources($type_options['id']);
+					$arr_resource = data_linked_data::getLinkedDataResources($arr_type_options['id']);
 					$is_static = ($arr_resource && $arr_resource['protocol'] == 'static' ? true : false);
 				}
 				
@@ -4094,10 +4314,10 @@ class StoreTypeObjects {
 					
 					if ($is_multi) {
 
-						$format = cms_general::createMultiSelect($name, 'y:data_filter:lookup_external-'.$type_options['id'], ($value ? array_combine($value, $value) : []), 'y:data_filter:lookup_external_pick-'.$type_options['id'], ['delay' => 2]);
+						$format = cms_general::createMultiSelect($name, 'y:data_filter:lookup_external-'.$arr_type_options['id'], ($value ? array_combine($value, $value) : []), 'y:data_filter:lookup_external_pick-'.$arr_type_options['id'], ['delay' => 2]);
 					} else {
 						
-						$format = '<input type="hidden" id="y:data_filter:lookup_external_pick-'.$type_options['id'].'" name="'.$name.'" value="'.$value.'" /><input type="search" id="y:data_filter:lookup_external-'.$type_options['id'].'" class="autocomplete external" data-delay="3" value="'.htmlspecialchars($value).'" />';
+						$format = '<input type="hidden" id="y:data_filter:lookup_external_pick-'.$arr_type_options['id'].'" name="'.$name.'" value="'.$value.'" /><input type="search" id="y:data_filter:lookup_external-'.$arr_type_options['id'].'" class="autocomplete external" data-delay="3" value="'.htmlspecialchars($value).'" />';
 					}
 				} else {
 					
@@ -4128,12 +4348,12 @@ class StoreTypeObjects {
 			
 			$format = '<fieldset class="input"><ul>
 				<li>
-					<label></label><span>
-						<input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" />'
-					.'</span>
+					<label></label><div><menu class="sorter">'
+						.'<input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" />'			
+					.'</menu></div>
 				</li><li>
 					<label></label>
-					'.cms_general::createSorter($format, false, true).'
+					'.cms_general::createSorter($format, true, true).'
 				</li>
 			</ul></fieldset>';
 		}
@@ -4141,7 +4361,7 @@ class StoreTypeObjects {
 		return $format;
 	}
 	
-	public static function formatToFormValueFilter($type, $value, $name, $type_options = false) {
+	public static function formatToFormValueFilter($type, $value, $name, $arr_type_options = []) {
 	
 		switch ($type) {
 			case 'date':
@@ -4175,13 +4395,13 @@ class StoreTypeObjects {
 					.'<input type="text" name="'.$name.'[value]" value="'.$value['value'].'" />';
 				break;
 			default:
-				$format = self::formatToFormValue($type, $value, $name, $type_options);
+				$format = self::formatToFormValue($type, $value, $name, $arr_type_options);
 		}
 		
 		return $format;
 	}
 		
-	public static function formatFromSQLValue($type, $value, $type_options = false) {
+	public static function formatFromSQLValue($type, $value, $arr_type_options = []) {
 		
 		switch ($type) {
 			case 'boolean':
@@ -4195,6 +4415,9 @@ class StoreTypeObjects {
 					SUBSTRING(".$value." FROM 1 FOR LENGTH(".$value.")-8),
 					CASE WHEN RIGHT(".$value.", 4) = '0000' THEN '' ELSE CONCAT(' ', RIGHT(".$value.", 4)) END
 				)";
+				break;
+			case 'chronology':
+				$format = self::formatFromSQLChronology($value);
 				break;
 			case 'geometry':
 				$format = "ST_AsGeoJSON(".$value.")";
@@ -4210,6 +4433,8 @@ class StoreTypeObjects {
 	}
 	
 	public static function formatToSQLValue($type, $value) {
+		
+		$do_unique = true;
 	
 		switch ($type) {
 			case 'boolean':
@@ -4217,6 +4442,26 @@ class StoreTypeObjects {
 				break;
 			case 'date':
 				$format = self::date2Int($value);
+				break;
+			case 'date_cycle':
+				$do_unique = false;
+				if (!$value || !$value['day'] || !$value['month']) {
+					$format = [1, 1];
+					break;
+				}
+				$format = [(int)$value['month'], (int)$value['day']];
+				break;
+			case 'date_compute':
+				$do_unique = false;
+				if (!$value || (!$value['day'] && !$value['month'] && !$value['year'])) {
+					$format = [0, 0, 0];
+					break;
+				}
+				$format = [(int)$value['year'], (int)$value['month'], (int)$value['day']];
+				break;
+			case 'chronology':
+				$value = self::formatToSQLChronology($value);
+				$format = ($value ? implode(',', $value['date']).';'.implode(';', $value['chronology']) : '');
 				break;
 			case 'geometry':
 				$format = self::formatToSQLGeometry($value);
@@ -4228,7 +4473,7 @@ class StoreTypeObjects {
 				// Ensure the array is iterable by making it multi
 				if (!is_array($value)) {
 					
-					$value = [['url' => $value]];
+					$value = [$value];
 				} else {
 					
 					if ($value['file'] !== null || $value['url'] !== null) {
@@ -4241,6 +4486,10 @@ class StoreTypeObjects {
 				$format = [];
 				
 				foreach ($value as $arr_media) {
+					
+					if (!is_array($arr_media)) {
+						$arr_media = ['url' => $arr_media];
+					}
 					
 					$filename = false;
 						
@@ -4312,6 +4561,10 @@ class StoreTypeObjects {
 				break;
 			default:
 				$format = $value;
+		}
+		
+		if ($do_unique && is_array($format) && $format) {
+			$format = array_values(array_unique(array_filter($format)));
 		}
 		
 		return $format;
@@ -4457,6 +4710,415 @@ class StoreTypeObjects {
 		return $format;
 	}
 	
+	// Chronology
+	
+	public static function formatToSQLChronology($value) {
+		
+		if (!$value) {
+			return '';
+		}
+		
+		$arr_chronology = self::formatToChronology($value);
+		
+		$is_period = ($arr_chronology['type'] == 'period');
+		
+		$arr_sql = [
+			'date' => [
+				'span_period_amount' => 0, 'span_period_unit' => 0, 'span_cycle_object_id' => 0
+			],
+			'chronology' => []
+		];
+		
+		$arr_time_directions = StoreType::getTimeDirectionsInternal();
+		$arr_time_units = StoreType::getTimeUnitsInternal();
+		
+		$func_compute_date = function($arr) {
+			
+			if (!$arr) {
+				return false;
+			}
+			
+			if ($arr['date_object_sub_id'] || $arr['date_path']) {
+				
+				$date = 0;
+			} else {
+				
+				$date = (int)self::formatToSQLValue('date', $arr['date_value']);
+				
+				if (!$date) {
+					$date = false;
+				}
+			}
+			
+			return $date;
+		};
+		
+		$date_start_start = $func_compute_date($arr_chronology['start']['start']);
+		$date_start_end = $func_compute_date($arr_chronology['start']['end']);
+		
+		if ($is_period) {
+			
+			$date_end_start = $func_compute_date($arr_chronology['end']['start']);
+			$date_end_end = $func_compute_date($arr_chronology['end']['end']);
+			
+			$date_end_end = ($date_end_end !== false ? $date_end_end : $date_start_start);
+
+			$arr_sql['date']['span_period_amount'] = (int)$arr_chronology['span']['period_amount'];
+			$arr_sql['date']['span_period_unit'] = (int)$arr_time_units[$arr_chronology['span']['period_unit']];
+		} else {
+			
+			$date_end_start = false;
+			
+			$date_end_end = ($date_start_end !== false ? $date_start_end : $date_start_start);
+		}
+		
+		if ($date_start_start === false) {
+			return '';
+		}
+				
+		$arr_sql['date']['span_cycle_object_id'] = (int)$arr_chronology['span']['cycle_object_id'];
+		
+		$func_sql_statement = function($arr, $identifier) use (&$arr_sql, $arr_time_directions, $arr_time_units) {
+			
+			if (!$arr) {
+				return;
+			}
+			
+			$arr_statement = [
+				'offset_amount' => (int)$arr['offset_amount'],
+				'offset_unit' => (int)$arr_time_units[$arr['offset_unit']],
+				'cycle_object_id' => (int)$arr['cycle_object_id'],
+				'cycle_direction' => (int)$arr_time_directions[$arr['cycle_direction']],
+				'date_value' => ($arr['date_value'] ? (int)self::formatToSQLValue('date', $arr['date_value']) : 'NULL'),
+				'date_object_sub_id' => ((int)$arr['date_object_sub_id'] ?: 'NULL'),
+				'date_direction' => (int)$arr_time_directions[$arr['date_direction']]
+			];
+			
+			$arr_sql['chronology'][] = implode(',', $arr_statement).', '.$identifier;
+		};
+		
+		$func_sql_statement($arr_chronology['start']['start'], StoreType::DATE_START_START);
+		$func_sql_statement($arr_chronology['start']['end'], StoreType::DATE_START_END);
+		if ($is_period) {
+			$func_sql_statement($arr_chronology['end']['start'], StoreType::DATE_END_START);
+			$func_sql_statement($arr_chronology['end']['end'], StoreType::DATE_END_END);
+		}
+		
+		return $arr_sql;
+	}
+	
+	public static function formatFromSQLChronology($sql_table_name) {
+				
+		$sql = 'CONCAT(
+			CONCAT('.$sql_table_name.'.span_period_amount, \',\', '.$sql_table_name.'.span_period_unit, \',\', '.$sql_table_name.'.span_cycle_object_id),
+			\';\',
+			COALESCE((SELECT
+					'.DBFunctions::sqlImplode(
+						'CONCAT(identifier, \',\', offset_amount, \',\', offset_unit, \',\', cycle_object_id, \',\', cycle_direction, \',\', COALESCE('.DBFunctions::castAs('date_value', DBFunctions::CAST_TYPE_STRING).', \'\'), \',\', COALESCE('.DBFunctions::castAs('date_object_sub_id', DBFunctions::CAST_TYPE_STRING).', \'\'), \',\', date_direction)',
+						';'
+					).'
+				FROM '.DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE_CHRONOLOGY').' AS '.$sql_table_name.'_chrono
+				WHERE '.$sql_table_name.'_chrono.object_sub_id = '.$sql_table_name.'.object_sub_id
+					AND '.$sql_table_name.'_chrono.version = '.$sql_table_name.'.version
+					AND '.$sql_table_name.'_chrono.active = TRUE
+			), \'\')
+		)';
+	
+		return $sql;
+	}
+	
+	public static function formatToChronology($value) {
+		
+		if (!$value) {
+			return false;
+		}
+		
+		if (is_array($value) || substr($value, 0, 1) == '{') { // chronoJSON
+			
+			if (is_array($value)) {
+				$arr_source = $value;
+			} else {
+				$arr_source = json_decode($value, true);
+			}
+			
+			$is_period = ($arr_source['type'] == 'period');
+			$date_start = $arr_source['date']['start'];
+			$date_end = $arr_source['date']['end'];
+			
+			$arr_source_span = $arr_source['span'];
+			
+			$arr_chronology = [
+				'type' => ($is_period ? 'period' : 'point'),
+				'span' => [
+					'period_amount' => $arr_source_span['period_amount'],
+					'period_unit' => ($arr_source_span['period_amount'] ? $arr_source_span['period_unit'] : null),
+					'cycle_object_id' => $arr_source_span['cycle_object_id']
+				]
+			];
+			
+			$func_parse_statement = function(&$arr, $arr_source) {
+				
+				if (!$arr_source) {
+					return;
+				}
+				
+				// date_value takes precedent (more specific)
+				if ($arr_source['date_value_type']) {
+					if ($arr_source['date_value_type'] == 'object_sub') {
+						$arr_source['date_value'] = null;
+						$arr_source['date_path'] = null;
+					} else if ($arr_source['date_value_type'] == 'path') {
+						$arr_source['date_value'] = null;
+						$arr_source['date_object_sub_id'] = null;
+					} else {
+						$arr_source['date_object_sub_id'] = null;
+						$arr_source['date_path'] = null;
+					}
+				} else if ($arr_source['date_value']) {
+					
+					$arr_source['date_object_sub_id'] = null;
+					$arr_source['date_path'] = null;
+											
+					if ($arr_source['date_value'] == '∞' || $arr_source['date_value'] == '-∞') {
+						
+						$arr_source = [
+							'date_value' => $arr_source['date_value']
+						];
+					}
+				}
+				
+				if (!$arr_source['date_value'] && !$arr_source['date_object_sub_id'] && !$arr_source['date_path']) {
+					return;
+				}
+				
+				$arr = [
+					'offset_amount' => $arr_source['offset_amount'],
+					'offset_unit' => ($arr_source['offset_amount'] ? $arr_source['offset_unit'] : null),
+					'cycle_object_id' => $arr_source['cycle_object_id'],
+					'cycle_direction' => ($arr_source['cycle_object_id'] ? $arr_source['cycle_direction'] : null),
+					'date_value' => $arr_source['date_value'],
+					'date_object_sub_id' => $arr_source['date_object_sub_id'],
+					'date_direction' => $arr_source['date_direction']
+				];
+				
+				if ($arr_source['date_path']) {
+					
+					$arr['date_path'] = $arr_source['date_path'];
+					
+					if (!is_array($arr['date_path'])) {
+						$arr['date_path'] = json_decode($arr['date_path'], true);
+					}
+				}
+			};
+			
+			$func_parse_statement($arr_chronology['start']['start'], $arr_source['start']['start']);
+			$func_parse_statement($arr_chronology['start']['end'], $arr_source['start']['end']);
+			$func_parse_statement($arr_chronology['end']['start'], $arr_source['end']['start']);
+			$func_parse_statement($arr_chronology['end']['end'], $arr_source['end']['end']);
+			
+		} else { // Internal
+			
+			$arr_time_directions = StoreType::getTimeDirectionsInternal(true);
+			$arr_time_units = StoreType::getTimeUnitsInternal(true);
+			
+			$arr_parts = explode(';', $value);
+			
+			$arr_part = explode(',', $arr_parts[0]);
+			unset($arr_parts[0]);
+			
+			$date_start = false;
+			$date_end = false;
+
+			$arr_chronology = [
+				'type' => '',
+				'span' => [
+					'period_amount' => $arr_part[0],
+					'period_unit' => $arr_time_units[$arr_part[1]],
+					'cycle_object_id' => $arr_part[2]
+				]
+			];
+			
+			$func_parse_statement = function($str) use (&$arr_chronology, $arr_time_directions, $arr_time_units) {
+				
+				$arr_part = explode(',', $str);
+				$int_identifier = (int)$arr_part[0];
+				
+				$arr = [
+					'offset_amount' => $arr_part[1],
+					'offset_unit' => $arr_time_units[$arr_part[2]],
+					'cycle_object_id' => $arr_part[3],
+					'cycle_direction' => $arr_time_directions[$arr_part[4]],
+					'date_value' => self::formatToInputValue('date', $arr_part[5]),
+					'date_object_sub_id' => $arr_part[6],
+					'date_direction' => $arr_time_directions[$arr_part[7]]
+				];
+				
+				switch ($int_identifier) {
+					case StoreType::DATE_START_START:
+						$arr_chronology['start']['start'] = $arr;
+						break;
+					case StoreType::DATE_START_END:
+						$arr_chronology['start']['end'] = $arr;
+						break;
+					case StoreType::DATE_END_START:
+						$arr_chronology['end']['start'] = $arr;
+						break;
+					case StoreType::DATE_END_END:
+						$arr_chronology['end']['end'] = $arr;
+						break;
+				}
+			};
+			
+			foreach ($arr_parts as $str) {
+				$func_parse_statement($str);
+			}
+			
+			$is_period = ($arr_chronology['end']['end']);
+			$arr_chronology['type'] = ($is_period ? 'period' : 'point');
+		}
+		
+		// Parse
+		
+		$is_single = (!$is_period && !$arr_chronology['start']['end'] && !$arr_chronology['start']['start']['offset_amount'] && $arr_chronology['start']['start']['date_value'] && (!$arr_chronology['start']['start']['date_direction'] || $arr_chronology['start']['start']['date_direction'] == '|>|')); // Chronology only involves a single date statement (and possibly a Cycle)
+		
+		if ($arr_chronology['start']['start'] === null) {
+			
+			if ($date_start) {
+				$arr_chronology['start']['start']['date_value'] = $date_start;
+			} else {
+				return [];
+			}
+		} else {
+			
+			if ($is_single) {
+				$arr_chronology['start']['start']['date_direction'] = '';
+			}
+		}
+		
+		if ($is_period) {
+				
+			if ($arr_chronology['end']['end'] === null) {
+				
+				if ($date_end) {
+					$arr_chronology['end']['end']['date_value'] = $date_end;
+				} else {
+					$arr_chronology['end']['end'] = $arr_chronology['start']['start'];
+					
+					// Apply default direction if not further specified
+					if ($arr_chronology['end']['end']['date_direction'] == '|>|' && !$arr_chronology['end']['end']['offset_amount'] && !$arr_chronology['end']['end']['cycle_object_id']) {
+						$arr_chronology['end']['end']['date_direction'] = '|<|';
+					}
+				}
+			}
+		}
+				
+		return $arr_chronology;
+	}
+	
+	public static function formatToChronologyDetails($value) {
+		
+		if (!$value) {
+			return false;
+		}
+		
+		if (!is_array($value)) {
+			$arr_chronology = self::formatToChronology($value);
+		} else {
+			$arr_chronology = $value;
+		}
+			
+		$arr_cycle_object_ids = arrValuesRecursive('cycle_object_id', $arr_chronology);
+						
+		if ($arr_cycle_object_ids) {
+			
+			$arr_object_names = FilterTypeObjects::getTypeObjectNames(StoreType::getSystemTypeID('cycle'), $arr_cycle_object_ids);
+			
+			$func_set_cycle_names = function(&$arr) use ($arr_object_names) {
+				
+				if (!$arr['cycle_object_id']) {
+					return;
+				}
+				
+				$arr['cycle_object_name'] = $arr_object_names[$arr['cycle_object_id']];
+			};
+			
+			$func_set_cycle_names($arr_chronology['span']);
+			$func_set_cycle_names($arr_chronology['start']['start']);
+			$func_set_cycle_names($arr_chronology['start']['end']);
+			$func_set_cycle_names($arr_chronology['end']['start']);
+			$func_set_cycle_names($arr_chronology['end']['end']);
+		}
+
+		$arr_object_sub_ids = arrValuesRecursive('date_object_sub_id', $arr_chronology);
+		
+		if ($arr_object_sub_ids) {
+		
+			$arr_object_subs_info = FilterTypeObjects::getObjectSubsTypeObjects($arr_object_sub_ids);
+			
+			$arr_type_object_sub_ids = [];
+			
+			foreach ($arr_object_subs_info as $object_sub_id => $arr_info) {
+				
+				$arr_type_object_sub_ids[$arr_info['type_id']][$arr_info['object_id']][] = $object_sub_id;
+			}
+			
+			$arr_type_object_names = [];
+			$arr_object_subs_names = [];
+			
+			foreach ($arr_type_object_sub_ids as $type_id => $arr_objects_subs) {
+				
+				$arr_object_ids = array_keys($arr_objects_subs);
+				$arr_object_sub_ids = arrMergeValues($arr_objects_subs);
+
+				$arr_type_object_names[$type_id] = FilterTypeObjects::getTypeObjectNames($type_id, $arr_object_ids);
+				$arr_object_subs_names += FilterTypeObjects::getTypeObjectSubsNames($type_id, $arr_object_ids, $arr_object_sub_ids);
+			}
+			
+			$func_set_object_sub_names = function(&$arr) use ($arr_object_subs_info, $arr_type_object_names, $arr_object_subs_names) {
+				
+				if (!$arr['date_object_sub_id']) {
+					return;
+				}
+				
+				$arr_info = $arr_object_subs_info[$arr['date_object_sub_id']];
+				
+				$arr['date_type_id'] = $arr_info['type_id'];
+				$arr['date_object_id'] = $arr_info['object_id'];
+				$arr['date_object_sub_details_id'] = $arr_info['object_sub_details_id'];
+				
+				$arr['date_object_name'] = $arr_type_object_names[$arr_info['type_id']][$arr_info['object_id']];
+				$arr['date_object_sub_name'] = $arr_object_subs_names[$arr['date_object_sub_id']];
+			};
+			
+			$func_set_object_sub_names($arr_chronology['start']['start']);
+			$func_set_object_sub_names($arr_chronology['start']['end']);
+			$func_set_object_sub_names($arr_chronology['end']['start']);
+			$func_set_object_sub_names($arr_chronology['end']['end']);
+		}
+				
+		return $arr_chronology;
+	}
+	
+	public static function FormatToChronologyPointOnly($value) {
+		
+		if (!is_array($value)) {
+			$arr_chronology = self::formatToChronology($value);
+		} else {
+			$arr_chronology = $value;
+		}
+		
+		$arr_chronology = StoreTypeObjects::formatToChronology([
+			'type' => $arr_chronology['type'],
+			'date' => ['start' => $arr_chronology['start']['start']['date_value'], 'end' => $arr_chronology['end']['end']['date_value']]
+		]);
+		
+		$arr_chronology = arrFilterRecursive($arr_chronology);
+
+		return $arr_chronology;
+	}
+	
+	// Geometry
+	
 	public static function formatToSQLGeometry($value) {
 		
 		if (!$value) {
@@ -4564,6 +5226,8 @@ class StoreTypeObjects {
 		return $value;
 	}
 	
+	// Date
+
 	public static function date2Int($date, $direction = false) {
 		
 		// *ymmdd OR *y OR mm-*y OR dd-mm-*y => *ymmdd
@@ -4586,33 +5250,12 @@ class StoreTypeObjects {
 					
 					$date = DATE_INT_MIN;
 				} else {
-					
-					$sequence = '0000';
-					
-					if (strpos($date, ' ') !== false) {
-						$date = explode(' ', $date);
-						$sequence = str_pad((int)$date[1], 4, '0', STR_PAD_LEFT);
-						$date = $date[0];
-					}
-					
-					$date = str_replace('/', '-', $date);
-					$min = '';
-					
-					if (substr($date, 0, 1) == '-') { // -13-10-5456
-						$date = substr($date, 1);
-						$min = '-';
-					} else if (strpos($date, '--') !== false) { // 13-10--5456
-						$date = str_replace('--', '-', $date);
-						$min = '-';
-					}
-					$arr_date = array_filter(explode('-', $date));
-					$length = count($arr_date);
-					
-					$arr_date = [(int)($min.$arr_date[$length-1]), str_pad((int)$arr_date[$length-2], 2, '0', STR_PAD_LEFT), str_pad((int)$arr_date[$length-3], 2, '0', STR_PAD_LEFT), $sequence];
+
+					$arr_date = self::date2Components($date);
+					$date = false;
 					
 					if (!$arr_date[0]) {
 						$arr_date = [];
-						$date = false;
 					}
 				}		
 			} else if (($date > 0 && strlen((int)$date) <= 4) || $date < 0) {
@@ -4678,7 +5321,7 @@ class StoreTypeObjects {
 		
 		return $date;
 	}
-	
+		
 	public static function int2DateStandard($date) {
 		
 		$date = substr($date, 0, -8).'-'.substr($date, -8, 2).'-'.substr($date, -6, 2);
@@ -4686,622 +5329,74 @@ class StoreTypeObjects {
 		
 		return $date;
 	}
-
-	public static function cacheTypeObjectSubLocations($date = false) {
+	
+	public static function intChronology2Date($date, $arr_chronology_statement, $int_identifier) {
 		
-		$table_name_tos_loc_temp = DB::getTableTemporary(DATABASE_NODEGOAT_TEMP.'.nodegoat_tos_loc_temp');
-		$table_name_tos_loc_changed = DB::getTableTemporary(DATABASE_NODEGOAT_TEMP.'.nodegoat_tos_loc_changed');
-		$table_name_tos_loc_changed_copy = DB::getTableTemporary(DATABASE_NODEGOAT_TEMP.'.nodegoat_tos_loc_changed_copy');
-		
-		$table_tos = 'nodegoat_tos';
-		$table_tos_details = $table_tos.'_det';
-		$count = 4;
-		$arr = GenerateTypeObjects::format2SQLObjectSubLocationReference($table_tos, $count, $table_tos_details);
-		
-		$arr_sql_path_columns = [];
-		$arr_sql_path_values = [];
-		$arr_sql_path_select = [];
-		
-		for ($i = 1; $i <= $count; $i++) {
-			
-			$arr_sql_path_columns[] = "path_".$i."_object_sub_id INT";
-			
-			$arr_sql_path_values[] = $arr['column_path_'.$i.'_object_sub_id']." AS path_".$i."_object_sub_id";
-			
-			$arr_sql_path_insert[] = "INSERT INTO ".DB::getTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_LOCATION_PATH')."
-				(
-					object_sub_id,
-					path_object_sub_id
-				)
-				(
-					SELECT object_sub_id, path_".$i."_object_sub_id AS path_object_sub_id
-						FROM ".$table_name_tos_loc_temp."
-						WHERE path_".$i."_object_sub_id IS NOT NULL
-				)
-				".DBFunctions::onConflict('object_sub_id, path_object_sub_id', false, "status = 0")."
-			;";
+		if (!$date) {
+			return false;
 		}
 		
-		if (!$date) { // Requires TRUNCATE/DROP
-			DB::setConnection(DB::CONNECT_CMS);
+		$str_date = self::int2Date($date);
+		$str_classifier = '';
+		
+		if ($arr_chronology_statement['offset_amount'] || $arr_chronology_statement['cycle_object_id']) {
+			
+			$str_classifier = '~';
+		} else if ($arr_chronology_statement['date_direction']) {
+			
+			$arr_time_directions_internal = StoreType::getTimeDirectionsInternal(true);
+			
+			switch ($int_identifier) {
+				case StoreType::DATE_START_START:
+				case StoreType::DATE_END_START:
+					if ($arr_chronology_statement['date_direction'] != $arr_time_directions_internal[StoreType::TIME_AFTER_BEGIN]) {
+						$str_classifier = $arr_chronology_statement['date_direction'];
+					}
+					break;
+				case StoreType::DATE_START_END:
+				case StoreType::DATE_END_END:
+					if ($arr_chronology_statement['date_direction'] != $arr_time_directions_internal[StoreType::TIME_BEFORE_END]) {
+						$str_classifier = $arr_chronology_statement['date_direction'];
+					}
+					break;
+			}
 		}
 		
-		DB::queryMulti("
-			
-			".(!$date ? "
-				TRUNCATE ".DB::getTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_LOCATION').";
-				TRUNCATE ".DB::getTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_LOCATION_PATH').";
-			" : "")."
-			
-			# Select all sub-objects from updated sub-objects.
-
-			CREATE TEMPORARY TABLE ".$table_name_tos_loc_changed." (
-				object_sub_id INT,
-					PRIMARY KEY (object_sub_id)
-			) ".DBFunctions::sqlTableOptions(($date ? DBFunctions::TABLE_OPTION_MEMORY : false))." AS (
-				SELECT nodegoat_tos.id AS object_sub_id
-						FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
-						".($date ? "JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DATING')." nodegoat_to_date ON (nodegoat_to_date.object_id = nodegoat_to.id AND nodegoat_to_date.date >= '".$date."')" : "")."
-						JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.object_id = nodegoat_to.id AND nodegoat_tos.active = TRUE)
-					WHERE nodegoat_to.active = TRUE
-			);
-			
-			# Duplicate the nodegoat_tos_loc_changed table to both update and select from.
-			
-			CREATE TEMPORARY TABLE ".$table_name_tos_loc_changed_copy." LIKE ".$table_name_tos_loc_changed.";
-			
-			INSERT INTO ".$table_name_tos_loc_changed_copy." (
-				SELECT * FROM ".$table_name_tos_loc_changed."
-			);
-			
-			# Update nodegoat_tos_loc_changed to include all sub-object stakeholders in the sub-object's path
-			
-			INSERT INTO ".$table_name_tos_loc_changed."
-				(object_sub_id)
-				(SELECT DISTINCT nodegoat_tos_loc_cache_path.object_sub_id
-						FROM ".$table_name_tos_loc_changed_copy."
-						JOIN ".DB::getTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_LOCATION_PATH')." nodegoat_tos_loc_cache_path ON (nodegoat_tos_loc_cache_path.path_object_sub_id = ".$table_name_tos_loc_changed_copy.".object_sub_id)
-				)
-				".DBFunctions::onConflict('object_sub_id', ['object_sub_id'])."
-			;
-			
-			DROP TEMPORARY TABLE ".$table_name_tos_loc_changed_copy.";
-			
-			# Update nodegoat_tos_loc_cache and nodegoat_tos_loc_cache_path to indicate upcoming changes and possible obsoletion
-			
-			UPDATE ".$table_name_tos_loc_changed."
-						JOIN ".DB::getTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_LOCATION')." nodegoat_tos_loc_cache ON (nodegoat_tos_loc_cache.object_sub_id = ".$table_name_tos_loc_changed.".object_sub_id)
-					SET nodegoat_tos_loc_cache.status = 1
-			;
-			UPDATE ".$table_name_tos_loc_changed."
-						JOIN ".DB::getTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_LOCATION_PATH')." nodegoat_tos_loc_cache_path ON (nodegoat_tos_loc_cache_path.object_sub_id = ".$table_name_tos_loc_changed.".object_sub_id)
-					SET nodegoat_tos_loc_cache_path.status = 1
-			;
-			
-			# Select and store all new values, use conflict clause in case of duplicate end/geometry sub-objects
-			
-			CREATE TEMPORARY TABLE ".$table_name_tos_loc_temp." (
-				object_sub_id INT,
-				object_sub_details_id INT,
-				geometry_object_sub_id INT,
-				geometry_object_id INT,
-				geometry_type_id INT,
-				ref_object_id INT,
-				ref_type_id INT,
-				ref_object_sub_details_id INT,
-				".implode(',', $arr_sql_path_columns).",
-					PRIMARY KEY (object_sub_id, geometry_object_sub_id)
-			) ".DBFunctions::sqlTableOptions(($date ? DBFunctions::TABLE_OPTION_MEMORY : false)).";
-			
-			INSERT INTO ".$table_name_tos_loc_temp."
-				(
-					SELECT DISTINCT
-							".$table_tos.".id AS object_sub_id,
-							".$table_tos.".object_sub_details_id,
-							".$arr['column_geometry_object_sub_id']." AS geometry_object_sub_id,
-							".$arr['column_geometry_object_id']." AS geometry_object_id,
-							".$arr['column_geometry_type_id']." AS geometry_type_id,
-							".$arr['column_ref_object_id']." AS ref_object_id,
-							".$arr['column_ref_type_id']." AS ref_type_id,
-							".$arr['column_ref_object_sub_details_id']." AS ref_object_sub_details_id,
-							".implode(',', $arr_sql_path_values)."
-						FROM ".$table_name_tos_loc_changed."
-							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." ".$table_tos." ON (".$table_tos.".id = ".$table_name_tos_loc_changed.".object_sub_id AND ".$table_tos.".active = TRUE)
-							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = ".$table_tos.".object_id AND nodegoat_to.active = TRUE)
-							JOIN ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DETAILS')." ".$table_tos_details." ON (".$table_tos_details.".id = ".$table_tos.".object_sub_details_id)
-							".$arr['tables']."
-						WHERE ".$table_tos.".location_geometry_version IS NOT NULL OR ".$arr['column_geometry_object_sub_id']." IS NOT NULL
-				)
-				".DBFunctions::onConflict('object_sub_id, geometry_object_sub_id', ['object_sub_id'])."
-			;
-			
-			DROP TEMPORARY TABLE ".$table_name_tos_loc_changed.";
-			
-			# Process!
-				
-			INSERT INTO ".DB::getTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_LOCATION')."
-				(
-					object_sub_id,
-					object_sub_details_id,
-					geometry_object_sub_id,
-					geometry_object_id,
-					geometry_type_id,
-					ref_object_id,
-					ref_type_id,
-					ref_object_sub_details_id
-				)
-				(
-					SELECT
-						object_sub_id,
-						object_sub_details_id,
-						geometry_object_sub_id,
-						geometry_object_id,
-						geometry_type_id,
-						ref_object_id,
-						ref_type_id,
-						ref_object_sub_details_id
-					FROM ".$table_name_tos_loc_temp."
-				)
-				".DBFunctions::onConflict('object_sub_id, geometry_object_sub_id', ['ref_object_id', 'ref_type_id', 'ref_object_sub_details_id'], "status = 0")."
-			;
-					
-			".implode(" ", $arr_sql_path_insert)."
-			
-			DROP TEMPORARY TABLE ".$table_name_tos_loc_temp.";
-		");
+		if ($str_classifier) {
+			$str_date = $str_classifier.' '.$str_date;
+		}
 		
-		DB::setConnection();
+		return $str_date;
 	}
-    
-    public static function setReversals($arr_types) {
+	
+	public static function date2Components($date) {
 		
-		$arr_updated_types_categories_ref_types = [];
+		$sequence = '0000';
 		
-		foreach ($arr_types as $type_id => $arr_type) {
-						
-			$filter_categories = new FilterTypeObjects($type_id, 'all');
-			$arr_types_all = StoreType::getTypes();
-			$arr_scope_type_ids = array_keys($arr_types_all);
-			
-			$arr_types_referenced = [];
-			$arr_sql_ids = ['object_descriptions' => [], 'object_sub_details_locations' => [], 'object_sub_details_locations_locked' => [], 'object_sub_descriptions' => []];
-
-			foreach ($filter_categories->init() as $category_id => $arr_category) {
-								
-				foreach ($arr_category['object_filters'] as $ref_type_id => $arr_object_type_filter) {
-					
-					try {
-						
-						if (!is_array($arr_types_referenced[$ref_type_id])) {
-							$arr_types_referenced[$ref_type_id] = FilterTypeObjects::getTypesReferenced($type_id, $ref_type_id, ['dynamic' => false]);
-						}
-						
-						$arr_type_referenced = $arr_types_referenced[$ref_type_id];
-						
-						$arr_scope = ($arr_type['mode'] == 1 && $arr_object_type_filter['object_filter_scope_object'] ? $arr_object_type_filter['object_filter_scope_object'] : false);
-						$arr_filters = $arr_object_type_filter['object_filter_object'];
-						
-						if ((!$arr_filters && !$arr_scope) || !$arr_type_referenced) {
-							continue;
-						}
-
-						$arr_filters = FilterTypeObjects::convertFilterInput($arr_filters);
-						
-						$arr_selection_source = [];
-						$arr_filtering_source = [];
-						
-						if ($arr_type_referenced['object_sub_details']) { // Use filtering to specifically target sub-objects when applicable (being filtered on)
-							
-							foreach ($arr_type_referenced['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
-								
-								$arr_selection_source['object_sub_details'][$object_sub_details_id] = ['object_sub_details' => false, 'object_sub_descriptions' => []];
-								
-								if ($arr_object_sub_details['object_sub_location'] && !$arr_object_sub_details['object_sub_location']['location_use_other']) {
-									
-									$arr_selection_source['object_sub_details'][$object_sub_details_id]['object_sub_details'] = true;
-								}
-								
-								foreach ((array)$arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $value) {
-									
-									$arr_selection_source['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id] = $object_sub_description_id;
-								}
-							}
-							
-							$filter = new FilterTypeObjects($ref_type_id, 'all');
-							$filter->setScope(['types' => $arr_scope_type_ids]);
-							$filter->setFiltering(['all' => true], ['all' => true]);
-							$filter->setFilter($arr_filters);
-							
-							foreach ($arr_selection_source['object_sub_details'] as $object_sub_details_id => $value) {
-								
-								if (!$filter->isFilteringObjectSubDetails($object_sub_details_id)) { // Check if the sub-object is really filtered on and therefore is needed
-									unset($arr_selection_source['object_sub_details'][$object_sub_details_id]);
-								}
-							}
-
-							$arr_filtering_source = ['all' => true];
-						}
-						
-						if ($arr_scope) {
-							
-							$arr_use_paths = [];
-							$get_name = (arrValuesRecursive('in_name', $arr_type_referenced) || arrValuesRecursive('in_search', $arr_type_referenced)); // When in summary mode, cache object names for query and in-name usage
-						}
-						
-						if ($arr_scope && $arr_scope['paths']) {
-			
-							$trace = new TraceTypeNetwork($arr_scope_type_ids, true, true);
-							$trace->filterTypeNetwork($arr_scope['paths']);
-							$trace->run($ref_type_id, false, 3);
-							$arr_type_network_paths = $trace->getTypeNetworkPaths(true);
-						} else {
-							
-							$arr_type_network_paths = ['start' => [$ref_type_id => ['path' => [0]]]];
-						}
-						
-						$collect = new CollectTypeObjects($arr_type_network_paths);
-						$collect->setScope(['types' => $arr_scope_type_ids]);
-						$collect->setConditions(false);
-						$collect->init($arr_filters, false);
-							
-						$arr_collect_info = $collect->getResultInfo();
-						
-						foreach ($arr_collect_info['types'] as $cur_type_id => $arr_paths) {
-							
-							foreach ($arr_paths as $path) {
-								
-								$source_path = $path;
-								if ($source_path) { // path includes the target type id, remove it
-									$source_path = explode('-', $source_path);
-									array_pop($source_path);
-									$source_path = implode('-', $source_path);
-								}
-								
-								$arr_settings = ($arr_scope ? $arr_scope['types'][$source_path][$cur_type_id] : []);
-								
-								$arr_filtering = [];
-								if ($arr_settings['filter']) {
-									$arr_filtering = ['all' => true];
-								}
-
-								$arr_selection = [
-									'object' => [],
-									'object_descriptions' => [],
-									'object_sub_details' => []
-								];
-								
-								if ($source_path == 0) { // Check for specific sub-object filtering at the start when applicable
-									
-									if ($arr_selection_source['object_sub_details']) {
-																				
-										$arr_selection['object_sub_details'] = $arr_selection_source['object_sub_details'];
-										$arr_filtering = $arr_filtering_source;
-									}
-								}
-							
-								if ($arr_scope && $arr_collect_info['connections'][$path]['end']) { // End of a path, use it
-									
-									$arr_use_paths[$path] = $path;
-								}
-			
-								$collect->setPathOptions([$path => [
-									'arr_selection' => $arr_selection,
-									'arr_filtering' => $arr_filtering
-								]]);
-							}
-						}
-						
-						$collect->setInitLimit(static::$nr_store_reversal_objects_stream);
-
-						while ($collect->init($arr_filters)) {
-																			
-							$filter = $collect->getResultSource(0, 'start');
-							$table_name_source = $filter->storeResultTemporarily();
-							
-							$sql_value_text = StoreType::getValueTypeValue('reversed_collection', 'name');
-							$sql_table_text_affix = StoreType::getValueTypeTable('reversed_collection', 'name');
-								
-							if ($arr_type_referenced['object_descriptions']) {
-
-								foreach ($arr_type_referenced['object_descriptions'] as $object_description_id => $arr_object_description) {
-
-									$res = DB::query("INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable('type')."
-										(object_id, object_description_id, ref_object_id, identifier, version, active, status)
-										SELECT nodegoat_to_source.id, ".$object_description_id.", ".$category_id.", 0, 1, TRUE, 10
-											FROM ".$table_name_source." AS nodegoat_to_source
-										".DBFunctions::onConflict('object_id, object_description_id, ref_object_id, identifier, version', ['active', 'status'])."
-									");
-									
-									$arr_sql_ids['object_descriptions'][$object_description_id] = $object_description_id;
-									
-									if ($arr_scope) { // Add objects when has reversed classification is in summary mode
-										
-										$arr_objects = $collect->getPathObjects(0);
-										$arr_sql_insert = [];
-										
-										foreach ($arr_objects as $object_id => $arr_object) {
-							
-											$arr_walked = $collect->getWalkedObject($object_id, [], function &($cur_target_object_id, &$cur_arr, $source_path, $cur_path, $cur_target_type_id, $arr_info, $collect) use ($arr_use_paths, $get_name) {
-												
-												if ($arr_use_paths[$cur_path]) {
-													
-													$cur_arr[$cur_target_object_id] = $cur_target_type_id;
-												}
-
-												return $cur_arr;
-											});
-											
-											if ($arr_walked) {
-													
-												foreach ($arr_walked as $cur_target_object_id => $cur_target_type_id) {
-													
-													$arr_sql_insert[] = "(".$object_description_id.", ".$object_id.", ".$cur_target_object_id.", ".$cur_target_type_id.", ".$category_id.", 2)";
-												}
-											}
-										}
-										
-										unset($arr_walked, $arr_objects);
-										
-										if ($arr_sql_insert) {
-											
-											$count = 0;
-											$arr_sql_chunk = array_slice($arr_sql_insert, $count, static::$nr_store_reversal_objects_buffer);
-											
-											while ($arr_sql_chunk) {
-												
-												$res = DB::query("INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_OBJECTS')."
-													(object_description_id, object_id, ref_object_id, ref_type_id, identifier, state)
-														VALUES
-													".implode(',', $arr_sql_chunk)."
-													".DBFunctions::onConflict('object_description_id, object_id, ref_object_id, identifier', ['state'])."
-												");
-												
-												$count += static::$nr_store_reversal_objects_buffer;
-												$arr_sql_chunk = array_slice($arr_sql_insert, $count, static::$nr_store_reversal_objects_buffer);
-											}
-											
-											unset($arr_sql_insert);
-											
-											if ($get_name) {
-
-												foreach ($arr_use_paths as $path) {
-													
-													$arr_collect_filters = $collect->getResultSource($path);
-
-													foreach ($arr_collect_filters as $in_out => $arr_filters) {
-														
-														foreach ($arr_filters as $filter) {
-														
-															$table_name_names = $filter->storeResultTemporarily();
-															$sql_dynamic_type_name_column = $filter->generateNameColumn('nodegoat_to_name.id');
-															
-															$sql_query_name = "SELECT nodegoat_to_source.id, ".DBFunctions::sqlImplode($sql_dynamic_type_name_column['column'], ', ')." AS name, ".$object_description_id.", 0, -10, FALSE, 10
-																	FROM ".$table_name_names." nodegoat_to_name
-																	JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_OBJECTS')." nodegoat_to_def_ref ON (nodegoat_to_def_ref.ref_object_id = nodegoat_to_name.id)
-																	JOIN ".$table_name_source." AS nodegoat_to_source ON (nodegoat_to_source.id = nodegoat_to_def_ref.object_id)
-																	".$sql_dynamic_type_name_column['tables']."
-																GROUP BY nodegoat_to_source.id
-															";
-															
-															$res = DB::query("INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').$sql_table_text_affix."
-																(object_id, ".$sql_value_text.", object_description_id, identifier, version, active, status)
-																".$sql_query_name."
-																".DBFunctions::onConflict('object_description_id, object_id, identifier, version', false, $sql_value_text." = CASE WHEN status = 10 THEN CONCAT(".$sql_value_text.", ', ', [".$sql_value_text."]) ELSE [".$sql_value_text."] END, status = 10")."
-															");
-														}
-													}
-												}
-											}
-										}
-										
-										$arr_sql_ids['object_description_objects'][$object_description_id] = $object_description_id;
-										if ($get_name) {
-											$arr_sql_ids['object_description_texts'][$object_description_id] = $object_description_id;
-										}
-									}
-								}
-							}
-							
-							if ($arr_type_referenced['object_sub_details']) {
-									
-								foreach ($arr_type_referenced['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
-									
-									if ($arr_object_sub_details['object_sub_location'] && !$arr_object_sub_details['object_sub_location']['location_use_other']) {
-										
-										$is_filtering = $arr_selection_source['object_sub_details'][$object_sub_details_id]['object_sub_details'];
-										
-										// Update status with 10 because sub-objects could already have a different status
-
-										$res = DB::query("UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos SET
-												location_ref_object_id = ".$category_id.",
-												location_ref_type_id = ".$type_id.",
-												status = CASE WHEN status < 10 THEN status + 10 ELSE status END
-											WHERE nodegoat_tos.object_sub_details_id = ".$object_sub_details_id."
-												".(!$arr_object_sub_details['object_sub_location']['location_ref_type_id_locked'] ? "AND nodegoat_tos.location_ref_type_id IN (0, ".$type_id.")" : "")."
-												AND EXISTS (SELECT TRUE
-														FROM ".$table_name_source." AS nodegoat_to_source
-													WHERE ".($is_filtering ? "nodegoat_tos.id = nodegoat_to_source.object_sub_".$object_sub_details_id."_id" : "nodegoat_tos.object_id = nodegoat_to_source.id")."
-												)
-												AND nodegoat_tos.active = TRUE
-										");
-										
-										if ($arr_object_sub_details['object_sub_location']['location_ref_type_id_locked']) {
-											$arr_sql_ids['object_sub_details_locations_locked'][$object_sub_details_id] = $object_sub_details_id;
-										} else {
-											$arr_sql_ids['object_sub_details_locations'][$object_sub_details_id] = $object_sub_details_id;
-										}
-									}
-									
-									if ($arr_object_sub_details['object_sub_descriptions']) {
-											
-										foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
-											
-											$is_filtering = $arr_selection_source['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
-
-											$res = DB::query("INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').StoreType::getValueTypeTable('type')."
-												(object_sub_id, object_sub_description_id, ref_object_id, version, active, status)
-												SELECT nodegoat_tos.id, ".$object_sub_description_id.", ".$category_id.", 1, TRUE, 10
-													FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos
-													JOIN ".$table_name_source." AS nodegoat_to_source ON (".($is_filtering ? "nodegoat_to_source.object_sub_".$object_sub_details_id."_id = nodegoat_tos.id" : "nodegoat_tos.object_id = nodegoat_to_source.id").")
-												WHERE nodegoat_tos.object_sub_details_id = ".$object_sub_details_id."
-													AND nodegoat_tos.active = TRUE
-												".DBFunctions::onConflict('object_sub_id, object_sub_description_id, ref_object_id, version', false, "active = TRUE, status = 10")."
-											");
-											
-											$arr_sql_ids['object_sub_descriptions'][$object_sub_description_id] = $object_sub_description_id;
-										}
-									}
-								}
-							}
-						}
-						
-						$arr_updated_types_categories_ref_types[$type_id][$category_id][$ref_type_id] = true;
-					} catch (Exception $e) {
-						
-						error('StoreTypeObjects::setReversals ERROR:'.PHP_EOL
-							.'	Type = '.$type_id.' Category = '.$category_id.' Referenced Type = '.$ref_type_id,
-						TROUBLE_NOTICE, LOG_BOTH, false, $e); // Make notice
-					}
-					
-					// Cleanup 
-			
-					GenerateTypeObjects::cleanupResults();
-					unset($collect, $filter);
-				}
-			}
-			
-			$sql = '';
-			
-			if ($arr_sql_ids['object_descriptions']) {
-				
-				$sql .= "
-					UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable('type')." SET
-							active = FALSE
-						WHERE object_description_id IN (".implode(',', $arr_sql_ids['object_descriptions']).")
-							AND status = 0
-					;
-					UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable('type')." SET
-							status = 0
-						WHERE object_description_id IN (".implode(',', $arr_sql_ids['object_descriptions']).")
-							AND status = 10
-					;
-				";
-				
-				if ($arr_sql_ids['object_description_objects']) {
-					
-					$sql .= "
-						UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_OBJECTS')." SET
-								state = 0
-							WHERE object_description_id IN (".implode(',', $arr_sql_ids['object_description_objects']).")
-								AND state = 1
-						;
-						UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_OBJECTS')." SET
-								state = 1
-							WHERE object_description_id IN (".implode(',', $arr_sql_ids['object_description_objects']).")
-								AND state = 2
-						;
-					";
-					
-					if ($arr_sql_ids['object_description_texts']) {
-												
-						$sql .= "
-							UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable('text')." SET
-									active = FALSE
-								WHERE object_description_id IN (".implode(',', $arr_sql_ids['object_descriptions']).")
-									AND status = 0
-									AND version = -10
-							;
-							UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable('text')." SET
-									status = 0
-								WHERE object_description_id IN (".implode(',', $arr_sql_ids['object_descriptions']).")
-									AND status = 10
-									AND version = -10
-							;
-						";
-					}
-				}
-			}
-			
-			if ($arr_sql_ids['object_sub_descriptions']) {
-				
-				$sql .= "
-					UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').StoreType::getValueTypeTable('type')." SET
-							active = FALSE
-						WHERE object_sub_description_id IN (".implode(',', $arr_sql_ids['object_sub_descriptions']).")
-							AND status = 0
-					;	
-					UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').StoreType::getValueTypeTable('type')." SET
-							status = 0
-						WHERE object_sub_description_id IN (".implode(',', $arr_sql_ids['object_sub_descriptions']).")
-							AND status = 10
-					;
-				";
-			}
-			
-			if ($arr_sql_ids['object_sub_details_locations']) { // Only update sub-objects that are specifically selected for location reversal 
-								
-				$sql .= "
-					UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." SET 
-							location_ref_object_id = 0
-						WHERE object_sub_details_id IN (".implode(',', $arr_sql_ids['object_sub_details_locations']).")
-							AND status < 10
-							AND active = TRUE
-							AND location_ref_type_id IN (0, ".$type_id.")
-					;
-					UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." SET 
-							status = status - 10
-						WHERE object_sub_details_id IN (".implode(',', $arr_sql_ids['object_sub_details_locations']).")
-							AND status >= 10
-							AND active = TRUE
-							AND location_ref_type_id IN (0, ".$type_id.")
-					;
-				";
-			}
-			
-			if ($arr_sql_ids['object_sub_details_locations_locked']) { // Update all sub-objects for location reversal 
-
-				$sql .= "
-					UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." SET 
-							location_ref_object_id = 0
-						WHERE object_sub_details_id IN (".implode(',', $arr_sql_ids['object_sub_details_locations_locked']).")
-							AND status < 10
-							AND active = TRUE
-					;
-					UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." SET 
-							status = status - 10
-						WHERE object_sub_details_id IN (".implode(',', $arr_sql_ids['object_sub_details_locations_locked']).")
-							AND status >= 10
-							AND active = TRUE
-					;
-				";
-			}
-			
-			if ($sql) {
-				
-				$res = DB::queryMulti($sql);
-			}
+		if (strpos($date, ' ') !== false) {
+			$date = explode(' ', $date);
+			$sequence = str_pad((int)$date[1], 4, '0', STR_PAD_LEFT);
+			$date = $date[0];
 		}
 		
-		if ($arr_updated_types_categories_ref_types) {
-			
-			$count_types = 0;
-			$count_categories = 0;
-			$count_ref_types = 0;
-			
-			foreach ($arr_updated_types_categories_ref_types as $type_id => $arr_categories_ref_types) {
-				
-				$count_types++;
-				
-				foreach ($arr_categories_ref_types as $category_id => $ref_types) {
-					
-					$count_categories++;
-					$count_ref_types += count($ref_types);
-				}
-			}
-			
-			msg('StoreTypeObjects::setReversals SUCCESS:'.PHP_EOL
-				.'	Types = '.$count_types.' Categories = '.$count_categories.' Referenced Types = '.$count_ref_types
-			);
+		$date = str_replace('/', '-', $date);
+		$min = '';
+		
+		if (substr($date, 0, 1) == '-') { // -13-10-5456
+			$date = substr($date, 1);
+			$min = '-';
+		} else if (strpos($date, '--') !== false) { // 13-10--5456
+			$date = str_replace('--', '-', $date);
+			$min = '-';
 		}
+		$arr_date = array_filter(explode('-', $date));
+		$length = count($arr_date);
+		
+		$year = $arr_date[$length-1];
+		$year = ($year === '∞' ? '∞' : (int)$year);
+				
+		$arr_date = [$min.$year, str_pad((int)$arr_date[$length-2], 2, '0', STR_PAD_LEFT), str_pad((int)$arr_date[$length-3], 2, '0', STR_PAD_LEFT), $sequence];
+		
+		return $arr_date;
 	}
 }

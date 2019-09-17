@@ -11,6 +11,7 @@
 
 class ExternalResource {
 	
+	private $user_id = false;
 	private $arr_resource = [];
 	private $identifier = false;
 	private $view = false;
@@ -21,8 +22,9 @@ class ExternalResource {
 	
 	private $timeout = 45;
 		
-    public function __construct($arr_resource, $identifier = false, $view = 'plain') {
+    public function __construct($user_id, $arr_resource, $identifier = false, $view = 'plain') {
 		
+		$this->user_id = $user_id;
 		$this->arr_resource = $arr_resource;
 		$this->identifier = $identifier;
 		$this->view = $view;
@@ -139,7 +141,7 @@ class ExternalResource {
 		$url = $func_url($query, ['offset' => $this->arr_limit[0], 'limit' => $this->arr_limit[1]]);
 		$data = new FileGet($url, ['timeout' => $this->timeout], true);
 		$result = $data->get();
-		
+	
 		if (!$result) {
 			
 			if ($data->getError() == 'timeout') {
@@ -405,14 +407,14 @@ class ExternalResource {
 							if(array_key_exists($key, $arr_resources)) {
 								
 								if($arr_resources[$key]){
-									$return .= '<li><a href="'.$arr_resources[$key].$value[0].'" target="_new">'.$key.'</a></li>';
+									$return .= '<li><a href="'.$arr_resources[$key].$value[0].'" target="_blank>'.$key.'</a></li>';
 								} else {
-									$return .= '<li><a href="'.$value[0].'/" target="_new">'.$key.'</a></li>';
+									$return .= '<li><a href="'.$value[0].'/" target="_blank">'.$key.'</a></li>';
 								}
 							}
 						}
 						
-						$return .= '<li><a href="http://viaf.org/viaf/'.$reference_id.'/" target="_new">View all</a></li>
+						$return .= '<li><a href="http://viaf.org/viaf/'.$reference_id.'/" target="_blank">View all</a></li>
 					</ul>
 				</div>
 			</div>';
@@ -432,13 +434,14 @@ class ExternalResource {
 	public function getURL() {
 		
 		if ($this->arr_resource['protocol'] == 'static') {
-			$url = $this->arr_resource['url'].$this->identifier.$this->arr_resource['url_options'];
+			$str_url = $this->arr_resource['url'].$this->identifier.$this->arr_resource['url_options'];
 		} else {
-			$url = $this->identifier;
+			$str_url = $this->identifier;
 		}
 		
 		if ($this->view == 'plain') {
-			$return = '<a href="'.$url.'" target="_new">'.$url.'</a>';
+			$str_url = htmlspecialchars($str_url);
+			$return = '<a href="'.$str_url.'" target="_blank">'.$str_url.'</a>';
 		}
 		
 		return $return;

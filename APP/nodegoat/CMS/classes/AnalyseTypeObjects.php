@@ -65,6 +65,8 @@ class AnalyseTypeObjects {
 		while ($collect->init($arr_filters)) {
 			
 			$arr_objects = $collect->getPathObjects(0);
+			
+			Mediator::checkState();
 		
 			foreach ($arr_objects as $object_id => $arr_object) {
 				

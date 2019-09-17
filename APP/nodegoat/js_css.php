@@ -29,12 +29,12 @@
 	];
 	
 	$arr_core['js'] = [
-		DIR_CMS.DIR_JS.'jquery.minicolors.js',
-		DIR_CMS.DIR_JS.'DeepMerge.js',
+		DIR_CMS.DIR_JS.'support/jquery.minicolors.js',
+		DIR_CMS.DIR_JS.'support/DeepMerge.js',
 		DIR_JS.'MapScroller.js'
 	];
 	
 	$arr_core['css'] = [
-		DIR_CMS.DIR_CSS.'jquery.minicolors.css',
+		DIR_CMS.DIR_CSS.'support/jquery.minicolors.css',
 		DIR_CSS.'MapScroller.css'
 	];

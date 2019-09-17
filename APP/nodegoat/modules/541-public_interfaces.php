@@ -27,13 +27,13 @@ class public_interfaces extends base_module {
 		$return .= '<table class="display" id="d:public_interfaces:data-0">
 				<thead>
 					<tr>
-						<th class="max limit">'.getLabel("lbl_name").'</th>
+						<th class="max limit">'.getLabel('lbl_name').'</th>
 						<th class="disable-sort"></th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr>
-						<td colspan="4" class="empty">'.getLabel("msg_loading_server_data").'</td>
+						<td colspan="4" class="empty">'.getLabel('msg_loading_server_data').'</td>
 					</tr>
 				</tbody>
 			</table>';
@@ -45,7 +45,7 @@ class public_interfaces extends base_module {
 	
 		$return = '<form id="f:public_interfaces:add-0" class="options">
 			<menu>
-				<input type="submit" value="'.getLabel("lbl_add").' '.getLabel("lbl_public_interface").'" />
+				<input type="submit" value="'.getLabel('lbl_add').' '.getLabel('lbl_public_interface').'" />
 			</menu>
 		</form>';
 		
@@ -79,12 +79,12 @@ class public_interfaces extends base_module {
 						
 				<div class="options fieldsets"><div>
 				
-					<fieldset><legend>'.getLabel("lbl_public_interface").'<span>'. ($public_interface_id ? ' ['.$public_interface_id.']':'').'</span></legend><ul>
+					<fieldset><legend>'.getLabel('lbl_public_interface').'<span>'. ($public_interface_id ? ' ['.$public_interface_id.']':'').'</span></legend><ul>
 						<li><label>'.getLabel('lbl_name').'</label><input name="name" type="text" value="'.$arr_public_interface['interface']['name'].'" /></li>
 						<li><label>'.getLabel('lbl_default').'</label><input name="is_default" type="checkbox" value="1"'.($arr_public_interface['interface']['is_default'] ? ' checked="checked"' : '').' /></li>
 					</ul></fieldset>
 				
-					<fieldset><legend>'.getLabel("lbl_projects").'</legend><ul>
+					<fieldset><legend>'.getLabel('lbl_projects').'</legend><ul>
 						<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_projects, 'projects', array_keys((array)$arr_public_interface['projects']))).'</li>
 					</ul></fieldset>
 					
@@ -133,6 +133,7 @@ class public_interfaces extends base_module {
 								<li><a href="#">'.getLabel('lbl_object').' '.getLabel('lbl_settings').'</a></li>
 								<li><a href="#">'.getLabel('lbl_label').' '.getLabel('lbl_settings').'</a></li>
 								<li><a href="#">'.getLabel('lbl_cite_as').'</a></li>
+								<li><a href="#">PDF</a></li>
 								<li><a href="#">'.getLabel('lbl_technical').'</a></li>
 							</ul>
 							<div>
@@ -151,18 +152,18 @@ class public_interfaces extends base_module {
 							<div>
 								<div class="options fieldsets"><div>';
 
-								$return .= '<fieldset><legend>'.getLabel("lbl_object").' '.getLabel("lbl_settings").'</legend><ul>
-											<li><label>'.getLabel("lbl_show").' '.getLabel("lbl_device").' '.getLabel("lbl_location").'</label><input name="settings[show_device_location]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_device_location'] ? 'checked="checked"' : '').' /></li>
-											<li><label>'.getLabel("lbl_show").' '.getLabel("lbl_objects").' '.getLabel("lbl_list").'</label><input name="settings[show_objects_list]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_objects_list'] ? 'checked="checked"' : '').' /></li>
-											<li><label>'.getLabel("lbl_show").' '.getLabel("lbl_url").'</label><input name="settings[share_object_url]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['share_object_url'] ? 'checked="checked"' : '').' /></li>
-											<li><label>'.getLabel("lbl_share").' '.getLabel("lbl_url").'</label><input name="settings[show_object_url]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_object_url'] ? 'checked="checked"' : '').' /></li>
-											<li><label>'.getLabel("lbl_print").' '.getLabel("lbl_object").'</label><input name="settings[print_object]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['print_object'] ? 'checked="checked"' : '').' /></li>
-											<li><label>'.getLabel("lbl_object").' '.getLabel("lbl_selection").'</label><input name="settings[selection]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['selection'] ? 'checked="checked"' : '').' /></li>
-											<li><label>'.getLabel("lbl_object").' '.getLabel("lbl_references").'</label><input name="settings[object_references]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['object_references'] ? 'checked="checked"' : '').' /></li>
-											<li><label>'.getLabel("lbl_use_combined_references_as_filters").'</label><input name="settings[use_combined_references_as_filters]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['use_combined_references_as_filters'] ? 'checked="checked"' : '').' /></li>
-											<li><label>'.getLabel("lbl_object").' '.getLabel("lbl_geo_visualisation").'</label><input name="settings[object_geo]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['object_geo'] ? 'checked="checked"' : '').' /></li>
-											<li><label>'.getLabel("lbl_object").' '.getLabel("lbl_soc_visualisation").'</label><input name="settings[object_soc]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['object_soc'] ? 'checked="checked"' : '').' /></li>
-											<li><label>'.getLabel("lbl_object").' '.getLabel("lbl_time_visualisation").'</label><input name="settings[object_time]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['object_time'] ? 'checked="checked"' : '').' /></li>
+								$return .= '<fieldset><legend>'.getLabel('lbl_object').' '.getLabel('lbl_settings').'</legend><ul>
+											<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_device').' '.getLabel('lbl_location').'</label><input name="settings[show_device_location]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_device_location'] ? 'checked="checked"' : '').' /></li>
+											<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_objects').' '.getLabel('lbl_list').'</label><input name="settings[show_objects_list]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_objects_list'] ? 'checked="checked"' : '').' /></li>
+											<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_url').'</label><input name="settings[share_object_url]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['share_object_url'] ? 'checked="checked"' : '').' /></li>
+											<li><label>'.getLabel('lbl_share').' '.getLabel('lbl_url').'</label><input name="settings[show_object_url]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_object_url'] ? 'checked="checked"' : '').' /></li>
+											<li><label>'.getLabel('lbl_print').' '.getLabel('lbl_object').'</label><input name="settings[print_object]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['print_object'] ? 'checked="checked"' : '').' /></li>
+											<li><label>'.getLabel('lbl_object').' '.getLabel('lbl_selection').'</label><input name="settings[selection]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['selection'] ? 'checked="checked"' : '').' /></li>
+											<li><label>'.getLabel('lbl_object').' '.getLabel('lbl_references').'</label><input name="settings[object_references]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['object_references'] ? 'checked="checked"' : '').' /></li>
+											<li><label>'.getLabel('lbl_public_interface_use_combined_references_as_filters').'</label><input name="settings[use_combined_references_as_filters]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['use_combined_references_as_filters'] ? 'checked="checked"' : '').' /></li>
+											<li><label>'.getLabel('lbl_object').' '.getLabel('lbl_geo_visualisation').'</label><input name="settings[object_geo]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['object_geo'] ? 'checked="checked"' : '').' /></li>
+											<li><label>'.getLabel('lbl_object').' '.getLabel('lbl_soc_visualisation').'</label><input name="settings[object_soc]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['object_soc'] ? 'checked="checked"' : '').' /></li>
+											<li><label>'.getLabel('lbl_object').' '.getLabel('lbl_time_visualisation').'</label><input name="settings[object_time]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['object_time'] ? 'checked="checked"' : '').' /></li>
 										</ul></fieldset>';								
 												
 								$return .= '</div></div>
@@ -170,11 +171,11 @@ class public_interfaces extends base_module {
 							<div>
 								<div class="options fieldsets"><div>';
 		
-								$return .= '<fieldset><legend>'.getLabel("lbl_default").' '.getLabel("lbl_language").'</legend><ul>
+								$return .= '<fieldset><legend>'.getLabel('lbl_default').' '.getLabel('lbl_language').'</legend><ul>
 											<li><select name="settings[default_language]">'.cms_general::createDropdown((array)cms_language::getLanguage(), $arr_public_interface['interface']['settings']['default_language'], true, 'label', 'lang_code').'</select></li>
 										</ul></fieldset>';		
 															
-								$return .= '<fieldset><legend>'.getLabel("lbl_public_interface_custom_labels").'</legend><ul>
+								$return .= '<fieldset><legend>'.getLabel('lbl_public_interface_custom_labels').'</legend><ul>
 									<li><label>'.getLabel('lbl_object').'</label><input name="settings[labels][object]" type="text" value="'.$arr_public_interface['interface']['settings']['labels']['object'].'" /></li>
 									<li><label>'.getLabel('lbl_objects').'</label><input name="settings[labels][objects]" type="text" value="'.$arr_public_interface['interface']['settings']['labels']['objects'].'" /></li>
 									<li><label>'.getLabel('lbl_list').' '.getLabel('lbl_relation').'s</label><input name="settings[labels][list_relations]" type="text" value="'.$arr_public_interface['interface']['settings']['labels']['list_relations'].'" /></li>
@@ -184,7 +185,7 @@ class public_interfaces extends base_module {
 									<li><label>'.getLabel('lbl_information').'</label><input name="settings[labels][info]" type="text" value="'.$arr_public_interface['interface']['settings']['labels']['info'].'" /></li>';
 
 									foreach ((array)$arr_types as $type_id => $value) {
-										$return .= '<li><label>'.Labels::parseTextVariables($value["name"]).'</label><input name="settings[labels][type]['.$type_id.'][singular]" type="text" value="'.$arr_public_interface['interface']['settings']['labels']['type'][$type_id]['singular'].'" title="Singular"/><input name="settings[labels][type]['.$type_id.'][plural]" type="text" value="'.$arr_public_interface['interface']['settings']['labels']['type'][$type_id]['plural'].'" title="Plural"/><input name="settings[icons][type]['.$type_id.']" type="text" value="'.$arr_public_interface['interface']['settings']['icons']['type'][$type_id].'" title="Icon"/></li>';
+										$return .= '<li><label>'.Labels::parseTextVariables($value['name']).'</label><input name="settings[labels][type]['.$type_id.'][singular]" type="text" value="'.$arr_public_interface['interface']['settings']['labels']['type'][$type_id]['singular'].'" title="Singular"/><input name="settings[labels][type]['.$type_id.'][plural]" type="text" value="'.$arr_public_interface['interface']['settings']['labels']['type'][$type_id]['plural'].'" title="Plural"/><input name="settings[icons][type]['.$type_id.']" type="text" value="'.$arr_public_interface['interface']['settings']['icons']['type'][$type_id].'" title="Icon"/></li>';
 									}
 																	
 								$return .= '</ul></fieldset>';
@@ -197,10 +198,10 @@ class public_interfaces extends base_module {
 								$return .= '<fieldset><ul>
 												<li>
 													<label></label>
-													<span><input type="button" class="data del" value="del" title="'.getLabel("inf_remove_empty_fields").'" /><input type="button" class="data add" value="add" /></span>
+													<span><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></span>
 												</li>
 												<li>
-													<label>'.getLabel("lbl_cite_as").'</label>
+													<label>'.getLabel('lbl_cite_as').'</label>
 													<div>';
 														$arr_sorter = [];
 														foreach (($arr_public_interface['interface']['settings']['cite_as'] ?: [false => []]) as $type_id => $arr_value) {
@@ -218,8 +219,20 @@ class public_interfaces extends base_module {
 							</div>
 							<div>
 								<div class="options fieldsets"><div>';
+		
+								$return .= '<fieldset><legend>PDF</legend><ul>
+											<li><label>'.getLabel('lbl_title').'</label><input name="settings[pdf][title]" type="text" value="'.$arr_public_interface['interface']['settings']['pdf']['title'].'" /></li>
+											<li><label>'.getLabel('lbl_subtitle').'</label><input name="settings[pdf][subtitle]" type="text" value="'.$arr_public_interface['interface']['settings']['pdf']['subtitle'].'" /></li>
+											<li><label>'.getLabel('lbl_public_interface_colophon').'</label><textarea name="settings[pdf][colofon]">'.$arr_public_interface['interface']['settings']['pdf']['colofon'].'</textarea></li>
+											<li><label>'.getLabel('lbl_public_interface_license').'</label><textarea name="settings[pdf][license]">'.$arr_public_interface['interface']['settings']['pdf']['license'].'</textarea></li>
+										</ul></fieldset>';		
+																		
+								$return .= '</div></div>
+							</div>
+							<div>
+								<div class="options fieldsets"><div>';
 
-								$return .= '<fieldset><legend>'.getLabel("lbl_url").' '.getLabel("lbl_server_host").'</legend><ul>
+								$return .= '<fieldset><legend>'.getLabel('lbl_url').' '.getLabel('lbl_server_host').'</legend><ul>
 											<li><input name="settings[short_url_host]" type="text" value="'.$arr_public_interface['interface']['settings']['short_url_host'].'" /></li>
 										</ul></fieldset>';
 																				
@@ -255,15 +268,15 @@ class public_interfaces extends base_module {
 					<fieldset><ul>
 						<li>
 							<label></label>
-							<span><input type="button" class="data del" value="del" title="'.getLabel("inf_remove_empty_fields").'" /><input type="button" class="data add" value="add" /></span>
+							<span><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></span>
 						</li>
 						<li>
-							<label>'.getLabel("lbl_texts").'</label>
+							<label>'.getLabel('lbl_texts').'</label>
 							<div>';
 								$arr_sorter = [];
-								foreach (($arr_public_interface["texts"] ?: [[], []]) as $value) {
+								foreach (($arr_public_interface['texts'] ?: [[], []]) as $value) {
 									$arr_sorter[] = ['value' => [
-										'<input type="text" name="text_name[]" value="'.htmlspecialchars($value["text_name"]).'" />',
+										'<input type="text" name="text_name[]" value="'.htmlspecialchars($value['text_name']).'" />',
 										cms_general::editBody($value['text'], 'text[]', ['inline' => true])
 									]];
 								}
@@ -278,10 +291,10 @@ class public_interfaces extends base_module {
 		</div>
 		
 		<menu class="options">
-			<input type="submit" value="'.getLabel("lbl_save").' '.getLabel("lbl_public_interface").'" /><input type="submit" name="discard" value="'.getLabel("lbl_cancel").'" />
+			<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_public_interface').'" /><input type="submit" name="discard" value="'.getLabel("lbl_cancel").'" />
 		</menu>';
 		
-		$this->validate = ["name" => "required", "user_id" => "required"];
+		$this->validate = ['name' => 'required', 'user_id' => 'required'];
 		
 		return $return;
 	}
@@ -352,7 +365,6 @@ class public_interfaces extends base_module {
 
 			$this->html = cms_nodegoat_public_interfaces::createCiteAsSettings($value);
 		}
-		
 		
 		if ($method == "data") {
 			

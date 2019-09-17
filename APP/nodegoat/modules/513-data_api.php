@@ -282,7 +282,7 @@ class data_api extends base_module {
 		}
 		
 		$collect = new CollectTypeObjects($arr_type_network_paths, ($output_mode == 'raw' ? 'storage' : 'set'));
-		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids]);
+		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids, 'project_id' => $project_id]);
 		
 		if ($output_mode != 'raw') {
 			
@@ -307,7 +307,7 @@ class data_api extends base_module {
 			
 			if ($arr_project['types'][$cur_type_id]['type_filter_id']) {
 				
-				$arr_project_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], false, false, $arr_project['types'][$cur_type_id]['type_filter_id'], true, $arr_use_project_ids);
+				$arr_project_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($project_id, false, false, $arr_project['types'][$cur_type_id]['type_filter_id'], true, $arr_use_project_ids);
 				$collect->addLimitTypeFilters($cur_type_id, FilterTypeObjects::convertFilterInput($arr_project_filters['object']), $arr_project['types'][$cur_type_id]['type_filter_object_subs']);
 			}
 			
@@ -340,7 +340,7 @@ class data_api extends base_module {
 						
 						if ($object_description_id) {
 							
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, $object_description_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, $object_description_id)) {
 								continue;
 							}
 							
@@ -359,7 +359,7 @@ class data_api extends base_module {
 						
 						if ($object_sub_details_id) {
 
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id)) {
 								continue;
 							}
 							
@@ -369,7 +369,7 @@ class data_api extends base_module {
 							
 							if ($object_sub_description_id) {
 
-								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 									continue;
 								}
 								
@@ -393,7 +393,7 @@ class data_api extends base_module {
 
 					foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, $object_description_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
@@ -402,7 +402,7 @@ class data_api extends base_module {
 								
 					foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id)) {
 							continue;
 						}
 
@@ -410,7 +410,7 @@ class data_api extends base_module {
 
 						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 													
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 								continue;
 							}
 								
@@ -445,7 +445,7 @@ class data_api extends base_module {
 			if ($_REQUEST) {
 				$request_id = $request_id.'?'.implode('&', $_REQUEST);
 			}
-			$schema = SERVER_PROTOCOL.strtolower(Settings::get('server_name_project')).'.'.SERVER_NAME_1100CC.'/model/type/';
+			$schema = SERVER_PROTOCOL.SERVER_NAME_1100CC.'/model/type/';
 			
 			// Target and output to the Response object directly
 			
@@ -483,7 +483,7 @@ class data_api extends base_module {
 		
 		Response::openStream(false, $obj_response);
 
-		$output_objects = new createObjectsPackage($arr_type_sets);
+		$output_objects = new CreateObjectsPackage($arr_type_sets);
 		
 		Mediator::checkState();
 
@@ -1032,8 +1032,10 @@ class data_api extends base_module {
 				
 				$object_sub_details_id = (int)$object_sub_details_id;
 				$object_sub_details_date_use_object_sub_details_id = ((int)$arr_object_sub_details_self['object_sub_details_date_use_object_sub_details_id'] ?: false);
-				$object_sub_details_date_use_object_sub_description_id = ((int)$arr_object_sub_details_self['object_sub_details_date_use_object_sub_description_id'] ?: false);
-				$object_sub_details_date_use_object_description_id = ((int)$arr_object_sub_details_self['object_sub_details_date_use_object_description_id'] ?: false);
+				$object_sub_details_date_start_use_object_sub_description_id = ((int)$arr_object_sub_details_self['object_sub_details_date_start_use_object_sub_description_id'] ?: false);
+				$object_sub_details_date_start_use_object_description_id = ((int)$arr_object_sub_details_self['object_sub_details_date_start_use_object_description_id'] ?: false);
+				$object_sub_details_date_end_use_object_sub_description_id = ((int)$arr_object_sub_details_self['object_sub_details_date_end_use_object_sub_description_id'] ?: false);
+				$object_sub_details_date_end_use_object_description_id = ((int)$arr_object_sub_details_self['object_sub_details_date_end_use_object_description_id'] ?: false);
 				$object_sub_details_location_ref_type_id = ((int)$arr_object_sub_details_self['object_sub_details_location_ref_type_id'] ?: false);
 				$object_sub_details_location_ref_object_sub_details_id = ((int)$arr_object_sub_details_self['object_sub_details_location_ref_object_sub_details_id'] ?: false);
 				$object_sub_details_location_use_object_sub_details_id = ((int)$arr_object_sub_details_self['object_sub_details_location_use_object_sub_details_id'] ?: false);
@@ -1043,8 +1045,10 @@ class data_api extends base_module {
 				if ($output_mode == 'template') {
 
 					$object_sub_details_date_use_object_sub_details_id = $store_type->getTypeObjectSubDetailsName($type_id, $object_sub_details_date_use_object_sub_details_id);
-					$object_sub_details_date_use_object_sub_description_id = $store_type->getTypeObjectSubDescriptionName($type_id, $object_sub_details_id, $object_sub_details_date_use_object_sub_description_id);
-					$object_sub_details_date_use_object_description_id = $store_type->getTypeObjectDescriptionName($type_id, $object_sub_details_date_use_object_description_id);
+					$object_sub_details_date_start_use_object_sub_description_id = $store_type->getTypeObjectSubDescriptionName($type_id, $object_sub_details_id, $object_sub_details_date_start_use_object_sub_description_id);
+					$object_sub_details_date_start_use_object_description_id = $store_type->getTypeObjectDescriptionName($type_id, $object_sub_details_date_start_use_object_description_id);
+					$object_sub_details_date_end_use_object_sub_description_id = $store_type->getTypeObjectSubDescriptionName($type_id, $object_sub_details_id, $object_sub_details_date_end_use_object_sub_description_id);
+					$object_sub_details_date_end_use_object_description_id = $store_type->getTypeObjectDescriptionName($type_id, $object_sub_details_date_end_use_object_description_id);
 					$object_sub_details_location_ref_object_sub_details_id = $store_type->getTypeObjectSubDetailsName($object_sub_details_location_ref_type_id, $object_sub_details_location_ref_object_sub_details_id);
 					$object_sub_details_location_ref_type_id = $store_type->getTypeName($object_sub_details_location_ref_type_id);
 					$object_sub_details_location_use_object_sub_details_id = $store_type->getTypeObjectSubDetailsName($type_id, $object_sub_details_location_use_object_sub_details_id);
@@ -1060,12 +1064,14 @@ class data_api extends base_module {
 				$s_arr_object_sub_details['object_sub_details'] = [
 					'object_sub_details_id' => $object_sub_details_id,
 					'object_sub_details_name' => $arr_object_sub_details_self['object_sub_details_name'],
-					'object_sub_details_is_unique' => (bool)$arr_object_sub_details_self['object_sub_details_is_unique'],
+					'object_sub_details_is_single' => (bool)$arr_object_sub_details_self['object_sub_details_is_single'],
 					'object_sub_details_is_required' => (bool)$arr_object_sub_details_self['object_sub_details_is_required'],
-					'object_sub_details_is_date_range' => (bool)$arr_object_sub_details_self['object_sub_details_is_date_range'],
+					'object_sub_details_is_date_period' => (bool)$arr_object_sub_details_self['object_sub_details_is_date_period'],
 					'object_sub_details_date_use_object_sub_details_id' => $object_sub_details_date_use_object_sub_details_id,
-					'object_sub_details_date_use_object_sub_description_id' => $object_sub_details_date_use_object_sub_description_id,
-					'object_sub_details_date_use_object_description_id' => $object_sub_details_date_use_object_description_id,
+					'object_sub_details_date_start_use_object_sub_description_id' => $object_sub_details_date_start_use_object_sub_description_id,
+					'object_sub_details_date_start_use_object_description_id' => $object_sub_details_date_start_use_object_description_id,
+					'object_sub_details_date_end_use_object_sub_description_id' => $object_sub_details_date_end_use_object_sub_description_id,
+					'object_sub_details_date_end_use_object_description_id' => $object_sub_details_date_end_use_object_description_id,
 					'object_sub_details_location_ref_only' => (bool)$arr_object_sub_details_self['object_sub_details_location_ref_only'],
 					'object_sub_details_location_ref_type_id' => $object_sub_details_location_ref_type_id,
 					'object_sub_details_location_ref_type_id_locked' => (bool)$arr_object_sub_details_self['object_sub_details_location_ref_type_id_locked'],

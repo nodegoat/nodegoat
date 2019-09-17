@@ -87,9 +87,8 @@ class ui_selection extends base_module {
 	public static function createViewPdfSelection($selection_id, $arr_selection = false) {
 		
 		$public_user_interface_id = SiteStartVars::getFeedback('public_user_interface_id');
-		$arr_public_interface_settings = cms_nodegoat_public_interfaces::getPublicInterfaceSettings($public_user_interface_id);
-		$arr_public_user_interface = SiteStartVars::getFeedback('arr_public_user_interface');
-		
+		$arr_public_user_interface = cms_nodegoat_public_interfaces::getPublicInterfaces($public_user_interface_id);	
+	
 		if (!$arr_selection) {
 			
 			$arr_selection = cms_nodegoat_public_interfaces::getPublicInterfaceSelection($selection_id);
@@ -105,9 +104,12 @@ class ui_selection extends base_module {
 		$create_data = new ui_data();
 		$arr_elms = [];
 		
-		$arr_elms[] = ['elm_type' => 'pui_title', 'content' => Labels::parseTextVariables($arr_public_user_interface['interface']['name']), 'style' => 'heading'];
+		$arr_elms[] = ['elm_type' => 'selection_title', 'content' => Labels::parseTextVariables(($arr_public_user_interface['interface']['settings']['pdf']['title'] ? $arr_public_user_interface['interface']['settings']['pdf']['title'] : $arr_public_user_interface['interface']['name'])), 'style' => 'heading'];
+		($arr_public_user_interface['interface']['settings']['pdf']['subtitle'] ? $arr_elms[] = ['elm_type' => 'selection_subtitle', 'content' => Labels::parseTextVariables($arr_public_user_interface['interface']['settings']['pdf']['subtitle']), 'style' => 'subheading'] : '');
 		$arr_elms[] = ['elm_type' => 'selection_title', 'content' => $arr_selection['selection_title'], 'style' => 'title'];
 		$arr_elms[] = ['elm_type' => 'selection_editor', 'content' => $arr_selection['selection_editor'], 'style' => 'heading', 'pagebreak' => 'after'];
+		($arr_public_user_interface['interface']['settings']['pdf']['colofon'] ? $arr_elms[] = ['elm_type' => 'selection_note', 'content' => Labels::parseTextVariables($arr_public_user_interface['interface']['settings']['pdf']['colofon']), 'style' => 'note'] : '');
+		($arr_public_user_interface['interface']['settings']['pdf']['license'] ? $arr_elms[] = ['elm_type' => 'selection_note', 'content' => Labels::parseTextVariables($arr_public_user_interface['interface']['settings']['pdf']['license']), 'style' => 'note', 'pagebreak' => 'after'] : '');
 		$arr_elms[] = ['elm_type' => 'selection_note', 'content' => $arr_selection['selection_notes'], 'style' => 'note'];
 
 		foreach ((array)$arr_elements as $arr_selection_elm) {
@@ -128,11 +130,11 @@ class ui_selection extends base_module {
 				$arr_type_set = StoreType::getTypeSet($type_id);
 				
 				$arr_pdf_object = $create_data->createViewTypeObject($arr_id[0], $arr_id[1], 'pdf');
-			
+
 				$arr_article = ['title' => ['elm_type' => 'heading', 'content' => strip_tags($arr_pdf_object['name']), 'style' => 'heading', 'pagebreak' => ($arr_elms[count($arr_elms) - 1]['pagebreak'] == 'after' ? false : 'before')], 'section_1' => [], 'section_2' => []];
 				
 				// in media type, allow image to take up complete width of page, otherwise show note in sideline (section 2)
-				if (!in_array($type_id, $arr_public_interface_settings['types']['media_types']) && $arr_selection_elm['elm_notes']) {
+				if (!in_array($type_id, $arr_public_user_interface['interface']['settings']['types']['media_types']) && $arr_selection_elm['elm_notes']) {
 					
 					$arr_article['section_2'][] = ['elm_type' => 'note', 'content' => $arr_selection_elm['elm_notes'], 'style' => 'note'];	
 				}
@@ -178,7 +180,7 @@ class ui_selection extends base_module {
 					
 					$elm = '';
 					
-					foreach ($arr_object_descriptions as $arr_object_description) {
+					foreach ((array)$arr_object_descriptions as $arr_object_description) {
 						
 						$elm .= $arr_object_description.' ';
 					}
@@ -186,7 +188,22 @@ class ui_selection extends base_module {
 					$arr_article['section_1'][] = ['elm_type' => 'object_value', 'content' => $elm, 'style' => 'text'];			
 				}
 				
-				if (!in_array($type_id, $arr_public_interface_settings['types']['media_types'])) {
+				if ($arr_pdf_object['object_subs']) {
+					
+					$arr_object_sub_elms = self::createObjectSubElms($type_id, $object_id, $arr_pdf_object['object_subs']);
+
+					foreach ((array)$arr_object_sub_elms as $arr_object_sub_elms) {
+						
+						foreach ((array)$arr_object_sub_elms['elms'] as $arr_object_sub_elm) {
+							
+							$arr_article['section_1'][] = ['elm_type' => 'object_subs', 'content' => $arr_object_sub_elm['elm'], 'style' => $arr_object_sub_elm['style']];	
+						}
+								
+					}
+					
+				}
+				
+				if (!in_array($type_id, $arr_public_user_interface['interface']['settings']['types']['media_types'])) {
 				
 					foreach ((array)$arr_pdf_object['images'] as $arr_image) {
 						
@@ -201,7 +218,7 @@ class ui_selection extends base_module {
 					}
 				}
 				
-				if (in_array($type_id, $arr_public_interface_settings['types']['media_types']) && $arr_selection_elm['elm_notes']) {
+				if (in_array($type_id, $arr_public_user_interface['interface']['settings']['types']['media_types']) && $arr_selection_elm['elm_notes']) {
 					
 					$arr_article['section_1'][] = ['elm_type' => 'note', 'content' => $arr_selection_elm['elm_notes'], 'style' => 'note'];	
 				}
@@ -214,9 +231,74 @@ class ui_selection extends base_module {
 				$arr_elms[] = ['elm_type' => 'article', 'content' => $arr_article];
 			}
 		}
-		
+	
 		return $arr_elms;
 		
+	}
+	
+	private static function createObjectSubElms($type_id, $object_id, $arr_object_sub_details_ids) {
+	
+		$public_user_interface_id = SiteStartVars::getFeedback('public_user_interface_id');
+		$public_user_interface_active_custom_project_id = SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');		
+		$arr_project = cms_nodegoat_custom_projects::getProjects($public_user_interface_active_custom_project_id);
+		$arr_use_project_ids = array_keys($arr_project['use_projects']);
+		
+		$arr_types = StoreType::getTypes(array_keys($arr_project['types']));
+		
+		$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'view');
+		
+		$arr_object_sub_elms = [];
+	
+		foreach ((array)$arr_object_sub_details_ids as $key => $object_sub_details_id) {
+			
+			$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
+
+			$filter = new FilterTypeObjects($type_id, 'all', true, $arr_type_set);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($public_user_interface_active_custom_project_id), 'project_id' => $public_user_interface_active_custom_project_id]);
+			$filter->setConditions('style', toolbar::getTypeConditions($type_id));
+			$arr_selection = ['object' => [], 'object_descriptions' => [], 'object_sub_details' => [$object_sub_details_id => ['object_sub_details' => true, 'object_sub_descriptions' => []]]];	
+			
+			foreach ($arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
+				
+				if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+					continue;
+				}
+				
+				$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id] = $object_sub_description_id;
+			}
+			
+			$filter->setSelection($arr_selection);					
+			$filter->setFilter(['objects' => $object_id]);
+			$arr = current($filter->init());
+	
+			foreach ((array)$arr['object_subs'] as $object_sub_id => $arr_object_sub) {
+				
+				$arr_elms = [];
+				
+				$details_elm = ($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name']).' - ': '').Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name']).' - '.StoreTypeObjects::formatToCleanValue('date', $arr_object_sub['object_sub']['object_sub_date_start']).' - '.StoreTypeObjects::formatToCleanValue('date', $arr_object_sub['object_sub']['object_sub_date_end']).' - '.$arr_object_sub['object_sub']['object_sub_location_ref_object_name'];
+				$arr_elms[] = ['elm' => $details_elm, 'style' => 'object_sub_details'];
+				
+				foreach ((array)$arr_object_sub['object_sub_definitions'] as $object_sub_description_id => $arr_object_sub_definition) {
+				
+					if ($arr_object_sub_definition['object_sub_definition_value']) {
+					
+						$arr_elms[] = ['elm' => $arr_object_sub_details['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_name'].': '.$arr_object_sub_definition['object_sub_definition_value'], 'style' => 'object_sub_definitions'];
+					}
+				}
+				
+				$arr_object_sub_elms[] = ['date' => $arr_object_sub['object_sub']['object_sub_date_start'], 'elms' => $arr_elms];
+
+			}
+		}
+
+		if (count($arr_object_sub_elms) > 1) {
+			
+			usort($arr_object_sub_elms, function($a, $b) {
+				return $a['date'] <=> $b['date'];
+			});
+		}
+
+		return $arr_object_sub_elms;
 	}
 	
 	public static function css() {

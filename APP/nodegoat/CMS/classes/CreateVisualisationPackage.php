@@ -9,7 +9,7 @@
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
-class createVisualisationPackage {
+class CreateVisualisationPackage {
 	
 	private $arr_data = [];
 	private $arr_project = [];
@@ -63,7 +63,11 @@ class createVisualisationPackage {
 			$store_scenario = false;
 
 			$is_path = isPath($path_scenario);
-			$date_updated = FilterTypeObjects::getTypesUpdatedSince($arr_scenario_cache['hash_date'], cms_nodegoat_custom_projects::getProjectScopeTypes($this->arr_project['project']['id']), 'date');
+			$date_updated = FilterTypeObjects::getTypesUpdatedAfter($arr_scenario_cache['hash_date'], cms_nodegoat_custom_projects::getProjectScopeTypes($this->arr_project['project']['id']), 'last');
+			
+			if (!$date_updated) {
+				$date_updated = $arr_scenario_cache['hash_date'];
+			}
 			
 			if ($scenario_hash != $arr_scenario_cache['hash'] || !$is_path || (!$arr_scenario['cache_retain'] && $date_updated > $arr_scenario_cache['hash_date'])) { // Scenario should be updated
 									
@@ -206,8 +210,8 @@ class createVisualisationPackage {
 										];
 									} else if ($s_arr['ref_object_id'] !== (array)$arr_object_definition['object_definition_ref_object_id']) {
 										
-										$s_arr['value'] = array_unique(array_merge($s_arr['value'], (array)$arr_object_definition['object_definition_value']));
-										$s_arr['ref_object_id'] = array_unique(array_merge($s_arr['ref_object_id'], (array)$arr_object_definition['object_definition_ref_object_id']));
+										$s_arr['value'] = arrMergeValues([$s_arr['value'], (array)$arr_object_definition['object_definition_value']]);
+										$s_arr['ref_object_id'] = arrMergeValues([$s_arr['ref_object_id'], (array)$arr_object_definition['object_definition_ref_object_id']]);
 										if ($arr_object_definition['object_definition_style']) {
 											$s_arr['style'] += $arr_object_definition['object_definition_style'];
 										}
@@ -362,8 +366,8 @@ class createVisualisationPackage {
 											];
 										} else if ($s_arr['ref_object_id'] !== (array)$arr_object_sub_definition['object_sub_definition_ref_object_id']) {
 											
-											$s_arr['value'] = array_unique(array_merge($s_arr['value'], (array)$arr_object_sub_definition['object_sub_definition_value']));
-											$s_arr['ref_object_id'] = array_unique(array_merge($s_arr['ref_object_id'], (array)$arr_object_sub_definition['object_sub_definition_ref_object_id']));
+											$s_arr['value'] = arrMergeValues([$s_arr['value'], (array)$arr_object_sub_definition['object_sub_definition_value']]);
+											$s_arr['ref_object_id'] = arrMergeValues([$s_arr['ref_object_id'], (array)$arr_object_sub_definition['object_sub_definition_ref_object_id']]);
 											if ($arr_object_sub_definition['object_sub_definition_style']) {
 												$s_arr['style'] += $arr_object_sub_definition['object_sub_definition_style'];
 											}
@@ -511,8 +515,14 @@ class createVisualisationPackage {
 							
 								$key = array_search($arr_info['object_id'], $s_arr['ref_object_id']);
 
-								unset($s_arr['value'][$key]);
-								unset($s_arr['ref_object_id'][$key]);
+								unset(
+									$s_arr['value'][$key],
+									$s_arr['ref_object_id'][$key]
+								);
+								
+								// Make sure the arrays do not have nonsequential keys
+								$s_arr['value'] = array_values($s_arr['value']);
+								$s_arr['ref_object_id'] = array_values($s_arr['ref_object_id']);
 							}
 						} else if ($arr_info['object_sub_location']) {
 							
@@ -607,8 +617,8 @@ class createVisualisationPackage {
 			
 		} else if ($s_arr_new['ref_object_id'] !== $arr_ref_object_id) {
 		
-			$s_arr_new['value'] = array_unique(array_merge($s_arr_new['value'], $arr_value));
-			$s_arr_new['ref_object_id'] = array_unique(array_merge($s_arr_new['ref_object_id'], $arr_ref_object_id));
+			$s_arr_new['value'] = arrMergeValues([$s_arr_new['value'], $arr_value]);
+			$s_arr_new['ref_object_id'] = arrMergeValues([$s_arr_new['ref_object_id'], $arr_ref_object_id]);
 		}
 	}
 	

@@ -195,9 +195,9 @@ function MapGeo(element, obj_parent, options) {
 	this.init = function() {
 
 		ASSETS.fetch({script: [
-				'/CMS/js/pixi.min.js',
-				'/CMS/js/pixi.ExtraFilters.js',
-				'/CMS/js/Bezier.js'
+				'/CMS/js/support/pixi.min.js',
+				'/CMS/js/support/pixi.ExtraFilters.js',
+				'/CMS/js/support/Bezier.js'
 			], font: [
 				'pixel'
 			]}, function() {
@@ -444,7 +444,7 @@ function MapGeo(element, obj_parent, options) {
 						arr_media.push(arr_condition.icon);
 					}
 					
-					if (arr_condition.weight) {
+					if (arr_condition.weight && arr_condition.weight > 0) {
 						is_weighted = true;
 					}
 				}
@@ -462,8 +462,7 @@ function MapGeo(element, obj_parent, options) {
 								var resource = arr_media[i];
 								var arr_medium = ASSETS.getMedia(resource);
 								
-								var texture_base = new PIXI.BaseTexture(arr_medium.image);
-								var texture = new PIXI.Texture(texture_base);
+								var texture = new PIXI.Texture.from(arr_medium.image);
 								
 								arr_assets_texture_icons[resource] = {texture: texture, width: arr_medium.width, height: arr_medium.height};
 							}
@@ -480,6 +479,7 @@ function MapGeo(element, obj_parent, options) {
 
 				size_renderer = {width: pos_map.view.width, height: pos_map.view.height};
 				
+				//PIXI.GRAPHICS_CURVES.adaptive = true;
 				PIXI.Graphics.CURVES.adaptive = true;
 				
 				elm_plot_geometry = new PIXI.Container();
@@ -498,11 +498,11 @@ function MapGeo(element, obj_parent, options) {
 				
 				if (mode == 'move') {
 					
-					renderer_geometry = PIXI.autoDetectRenderer(size_renderer.width, size_renderer.height, {transparent: true, antialias: true});
-					renderer_connection_lines = new PIXI.CanvasRenderer(size_renderer.width, size_renderer.height, {transparent: true, antialias: true});
-					renderer_locations = PIXI.autoDetectRenderer(size_renderer.width, size_renderer.height, {transparent: true, antialias: true});
-					renderer_activity = PIXI.autoDetectRenderer(size_renderer.width, size_renderer.height, {transparent: true, antialias: true});
-					renderer_dots = new PIXI.CanvasRenderer(size_renderer.width, size_renderer.height, {transparent: true, antialias: true});
+					renderer_geometry = PIXI.autoDetectRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
+					renderer_connection_lines = new PIXI.CanvasRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
+					renderer_locations = PIXI.autoDetectRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
+					renderer_activity = PIXI.autoDetectRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
+					renderer_dots = new PIXI.CanvasRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
 					
 					stage_geometry.addChild(elm_plot_geometry);
 					stage_connection_lines.addChild(elm_plot_connection_lines);
@@ -523,11 +523,11 @@ function MapGeo(element, obj_parent, options) {
 					elm[0].appendChild(drawer_5);
 				} else {
 					
-					renderer_geometry = PIXI.autoDetectRenderer(size_renderer.width, size_renderer.height, {transparent: true, antialias: true});
-					renderer_locations = PIXI.autoDetectRenderer(size_renderer.width, size_renderer.height, {transparent: true, antialias: true});
-					renderer_lines = new PIXI.CanvasRenderer(size_renderer.width, size_renderer.height, {transparent: true, antialias: true});
-					renderer_activity = PIXI.autoDetectRenderer(size_renderer.width, size_renderer.height, {transparent: true, antialias: true});
-					renderer_dots = new PIXI.CanvasRenderer(size_renderer.width, size_renderer.height, {transparent: true, antialias: true});
+					renderer_geometry = PIXI.autoDetectRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
+					renderer_locations = PIXI.autoDetectRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
+					renderer_lines = new PIXI.CanvasRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
+					renderer_activity = PIXI.autoDetectRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
+					renderer_dots = new PIXI.CanvasRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
 					
 					stage_geometry.addChild(elm_plot_geometry);
 					stage_locations.addChild(elm_plot_locations);
@@ -3096,7 +3096,11 @@ function MapGeo(element, obj_parent, options) {
 				arr_object_sub_dot.weight = 1;
 			}
 		} else {
-			arr_object_sub_dot.weight += (arr_object_sub.connected_object_ids.length * 1);
+			if (arr_object_sub.style.weight !== 0) {
+				arr_object_sub_dot.weight += (arr_object_sub.connected_object_ids.length * 1);
+			} else {
+				// Do not show
+			}
 		}
 		
 		return arr_object_sub_dot.ref.push(object_sub_id) - 1;
@@ -3119,7 +3123,9 @@ function MapGeo(element, obj_parent, options) {
 						arr_object_sub_dot.weight = 0;
 					}
 				} else {
-					arr_object_sub_dot.weight -= (arr_object_sub.connected_object_ids.length * 1);
+					if (arr_object_sub.style.weight !== 0) {
+						arr_object_sub_dot.weight -= (arr_object_sub.connected_object_ids.length * 1);
+					}
 				}
 				arr_object_sub_dot.updated = count_loop;
 			}
@@ -3135,7 +3141,9 @@ function MapGeo(element, obj_parent, options) {
 						arr_object_sub_dot.weight = 1;
 					}
 				} else {
-					arr_object_sub_dot.weight += (arr_object_sub.connected_object_ids.length * 1);
+					if (arr_object_sub.style.weight !== 0) {
+						arr_object_sub_dot.weight += (arr_object_sub.connected_object_ids.length * 1);
+					}
 				}
 				arr_object_sub_dot.updated = count_loop;
 				
@@ -3221,7 +3229,11 @@ function MapGeo(element, obj_parent, options) {
 				arr_object_sub_line.weight = 1;
 			}
 		} else {
-			arr_object_sub_line.weight += 1;
+			if (arr_connect_object_sub.style.weight !== 0) {
+				arr_object_sub_line.weight += 1;
+			} else {
+				// Do not show
+			}
 		}
 		
 		return arr_object_sub_line.ref.push(object_sub_id) - 1;
@@ -3388,7 +3400,9 @@ function MapGeo(element, obj_parent, options) {
 						arr_object_sub_line.weight = 0;
 					}
 				} else {
-					arr_object_sub_line.weight -= 1;
+					if (arr_connect_object_sub.style.weight !== 0) {
+						arr_object_sub_line.weight -= 1;
+					}
 				}
 				arr_object_sub_line.updated = count_loop;
 				arr_object_sub_lines_loc.updated = count_loop;
@@ -3413,7 +3427,9 @@ function MapGeo(element, obj_parent, options) {
 						arr_object_sub_line.weight = 1;
 					}
 				} else {
-					arr_object_sub_line.weight += 1;
+					if (arr_connect_object_sub.style.weight !== 0) {
+						arr_object_sub_line.weight += 1;
+					}
 				}
 				arr_object_sub_line.updated = count_loop;
 				arr_object_sub_lines_loc.updated = count_loop;
@@ -5078,13 +5094,13 @@ function MapGeo(element, obj_parent, options) {
 				if (arr_object_sub.style.geometry_color) {
 					color_style_geometry = arr_object_sub.style.geometry_color;
 				}
-				if (arr_object_sub.style.geometry_opacity) {
+				if (arr_object_sub.style.geometry_opacity != null) {
 					opacity_style_geometry = arr_object_sub.style.geometry_opacity;
 				}
 				if (arr_object_sub.style.geometry_stroke_color) {
 					color_style_geometry_stroke = arr_object_sub.style.geometry_stroke_color;
 				}
-				if (arr_object_sub.style.geometry_stroke_opacity) {
+				if (arr_object_sub.style.geometry_stroke_opacity != null) {
 					opacity_style_geometry_stroke = arr_object_sub.style.geometry_stroke_opacity;
 				}
 			}
@@ -5212,9 +5228,14 @@ function MapGeo(element, obj_parent, options) {
 										i += 2;
 									}
 									
+									if (str_ring === 'hole') {
+										//elm_geo.beginHole();
+									}
+									
 									elm_geo.drawPolygon(arr_points);
 									
 									if (str_ring === 'hole') {
+										//elm_geo.endHole();
 										elm_geo.addHole();
 									}
 									
@@ -5647,14 +5668,14 @@ function MapGeo(element, obj_parent, options) {
 							arr_elm_particles[identifier_texture] = [];
 							
 							if (move_glow) {
-								arr_elm_particles[identifier_texture][0] = new PIXI.particles.ParticleContainer(size_max_elm_container / length_move_warp, {position: true, alpha: true});
-								arr_elm_particles[identifier_texture][1] = new PIXI.particles.ParticleContainer(size_max_elm_container, {position: true, alpha: true});
+								arr_elm_particles[identifier_texture][0] = new PIXI.ParticleContainer(size_max_elm_container / length_move_warp, {position: true, alpha: true});
+								arr_elm_particles[identifier_texture][1] = new PIXI.ParticleContainer(size_max_elm_container, {position: true, alpha: true});
 								
 								var elm_container = arr_elm_particles[identifier_texture];
 								elm_plot_lines.addChild(elm_container[1]);
 								elm_plot_lines.addChild(elm_container[0]);
 							} else {
-								arr_elm_particles[identifier_texture][0] = arr_elm_particles[identifier_texture][1] = new PIXI.particles.ParticleContainer(size_max_elm_container, {position: true, alpha: true});
+								arr_elm_particles[identifier_texture][0] = arr_elm_particles[identifier_texture][1] = new PIXI.ParticleContainer(size_max_elm_container, {position: true, alpha: true});
 								
 								var elm_container = arr_elm_particles[identifier_texture];
 								elm_plot_lines.addChild(elm_container[0]);
@@ -5697,7 +5718,7 @@ function MapGeo(element, obj_parent, options) {
 							context.arc(size, size, r, 0, 360);
 							context.fill();
 							
-							arr_texture[0] = new PIXI.Texture.fromCanvas(canvas);
+							arr_texture[0] = new PIXI.Texture.from(canvas);
 							arr_texture[1] = elm.generateCanvasTexture();
 						} else {
 							

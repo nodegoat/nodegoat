@@ -203,8 +203,23 @@ function MapData(element, obj_parent, options) {
 						if (arr_object_style.color && !arr_object_sub.style.color) {
 							arr_object_sub.style.color = arr_object_style.color;
 						}
-						if (arr_object_style.weight && !arr_object_sub.style.weight) {
+						if (arr_object_style.weight != null && arr_object_sub.style.weight == null) {
 							arr_object_sub.style.weight = arr_object_style.weight;
+						}
+						if (arr_object_style.geometry_color && !arr_object_sub.style.geometry_color) {
+							arr_object_sub.style.geometry_color = arr_object_style.geometry_color;
+						}
+						if (arr_object_style.geometry_opacity != null && arr_object_sub.style.geometry_opacity == null) {
+							arr_object_sub.style.geometry_opacity = arr_object_style.geometry_opacity;
+						}
+						if (arr_object_style.geometry_stroke_color && !arr_object_sub.style.geometry_stroke_color) {
+							arr_object_sub.style.geometry_stroke_color = arr_object_style.geometry_stroke_color;
+						}
+						if (arr_object_style.geometry_stroke_opacity != null && arr_object_sub.style.geometry_stroke_opacity == null) {
+							arr_object_sub.style.geometry_stroke_opacity = arr_object_style.geometry_stroke_opacity;
+						}
+						if (arr_object_style.icon && !arr_object_sub.style.icon) {
+							arr_object_sub.style.icon = arr_object_style.icon;
 						}
 
 						// Force location

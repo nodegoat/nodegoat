@@ -105,8 +105,10 @@ class api_configuration extends api {
 	
 		$return = parent::css();
 		
-		$return = '.api_configuration fieldset > ul > li > label:first-child + section { margin: 0px; width: 600px; }
-					.api_configuration fieldset > ul > li > label:first-child + div input[name*=identifier_url] { width: 400px; }';
+		$return = '
+			.api_configuration fieldset > ul > li > label:first-child + section { margin: 0px; width: 600px; }
+			.api_configuration fieldset > ul > li > label:first-child + div input[name*=identifier_url] { width: 400px; }
+		';
 		
 		return $return;
 	}

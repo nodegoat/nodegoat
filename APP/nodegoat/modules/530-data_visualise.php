@@ -95,10 +95,10 @@ class data_visualise extends base_module {
 						
 						<fieldset><ul>
 							<li>
-								<label></label><span><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></span>
+								<label>'.getLabel('lbl_type').' - '.getLabel('lbl_scenario').'</label><span><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></span>
 							</li>
 							<li>
-								<label>'.getLabel('lbl_type').' - '.getLabel('lbl_scenario').'</label>';
+								<label></label>';
 								
 								$arr_context_includes = $arr_context['include'];
 								if ($arr_context_includes) {
@@ -466,17 +466,19 @@ class data_visualise extends base_module {
 
 	public static function css() {
 		
-		$return = '.frame [name="frame[area][geo_scale]"] { width: 50px; }
-				.visual-settings fieldset > ul > li > label:first-child + * textarea[name="visual_settings[settings][geo_advanced]"],
-				.visual-settings fieldset > ul > li > label:first-child + * textarea[name="visual_settings[social][settings][social_advanced]"] { height: 160px; width: 275px; }
-				.visual-settings fieldset > ul > li > label:first-child + input[type="number"],
-				.visual-settings fieldset > ul > li > label:first-child + span > input[type="number"] { width: 70px; }
-				.visual-settings fieldset > ul > li > label:first-child + span > input[type="number"][name*="opacity"] { width: 60px; }
+		$return = '
+			.frame [name="frame[area][geo_scale]"] { width: 50px; }
+			.visual-settings fieldset > ul > li > label:first-child + * textarea[name="visual_settings[settings][geo_advanced]"],
+			.visual-settings fieldset > ul > li > label:first-child + * textarea[name="visual_settings[social][settings][social_advanced]"] { height: 160px; width: 275px; }
+			.visual-settings fieldset > ul > li > label:first-child + input[type="number"],
+			.visual-settings fieldset > ul > li > label:first-child + span > input[type="number"] { width: 70px; }
+			.visual-settings fieldset > ul > li > label:first-child + span > input[type="number"][name*="opacity"] { width: 60px; }
 		
-				.visualise.toolbar.movable { top: 0px; right: 50%; }
-				.visualise.toolbar.movable ul > li.settings { display: none; }
-				
-				.scope-storage ul > li > label:first-child + div > textarea[name=plain] { width: 400px; height: 300px; }';
+			.visualise.toolbar.movable { top: 0px; right: 50%; }
+			.visualise.toolbar.movable ul > li.settings { display: none; }
+			
+			.scope-storage ul > li > label:first-child + div > textarea[name=plain] { width: 400px; height: 300px; }
+		';
 		
 		return $return;
 		
@@ -616,7 +618,7 @@ class data_visualise extends base_module {
 					if (is_new) {
 						obj_options.default_time = obj_data.data.time;
 					}
-					
+										
 					if (!is_same) {
 						elm_overlay.children('.dialog').css('background-color', (obj_options.background_color ? obj_options.background_color : ''));
 					}
@@ -993,9 +995,9 @@ class data_visualise extends base_module {
 				}
 					
 				e.detail.elm.find('[name$=\"[dot][show]\"]:checked, [name$=\"[line][show]\"]:checked, [name$=\"[location][show]\"]:checked, [name$=\"[hint][show]\"]:checked, [name$=\"[geometry][show]\"]:checked, [name$=\"[geo_mode]\"]:checked').trigger('update_show_hide');
-			}).on('click', '.visualise-settings .del + .add', function() {
+			}).on('click', '.visualise-settings .context .del + .add', function() {
 				$(this).closest('li').next('li').find('.sorter').first().sorter('addRow');
-			}).on('click', '.visualise-settings .del', function() {
+			}).on('click', '.visualise-settings .context .del', function() {
 				$(this).closest('li').next('li').find('.sorter').first().sorter('clean');
 			}).on('command', '.visualise-settings [id^=y\\\:data_visualise\\\:open_scope-]', function() {
 				
@@ -1113,7 +1115,7 @@ class data_visualise extends base_module {
 			$arr_type_filters = toolbar::getFilter();
 			$type_id = toolbar::getFilterTypeId();
 			
-			if (!custom_projects::checkAccesType($type_id)) {
+			if (!custom_projects::checkAccessType('view', $type_id)) {
 				return;
 			}
 
@@ -1133,7 +1135,7 @@ class data_visualise extends base_module {
 			
 			if ($has_data) {
 				
-				$is_updated = FilterTypeObjects::getTypesUpdatedSince($value['identifier']['date'], cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), true);
+				$is_updated = FilterTypeObjects::getTypesUpdatedAfter($value['identifier']['date'], cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), true);
 				
 				if ($is_updated) {
 					$has_data = false;
@@ -1143,7 +1145,7 @@ class data_visualise extends base_module {
 					
 					if ($arr_analyses_active) {
 											
-						$is_updated_analysis = FilterTypeObjects::getTypesAnalysesUpdatedSince($value['identifier']['date'], $arr_analyses_active);
+						$is_updated_analysis = FilterTypeObjects::getTypesAnalysesUpdateAfter($value['identifier']['date'], $arr_analyses_active);
 						
 						if ($is_updated_analysis) {
 							$has_data = false;
@@ -1162,11 +1164,19 @@ class data_visualise extends base_module {
 			$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
 			$arr_use_project_ids = array_keys($arr_project['use_projects']);
 
-			$create_visualisation_package = new createVisualisationPackage($arr_project, $arr_types_all, $arr_frame, $arr_visual_settings);
+			$create_visualisation_package = new CreateVisualisationPackage($arr_project, $arr_types_all, $arr_frame, $arr_visual_settings);
 			
 			$arr =& $this->html;
 			
 			$create_visualisation_package->setOutput($arr);
+			
+			$arr_nodegoat_details = cms_nodegoat_details::getDetails();
+			if ($arr_nodegoat_details['processing_time']) {
+				timeLimit($arr_nodegoat_details['processing_time']);
+			}
+			if ($arr_nodegoat_details['processing_memory']) {
+				memoryBoost($arr_nodegoat_details['processing_memory']);
+			}
 
 			if (!$has_data) {
 
@@ -1178,8 +1188,7 @@ class data_visualise extends base_module {
 					
 					if ($arr_scenario['cache_retain']) {
 						
-						memoryBoost(2048);
-						timeLimit(120);
+						// Possibility for additional boosting procedures
 					}
 				}
 				
@@ -1363,7 +1372,7 @@ class data_visualise extends base_module {
 			
 			$type_id = toolbar::getFilterTypeId();
 			
-			if (!custom_projects::checkAccesType($type_id)) {
+			if (!custom_projects::checkAccessType('view', $type_id)) {
 				return;
 			}
 
@@ -1381,7 +1390,7 @@ class data_visualise extends base_module {
 					foreach ($arr_paths as $path) {
 											
 						$filter = new FilterTypeObjects($cur_type_id, 'id');
-						$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id'])]);
+						$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
 						
 						$filter->setFilter($arr_collect_info['filters'][$path]);
 						
@@ -1442,7 +1451,7 @@ class data_visualise extends base_module {
 				foreach ($arr_type_filter_set as $cur_type_id => $arr_filter_set) {
 
 					$filter = new FilterTypeObjects($cur_type_id, 'id');
-					$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id'])]);
+					$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
 
 					$filter->setFilter($arr_filter_set);
 					$filter->setLimit(2);
@@ -1686,7 +1695,7 @@ class data_visualise extends base_module {
 		}
 		
 		$collect = new CollectTypeObjects($arr_type_network_paths, 'visualise');
-		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id'])]);
+		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
 		$collect->setConditions('visual', function($cur_type_id) use ($type_id, $arr_conditions) {
 			
 			if ($cur_type_id == $type_id && $arr_conditions !== false) {
@@ -1742,7 +1751,7 @@ class data_visualise extends base_module {
 						
 						if ($object_description_id) {
 							
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, $object_description_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, $object_description_id)) {
 								continue;
 							}
 							
@@ -1761,7 +1770,7 @@ class data_visualise extends base_module {
 						
 						if ($object_sub_details_id) {
 
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id)) {
 								continue;
 							}
 							
@@ -1771,7 +1780,7 @@ class data_visualise extends base_module {
 							
 							if ($object_sub_description_id) {
 
-								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 									continue;
 								}
 								
@@ -1795,7 +1804,7 @@ class data_visualise extends base_module {
 					
 					foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, $object_description_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
@@ -1808,7 +1817,7 @@ class data_visualise extends base_module {
 								
 					foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id)) {
 							continue;
 						}
 
@@ -1816,7 +1825,7 @@ class data_visualise extends base_module {
 
 						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 													
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 								continue;
 							}
 								

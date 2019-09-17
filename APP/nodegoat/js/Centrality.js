@@ -119,9 +119,7 @@ function Centrality(graph, object_parent, kind, max_link_value) {
 	};
 	
 	var singleSourceShortestPath = function (nodeId, directed) {
-		
 		// http://www.inf.uni-konstanz.de/algo/publications/b-fabc-01.pdf
-		
 		var P = {}, // predecessors lists.
 			S = [], // Stack
 			sigma = {}, // accumulation for everytime a node is on a shortest path
@@ -222,13 +220,12 @@ function Centrality(graph, object_parent, kind, max_link_value) {
 			object_parent.processCentrality(result, max);
 			object_parent.processCentralityProgress(100, true);
 		}
-
+		
+		
 		var betweennessCompute = function(iterations) {
 
 			var i = 0;
-			
 			while (iterations > 0 && i < 10) {
-				
 				iterations--;
 				i++;
 				node = arr_nodes.shift();
@@ -340,7 +337,6 @@ function Centrality(graph, object_parent, kind, max_link_value) {
 	};
 			
 	var degree = function(direction) {
-		
 		var calcDegFunction,
 			sortedDegrees = [],
 			result = {},
@@ -404,5 +400,7 @@ function Centrality(graph, object_parent, kind, max_link_value) {
 		object_parent.processCentrality(result, max);
 	};
 	
+	
 	this.init();
+
 };

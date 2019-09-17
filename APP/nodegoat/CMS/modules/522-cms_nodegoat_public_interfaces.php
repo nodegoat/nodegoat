@@ -51,6 +51,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 		$return = '<div class="tabs">
 			<ul>
 				<li><a href="#">'.getLabel('lbl_project').' '.getLabel('lbl_settings').'</a></li>
+				<li><a href="#">'.getLabel('lbl_filter').'</a></li>
 				<li><a href="#">'.getLabel('lbl_types').'</a></li>
 				<li><a href="#">'.getLabel('lbl_scenarios').'</a></li>
 				<li><a href="#">'.getLabel('lbl_type').' '.getLabel('lbl_settings').'</a></li>
@@ -61,12 +62,22 @@ class cms_nodegoat_public_interfaces extends base_module {
 				<div class="options">
 					<fieldset><ul>
 						<li><label>'.getLabel('lbl_project').' '.getLabel('lbl_name').'</label><input type="text" name="settings[projects][project-'.$project_id.'][name]" value="'.htmlspecialchars($arr_public_interface['interface']['settings']['projects'][$project_id]['name']).'" /></li>
-						<li><label>'.getLabel('lbl_search').' '.getLabel('lbl_info').'</label><input type="text" name="settings[projects][project-'.$project_id.'][info_search]" value="'.htmlspecialchars($arr_public_interface['interface']['settings']['projects'][$project_id]['info_search']).'" /></li>
 						<li><label>'.getLabel('lbl_info').' '.getLabel('lbl_title').'</label><input type="text" name="settings[projects][project-'.$project_id.'][info_title]" value="'.htmlspecialchars($arr_public_interface['interface']['settings']['projects'][$project_id]['info_title']).'" /></li>
 						<li><label>'.getLabel('lbl_info').'</label>'.cms_general::editBody($arr_public_interface['interface']['settings']['projects'][$project_id]['info'], 'settings[projects][project-'.$project_id.'][info]', ['inline' => true]).'</li>
-						<li><label>'.getLabel('lbl_no').' '.getLabel('lbl_search').'</label><input name="settings[projects][project-'.$project_id.'][no_quicksearch]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['no_quicksearch'] ? 'checked="checked"' : '').' /></li>
 						<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_type').' '.getLabel('lbl_button').'s</label><input name="settings[projects][project-'.$project_id.'][show_type_buttons]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['show_type_buttons'] ? 'checked="checked"' : '').' /></li>
+					</ul></fieldset>
+				</div>
+			</div>
+			<div>
+				<div class="options">
+					<fieldset><ul>
+						<li><label>'.getLabel('lbl_search').' '.getLabel('lbl_info').'</label><input type="text" name="settings[projects][project-'.$project_id.'][info_search]" value="'.htmlspecialchars($arr_public_interface['interface']['settings']['projects'][$project_id]['info_search']).'" /></li>
+						<li><label>'.getLabel('lbl_disable').' '.getLabel('lbl_search').'</label><input name="settings[projects][project-'.$project_id.'][no_quicksearch]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['no_quicksearch'] ? 'checked="checked"' : '').' /></li>
 						<li><label>'.getLabel('lbl_filter').' '.getLabel('lbl_object_descriptions').'</label><input name="settings[projects][project-'.$project_id.'][use_filter]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['use_filter'] ? 'checked="checked"' : '').' /></li>
+						<li><label>'.getLabel('lbl_object').' '.getLabel('lbl_filter').'</label><input name="settings[projects][project-'.$project_id.'][object_filter]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['object_filter'] ? 'checked="checked"' : '').' /></li>
+						<li><label>'.getLabel('lbl_filter').' '.getLabel('lbl_form').'</label><input name="settings[projects][project-'.$project_id.'][use_filter_form]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['use_filter_form'] ? 'checked="checked"' : '').' /></li>
+						<li><label>'.getLabel('lbl_date').' '.getLabel('lbl_filter').'</label><input name="settings[projects][project-'.$project_id.'][use_date_filter]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['use_date_filter'] ? 'checked="checked"' : '').' /><input type="text" class="date" name="settings[projects][project-'.$project_id.'][min_date_filter]" value="'.$arr_public_interface['interface']['settings']['projects'][$project_id]['min_date_filter'].'" placeholder="d-m-y"><input type="text" class="date" name="settings[projects][project-'.$project_id.'][max_date_filter]" value="'.$arr_public_interface['interface']['settings']['projects'][$project_id]['max_date_filter'].'" placeholder="d-m-y"></li>
+						<li><label>'.getLabel('lbl_date').' '.getLabel('lbl_filter').' '.getLabel('ttl_slider').'</label><input name="settings[projects][project-'.$project_id.'][use_date_filter_slider]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['use_date_filter_slider'] ? 'checked="checked"' : '').' /></li>
 					</ul></fieldset>
 				</div>
 			</div>
@@ -134,7 +145,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 							foreach ((array)$arr_public_interface['project_types'][$project_id] as $type_id => $value) {
 								if (!$value['type_is_filter']) {
 									$return .= '<li>
-													<label>'.Labels::parseTextVariables($arr_types[$type_id]["name"]).'</label>
+													<label>'.Labels::parseTextVariables($arr_types[$type_id]['name']).'</label>
 													<div class="fieldsets"><div>';
 													
 													$arr_object_analyses = cms_nodegoat_custom_projects::getProjectTypeAnalyses($project_id, $_SESSION['USER_ID'], $type_id, false, $arr_use_project_ids);
@@ -145,20 +156,18 @@ class cms_nodegoat_public_interfaces extends base_module {
 																		<input name="settings[projects][project-'.$project_id.'][primary_project]['.$type_id.']" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['primary_project'][$type_id] ? 'checked="checked"' : '').' />
 																	</li>
 																	<li>
-																		<label>'.getLabel("lbl_order_by").'</label>
+																		<label>'.getLabel('lbl_order_by').'</label>
 																		<select name="settings[projects][project-'.$project_id.'][sort]['.$type_id.']">'.cms_general::createDropdown($arr_object_analyses, $arr_public_interface['interface']['settings']['projects'][$project_id]['sort'][$type_id], true).'</select>
 																	</li>
 																</ul></fieldset>';
 
 													foreach (['browse', 'explore'] as $scope_option) {
-														$return .= '<fieldset><legend>'.getLabel("lbl_".$scope_option).' '.getLabel("lbl_scope").'</legend><ul>';
+														$return .= '<fieldset><legend>'.getLabel('lbl_'.$scope_option).' '.getLabel('lbl_scope').'</legend><ul>';
 														foreach ($arr_data_options as $arr_data_option) {
-															if ($arr_data_option['visualisation_type']) {
-																$return .= '<li>
-																				<label>'.$arr_data_option['name'].'</label>
-																				<select name="settings[projects][project-'.$project_id.'][scope]['.$type_id.']['.$scope_option.']['.$arr_data_option['id'].']">'. cms_general::createDropdown(cms_nodegoat_custom_projects::getProjectTypeScopes($project_id, $_SESSION['USER_ID'], $type_id, false), (is_array($arr_public_interface['interface']['settings']['projects'][$project_id]['scope'][$type_id][$scope_option]) ? $arr_public_interface['interface']['settings']['projects'][$project_id]['scope'][$type_id][$scope_option][$arr_data_option['id']] : 0), true, 'label').'</select>
-																			</li>';
-															}
+															$return .= '<li>
+																			<label>'.$arr_data_option['name'].'</label>
+																			<select name="settings[projects][project-'.$project_id.'][scope]['.$type_id.']['.$scope_option.']['.$arr_data_option['id'].']">'. cms_general::createDropdown(cms_nodegoat_custom_projects::getProjectTypeScopes($project_id, $_SESSION['USER_ID'], $type_id, false), (is_array($arr_public_interface['interface']['settings']['projects'][$project_id]['scope'][$type_id][$scope_option]) ? $arr_public_interface['interface']['settings']['projects'][$project_id]['scope'][$type_id][$scope_option][$arr_data_option['id']] : 0), true, 'label').'</select>
+																		</li>';
 														}
 														$return .= '</ul></fieldset>';
 													}
@@ -185,26 +194,24 @@ class cms_nodegoat_public_interfaces extends base_module {
 					$return .= '<ul>
 									<li>
 										<input name="settings[projects][project-'.$project_id.'][start][set]" value="none" '.(!$arr_public_interface['interface']['settings']['projects'][$project_id]['start']['set'] || $arr_public_interface['interface']['settings']['projects'][$project_id]['start']['set'] == 'none' ? 'checked="checked"' : '').' type="radio">
-										<label>'.getLabel("lbl_none").'</label>
+										<label>'.getLabel('lbl_none').'</label>
 									<li>
 										<input name="settings[projects][project-'.$project_id.'][start][set]" value="random" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['start']['set'] == 'random' ? 'checked="checked"' : '').' type="radio">
-										<label>'.getLabel("lbl_public_interface_random_objects").'</label>';
+										<label>'.getLabel('lbl_public_interface_random_objects').'</label>';
 
 										if (!empty($arr_public_interface['project_types'][$project_id])) {
 											$return .= '<fieldset><ul>
 													<li>
-														<input type="number" name="settings[projects][project-'.$project_id.'][start][random][amount]" value="'.$arr_public_interface['interface']['settings']['projects'][$project_id]['start']['random']['amount'].'" title="'.getLabel("lbl_amount").'" />
+														<input type="number" name="settings[projects][project-'.$project_id.'][start][random][amount]" value="'.$arr_public_interface['interface']['settings']['projects'][$project_id]['start']['random']['amount'].'" title="'.getLabel('lbl_amount').'" />
 													</li>';
 																	
 												foreach ((array)$arr_public_interface['project_types'][$project_id] as $type_id => $value) {
-													
 													if (!$value['type_is_filter']) {
-														
 														$return .= '<li>
-															<input name="settings[projects][project-'.$project_id.'][start][random][types]['.$type_id.'][set]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['start']['random']['types'][$type_id]['set'] ? 'checked="checked"' : '').' />
-															<label>'.Labels::parseTextVariables($arr_types[$type_id]['name']).'</label>
-															<select name="settings[projects][project-'.$project_id.'][start][random][types]['.$type_id.'][filter_id]" title="'.getLabel("lbl_filter").'">'.cms_general::createDropdown(cms_nodegoat_custom_projects::getProjectTypeFilters($project_id, $_SESSION['USER_ID'], $type_id, false, ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN ? true : false)), $arr_public_interface['interface']['settings']['projects'][$project_id]['start']['random']['types'][$type_id]['filter_id']).'</select>
-														</li>';
+																		<input name="settings[projects][project-'.$project_id.'][start][random][types]['.$type_id.'][set]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['start']['random']['types'][$type_id]['set'] ? 'checked="checked"' : '').' />
+																		<label>'.Labels::parseTextVariables($arr_types[$type_id]['name']).'</label>
+																		<select name="settings[projects][project-'.$project_id.'][start][random][types]['.$type_id.'][filter_id]" title="'.getLabel('lbl_filter').'">'.cms_general::createDropdown(cms_nodegoat_custom_projects::getProjectTypeFilters($project_id, $_SESSION['USER_ID'], $type_id, false, ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN ? true : false)), $arr_public_interface['interface']['settings']['projects'][$project_id]['start']['random']['types'][$type_id]['filter_id']).'</select>
+																	</li>';
 													}
 												}
 											$return .= '</ul></fieldset>';
@@ -213,7 +220,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 						$return .= '</li>
 									<li>
 										<input name="settings[projects][project-'.$project_id.'][start][set]" value="scenario" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['start']['set'] == 'scenario' ? 'checked="checked"' : '').' type="radio">
-										<label>'.getLabel("lbl_scenario").'</label>';
+										<label>'.getLabel('lbl_scenario').'</label>';
 										
 										$arr_type_scenarios = cms_nodegoat_custom_projects::getProjectTypeScenarios($project_id); 
 										$arr_scenarios = [];
@@ -226,7 +233,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 										if (count($arr_scenarios)) {
 											$return .= '<fieldset><ul>
 														<li>
-															<select name="settings[projects][project-'.$project_id.'][start][scenario][id]" title="'.getLabel("lbl_start").' '.getLabel("lbl_scenario").'">'. cms_general::createDropdown($arr_scenarios, $arr_public_interface['interface']['settings']['projects'][$project_id]['start']['scenario']['id'], true, 'label').'</select>
+															<select name="settings[projects][project-'.$project_id.'][start][scenario][id]" title="'.getLabel('lbl_start').' '.getLabel('lbl_scenario').'">'. cms_general::createDropdown($arr_scenarios, $arr_public_interface['interface']['settings']['projects'][$project_id]['start']['scenario']['id'], true, 'label').'</select>
 															<select name="settings[projects][project-'.$project_id.'][start][scenario][display_mode]">'. cms_general::createDropdown(self::getPublicInterfaceDataOptions(), $arr_public_interface['interface']['settings']['projects'][$project_id]['start']['scenario']['display_mode'], true, 'name').'</select>
 														</li>
 													</ul></fieldset>';
@@ -235,11 +242,11 @@ class cms_nodegoat_public_interfaces extends base_module {
 						$return .= '</li>
 									<li>
 										<input name="settings[projects][project-'.$project_id.'][start][set]" value="type" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['start']['set'] == 'type' ? 'checked="checked"' : '').' type="radio">
-										<label>'.getLabel("lbl_type").'</label>';
+										<label>'.getLabel('lbl_type').'</label>';
 					
 										$return .= '<fieldset><ul>
 													<li>
-														<select name="settings[projects][project-'.$project_id.'][start][type][id]" title="'.getLabel("lbl_start").' '.getLabel("lbl_type").'">'.cms_general::createDropdown($arr_types, $arr_public_interface['interface']['settings']['projects'][$project_id]['start']['type']['id'], true, 'name').'</select>
+														<select name="settings[projects][project-'.$project_id.'][start][type][id]" title="'.getLabel('lbl_start').' '.getLabel('lbl_type').'">'.cms_general::createDropdown($arr_types, $arr_public_interface['interface']['settings']['projects'][$project_id]['start']['type']['id'], true, 'name').'</select>
 														<select name="settings[projects][project-'.$project_id.'][start][type][display_mode]">'. cms_general::createDropdown(self::getPublicInterfaceDataOptions(), $arr_public_interface['interface']['settings']['projects'][$project_id]['start']['type']['display_mode'], true, 'name').'</select>
 													</li>
 												</ul></fieldset>';
@@ -262,18 +269,18 @@ class cms_nodegoat_public_interfaces extends base_module {
 		if ($set == 'type') {
 		
 			$return = '<label>
-				<input name="public_interface_project_'.$set.'s['.$project_id.']['.$set.'-'.$id.']['.$set.'_is_filter]" type="checkbox" value="1" '.($value[$set.'_is_filter'] ? 'checked="checked"' : '').' title="'.getLabel('inf_project_type_in_user_interface_filter').'"/>
-				<span class="icon">'.getIcon('filter').'</span>
-			</label>
-			<span class="split"></span>';
+					<input name="public_interface_project_'.$set.'s['.$project_id.']['.$set.'-'.$id.']['.$set.'_is_filter]" type="checkbox" value="1" '.($value[$set.'_is_filter'] ? 'checked="checked"' : '').' title="'.getLabel('inf_project_type_in_user_interface_filter').'"/>
+					<span class="icon">'.getIcon('filter').'</span>
+				</label>
+				<span class="split"></span>';
 		}
 		
 		foreach ($arr_data_options as $key => $arr_data_option) {
 		
 			$return .= '<label>
-				<input name="public_interface_project_'.$set.'s['.$project_id.']['.$set.'-'.$id.']['.$set.'_'.$key.']" type="checkbox" value="1" '.($value[$set.'_is_filter'] ? 'disabled' : ($value[$set.'_'.$key.''] ? 'checked="checked"' : '')).' title="'.$arr_data_option['name'].'"/>
-				<span class="icon">'.getIcon($arr_data_option['icon']).'</span>
-			</label>';
+					<input name="public_interface_project_'.$set.'s['.$project_id.']['.$set.'-'.$id.']['.$set.'_'.$key.']" type="checkbox" value="1" '.($value[$set.'_is_filter'] ? 'disabled' : ($value[$set.'_'.$key.''] ? 'checked="checked"' : '')).' title="'.$arr_data_option['name'].'"/>
+					<span class="icon">'.getIcon($arr_data_option['icon']).'</span>
+				</label>';
 		
 		}
 		
@@ -308,25 +315,25 @@ class cms_nodegoat_public_interfaces extends base_module {
 		];
 
 		$return = '<fieldset><ul>
-			<li>
-				<label></label>
-				<span><input type="button" class="data del" value="del" title="'.getLabel("inf_remove_empty_fields").'" /><input type="button" class="data add" value="add" /></span>
-			</li>
-			<li>
-				<label></label>
-				<div>';
-					$arr_sorter = [];
-					foreach ($arr as $arr_value) {
-						$arr_sorter[] = ['value' => [
-							'<select name="settings[cite_as]['.$type_id.'][citation_elm][]">'.cms_general::createDropdown($arr_options, $arr_value['citation_elm'], true).'</select>
-							<select name="settings[cite_as]['.$type_id.'][value][]" '.($arr_value['citation_elm'] == 'value' ? '' : 'class="hide"').'>'.cms_general::createDropdown($arr_type_set_flat, $arr_value['value']).'</select>
-							<input name="settings[cite_as]['.$type_id.'][string][]" type="text" value="'.$arr_value['string'].'" '.(!$arr_value['citation_elm'] || $arr_value['citation_elm'] == 'string' ? '' : 'class="hide"').'/>'
-						]];
-					}
-					$return .= cms_general::createSorter($arr_sorter, true);
-				$return .= '</div>
-			</li>
-		</ul></fieldset>';
+					<li>
+						<label></label>
+						<span><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></span>
+					</li>
+					<li>
+						<label></label>
+						<div>';
+							$arr_sorter = [];
+							foreach ($arr as $arr_value) {
+								$arr_sorter[] = ['value' => [
+									'<select name="settings[cite_as]['.$type_id.'][citation_elm][]">'.cms_general::createDropdown($arr_options, $arr_value['citation_elm'], true).'</select>
+									<select name="settings[cite_as]['.$type_id.'][value][]" '.($arr_value['citation_elm'] == 'value' ? '' : 'class="hide"').'>'.cms_general::createDropdown($arr_type_set_flat, $arr_value['value']).'</select>
+									<input name="settings[cite_as]['.$type_id.'][string][]" type="text" value="'.$arr_value['string'].'" '.(!$arr_value['citation_elm'] || $arr_value['citation_elm'] == 'string' ? '' : 'class="hide"').'/>'
+								]];
+							}
+							$return .= cms_general::createSorter($arr_sorter, true);
+						$return .= '</div>
+					</li>
+				</ul></fieldset>';
 		
 		return $return;
 	}
@@ -374,7 +381,6 @@ class cms_nodegoat_public_interfaces extends base_module {
 						$arr_types_cite_as[$type_id][$key][$option] = $value;
 					}
 				}
-
 			}
 			
 			$arr['settings']['projects'] = $arr_projects;
@@ -407,6 +413,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 		
 			$res = DB::query("UPDATE ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACES')." SET
 					name = '".DBFunctions::strEscape($arr['name'])."',
+					user_id = ".(int)$user_id.",
 					mode = '".DBFunctions::strEscape($arr['mode'])."',
 					settings = '".DBFunctions::strEscape($public_interface_settings)."',
 					description = '".DBFunctions::strEscape($arr['description'])."',
@@ -450,14 +457,16 @@ class cms_nodegoat_public_interfaces extends base_module {
 			if ($arr['settings']['projects']) {
 				
 				$i = 0;
+				
 				foreach ($arr['settings']['projects'] as $project_id => $arr_project) {
 					
 					$res = DB::query("UPDATE ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_PROJECTS')." SET
 							sort = ".(int)$i."
 						WHERE public_interface_id = ".(int)$public_interface_id." 
-							AND project_id = ".(int)$project_id."");
+							AND project_id = ".(int)$project_id."
+					");
 					
-					$i++;
+					$i++;					
 				}
 			}
 		}
@@ -471,11 +480,11 @@ class cms_nodegoat_public_interfaces extends base_module {
 				$sort = 0; 
 				
 				foreach ($arr_project_types as $str_type_id => $value) {
-
+					
 					if (!$value['include']) {
 						continue;
 					}
-						
+					
 					$type_id = explode('-', $str_type_id);
 					$type_id = (int)$type_id[1];
 					
@@ -485,17 +494,17 @@ class cms_nodegoat_public_interfaces extends base_module {
 			}
 			
 			if ($arr_sql_insert) {
+				
 				$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_PROJECT_TYPES')."
 					(public_interface_id, project_id, type_id, is_filter, list, browse, geographic_visualisation, social_visualisation, time_visualisation, sort)
 						VALUES
-					".implode(",", $arr_sql_insert)."
-				");
+					".implode(",", $arr_sql_insert)."");
 			}
 
 		}
 		
 		if ($arr['public_interface_project_scenarios']) {
-			
+
 			$arr_sql_insert = [];
 			
 			foreach ($arr['public_interface_project_scenarios'] as $project_id => $arr_project_scenarios) {
@@ -507,7 +516,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 					if (!$value['include']) {
 						continue;
 					}
-					
+						
 					$scenario_id = explode('-', $str_scenario_id);
 					$scenario_id = (int)$scenario_id[1];
 	
@@ -517,6 +526,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 			}
 			
 			if (!empty($arr_sql_insert)) {
+				
 				$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_PROJECT_SCENARIOS')."
 					(public_interface_id, project_id, scenario_id, list, browse, geographic_visualisation, social_visualisation, time_visualisation, sort)
 						VALUES
@@ -527,12 +537,11 @@ class cms_nodegoat_public_interfaces extends base_module {
 		
 		if ($arr_texts) {
 			
-			$sort = 0; 
+			$sort = 0;
 			
 			foreach ($arr_texts as $value) {	
 			
-				$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_TEXTS')."
-					(public_interface_id, name, text, sort)
+				$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_TEXTS')." (public_interface_id, name, text, sort)
 						VALUES 
 					( ".(int)$public_interface_id.", '".DBFunctions::strEscape($value['name'])."', '".DBFunctions::strEscape($value['text'])."', ".$sort.")
 				");
@@ -540,7 +549,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 				$sort++;
 			}
 		}
-
+		
 		return $public_interface_id;
 	}
 	
@@ -552,7 +561,8 @@ class cms_nodegoat_public_interfaces extends base_module {
 				LEFT JOIN ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_TEXTS')." it ON (it.public_interface_id = i.id)
 				LEFT JOIN ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_PROJECT_TYPES')." ipt ON (ipt.public_interface_id = i.id)
 				LEFT JOIN ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_PROJECT_SCENARIOS')." ips ON (ips.public_interface_id = i.id)
-			WHERE i.id = ".(int)$public_interface_id."");
+			WHERE i.id = ".(int)$public_interface_id."
+		");
 	}
 	
 	public static function getPublicInterfaces($public_interface_id = 0, $project_id = 0) {
@@ -572,6 +582,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 				FROM ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACES')." i
 					LEFT JOIN ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_TEXTS')." it ON (it.public_interface_id = i.id)
 				WHERE TRUE
+					AND TRUE
 				".($public_interface_id ? "AND i.id = ".(int)$public_interface_id."" : "")."
 				ORDER BY it.sort;
 				
@@ -641,6 +652,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 		");
 
 		while($row = $res->fetchAssoc()) {
+			
 			if ($row['id']) {
 				$id = $row['id'];
 			}
@@ -653,9 +665,10 @@ class cms_nodegoat_public_interfaces extends base_module {
 		
 		$arr = [];
 
-		$res = DB::query("SELECT i.id, 
-				ip.project_id, ip.sort
-			FROM ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACES')." i
+		$res = DB::query("SELECT
+			i.id, 
+			ip.project_id, ip.sort
+				FROM ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACES')." i
 				LEFT JOIN ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_PROJECTS')." ip ON (ip.public_interface_id = i.id)
 			WHERE i.id = ".(int)$public_interface_id."
 			ORDER BY ip.sort
@@ -700,8 +713,8 @@ class cms_nodegoat_public_interfaces extends base_module {
 		$project_id = false;
  	
 		$res = DB::query("SELECT ipt.project_id 
-			FROM ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_PROJECT_TYPES')." ipt
-				JOIN ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_PROJECTS')." ip ON (ip.project_id = ipt.project_id)
+				FROM ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_PROJECT_TYPES')." ipt
+				JOIN ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_PROJECTS')." ip on (ip.project_id = ipt.project_id)
 				JOIN ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACES')." i ON (i.id = ip.public_interface_id)
 			WHERE ipt.public_interface_id = ".(int)$public_interface_id."
 				AND ip.public_interface_id = ".(int)$public_interface_id."
@@ -726,7 +739,8 @@ class cms_nodegoat_public_interfaces extends base_module {
 		
 		$res = DB::query("SELECT i.id, i.css, i.script
 				FROM ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACES')." i
-			WHERE i.id = ".(int)$public_interface_id."");
+			WHERE i.id = ".(int)$public_interface_id."
+		");
 
 		while($row = $res->fetchAssoc()) {
 			$arr = $row;
@@ -741,7 +755,8 @@ class cms_nodegoat_public_interfaces extends base_module {
 		
 		$res = DB::query("SELECT i.id, i.settings
 				FROM ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACES')." i
-			WHERE i.id = ".(int)$public_interface_id."");
+			WHERE i.id = ".(int)$public_interface_id."
+		");
 
 		while($row = $res->fetchAssoc()) {
 			
@@ -756,7 +771,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 	public static function getPublicInterfaceTexts($public_interface_id) {
 	
 		$arr = [];
-		
+	
 		$res = DB::query("SELECT it.*
 				FROM ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_TEXTS')." it
 				JOIN ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACES')." i ON (i.id = it.public_interface_id)
@@ -840,15 +855,15 @@ class cms_nodegoat_public_interfaces extends base_module {
 		if (!$selection_url_id) {
 			
 			$selection_url_id = generateRandomString(20);
-			$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_SELECTIONS')." 
-				(id, date_modified, title, notes, editor) 
-					VALUES 
-				('".DBFunctions::strEscape($selection_url_id)."',
-					NOW(),
-					'".DBFunctions::strEscape($arr_selection['selection_title'])."',
-					'".DBFunctions::strEscape($arr_selection['selection_notes'])."',
-					'".DBFunctions::strEscape($arr_selection['selection_editor'])."'
-				)");
+			$res = DB::query("INSERT INTO ".DB::getTable("DEF_NODEGOAT_PUBLIC_INTERFACE_SELECTIONS")." 
+								(id, date_modified, title, notes, editor) 
+							VALUES 
+								('".DBFunctions::strEscape($selection_url_id)."',
+									NOW(),
+									'".DBFunctions::strEscape($arr_selection['selection_title'])."',
+									'".DBFunctions::strEscape($arr_selection['selection_notes'])."',
+									'".DBFunctions::strEscape($arr_selection['selection_editor'])."'
+								)");
 								
 		} else {
 			
@@ -869,19 +884,16 @@ class cms_nodegoat_public_interfaces extends base_module {
 		usort($arr_elements, function($a, $b) { return $a['sort'] > $b['sort']; }); 
 
 		$sort = 0;
-		
 		foreach ((array)$arr_elements as $arr_element) {	
 			
 			$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACE_SELECTION_ELEMENTS')."
 				(selection_id, elm_id, type, heading, notes, sort)
 					VALUES 
-				('".DBFunctions::strEscape($selection_url_id)."', '".DBFunctions::strEscape($arr_element['elm_id'])."', '".DBFunctions::strEscape($arr_element['elm_type'])."', '".DBFunctions::strEscape($arr_element['elm_heading'])."', '".DBFunctions::strEscape($arr_element['elm_notes'])."', ".(int)$sort.")
-			");
-		
+				('".DBFunctions::strEscape($selection_url_id)."', '".DBFunctions::strEscape($arr_element['elm_id'])."', '".DBFunctions::strEscape($arr_element['elm_type'])."', '".DBFunctions::strEscape($arr_element['elm_heading'])."', '".DBFunctions::strEscape($arr_element['elm_notes'])."', ".(int)$sort.")");
+			
 			$sort++;
 		}
 
-		
 		return $selection_url_id;
 	}
 	

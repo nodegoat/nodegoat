@@ -47,12 +47,20 @@ class cms_nodegoat_details extends base_module {
 						<div class="options">
 							<fieldset><ul>
 								<li>
+									<label>'.getLabel('lbl_processing_memory').'</label>
+									<span><input type="text" name="details[processing_memory]" value="'.$arr['processing_memory'].'" /><label>MB</label></span>
+								</li>
+								<li>
+									<label>'.getLabel('lbl_processing_time').'</label>
+									<span><input type="text" name="details[processing_time]" value="'.$arr['processing_time'].'" /><label>'.Response::addParseDelay(getLabel('unit_seconds'), 'ucfirst').'</label></span>
+								</li>
+								<li>
 									<label>'.getLabel('lbl_view_limit').'</label>
-									<span><input type="text" name="details[limit_view]" value="'.$arr['limit_view'].'" /></span>
+									<span><input type="text" name="details[limit_view]" value="'.$arr['limit_view'].'" /><label>'.getLabel('lbl_objects').' / '.getLabel('lbl_object_subs').'</label></span>
 								</li>
 								<li>
 									<label>'.getLabel('lbl_import_limit').'</label>
-									<span><input type="text" name="details[limit_import]" value="'.$arr['limit_import'].'" /></span>
+									<span><input type="text" name="details[limit_import]" value="'.$arr['limit_import'].'" /><label>'.getLabel('lbl_rows').'</label></span>
 								</li>
 							</ul></fieldset>
 						</div>
@@ -61,7 +69,7 @@ class cms_nodegoat_details extends base_module {
 					
 					</form>
 				</div>
-								
+				
 		</div></div>';
 		
 		return $return;
@@ -90,7 +98,7 @@ class cms_nodegoat_details extends base_module {
 		// QUERY
 		
 		if ($method == 'update') {
-		
+
 			$arr_sql_fields = DBFunctions::arrEscape(array_keys($_POST['details']));
 			$str_values = implode("','", DBFunctions::arrEscape($_POST['details']));
 
@@ -106,7 +114,7 @@ class cms_nodegoat_details extends base_module {
 	}
 	
 	public static function getDetails() {
-					
+		
 		$cache = self::getCache('details');
 		if ($cache) {
 			return $cache;

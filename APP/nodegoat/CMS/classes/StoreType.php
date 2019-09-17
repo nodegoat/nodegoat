@@ -16,16 +16,39 @@ class StoreType {
 	
 	protected $arr_type_set = [];
 	protected $arr_types_all = [];
-	
+
 	protected $has_unresolved_ids = false;
-	
+		
 	protected static $arr_types_touched = [];
 	
-	public static $arr_types_storage = []; // Static call caching
-	protected static $arr_value_types = []; // Static call caching
-	protected static $arr_types_object_path_storage = []; // Static call caching
+	protected static $arr_system_type_ids = [
+		'cycle' => -1
+	];
 	
-    public function __construct($type_id = false) {
+	// Static call caching
+	public static $arr_types_storage = [];
+	protected static $arr_value_types = [];
+	protected static $arr_types_object_path_storage = [];
+	
+	protected static $arr_time_units = [];
+	protected static $arr_time_units_internal = [];
+	protected static $arr_time_directions = [];
+	protected static $arr_time_directions_internal = [];
+	
+	const TIME_UNIT_DAY = 1;
+	const TIME_UNIT_MONTH = 2;
+	const TIME_UNIT_YEAR = 3;
+	const TIME_AFTER_BEGIN = 1;
+	const TIME_BEFORE_BEGIN = 2;
+	const TIME_AFTER_END = 3;
+	const TIME_BEFORE_END = 4;
+	
+	const DATE_START_START = 1;
+	const DATE_START_END = 2;
+	const DATE_END_START = 3;
+	const DATE_END_END = 4;
+	
+    public function __construct($type_id) {
 
 		$this->type_id = ($type_id ? (int)$this->getTypeID($type_id) : false);
 
@@ -48,8 +71,12 @@ class StoreType {
 		
 		$arr_details = arrParseRecursive($arr_details, 'trim');
 		$arr_definitions = ($arr_definitions ? arrParseRecursive($arr_definitions, 'trim') : $arr_definitions);
-		$arr_object_descriptions = ($arr_object_descriptions ? arrParseRecursive($arr_object_descriptions, 'trim') : $arr_object_descriptions);
-		$arr_object_subs_details = ($arr_object_subs_details ? arrParseRecursive($arr_object_subs_details, 'trim') : $arr_object_subs_details);
+		if ($arr_object_descriptions) {
+			$arr_object_descriptions = arrParseRecursive($arr_object_descriptions, 'trim', ['separator' => true], false);
+		}
+		if ($arr_object_subs_details) {
+			$arr_object_subs_details = arrParseRecursive($arr_object_subs_details, 'trim', ['separator' => true], false);
+		}
 		
 		$is_new = ($this->type_id ? false : true);
 		$is_reversal = ($is_new ? $arr_details['is_reversal'] : $this->arr_type_set['type']['is_reversal']);
@@ -104,6 +131,8 @@ class StoreType {
 		
 			// Type
 			
+			$clearance_edit = ($arr_details['clearance_edit'] !== null ? (int)$arr_details['clearance_edit'] : null);
+			
 			if ($this->type_id) {
 										
 				$res = DB::query("UPDATE ".DB::getTable('DEF_NODEGOAT_TYPES')." SET
@@ -114,12 +143,15 @@ class StoreType {
 						use_object_name = ".DBFunctions::escapeAs($arr_details['use_object_name'], DBFunctions::TYPE_BOOLEAN).",
 						object_name_in_overview = ".DBFunctions::escapeAs($arr_details['object_name_in_overview'], DBFunctions::TYPE_BOOLEAN).",
 						mode = ".$type_mode."
+						".($clearance_edit !== null ?
+							", clearance_edit = ".$clearance_edit
+						: "")."
 					WHERE id = ".$this->type_id."
 				");
 			} else {
 				
 				$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_TYPES')."
-					(is_classification, is_reversal, mode, name, label, color, condition_id, use_object_name, object_name_in_overview, date)
+					(is_classification, is_reversal, mode, name, label, color, condition_id, clearance_edit, use_object_name, object_name_in_overview, date)
 						VALUES
 					(
 						".(int)$arr_details['is_classification'].",
@@ -129,6 +161,7 @@ class StoreType {
 						'".(Settings::get('domain_administrator_mode') ? DBFunctions::strEscape($arr_details['label']) : '')."',
 						'".str2Color($arr_details['color'])."',
 						0,
+						".(int)$arr_details['clearance_edit'].",
 						".DBFunctions::escapeAs($arr_details['use_object_name'], DBFunctions::TYPE_BOOLEAN).",
 						".DBFunctions::escapeAs($arr_details['object_name_in_overview'], DBFunctions::TYPE_BOOLEAN).",
 						NOW()
@@ -250,14 +283,17 @@ class StoreType {
 					$object_description_is_required = ($value['object_description_is_required'] && !in_array($object_description_value_type_base, ['reversal']) ? 1 : 0);
 					
 					$object_description_has_multi = (in_array($object_description_value_type_base, ['type', 'classification']) || in_array($object_description_value_type_base, ['', 'int', 'media', 'media_external', 'external']) ? $value['object_description_has_multi'] : 0);
-					$object_description_has_multi = (($object_description_has_multi || $object_description_value_type_base == 'reversal') ? 1 : 0);
+					$object_description_has_multi = (($object_description_has_multi || $object_description_value_type_base == 'reversal') ? true : false);
 					
 					$object_description_is_identifier = $value['object_description_is_identifier'];
 					if ($object_description_is_identifier !== null) {
 						$object_description_is_identifier = (in_array($object_description_value_type_base, ['', 'external']) ? $object_description_is_identifier : 0);
 					}
 					
-					$object_description_value_type_options = $this->parseTypeObjectDescriptionValueTypeOptions($object_description_value_type_base, $object_description_ref_type_id, $value['object_description_value_type_options']);
+					$object_description_has_default_value = true;
+					$object_description_in_name = (bool)$value['object_description_in_name'];
+										
+					$object_description_value_type_options = $this->parseTypeObjectDescriptionValueTypeOptions($object_description_value_type_base, $object_description_ref_type_id, $object_description_has_multi, $object_description_has_default_value, $object_description_in_name, $value['object_description_value_type_options']);
 					
 					$clearance_view = ($value['object_description_clearance_view'] !== null ? (int)$value['object_description_clearance_view'] : null);
 					$clearance_edit = ($value['object_description_clearance_edit'] !== null ? (int)$value['object_description_clearance_edit'] : null);
@@ -280,7 +316,7 @@ class StoreType {
 								is_unique = ".DBFunctions::escapeAs($value['object_description_is_unique'], DBFunctions::TYPE_BOOLEAN).",
 								has_multi = ".DBFunctions::escapeAs($object_description_has_multi, DBFunctions::TYPE_BOOLEAN).",
 								ref_type_id = ".(int)$object_description_ref_type_id.",
-								in_name = ".DBFunctions::escapeAs($value['object_description_in_name'], DBFunctions::TYPE_BOOLEAN).",
+								in_name = ".DBFunctions::escapeAs($object_description_in_name, DBFunctions::TYPE_BOOLEAN).",
 								in_search = ".DBFunctions::escapeAs($value['object_description_in_search'], DBFunctions::TYPE_BOOLEAN).",
 								in_overview = ".DBFunctions::escapeAs($value['object_description_in_overview'], DBFunctions::TYPE_BOOLEAN)."
 								".($object_description_is_identifier !== null ? 
@@ -361,6 +397,7 @@ class StoreType {
 		// Object sub details
 
 		$arr_ids = [];
+		$arr_touched_cache_object_sub_details_ids = [];
 		
 		if ($arr_object_subs_details) {
 			
@@ -377,6 +414,40 @@ class StoreType {
 					}
 					
 					continue;
+				}
+				
+				$object_sub_details_has_date = true;
+				$object_sub_details_is_date_period = ($arr_object_sub_details['object_sub_details']['object_sub_details_date_type'] == 'period' || $arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period']);
+				if ($arr_object_sub_details['object_sub_details']['object_sub_details_date_type'] == 'none') {
+					$object_sub_details_has_date = false;
+					$object_sub_details_is_date_period = false;
+				}
+				
+				if ($arr_object_sub_details['object_sub_details']['object_sub_details_date_useage'] != 'object_sub_details') {
+					unset($arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_sub_details_id']);
+				}
+				if ($arr_object_sub_details['object_sub_details']['object_sub_details_date_useage'] != 'object_sub_description') {
+					unset($arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_sub_description_id'], $arr_object_sub_details['object_sub_details']['object_sub_details_date_end_use_object_sub_description_id']);
+				} else {
+					if (!$object_sub_details_is_date_period) {
+						unset($arr_object_sub_details['object_sub_details']['object_sub_details_date_end_use_object_sub_description_id']);
+					} else {
+						$arr_object_sub_details['object_sub_details']['object_sub_details_date_end_use_object_sub_description_id'] = ($arr_object_sub_details['object_sub_details']['object_sub_details_date_end_use_object_sub_description_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_sub_description_id']);
+					}
+				}
+				if ($arr_object_sub_details['object_sub_details']['object_sub_details_date_useage'] != 'object_description') {
+					unset($arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_description_id'], $arr_object_sub_details['object_sub_details']['object_sub_details_date_end_use_object_description_id']);
+				} else {
+					if (!$object_sub_details_is_date_period) {
+						unset($arr_object_sub_details['object_sub_details']['object_sub_details_date_end_use_object_description_id']);
+					} else {
+						$arr_object_sub_details['object_sub_details']['object_sub_details_date_end_use_object_description_id'] = ($arr_object_sub_details['object_sub_details']['object_sub_details_date_end_use_object_description_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_description_id']);
+					}
+				}
+				
+				$object_sub_details_has_location = true;
+				if ($arr_object_sub_details['object_sub_details']['object_sub_details_location_type'] == 'none') {
+					$object_sub_details_has_location = false;
 				}
 				
 				if (!$arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_object_sub_details_id'] || !$arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id_locked']) {
@@ -398,56 +469,63 @@ class StoreType {
 				if ($arr_object_sub_details['object_sub_details']['object_sub_details_location_useage'] == 'object' && $this->getTypeID($arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id']) != $this->type_id) {
 					unset($arr_object_sub_details['object_sub_details']['object_sub_details_location_useage']);
 				}
-				if ($arr_object_sub_details['object_sub_details']['object_sub_details_date_useage'] != 'object_sub_details') {
-					unset($arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_sub_details_id']);
-				}
-				if ($arr_object_sub_details['object_sub_details']['object_sub_details_date_useage'] != 'object_sub_description') {
-					unset($arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_sub_description_id']);
-				}
-				if ($arr_object_sub_details['object_sub_details']['object_sub_details_date_useage'] != 'object_description') {
-					unset($arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_description_id']);
-				}
 				
 				$clearance_view = ($arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] !== null ? (int)$arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] : null);
 				$clearance_edit = ($arr_object_sub_details['object_sub_details']['object_sub_details_clearance_edit'] !== null ? (int)$arr_object_sub_details['object_sub_details']['object_sub_details_clearance_edit'] : null);
 				$clearance_edit = ($clearance_view && $clearance_view > $clearance_edit ? $clearance_view : $clearance_edit);
 				
 				$object_sub_details_date_use_object_sub_details_id = $this->getTypeObjectSubDetailsID($this->type_id, $arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_sub_details_id']);
-				$object_sub_details_date_use_object_sub_description_id = $this->getTypeObjectSubDescriptionID($this->type_id, $arr_object_sub_details['object_sub_details']['object_sub_details_id'], $arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_sub_description_id']);
-				$object_sub_details_date_use_object_description_id = $this->getTypeObjectDescriptionID($this->type_id, $arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_description_id']);
+				$object_sub_details_date_start_use_object_sub_description_id = $this->getTypeObjectSubDescriptionID($this->type_id, $arr_object_sub_details['object_sub_details']['object_sub_details_id'], $arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_sub_description_id']);
+				$object_sub_details_date_start_use_object_description_id = $this->getTypeObjectDescriptionID($this->type_id, $arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_description_id']);
+				$object_sub_details_date_end_use_object_sub_description_id = $this->getTypeObjectSubDescriptionID($this->type_id, $arr_object_sub_details['object_sub_details']['object_sub_details_id'], $arr_object_sub_details['object_sub_details']['object_sub_details_date_end_use_object_sub_description_id']);
+				$object_sub_details_date_end_use_object_description_id = $this->getTypeObjectDescriptionID($this->type_id, $arr_object_sub_details['object_sub_details']['object_sub_details_date_end_use_object_description_id']);
 				$object_sub_details_location_ref_type_id = $this->getTypeID($arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id']);
 				$object_sub_details_location_ref_object_sub_details_id = $this->getTypeObjectSubDetailsID($object_sub_details_location_ref_type_id, $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_object_sub_details_id']);
 				$object_sub_details_location_use_object_sub_details_id = $this->getTypeObjectSubDetailsID($this->type_id, $arr_object_sub_details['object_sub_details']['object_sub_details_location_use_object_sub_details_id']);
 				$object_sub_details_location_use_object_sub_description_id = $this->getTypeObjectSubDescriptionID($this->type_id, $arr_object_sub_details['object_sub_details']['object_sub_details_id'], $arr_object_sub_details['object_sub_details']['object_sub_details_location_use_object_sub_description_id']);
 				$object_sub_details_location_use_object_description_id = $this->getTypeObjectDescriptionID($this->type_id, $arr_object_sub_details['object_sub_details']['object_sub_details_location_use_object_description_id']);
+				$object_sub_details_location_use_object_id = ($arr_object_sub_details['object_sub_details']['object_sub_details_location_useage'] == 'object');
 
-				$object_sub_details_has_date = true;
-				$object_sub_details_is_date_range = ($arr_object_sub_details['object_sub_details']['object_sub_details_date_type'] == 'period' || $arr_object_sub_details['object_sub_details']['object_sub_details_is_date_range']);
-				if ($arr_object_sub_details['object_sub_details']['object_sub_details_date_type'] == 'none') {
-					$object_sub_details_has_date = false;
-					$object_sub_details_is_date_range = false;
-				}
-				
-				$object_sub_details_has_location = true;
-				if ($arr_object_sub_details['object_sub_details']['object_sub_details_location_type'] == 'none') {
-					$object_sub_details_has_location = false;
-				}
-				
 				if ($arr_object_sub_details['object_sub_details']['object_sub_details_id']) {
+					
+					$object_sub_details_id = (int)$arr_object_sub_details['object_sub_details']['object_sub_details_id'];
+					
+					$arr_cur_object_sub_details = $this->arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details'];
+					
+					$str_compare = (int)$object_sub_details_date_use_object_sub_details_id
+						.'-'.(int)$object_sub_details_date_start_use_object_sub_description_id.'-'.(int)$object_sub_details_date_end_use_object_sub_description_id
+						.'-'.(int)$object_sub_details_date_start_use_object_description_id.'-'.(int)$object_sub_details_date_end_use_object_description_id
+						.'-'.(int)$object_sub_details_location_use_object_sub_details_id
+						.'-'.(int)$object_sub_details_location_use_object_sub_description_id.'-'.(int)$object_sub_details_location_use_object_description_id
+						.'-'.(int)$object_sub_details_location_use_object_id;
+						
+					$str_compare_cur = (int)$arr_cur_object_sub_details['object_sub_details_date_use_object_sub_details_id']
+						.'-'.(int)$arr_cur_object_sub_details['object_sub_details_date_start_use_object_sub_description_id'].'-'.(int)$arr_cur_object_sub_details['object_sub_details_date_end_use_object_sub_description_id']
+						.'-'.(int)$arr_cur_object_sub_details['object_sub_details_date_start_use_object_description_id'].'-'.(int)$arr_cur_object_sub_details['object_sub_details_date_end_use_object_description_id']
+						.'-'.(int)$arr_cur_object_sub_details['object_sub_details_location_use_object_sub_details_id']
+						.'-'.(int)$arr_cur_object_sub_details['object_sub_details_location_use_object_sub_description_id'].'-'.(int)$arr_cur_object_sub_details['object_sub_details_location_use_object_description_id']
+						.'-'.(int)$arr_cur_object_sub_details['object_sub_details_location_use_object_id'];
+					
+					if ($str_compare != $str_compare_cur) {
+						
+						$arr_touched_cache_object_sub_details_ids[] = $object_sub_details_id;
+					}
 					
 					$res = DB::query("UPDATE ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DETAILS')." SET
 							name = '".DBFunctions::strEscape($arr_object_sub_details['object_sub_details']['object_sub_details_name'])."',
-							is_unique = ".DBFunctions::escapeAs($arr_object_sub_details['object_sub_details']['object_sub_details_is_unique'], DBFunctions::TYPE_BOOLEAN).",
+							is_single = ".DBFunctions::escapeAs($arr_object_sub_details['object_sub_details']['object_sub_details_is_single'], DBFunctions::TYPE_BOOLEAN).",
 							is_required = ".DBFunctions::escapeAs($arr_object_sub_details['object_sub_details']['object_sub_details_is_required'], DBFunctions::TYPE_BOOLEAN).",
 							".($clearance_view !== null ? 
 								"clearance_edit = ".$clearance_edit.",
 								clearance_view = ".$clearance_view.","
 							: "")."
 							has_date = ".DBFunctions::escapeAs($object_sub_details_has_date, DBFunctions::TYPE_BOOLEAN).",
-							is_date_range = ".DBFunctions::escapeAs($object_sub_details_is_date_range, DBFunctions::TYPE_BOOLEAN).",
+							is_date_period = ".DBFunctions::escapeAs($object_sub_details_is_date_period, DBFunctions::TYPE_BOOLEAN).",
 							date_use_object_sub_details_id = ".(int)$object_sub_details_date_use_object_sub_details_id.",
-							date_use_object_sub_description_id = ".(int)$object_sub_details_date_use_object_sub_description_id.",
-							date_use_object_description_id = ".(int)$object_sub_details_date_use_object_description_id.",
+							date_start_use_object_sub_description_id = ".(int)$object_sub_details_date_start_use_object_sub_description_id.",
+							date_start_use_object_description_id = ".(int)$object_sub_details_date_start_use_object_description_id.",
+							date_end_use_object_sub_description_id = ".(int)$object_sub_details_date_end_use_object_sub_description_id.",
+							date_end_use_object_description_id = ".(int)$object_sub_details_date_end_use_object_description_id.",
 							has_location = ".DBFunctions::escapeAs($object_sub_details_has_location, DBFunctions::TYPE_BOOLEAN).",
 							location_ref_only = ".DBFunctions::escapeAs($arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_only'], DBFunctions::TYPE_BOOLEAN).",
 							location_ref_type_id = ".(int)$object_sub_details_location_ref_type_id.",
@@ -457,32 +535,32 @@ class StoreType {
 							location_use_object_sub_details_id = ".(int)$object_sub_details_location_use_object_sub_details_id.",
 							location_use_object_sub_description_id = ".(int)$object_sub_details_location_use_object_sub_description_id.",
 							location_use_object_description_id = ".(int)$object_sub_details_location_use_object_description_id.",
-							location_use_object_id = ".($arr_object_sub_details['object_sub_details']['object_sub_details_location_useage'] == 'object' ? "TRUE" : "FALSE")."
+							location_use_object_id = ".DBFunctions::escapeAs($object_sub_details_location_use_object_id, DBFunctions::TYPE_BOOLEAN)."
 							".($this->mode == 'overwrite' ? ", sort = ".$sort : "")."
-						WHERE id = ".(int)$arr_object_sub_details['object_sub_details']['object_sub_details_id']."
+						WHERE id = ".(int)$object_sub_details_id."
 					");
-					
-					$object_sub_details_id = $arr_object_sub_details['object_sub_details']['object_sub_details_id'];
 				} else {
 					
 					$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DETAILS')."
-						(type_id, name, is_unique, is_required, clearance_edit, clearance_view,
-							has_date, is_date_range, date_use_object_sub_details_id, date_use_object_sub_description_id, date_use_object_description_id,
+						(type_id, name, is_single, is_required, clearance_edit, clearance_view,
+							has_date, is_date_period, date_use_object_sub_details_id, date_start_use_object_sub_description_id, date_start_use_object_description_id, date_end_use_object_sub_description_id, date_end_use_object_description_id,
 							has_location, location_ref_only, location_ref_type_id, location_ref_type_id_locked, location_ref_object_sub_details_id, location_ref_object_sub_details_id_locked, location_use_object_sub_details_id, location_use_object_sub_description_id, location_use_object_description_id, location_use_object_id,
 							sort
 						)
 							VALUES
 						(".$this->type_id.",
 							'".DBFunctions::strEscape($arr_object_sub_details['object_sub_details']['object_sub_details_name'])."',
-							".DBFunctions::escapeAs($arr_object_sub_details['object_sub_details']['object_sub_details_is_unique'], DBFunctions::TYPE_BOOLEAN).",
+							".DBFunctions::escapeAs($arr_object_sub_details['object_sub_details']['object_sub_details_is_single'], DBFunctions::TYPE_BOOLEAN).",
 							".DBFunctions::escapeAs($arr_object_sub_details['object_sub_details']['object_sub_details_is_required'], DBFunctions::TYPE_BOOLEAN).",
 							".(int)$clearance_edit.",
 							".(int)$clearance_view.",
 							".DBFunctions::escapeAs($object_sub_details_has_date, DBFunctions::TYPE_BOOLEAN).",
-							".DBFunctions::escapeAs($object_sub_details_is_date_range, DBFunctions::TYPE_BOOLEAN).",
+							".DBFunctions::escapeAs($object_sub_details_is_date_period, DBFunctions::TYPE_BOOLEAN).",
 							".(int)$object_sub_details_date_use_object_sub_details_id.",
-							".(int)$object_sub_details_date_use_object_sub_description_id.",
-							".(int)$object_sub_details_date_use_object_description_id.",
+							".(int)$object_sub_details_date_start_use_object_sub_description_id.",
+							".(int)$object_sub_details_date_start_use_object_description_id.",
+							".(int)$object_sub_details_date_end_use_object_sub_description_id.",
+							".(int)$object_sub_details_date_end_use_object_description_id.",
 							".DBFunctions::escapeAs($object_sub_details_has_location, DBFunctions::TYPE_BOOLEAN).",
 							".DBFunctions::escapeAs($arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_only'], DBFunctions::TYPE_BOOLEAN).",
 							".(int)$object_sub_details_location_ref_type_id.",
@@ -492,7 +570,7 @@ class StoreType {
 							".(int)$object_sub_details_location_use_object_sub_details_id.",
 							".(int)$object_sub_details_location_use_object_sub_description_id.",
 							".(int)$object_sub_details_location_use_object_description_id.",
-							".($arr_object_sub_details['object_sub_details']['object_sub_details_location_useage'] == 'object' ? "TRUE" : "FALSE").",
+							".DBFunctions::escapeAs($object_sub_details_location_use_object_id, DBFunctions::TYPE_BOOLEAN).",
 							".$sort."
 						)
 					");
@@ -537,13 +615,16 @@ class StoreType {
 							$object_sub_description_ref_type_id = 0;
 						}
 						
-						$object_sub_description_is_required = ($value['object_sub_description_is_required'] && !in_array($object_sub_description_value_type_base, ['reversal']) ? 1 : 0);
+						$object_sub_description_is_required = ($value['object_sub_description_is_required'] && !in_array($object_sub_description_value_type_base, ['reversal']) ? true : false);
 						
-						$object_sub_description_has_multi = (($value['object_sub_description_has_multi'] || $object_sub_description_value_type_base == 'reversal') ? 1 : 0);
+						$object_sub_description_has_multi = (($value['object_sub_description_has_multi'] || $object_sub_description_value_type_base == 'reversal') ? true : false);
 							
-						$object_sub_description_use_object_description_id = ($object_sub_description_value_type_base == 'object_description' ? $value['object_sub_description_use_object_description_id'] : '');
+						$object_sub_description_use_object_description_id = ($object_sub_description_value_type_base == 'object_description' ? $value['object_sub_description_use_object_description_id'] : 0);
 						
-						$object_sub_description_value_type_options = $this->parseTypeObjectDescriptionValueTypeOptions($object_sub_description_value_type_base, $object_sub_description_ref_type_id, $value['object_sub_description_value_type_options']);
+						$object_description_has_default_value = true;
+						$object_sub_description_in_name = (bool)$value['object_sub_description_in_name'];
+						
+						$object_sub_description_value_type_options = $this->parseTypeObjectDescriptionValueTypeOptions($object_sub_description_value_type_base, $object_sub_description_ref_type_id, false, $object_description_has_default_value, $object_sub_description_in_name, $value['object_sub_description_value_type_options']);
 						
 						$clearance_view = ($value['object_sub_description_clearance_view'] !== null ? (int)$value['object_sub_description_clearance_view'] : null);
 						$clearance_edit = ($value['object_sub_description_clearance_edit'] !== null ? (int)$value['object_sub_description_clearance_edit'] : null);
@@ -565,7 +646,7 @@ class StoreType {
 									is_required = ".DBFunctions::escapeAs($object_sub_description_is_required, DBFunctions::TYPE_BOOLEAN).",
 									use_object_description_id = ".(int)$object_sub_description_use_object_description_id.",
 									ref_type_id = ".(int)$object_sub_description_ref_type_id.",
-									in_name = ".DBFunctions::escapeAs($value['object_sub_description_in_name'], DBFunctions::TYPE_BOOLEAN).",
+									in_name = ".DBFunctions::escapeAs($object_sub_description_in_name, DBFunctions::TYPE_BOOLEAN).",
 									in_search = ".DBFunctions::escapeAs($value['object_sub_description_in_search'], DBFunctions::TYPE_BOOLEAN).",
 									in_overview = ".DBFunctions::escapeAs($value['object_sub_description_in_overview'], DBFunctions::TYPE_BOOLEAN)."
 									".($clearance_view !== null ? 
@@ -666,26 +747,63 @@ class StoreType {
 			");
 		}
 		
-		self::$arr_types_storage[$this->type_id] = false;	
+		// Caching & processing
+		
+		if ($arr_touched_cache_object_sub_details_ids) { // Update the state of the objects when there could be cache-related changes to their sub-objects
+			
+			$filter = new FilterTypeObjects($this->type_id, 'id');
+			$filter->setVersioning('added');
+			$filter->setFilter(['object_sub_details' => $arr_touched_cache_object_sub_details_ids]);
+			
+			$sql_table_name = $filter->storeResultTemporarily();
+			
+			StoreTypeObjects::touchTypeObjects($this->type_id, $sql_table_name);
+		}
+		
+		self::$arr_types_storage[$this->type_id] = false; // Invalidate Type configuration cache
 		
 		self::$arr_types_touched[$this->type_id] = $this->type_id;
 
 		return $this->type_id;
 	}
 	
-	protected function parseTypeObjectDescriptionValueTypeOptions($value_type_base, $ref_type_id, $arr_value_type_options) {
+	protected function parseTypeObjectDescriptionValueTypeOptions($value_type_base, $ref_type_id, $has_multi, $has_default_value, $in_name, $arr_value_type_options) {
 		
-		$str_value_type_options = '';
+		$str_value = '';
 			
 		if ($arr_value_type_options) {
+			
+			$arr_value = [];
 			
 			if (!is_array($arr_value_type_options)) {
 				$arr_value_type_options = json_decode($arr_value_type_options, true);
 			}
 			
-			$value_default = $arr_value_type_options['default'];
+			switch ($value_type_base) {
+				case 'external':
+					
+					if ($arr_value_type_options['id']) {
+						$arr_value['id'] = (int)$arr_value_type_options['id'];
+					}	
+					break;
+				case 'text_tags':
+				
+					if ($arr_value_type_options['marginalia']) {
+						$arr_value['marginalia'] = true;
+					}
+					break;
+				case 'media':
+				case 'media_external':
+				
+					if ($arr_value_type_options['display']) {
+						$arr_value['display'] = $arr_value_type_options['display'];
+					}
+					break;
+			}
 			
-			if ($value_default) {
+			$value_default = $arr_value_type_options['default']['value'];
+			
+			if ($has_default_value && $value_default) {
 					
 				if ($ref_type_id) {
 					
@@ -699,19 +817,30 @@ class StoreType {
 					}
 				}
 				
-				if ($object_description_has_multi) {
+				if ($has_multi) {
 					$value_default = array_unique(array_filter((array)$value_default));
 				}
 				
-				$arr_value_type_options['default'] = $value_default;
+				$arr_value['default']['value'] = $value_default;
 			}
 			
-			if ($arr_value_type_options) {
-				$str_value_type_options = json_encode($arr_value_type_options);
+			if ($has_multi) {
+					
+				if ($arr_value_type_options['separator']) {
+					$arr_value['separator'] = $arr_value_type_options['separator'];
+				}
+				
+				if ($in_name && $arr_value_type_options['name']['separator']) {
+					$arr_value['name']['separator'] = $arr_value_type_options['name']['separator'];
+				}
+			}
+			
+			if ($arr_value) {
+				$str_value = json_encode($arr_value);
 			}
 		}
 		
-		return $str_value_type_options;
+		return $str_value;
 	}
 	
 	public function getConvertTypeObjectDefinitions($object_description_id, $to_value_type_base) {
@@ -1245,15 +1374,62 @@ class StoreType {
 			$arr_row['is_reversal'] = DBFunctions::unescapeAs($arr_row['is_reversal'], DBFunctions::TYPE_BOOLEAN);
 			
 			$arr[$arr_row['id']] = $arr_row;
-		}		
-
+		}
+		
+		if (!$type || $type == 'system') {
+			
+			if ($type_id) {
+				
+				foreach ($arr_type_ids as $cur_type_id) {
+					
+					if ($cur_type_id < 0) {
+						
+						$arr_type = self::getSystemTypes($cur_type_id);
+						
+						if ($arr_type) {
+							$arr[$cur_type_id] = $arr_type;
+						}
+					}
+				}
+			} else {
+				
+				$arr += self::getSystemTypes();
+			}
+		}
+		
 		return ($type_id && is_numeric($type_id) ? current($arr) : $arr);
+	}
+	
+	public static function getSystemTypes($type_id = false) {
+			
+		$arr = [
+			-1 => [
+				'id' => -1,
+				'name' => getLabel('lbl_date_cycle'),
+				'is_system' => true,
+				'use_object_name' => true,
+				'object_name_in_overview' => true
+			]
+		];
+		
+		return ($type_id && is_numeric($type_id) ? $arr[$type_id] : $arr);
+	}
+	
+	public static function getTypeGroup($arr_type) {
+		
+		$str_group = ($arr_type['is_system'] ? 'system' : ($arr_type['is_reversal'] ? 'reversals' : ($arr_type['is_classification'] ? 'classifications' : 'types')));
+		
+		return $str_group;
 	}
 
 	public static function getTypeSet($type_id) {
 		
 		if (self::$arr_types_storage[$type_id]) {
 			return self::$arr_types_storage[$type_id];
+		}
+		
+		if ($type_id < 0) { // System Type
+			return self::getSystemTypeSet($type_id);
 		}
 	
 		$arr = ['definitions' => [], 'object_descriptions' => [], 'object_sub_details' => []];
@@ -1287,10 +1463,10 @@ class StoreType {
 				ORDER BY nodegoat_t_des.sort, nodegoat_to_des.sort;
 					
 			SELECT nodegoat_t.id,
-					nodegoat_tos_det.id AS object_sub_details_id, nodegoat_tos_det.name AS object_sub_details_name, nodegoat_tos_det.is_unique AS object_sub_details_is_unique, nodegoat_tos_det.is_required AS object_sub_details_is_required,
+					nodegoat_tos_det.id AS object_sub_details_id, nodegoat_tos_det.name AS object_sub_details_name, nodegoat_tos_det.is_single AS object_sub_details_is_single, nodegoat_tos_det.is_required AS object_sub_details_is_required,
 						nodegoat_tos_det.clearance_edit AS object_sub_details_clearance_edit, nodegoat_tos_det.clearance_view AS object_sub_details_clearance_view,
-						nodegoat_tos_det.has_date AS object_sub_details_has_date, nodegoat_tos_det.is_date_range AS object_sub_details_is_date_range,
-							nodegoat_tos_det.date_use_object_sub_details_id AS object_sub_details_date_use_object_sub_details_id, nodegoat_tos_det.date_use_object_sub_description_id AS object_sub_details_date_use_object_sub_description_id, nodegoat_tos_det.date_use_object_description_id AS object_sub_details_date_use_object_description_id,
+						nodegoat_tos_det.has_date AS object_sub_details_has_date, nodegoat_tos_det.is_date_period AS object_sub_details_is_date_period,
+							nodegoat_tos_det.date_use_object_sub_details_id AS object_sub_details_date_use_object_sub_details_id, nodegoat_tos_det.date_start_use_object_sub_description_id AS object_sub_details_date_start_use_object_sub_description_id, nodegoat_tos_det.date_start_use_object_description_id AS object_sub_details_date_start_use_object_description_id, nodegoat_tos_det.date_end_use_object_sub_description_id AS object_sub_details_date_end_use_object_sub_description_id, nodegoat_tos_det.date_end_use_object_description_id AS object_sub_details_date_end_use_object_description_id,
 						nodegoat_tos_det.has_location AS object_sub_details_has_location,
 							nodegoat_tos_det.location_ref_only AS object_sub_details_location_ref_only, nodegoat_tos_det.location_ref_type_id AS object_sub_details_location_ref_type_id, nodegoat_tos_det.location_ref_type_id_locked AS object_sub_details_location_ref_type_id_locked, nodegoat_tos_det.location_ref_object_sub_details_id AS object_sub_details_location_ref_object_sub_details_id, nodegoat_tos_det.location_ref_object_sub_details_id_locked AS object_sub_details_location_ref_object_sub_details_id_locked,
 								nodegoat_tos_det.location_use_object_sub_details_id AS object_sub_details_location_use_object_sub_details_id, nodegoat_tos_det.location_use_object_sub_description_id AS object_sub_details_location_use_object_sub_description_id, nodegoat_tos_det.location_use_object_description_id AS object_sub_details_location_use_object_description_id, nodegoat_tos_det.location_use_object_id AS object_sub_details_location_use_object_id,
@@ -1374,10 +1550,10 @@ class StoreType {
 
 			if (!$arr['object_sub_details'][$arr_row['object_sub_details_id']]['object_sub_details']) {
 				
-				$arr_row['object_sub_details_is_unique'] = DBFunctions::unescapeAs($arr_row['object_sub_details_is_unique'], DBFunctions::TYPE_BOOLEAN);
+				$arr_row['object_sub_details_is_single'] = DBFunctions::unescapeAs($arr_row['object_sub_details_is_single'], DBFunctions::TYPE_BOOLEAN);
 				$arr_row['object_sub_details_is_required'] = DBFunctions::unescapeAs($arr_row['object_sub_details_is_required'], DBFunctions::TYPE_BOOLEAN);
 				$arr_row['object_sub_details_has_date'] = DBFunctions::unescapeAs($arr_row['object_sub_details_has_date'], DBFunctions::TYPE_BOOLEAN);
-				$arr_row['object_sub_details_is_date_range'] = DBFunctions::unescapeAs($arr_row['object_sub_details_is_date_range'], DBFunctions::TYPE_BOOLEAN);
+				$arr_row['object_sub_details_is_date_period'] = DBFunctions::unescapeAs($arr_row['object_sub_details_is_date_period'], DBFunctions::TYPE_BOOLEAN);
 				$arr_row['object_sub_details_has_location'] = DBFunctions::unescapeAs($arr_row['object_sub_details_has_location'], DBFunctions::TYPE_BOOLEAN);
 				$arr_row['object_sub_details_location_ref_only'] = DBFunctions::unescapeAs($arr_row['object_sub_details_location_ref_only'], DBFunctions::TYPE_BOOLEAN);
 				$arr_row['object_sub_details_location_ref_type_id_locked'] = DBFunctions::unescapeAs($arr_row['object_sub_details_location_ref_type_id_locked'], DBFunctions::TYPE_BOOLEAN);
@@ -1419,6 +1595,49 @@ class StoreType {
 		return $arr;
 	}
 	
+	protected static function getSystemTypeSet($type_id) {
+			
+		$arr = [
+			'type' => [],
+			'definitions' => [], 'object_descriptions' => [], 'object_sub_details' => []
+		];
+		
+		if ($type_id == -1) {
+			
+			$arr['type'] = self::getSystemTypes($type_id);
+			
+			$arr['object_descriptions'] = [
+				-1 => [
+					'object_description_id' => -1,
+					'object_description_name' => getLabel('lbl_start'),
+					'object_description_value_type_base' => 'date',
+					'object_description_value_type' => 'date_cycle',
+					'object_description_has_multi' => true,
+					'object_description_in_name' => true,
+					'object_description_is_required' => true
+				],
+				-2 => [
+					'object_description_id' => -2,
+					'object_description_name' => getLabel('lbl_end'),
+					'object_description_value_type_base' => 'date',
+					'object_description_value_type' => 'date_compute',
+					'object_description_has_multi' => true,
+					'object_description_in_name' => true,
+					'object_description_is_required' => true
+				]
+			];
+		}
+		
+		self::$arr_types_storage[$type_id] = $arr;
+
+		return $arr;
+	}
+	
+	public static function getSystemTypeID($name) {
+		
+		return static::$arr_system_type_ids[$name];
+	}
+	
 	public static function getTypeSetFlat($type_id, $arr_options = ['object' => false, 'object_sub_details_date' => true, 'object_sub_details_location' => true, 'purpose' => '']) {
 	
 		$arr_type_set = self::getTypeSet($type_id);
@@ -1440,13 +1659,13 @@ class StoreType {
 			
 			if (keyIsUncontested('object_sub_details_date', $arr_options)) {
 				
-				if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_date'] && !$arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_sub_details_id'] && !$arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_sub_description_id'] && !$arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_description_id']) {
+				if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_date'] && !$arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_sub_details_id'] && !$arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_sub_description_id'] && !$arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_description_id']) {
 					
 					if ($arr_options['purpose'] == 'filter') {
 						$arr['object_sub_details_'.$arr_object_sub_details_id.'_date'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_date', 'name' => '['.$arr_object_sub_details['object_sub_details']['object_sub_details_name'].'] '.getLabel('lbl_date')];
 					} else {
 						$arr['object_sub_details_'.$arr_object_sub_details_id.'_date_start'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_date_start', 'name' => '['.$arr_object_sub_details['object_sub_details']['object_sub_details_name'].'] '.getLabel('lbl_date_start')]; 
-						if ($arr_object_sub_details['object_sub_details']['object_sub_details_is_date_range']) {
+						if ($arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period']) {
 							$arr['object_sub_details_'.$arr_object_sub_details_id.'_date_end'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_date_end', 'name' => '['.$arr_object_sub_details['object_sub_details']['object_sub_details_name'].'] '.getLabel('lbl_date_end')];
 						}
 					}
@@ -1486,10 +1705,10 @@ class StoreType {
 
 		$res = DB::query("SELECT
 			nodegoat_tos_det.id,
-			nodegoat_tos_det.id AS object_sub_details_id, nodegoat_tos_det.name AS object_sub_details_name, nodegoat_tos_det.is_unique AS object_sub_details_is_unique, nodegoat_tos_det.is_required AS object_sub_details_is_required,
+			nodegoat_tos_det.id AS object_sub_details_id, nodegoat_tos_det.name AS object_sub_details_name, nodegoat_tos_det.is_single AS object_sub_details_is_single, nodegoat_tos_det.is_required AS object_sub_details_is_required,
 				nodegoat_tos_det.clearance_edit AS object_sub_details_clearance_edit, nodegoat_tos_det.clearance_view AS object_sub_details_clearance_view,
-				nodegoat_tos_det.has_date AS object_sub_details_has_date, nodegoat_tos_det.is_date_range AS object_sub_details_is_date_range,
-					nodegoat_tos_det.date_use_object_sub_details_id AS object_sub_details_date_use_object_sub_details_id, nodegoat_tos_det.date_use_object_sub_description_id AS object_sub_details_date_use_object_sub_description_id, nodegoat_tos_det.date_use_object_description_id AS object_sub_details_date_use_object_description_id,
+				nodegoat_tos_det.has_date AS object_sub_details_has_date, nodegoat_tos_det.is_date_period AS object_sub_details_is_date_period,
+					nodegoat_tos_det.date_use_object_sub_details_id AS object_sub_details_date_use_object_sub_details_id, nodegoat_tos_det.date_start_use_object_sub_description_id AS object_sub_details_date_start_use_object_sub_description_id, nodegoat_tos_det.date_start_use_object_description_id AS object_sub_details_date_start_use_object_description_id, nodegoat_tos_det.date_end_use_object_sub_description_id AS object_sub_details_date_end_use_object_sub_description_id, nodegoat_tos_det.date_end_use_object_description_id AS object_sub_details_date_end_use_object_description_id,
 				nodegoat_tos_det.has_location AS object_sub_details_has_location,
 					nodegoat_tos_det.location_ref_only AS object_sub_details_location_ref_only, nodegoat_tos_det.location_ref_type_id AS object_sub_details_location_ref_type_id, nodegoat_tos_det.location_ref_type_id_locked AS object_sub_details_location_ref_type_id_locked, nodegoat_tos_det.location_ref_object_sub_details_id AS object_sub_details_location_ref_object_sub_details_id, nodegoat_tos_det.location_ref_object_sub_details_id_locked AS object_sub_details_location_ref_object_sub_details_id_locked,
 						nodegoat_tos_det.location_use_object_sub_details_id AS object_sub_details_location_use_object_sub_details_id, nodegoat_tos_det.location_use_object_sub_description_id AS object_sub_details_location_use_object_sub_description_id, nodegoat_tos_det.location_use_object_description_id AS object_sub_details_location_use_object_description_id, nodegoat_tos_det.location_use_object_id AS object_sub_details_location_use_object_id,
@@ -1502,10 +1721,10 @@ class StoreType {
 							
 		while ($arr_row = $res->fetchAssoc()) {
 			
-			$arr_row['object_sub_details_is_unique'] = DBFunctions::unescapeAs($arr_row['object_sub_details_is_unique'], DBFunctions::TYPE_BOOLEAN);
+			$arr_row['object_sub_details_is_single'] = DBFunctions::unescapeAs($arr_row['object_sub_details_is_single'], DBFunctions::TYPE_BOOLEAN);
 			$arr_row['object_sub_details_is_required'] = DBFunctions::unescapeAs($arr_row['object_sub_details_is_required'], DBFunctions::TYPE_BOOLEAN);
 			$arr_row['object_sub_details_has_date'] = DBFunctions::unescapeAs($arr_row['object_sub_details_has_date'], DBFunctions::TYPE_BOOLEAN);
-			$arr_row['object_sub_details_is_date_range'] = DBFunctions::unescapeAs($arr_row['object_sub_details_is_date_range'], DBFunctions::TYPE_BOOLEAN);
+			$arr_row['object_sub_details_is_date_period'] = DBFunctions::unescapeAs($arr_row['object_sub_details_is_date_period'], DBFunctions::TYPE_BOOLEAN);
 			$arr_row['object_sub_details_has_location'] = DBFunctions::unescapeAs($arr_row['object_sub_details_has_location'], DBFunctions::TYPE_BOOLEAN);
 			$arr_row['object_sub_details_location_ref_only'] = DBFunctions::unescapeAs($arr_row['object_sub_details_location_ref_only'], DBFunctions::TYPE_BOOLEAN);
 			$arr_row['object_sub_details_location_ref_type_id_locked'] = DBFunctions::unescapeAs($arr_row['object_sub_details_location_ref_type_id_locked'], DBFunctions::TYPE_BOOLEAN);
@@ -1617,8 +1836,8 @@ class StoreType {
 
 		$res = DB::query("SELECT nodegoat_t.label
 				FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." nodegoat_t
-			GROUP BY nodegoat_t.label
-			ORDER BY nodegoat_t.label ASC
+				GROUP BY nodegoat_t.label
+				ORDER BY nodegoat_t.label ASC
 		");
 								 
 		while ($arr_row = $res->fetchAssoc()) {
@@ -1669,6 +1888,8 @@ class StoreType {
 			'text_tags' => ['id' => 'text_tags', 'name' => getLabel('unit_data_text').' ('.getLabel('lbl_tags').' & '.getLabel('lbl_layout').')', 'table' => '', 'value' => 'value_text'],
 			'boolean' => ['id' => 'boolean', 'name' => getLabel('unit_data_boolean'), 'table' => '', 'value' => 'value_int'],
 			'date' => ['id' => 'date', 'name' => getLabel('unit_data_date'), 'table' => '', 'value' => 'value_int'],
+			'date_cycle' => ['id' => 'date_cycle', 'name' => getLabel('unit_data_date').' '.getLabel('lbl_date_cycle'), 'table' => '', 'value' => 'value_int'],
+			'date_compute' => ['id' => 'date_compute', 'name' => getLabel('unit_data_date').' '.getLabel('lbl_date_compute'), 'table' => '', 'value' => 'value_int'],
 			'media' => ['id' => 'media', 'name' => getLabel('lbl_media'), 'table' => '', 'value' => 'value'],
 			'media_external' => ['id' => 'media_external', 'name' => getLabel('lbl_media').' ('.getLabel('lbl_external').')', 'table' => '', 'value' => 'value'],
 			'external' => ['id' => 'external', 'name' => getLabel('lbl_external'), 'table' => '', 'value' => 'value'],
@@ -1715,5 +1936,86 @@ class StoreType {
 		}	
 		
 		return $arr_tables;
+	}
+	
+	public static function getValueUsage() {
+		
+		return [
+			'object' => ['id' => 'object', 'name' => getLabel('lbl_object')],
+			'object_sub_details' => ['id' => 'object_sub_details', 'name' => getLabel('lbl_object_sub')],
+			'object_sub_description' => ['id' => 'object_sub_description', 'name' => getLabel('lbl_object_sub').' '.getLabel('lbl_description')],
+			'object_description' => ['id' => 'object_description', 'name' => getLabel('lbl_object_description')],
+		];
+	}
+	
+	public static function getTimeUnits() {
+		
+		if (self::$arr_time_units) {
+			return self::$arr_time_units;
+		}
+		
+		self::$arr_time_units = [
+			'day' => ['id' => 'day', 'name' => getLabel('unit_day')],
+			'month' => ['id' => 'month', 'name' => getLabel('unit_month')],
+			'year' => ['id' => 'year', 'name' => getLabel('unit_year')]
+		];
+		
+		return self::$arr_time_units;
+	}
+	
+	public static function getTimeUnitsInternal(bool $flip = false) {
+		
+		if (self::$arr_time_units_internal[$flip]) {
+			return self::$arr_time_units_internal[$flip];
+		}
+		
+		self::$arr_time_units_internal[$flip] = ($flip ? [
+			static::TIME_UNIT_DAY => 'day',
+			static::TIME_UNIT_MONTH => 'month',
+			static::TIME_UNIT_YEAR => 'year'
+		] : [
+			'day' => static::TIME_UNIT_DAY,
+			'month' => static::TIME_UNIT_MONTH,
+			'year' => static::TIME_UNIT_YEAR
+		]);
+		
+		return self::$arr_time_units_internal[$flip];
+	}
+	
+	public static function getTimeDirections() {
+		
+		if (self::$arr_time_directions) {
+			return self::$arr_time_directions;
+		}
+		
+		self::$arr_time_directions = [
+			'|>|' => ['id' => '|>|', 'name' => getLabel('direction_after_begin')],
+			'<||' => ['id' => '<||', 'name' => getLabel('direction_before_begin')],
+			'||>' => ['id' => '||>', 'name' => getLabel('direction_after_end')],
+			'|<|' => ['id' => '|<|', 'name' => getLabel('direction_before_end')]
+		];
+		
+		return self::$arr_time_directions;
+	}
+	
+	public static function getTimeDirectionsInternal(bool $flip = false) {
+		
+		if (self::$arr_time_directions_internal[$flip]) {
+			return self::$arr_time_directions_internal[$flip];
+		}
+		
+		self::$arr_time_directions_internal[$flip] = ($flip ? [
+			static::TIME_AFTER_BEGIN => '|>|',
+			static::TIME_BEFORE_BEGIN => '<||',
+			static::TIME_AFTER_END => '||>',
+			static::TIME_BEFORE_END => '|<|'
+		] : [
+			'|>|' => static::TIME_AFTER_BEGIN,
+			'<||' => static::TIME_BEFORE_BEGIN,
+			'||>' => static::TIME_AFTER_END,
+			'|<|' => static::TIME_BEFORE_END
+		]);
+				
+		return self::$arr_time_directions_internal[$flip];
 	}
 }

@@ -105,8 +105,11 @@ class ui_data extends base_module {
 				$arr_type = $arr_public_user_interface['project_types'][$public_user_interface_active_custom_project_id][current($arr_public_interface_project_types)];
 			}
 			
-
-			if (!$data_display_mode && !$arr_public_user_interface_module_vars['display_mode']) {
+			if (!$data_display_mode && $arr_public_user_interface_module_vars['display_mode']) {
+				
+				$data_display_mode = $arr_public_user_interface_module_vars['display_mode'];
+				
+			} else if (!$data_display_mode && !$arr_public_user_interface_module_vars['display_mode']) {
 
 				foreach ((array)$arr_type as $key => $value) {
 					
@@ -124,7 +127,7 @@ class ui_data extends base_module {
 			
 		}
 			
-		$filter_is_active = ui::isFilterActive(true);
+		$filter_is_active = ui::isFilterActive(true, $data_display_mode);
 
 		$options = [];
 	
@@ -263,7 +266,8 @@ class ui_data extends base_module {
 		
 		$public_user_interface_active_custom_project_id = SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
 		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds($public_user_interface_id, $public_user_interface_active_custom_project_id, false);
-	
+		$arr_public_interface_settings = cms_nodegoat_public_interfaces::getPublicInterfaceSettings($public_user_interface_id);	
+		
 		if (SiteStartVars::getFeedback('scenario_id') || SiteStartVars::getFeedback('type_id')) {
 			
 			$arr['set'] = true;
@@ -323,7 +327,21 @@ class ui_data extends base_module {
 					
 					continue;
 				}
-			
+				
+				$browse_scope_id = (is_array($arr_public_interface_settings['projects'][$public_user_interface_active_custom_project_id]['scope'][$type_id]['browse']) ? $arr_public_interface_settings['projects'][$public_user_interface_active_custom_project_id]['scope'][$type_id]['browse'][$data_display_mode] : false);
+				
+				if (!$scenario_id && $browse_scope_id) {
+
+					SiteEndVars::setFeedback('scope_id', $browse_scope_id, true);
+					
+					$arr_object_filter = self::getScopeDateFilter($type_id, $browse_scope_id);
+					
+					if (count($arr_object_filter)) {
+						
+						$arr_type_filter['object_filter'][] = $arr_object_filter;
+					}	
+				}		
+					
 				$filter = new FilterTypeObjects($type_id, 'id');
 				$filter->setFilter($arr_type_filter);
 				$arr_info = $filter->getResultInfo();
@@ -365,6 +383,47 @@ class ui_data extends base_module {
 
 		return $arr;
 	}
+	
+	public static function getScopeDateFilter($type_id, $scope_id) {
+	
+		$public_user_interface_id = SiteStartVars::getFeedback('public_user_interface_id');
+		$public_user_interface_active_custom_project_id = SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+		$arr_project = cms_nodegoat_custom_projects::getProjects($public_user_interface_active_custom_project_id);
+					
+		$arr_scope = data_visualise::getTypeScope($type_id);
+		
+		$filter_date_start = SiteStartVars::getFeedback('filter_date_start');
+		$filter_date_end = SiteStartVars::getFeedback('filter_date_end');
+		
+		$arr_object_filter = [];
+		
+		if ($arr_scope['paths'] && ($filter_date_start || $filter_date_end)) {
+						
+			$trace = new TraceTypeNetwork(array_keys($arr_project['types']), true, true);
+			$trace->filterTypeNetwork($arr_scope['paths']);
+			$trace->run($type_id, false, 3);
+			$arr_type_network_paths = $trace->getTypeNetworkPaths(true);
+
+			$collect = new CollectTypeObjects($arr_type_network_paths, 'visualise');
+			$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($public_user_interface_active_custom_project_id), 'project_id' => $public_user_interface_active_custom_project_id]);
+			$collect->init([], false);
+				
+			$arr_collect_info = $collect->getResultInfo();
+			
+			foreach ($arr_collect_info['types'] as $reference_type_id => $arr_reference) {
+			
+				if ($reference_type_id == $type_id) {
+					continue;
+				}
+				
+				$arr_object_filter = ['type_id' => $type_id, 'options' => ['operator' => 'and'], 'referenced_types' => [$reference_type_id => ['any' => [[['object_filter' => [['object_subs' => [['object_sub_dates' => [['object_sub_date_type' => 'range', 'object_sub_date_from' => $filter_date_start, 'object_sub_date_to' => $filter_date_end]]]]]]]]]]]];
+
+			}
+		}
+		
+		return $arr_object_filter;		
+	
+	}
 
 	private function createVisualisation($explore_object_id) {
 
@@ -398,7 +457,7 @@ class ui_data extends base_module {
 	
 			$explore_scope_id = (is_array($arr_public_interface_settings['projects'][$public_user_interface_active_custom_project_id]['scope'][$type_id]['explore']) ? $arr_public_interface_settings['projects'][$public_user_interface_active_custom_project_id]['scope'][$type_id]['explore'][$data_display_mode] : false);
 
-			if ($explore_scope_id) {
+			if ($explore_scope_id) {		
 				
 				SiteEndVars::setFeedback('scope_id', $explore_scope_id, true);
 			}
@@ -431,6 +490,13 @@ class ui_data extends base_module {
 			if (!$scenario_id && $browse_scope_id) {
 
 				SiteEndVars::setFeedback('scope_id', $browse_scope_id, true);
+				
+				$arr_object_filter = self::getScopeDateFilter($type_id, $browse_scope_id);
+				
+				if (count($arr_object_filter)) {
+					
+					$arr_filters['object_filter'][] = $arr_object_filter;
+				}	
 			}
 		}
 		
@@ -439,7 +505,7 @@ class ui_data extends base_module {
 		$arr_conditions = toolbar::getTypeConditions($type_id);
 		$arr_frame = data_visualise::getTypeFrame($type_id);
 		$arr_visual_settings = data_visualise::getVisualSettings();
-	
+
 		$scenario_hash = toolbar::checkActiveScenario('visualise', $arr_filters, $arr_scope, $arr_conditions);
 
 		$identifier_data = $type_id.'_'.md5(serialize($arr_filters).'_'.serialize($arr_scope).'_'.serialize($arr_context).'_'.serialize($arr_conditions));
@@ -449,7 +515,7 @@ class ui_data extends base_module {
 		
 		if ($has_data) {
 			
-			$is_updated = FilterTypeObjects::getTypesUpdatedSince($value['identifier']['date'], cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), true);
+			$is_updated = FilterTypeObjects::getTypesUpdatedAfter($value['identifier']['date'], cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), true);
 			
 			if ($is_updated) {
 				
@@ -463,7 +529,7 @@ class ui_data extends base_module {
 		
 		$arr_types_all = StoreType::getTypes();
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
-		$create_visualisation_package = new createVisualisationPackage($arr_project, $arr_types_all, $arr_frame, $arr_visual_settings);
+		$create_visualisation_package = new CreateVisualisationPackage($arr_project, $arr_types_all, $arr_frame, $arr_visual_settings);
 		$create_visualisation_package->setOutput($arr);
 
 		if (!$has_data) {
@@ -476,8 +542,13 @@ class ui_data extends base_module {
 				
 				if ($arr_scenario['cache_retain']) {
 					
-					memoryBoost(2048);
-					timeLimit(120);
+					$arr_nodegoat_details = cms_nodegoat_details::getDetails();
+					if ($arr_nodegoat_details['processing_time']) {
+						timeLimit($arr_nodegoat_details['processing_time']);
+					}
+					if ($arr_nodegoat_details['processing_memory']) {
+						memoryBoost($arr_nodegoat_details['processing_memory']);
+					}
 				}
 			}
 
@@ -689,7 +760,6 @@ class ui_data extends base_module {
 			}
 			
 			if (!count((array)$arr_type_objects)) {
-				
 				return false;
 			}
 		}
@@ -719,7 +789,7 @@ class ui_data extends base_module {
 				$arr_tag_tabs = [];
 				
 				$i = 2;
-				
+								
 				foreach ((array)$arr_types_objects as $ref_type_id => $arr_objects) {
 
 					$arr_type_set = StoreType::getTypeSet($ref_type_id);
@@ -753,8 +823,6 @@ class ui_data extends base_module {
 						'.implode('', $arr_tag_tabs['content']).'
 					</div>';
 				}
-
-				
 			} else {
 				
 				$i = 0;
@@ -767,9 +835,7 @@ class ui_data extends base_module {
 						 break;
 					 }
 				}
-			
 			}
-			
 		}
 		
 		return '<div data-method="view_object">'.$return.'</div>';
@@ -925,22 +991,22 @@ class ui_data extends base_module {
 				
 			}
 
-			$return = '<div data-method="view_object" data-location="'.SiteEndVars::getModLocation(0, [$public_user_interface_id, $public_user_interface_active_custom_project_id, 'object', $location_id]).'" data-type_id="'.$type_id.'" data-object_id="'.$object_id.'">
-						<div class="head">
-							'.($arr_object['object_thumbnail'] ? '<div class="object-thumbnail-image" style="background-image: url('.$arr_object['object_thumbnail'].');"></div>' : '').'
-							<h1>'.$arr_object['object']['object_name'].'</h1>
-							<div class="navigation-buttons">
-								<button class="prev" type="button">
-									<span class="icon">'.getIcon('prev').'</span>
-								</button><button class="next" type="button">
-									<span class="icon">'.getIcon('next').'</span>
-								</button><button class="close" type="button">
-									<span class="icon">'.getIcon('close').'</span>
-								</button>
-							</div>
-						</div>
-						'.$elm_object.'
-					</div>';
+			$return = '<div data-method="view_object" data-location="'.SiteEndVars::getModLocation(0, [$public_user_interface_id, $public_user_interface_active_custom_project_id, 'object', $location_id]).'" data-type_id="'.$type_id.'" data-object_id="'.$object_id.'" data-nodegoat_id="'.GenerateTypeObjects::encodeTypeObjectId($type_id, $object_id).'">
+				<div class="head">
+					'.($arr_object['object_thumbnail'] ? '<div class="object-thumbnail-image" style="background-image: url('.$arr_object['object_thumbnail'].');"></div>' : '').'
+					<h1>'.$arr_object['object']['object_name'].'</h1>
+					<div class="navigation-buttons">
+						<button class="prev" type="button">
+							<span class="icon">'.getIcon('prev').'</span>
+						</button><button class="next" type="button">
+							<span class="icon">'.getIcon('next').'</span>
+						</button><button class="close" type="button">
+							<span class="icon">'.getIcon('close').'</span>
+						</button>
+					</div>
+				</div>
+				'.$elm_object.'
+			</div>';
 		}
 		
 		$_SESSION['custom_projects']['project_id'] = SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
@@ -976,7 +1042,7 @@ class ui_data extends base_module {
 			
 			$arr_object_definition = $arr_object['object_definitions'][$object_description_id];
 			
-			if ((!$arr_object_definition['object_definition_value'] && !$arr_object_definition['object_definition_ref_object_id']) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
+			if ((!$arr_object_definition['object_definition_value'] && !$arr_object_definition['object_definition_ref_object_id']) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
 				continue;
 			}
 			
@@ -1062,20 +1128,18 @@ class ui_data extends base_module {
 					} else if ($arr_object_description['object_description_value_type_base'] == 'type') {
 						
 						$elm_type_object_descriptions .= '<li data-object_description_id="'.$object_description_id.'"  class="'.$arr_object_description['object_description_value_type_base'].'">
-									<dt>'.$str_name.':</dt>
-									<dd>'.$elms.'</dd>
-								</li>';
+							<dt>'.$str_name.':</dt>
+							<dd>'.$elms.'</dd>
+						</li>';
 								
 					} else if ($arr_object_description['object_description_value_type_base'] == 'classification') {
 						
 						$elm_classification_object_descriptions .= '<li data-object_description_id="'.$object_description_id.'"  class="'.$arr_object_description['object_description_value_type_base'].'">
-									<dt>'.$str_name.':</dt>
-									<dd>'.$elms.'</dd>
-								</li>';					
+							<dt>'.$str_name.':</dt>
+							<dd>'.$elms.'</dd>
+						</li>';					
 					}
-					
 				}
-				
 			} else {
 				
 				$html_value = arrParseRecursive($arr_object_definition['object_definition_value'], ['Labels', 'parseLanguage']);
@@ -1114,9 +1178,7 @@ class ui_data extends base_module {
 							}
 						}													
 					}
-					
 
-					
 				} else {
 					
 					$arr_pdf_values['values'][$object_description_id][] = $html_value;
@@ -1136,7 +1198,7 @@ class ui_data extends base_module {
 			
 			foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 				
-				if (!$arr_object['object_subs_info'][$object_sub_details_id] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+				if (!$arr_object['object_subs_info'][$object_sub_details_id] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
 					continue;
 				}
 				
@@ -1145,7 +1207,7 @@ class ui_data extends base_module {
 				$arr_columns = [];
 				foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 					
-					if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+					if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 						continue;
 					}
 					
@@ -1153,9 +1215,11 @@ class ui_data extends base_module {
 							
 					$arr_columns[] = '<th class="limit'.($arr_object_sub_description['object_sub_description_value_type'] == 'date' ? ' date' : '').'">'.($arr_object_sub_description['object_sub_description_is_referenced'] ? '<span><span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.$str_name.'</span></span>' : '<span>'.$str_name.'</span>').'</th>';
 				}
+			
+				$arr_pdf_values['object_subs'][] = $object_sub_details_id;
 				
 				$return_content = '<div>
-					<table class="display" id="d:data_view:data_object_sub_details-'.$type_id.'_'.$object_id.'_'.$object_sub_details_id.'_1" data-pause="1" data-filter="0" data-search="0">
+					<table class="display" id="d:data_view:data_object_sub_details-'.$type_id.'_'.$object_id.'_'.$object_sub_details_id.'_0_0_1" data-pause="1" data-filter="0" data-search="0">
 						<thead><tr><th class="date" data-sort="asc-0"><span>'.getLabel('lbl_date_start').'</span></th><th class="date"><span>'.getLabel('lbl_date_end').'</span></th><th class="limit disable-sort"></th><th class="max limit disable-sort"><span>'.getLabel('lbl_location').'</span></th>'
 							.implode('', $arr_columns)
 						.'</tr></thead>
@@ -1175,7 +1239,7 @@ class ui_data extends base_module {
 				array_unshift($arr_object_sub_tabs['links'], '<li><a href="#">'.getLabel('lbl_object_subs').': '.getLabel('lbl_overview').'</a></li>');
 				
 				$return_content = '<div>
-					<table class="display" id="d:data_view:data_object_sub_details-'.$type_id.'_'.$object_id.'_all_1" data-pause="0" data-filter="0" data-search="0">
+					<table class="display" id="d:data_view:data_object_sub_details-'.$type_id.'_'.$object_id.'_all_0_0_1" data-pause="0" data-filter="0" data-search="0">
 						<thead><tr><th class="limit"></th><th class="date" data-sort="asc-0"><span>'.getLabel('lbl_date_start').'</span></th><th class="date"><span>'.getLabel('lbl_date_end').'</span></th><th class="limit disable-sort"></th><th class="max limit disable-sort"><span>'.getLabel('lbl_location').'</span></th></tr></thead>
 						<tbody>
 							<tr>
@@ -1227,45 +1291,45 @@ class ui_data extends base_module {
 		if (!$print) {
 			
 			$elm_object = '<menu class="buttons">
-					<button class="'.($arr_public_interface_settings['selection'] ? '' : 'hide').' selection-add-elm" value="" type="button" data-elm_id="'.$type_id.'_'.$object_id.'" data-elm_type="object" data-elm_name="'.$arr_object['object']['object_name'].'" data-elm_thumbnail="'.$arr_object['object_thumbnail'].'">
-						<span class="icon">'.getIcon('download').'</span>
-					</button><button class="print '.($arr_public_interface_settings['print_object'] ? '' : 'hide').'" value="" title="'.getLabel('lbl_print').' '.$arr_object['object']['object_name'].'"  type="button" data-href="'.SiteStartVars::getBasePath(0, false).SiteStartVars::$page['name'].'.p/'.$public_user_interface_id.'/'.$public_user_interface_active_custom_project_id.'/object-print/'.$type_id.'-'.$object_id.'">
-						<span class="icon">'.getIcon('print').'</span>
-					</button><button class="url quick '.($arr_public_interface_settings['show_object_url'] ? '' : 'hide').'" id="y:ui_data:object_url-get_'.$type_id.'_'.$object_id.'" value="" title="'.getLabel('lbl_show').' '.getLabel('lbl_URL').'" type="button">
-						<span class="icon">'.getIcon('link').'</span>
-					</button><button class="share quick '.($arr_public_interface_settings['share_object_url'] ? '' : 'hide').'" id="y:ui_data:object_url-share_'.$type_id.'_'.$object_id.'" value="" title="'.getLabel('lbl_share').' '.$arr_object['object']['object_name'].'" type="button">
-						<span class="icon">'.getIcon('users').'</span>
-					</button>
-				</menu>';
+				<button class="'.($arr_public_interface_settings['selection'] ? '' : 'hide').' selection-add-elm" value="" type="button" data-elm_id="'.$type_id.'_'.$object_id.'" data-elm_type="object" data-elm_name="'.$arr_object['object']['object_name'].'" data-elm_thumbnail="'.$arr_object['object_thumbnail'].'">
+					<span class="icon">'.getIcon('download').'</span>
+				</button><button class="print '.($arr_public_interface_settings['print_object'] ? '' : 'hide').'" value="" title="'.getLabel('lbl_print').' '.$arr_object['object']['object_name'].'"  type="button" data-href="'.SiteStartVars::getBasePath(0, false).SiteStartVars::$page['name'].'.p/'.$public_user_interface_id.'/'.$public_user_interface_active_custom_project_id.'/object-print/'.$type_id.'-'.$object_id.'">
+					<span class="icon">'.getIcon('print').'</span>
+				</button><button class="url quick '.($arr_public_interface_settings['show_object_url'] ? '' : 'hide').'" id="y:ui_data:object_url-get_'.$type_id.'_'.$object_id.'" value="" title="'.getLabel('lbl_show').' '.getLabel('lbl_URL').'" type="button">
+					<span class="icon">'.getIcon('link').'</span>
+				</button><button class="share quick '.($arr_public_interface_settings['share_object_url'] ? '' : 'hide').'" id="y:ui_data:object_url-share_'.$type_id.'_'.$object_id.'" value="" title="'.getLabel('lbl_share').' '.$arr_object['object']['object_name'].'" type="button">
+					<span class="icon">'.getIcon('users').'</span>
+				</button>
+			</menu>';
 		}
 			
 		$elm_object .= '<ul>
-				<li class="media">
-					'.$elm_media_object_descriptions.'
-				</li>
-				<li class="related-media">
-					'.$elm_related_media_object_descriptions.'
-				</li>
-				<li class="keywords">
-					'.$elm_keyword_object_descriptions.'
-				</li>
-				<li class="object-descriptions">
-					<dl>'.
-							$elm_type_object_descriptions.
-							$elm_classification_object_descriptions.
-							$elm_value_object_descriptions.
-					'</dl>
-				</li>
-				<li class="object-subs">
-					'.$elm_object_subs.'
-				</li>
-				<li class="sources">
-					'.$elm_object_sources.'
-				</li>
-				<li class="cite-as">
-					'.$citation_elm.'
-				</li>
-			</ul>';
+			<li class="media">
+				'.$elm_media_object_descriptions.'
+			</li>
+			<li class="related-media">
+				'.$elm_related_media_object_descriptions.'
+			</li>
+			<li class="keywords">
+				'.$elm_keyword_object_descriptions.'
+			</li>
+			<li class="object-descriptions">
+				<dl>'.
+						$elm_type_object_descriptions.
+						$elm_classification_object_descriptions.
+						$elm_value_object_descriptions.
+				'</dl>
+			</li>
+			<li class="object-subs">
+				'.$elm_object_subs.'
+			</li>
+			<li class="sources">
+				'.$elm_object_sources.'
+			</li>
+			<li class="cite-as">
+				'.$citation_elm.'
+			</li>
+		</ul>';
 
 		return ($print === 'pdf' ? $arr_pdf_values : $elm_object);
 	}
@@ -1378,12 +1442,15 @@ class ui_data extends base_module {
 			$arr_filter_id = explode('_', $filter_id);		
 			
 			$target_type_id = $arr_filter_id[0];
-			$object_description_id = $arr_filter_id[2];
-			$object_description_reference_type_id = $arr_filter_id[3];		
+			$element = $arr_filter_id[1];
 			
-
-			$arr_filter['object_filter'] = [['referenced_types' => [$target_type_id => ['object_definitions' => [$object_description_id => ['objects' => ['relationality' => ['equality' => '≥', 'value' => 1, 'range' => '']]]]]]]];
-			
+			if ($element == 'OD') {
+				
+				$object_description_id = $arr_filter_id[2];
+				$object_description_reference_type_id = $arr_filter_id[3];	
+				$arr_filter['object_filter'] = [['referenced_types' => [$target_type_id => ['object_definitions' => [$object_description_id => ['objects' => ['relationality' => ['equality' => '≥', 'value' => 1, 'range' => '']]]]]]]];
+				
+			}
 		}
 		
 		foreach ((array)$arr_public_interface_project_filter_types as $type_id) {
@@ -1408,7 +1475,7 @@ class ui_data extends base_module {
 					$result .= '<li data-type_id="'.$arr_keyword['object']['type_id'].'" data-object_id="'.$arr_keyword['object']['object_id'].'" class="keyword type-'.$arr_keyword['object']['type_id'].'">'.$arr_keyword['object']['object_name'].'</li><li class="separator"></li>';
 				}
 				$result .= '</ul>
-				</li>';
+			</li>';
 				
 		}
 
@@ -1465,7 +1532,6 @@ class ui_data extends base_module {
 				.'</div>'; 
 		
 		return $return;
-		
 	}
 	
 	public static function handleFeedbackFilter($type_id, $arr_filter) {
@@ -1522,7 +1588,7 @@ class ui_data extends base_module {
 				
 				foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 				
-					if (!$arr_object_description['object_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+					if (!$arr_object_description['object_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
 						continue;
 					}
 					
@@ -1563,7 +1629,9 @@ class ui_data extends base_module {
 					}
 					
 					if (!elm_scripter.children().length) {
+					
 						return;
+						
 					}
 
 					elm_ui.find('.project-dynamic-nav, .tools').attr('data-object_active', true);
@@ -1593,7 +1661,8 @@ class ui_data extends base_module {
 
 							if (!elm_ui.find('.data .objects').children().length) {
 								
-								elm_ui.find('[id^=y\\\:ui\\\:set_project-].active').trigger('click');
+								var elm_set_project = (elm_ui.find('[id^=y\\\:ui\\\:set_project-].active').length ? elm_ui.find('[id^=y\\\:ui\\\:set_project-].active') : elm_ui.find('[id=y\\\:ui\\\:set_project-0]'));
+								elm_set_project.trigger('click');
 								elm_ui.find('.project-dynamic-nav, .tools').attr('data-object_active', false);
 								
 							} else if (!elm_scripter.siblings().length) {
@@ -1607,12 +1676,14 @@ class ui_data extends base_module {
 						}
 												
 						elm_scripter.remove();
+						
 					}).on('click', '[id^=y\\\:ui_data\\\:show_project_type_object-]', function() {
 					
 						var elm_object = elm_ui.find('.object');	
 						$(this).quickCommand(elm_object, {'html': 'append'});
 						
 						elm_object[0].elm_prevnext = false;
+
 					}).on('open', '.tabs.object-view > div', function(e) {
 			
 						if (e.target != e.currentTarget) {
@@ -1625,6 +1696,7 @@ class ui_data extends base_module {
 						
 							elm_tab.quickCommand(elm_tab).removeAttr('id');
 						}
+						
 					}).on('click', '[id^=y\\\:ui_data\\\:visualize_explore_object]', function() {
 
 						$(this).quickCommand(elm_ui.find('.explore-object'));
@@ -1736,6 +1808,7 @@ class ui_data extends base_module {
 								if (!$(this).is('tr') && $(this).closest('.object-subs').length) {
 								
 									$(this).removeClass('popup a');
+									
 								} else if (!$(this).is('tr') || $(this).attr('data-method') == 'view_type_object') {
 								
 									$(this).removeClass('popup').addClass('a quick');
@@ -1743,8 +1816,7 @@ class ui_data extends base_module {
 							});
 						});
 					});
-						
-										
+			
 					elm_scripter.find('.body .tag').each(function() {
 						
 						var elm_tag = $(this);
@@ -1778,6 +1850,7 @@ class ui_data extends base_module {
 								
 									elm_object.quickCommand(elm_object, {'html': 'append'});
 									elm_object_thumbnail.html('');
+									
 								}).on('click', 'button', function() {
 								
 									elm_object_thumbnail.html('');
@@ -1853,8 +1926,7 @@ class ui_data extends base_module {
 						
 						if (arr_options['filtered']) {	
 							elm_ui.find('.project-filters').attr('data-active', true);
-						} 
-
+						}
 					}
 					
 					var func_handle_click = function(elm_map) {
@@ -2042,6 +2114,7 @@ class ui_data extends base_module {
 								
 									elm_object.quickCommand(elm_object, {'html': 'append'});
 									elm_object_thumbnail.html('');
+									
 								}).on('click', 'button', function() {
 								
 									elm_object_thumbnail.html('');
@@ -2216,7 +2289,7 @@ class ui_data extends base_module {
 								
 									obj_device_location.addLabMapListener(obj_data.identifier, elm_map);
 								}
-							}							
+							}
 						};
 						
 						if (!explore_object) {
@@ -2259,6 +2332,7 @@ class ui_data extends base_module {
 									if (!explore_object) {
 										cur.parent()[0].obj_data = obj_data;
 									}
+									
 								} else {
 									for (var key in data) {
 										$.extend(obj_data[key], data[key]);
@@ -2274,6 +2348,7 @@ class ui_data extends base_module {
 								}
 								
 								func_visualise();
+								
 							});
 						} else {
 							func_visualise();
@@ -2300,12 +2375,14 @@ class ui_data extends base_module {
 
 								elm_button.data({value: 'html'}).quickCommand(cur.parent());	
 							}
+							
 						} else {
 
 							elm_button.data({value: 'html'}).quickCommand(cur.parent());
 						}	
 					});
-
+					
+					
 					cur.find('[id^=y\\\:ui\\\:view_text-]').each(function() {
 						COMMANDS.setTarget($(this), elm_ui.find('div.fixed-view-container'));
 					});
@@ -2375,11 +2452,13 @@ class ui_data extends base_module {
 							var elm_object = elm_ui.find('.object');
 							$(this).data({target: elm_object, options: {'html': 'append'}});
 							elm_object[0].elm_prevnext = $(this);
-						});	
+						});
+									
 					} else if (elm_new_data.length) { // GRID
 					
 						elm_previous_data.empty();
 						func_load_grid_data(elm_new_data, false);
+							
 					} else if (!elm_new_data.length) {
 					
 						elm_previous_data.empty();
@@ -2716,7 +2795,7 @@ class ui_data extends base_module {
 			$type_id = (int)$arr_id[0];
 			$feedback_filter_key = (int)$arr_id[1];
 
-			if (!custom_projects::checkAccesType($type_id)) {
+			if (!custom_projects::checkAccessType('view', $type_id)) {
 				return;
 			}
 			
@@ -2736,13 +2815,13 @@ class ui_data extends base_module {
 				
 			$filter = new FilterTypeObjects($type_id, 'overview', true);
 			$filter->setConditions('style', toolbar::getTypeConditions($type_id));
-			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($public_user_interface_active_custom_project_id)]);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($public_user_interface_active_custom_project_id), 'project_id' => $public_user_interface_active_custom_project_id]);
 
 			$arr_selection = [['object' => true, 'object_descriptions' => [], 'object_sub_details' => []]];
 			
 			foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 				
-				if (!$arr_object_description['object_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+				if (!$arr_object_description['object_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
 					continue;
 				}
 				
@@ -2962,7 +3041,7 @@ class ui_data extends base_module {
 
 		$filter = new FilterTypeObjects($type_id, 'all', false, $arr_type_set);			
 		$filter->setVersioning('added');
-		$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids]);
+		$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids, 'project_id' => $public_user_interface_active_custom_project_id]);
 		$filter->setSelection(['object_sub_details' => []]);
 		
 		$filter->setFilter(['objects' => $object_id]);
@@ -2975,6 +3054,7 @@ class ui_data extends base_module {
 				
 				$arr_project_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($public_user_interface_active_custom_project_id, false, false, $arr_project['types'][$type_id]['type_filter_id'], true, $arr_use_project_ids);
 				$filter->setFilter(FilterTypeObjects::convertFilterInput($arr_project_filters['object']));
+				
 			}
 		}
 
@@ -2997,9 +3077,9 @@ class ui_data extends base_module {
 		// all in en out refs and store them!
 		$arr_filter = ['referenced_object' => ['object_id' => [$object_id]]];
 		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds($public_user_interface_id);		
-		$arr_reference_type_ids = array_unique(array_merge($arr_public_interface_project_types, $arr_public_interface_settings['types']['central_types'], $arr_public_interface_settings['types']['exploration_types']));
+		$arr_reference_type_ids = arrMergeValues([$arr_public_interface_project_types, $arr_public_interface_settings['types']['central_types'], $arr_public_interface_settings['types']['exploration_types']]);
 		
-		foreach ((array)$arr_reference_type_ids as $ref_type_id) {
+		foreach ($arr_reference_type_ids as $ref_type_id) {
 			
 			$arr_object['object_referenced'][$ref_type_id] = self::getTypeObjectIds($ref_type_id, $arr_filter, false);
 			
@@ -3025,7 +3105,7 @@ class ui_data extends base_module {
 				
 				$arr_object_definition = $arr_object['object_definitions'][$object_description_id];
 				
-				if ((!$arr_object_definition['object_definition_value'] && !$arr_object_definition['object_definition_ref_object_id']) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
+				if ((!$arr_object_definition['object_definition_value'] && !$arr_object_definition['object_definition_ref_object_id']) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
 					continue;
 				}
 				
@@ -3089,7 +3169,7 @@ class ui_data extends base_module {
 		if (!$arr_reference_type_ids) {
 						
 			$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds($public_user_interface_id);		
-			$arr_reference_type_ids = array_unique(array_merge($arr_public_interface_project_types, $arr_public_interface_settings['types']['central_types'], $arr_public_interface_settings['types']['exploration_types']));		
+			$arr_reference_type_ids = arrMergeValues([$arr_public_interface_project_types, $arr_public_interface_settings['types']['central_types'], $arr_public_interface_settings['types']['exploration_types']]);		
 		}
 		
 		if ($merge) {
@@ -3134,7 +3214,7 @@ class ui_data extends base_module {
 				
 				$arr_object_definition = $arr_object['object_definitions'][$object_description_id];
 				
-				if ((!$arr_object_definition['object_definition_value'] && !$arr_object_definition['object_definition_ref_object_id']) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkClearanceTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
+				if ((!$arr_object_definition['object_definition_value'] && !$arr_object_definition['object_definition_ref_object_id']) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
 					continue;
 				}
 				
@@ -3193,7 +3273,6 @@ class ui_data extends base_module {
 		}
 		
 		return $arr;
-		
 	}
 	
 	public static function getPublicInterfaceObjects($arr_type_ids = false, $arr_filter = false, $mix_types = true, $max = false, $min = false, $sort = true, $options = []) {
@@ -3224,7 +3303,7 @@ class ui_data extends base_module {
 				
 				$sort_on_analysis = true;
 
-				$arr_analysis = cms_nodegoat_custom_projects::getProjectTypeAnalyses($public_user_interface_active_custom_project_id, 0, $type_id, $analysis_order_id, false);
+				$arr_analysis = cms_nodegoat_custom_projects::getProjectTypeAnalyses($public_user_interface_active_custom_project_id, $_SESSION['USER_ID'], $type_id, $analysis_order_id, false);
 				$arr_selection['object']['analysis'][] = ['analysis_id' => $arr_analysis['id'], 'user_id' => $arr_analysis['user_id']];
 				
 			}
@@ -3239,7 +3318,7 @@ class ui_data extends base_module {
 				$filter = new FilterTypeObjects($type_id, 'name');
 			}
 			
-			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($public_user_interface_active_custom_project_id)]);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($public_user_interface_active_custom_project_id), 'project_id' => $public_user_interface_active_custom_project_id]);
 			
 			//Check if a project filter is present and if so set it
 			if ($arr_project['types'][$type_id]['type_filter_id']) {
@@ -3326,11 +3405,7 @@ class ui_data extends base_module {
 	}
 	
 	private static function getObjectsThumbnail($arr_objects) {
-		
-		$public_user_interface_id = SiteStartVars::getFeedback('public_user_interface_id');			
-		$arr_public_interface_settings = cms_nodegoat_public_interfaces::getPublicInterfaceSettings($public_user_interface_id);		
-		$arr_type_media_objects = [];
-		
+			
 		foreach ($arr_objects as $object_id => $arr_object) {
 			
 			$type_id = $arr_object['object']['type_id']; 
@@ -3342,50 +3417,70 @@ class ui_data extends base_module {
 				$arr_objects[$object_id]['object_thumbnail'] = SiteStartVars::getCacheUrl('img', [false, 200], $image_filename);
 			
 			} else { // Object has no image, check related objects
-
-				foreach ((array)$arr_object['object_definitions'] as $object_description_id => $arr_object_definition) {
-
-					if ($arr_object_definition['object_definition_ref_object_id'] && in_array($arr_type_set['object_descriptions'][$object_description_id]['object_description_ref_type_id'], (array)$arr_public_interface_settings['types']['media_types'])) {
-					
-						foreach ((array)$arr_object_definition['object_definition_ref_object_id'] as $key => $object_definition_ref_object_id) {
-
-							$ref_media_type_id = $arr_type_set['object_descriptions'][$object_description_id]['object_description_ref_type_id'];
-							$ref_media_object_id = $object_definition_ref_object_id;
-							
-							if ($object_id != $ref_media_object_id) {
-							
-								$arr_type_media_objects[$ref_media_type_id][$ref_media_object_id][] = $object_id;
-							}
-						}
-					}
-				}
-			}
-		}
-		
-		// Get all images of related objects and assign them as thumbnails
-		foreach ((array)$arr_type_media_objects as $media_type_id => $arr_media_objects) {
-			
-			$arr_thumbnail_objects = self::getPublicInterfaceObjects($media_type_id, ['objects' => array_keys($arr_media_objects)], true, false, false, false, ['no_thumbnails' => true]); // don't generate thumbnails for images!
-			
-			foreach ($arr_thumbnail_objects as $thumbnail_object_id => $arr_thumbnail_object) {
 				
-				$arr_type_set = StoreType::getTypeSet($media_type_id);
-				$image_filename = self::getObjectImage($arr_type_set, $arr_thumbnail_object);
-		
-				if ($image_filename) {
-					
-					foreach ($arr_media_objects[$thumbnail_object_id] as $thumbnail_target_object_id) {
-						$arr_objects[$thumbnail_target_object_id]['object_thumbnail'] = SiteStartVars::getCacheUrl('img', [false, 200], $image_filename);
-					}
-				}
+				$arr_objects[$object_id]['object_thumbnail'] = self::getObjectReferencedThumbnail($arr_object);
+
 			}
 		}
 		
 		return $arr_objects;
 	}
+
+	private static function getObjectReferencedThumbnail($arr_object) {
+
+		$public_user_interface_id = SiteStartVars::getFeedback('public_user_interface_id');			
+		$arr_public_interface_settings = cms_nodegoat_public_interfaces::getPublicInterfaceSettings($public_user_interface_id);			
+		
+		$object_id = $arr_object['object']['object_id']; 
+		$type_id = $arr_object['object']['type_id']; 
+		$arr_type_set = StoreType::getTypeSet($type_id);
+		
+		$arr_thumbnail_objects = [];
+	
+		foreach ((array)$arr_object['object_definitions'] as $object_description_id => $arr_object_definition) {
+
+			if ($arr_object_definition['object_definition_ref_object_id'] && in_array($arr_type_set['object_descriptions'][$object_description_id]['object_description_ref_type_id'], (array)$arr_public_interface_settings['types']['media_types'])) {
+		
+				foreach ((array)$arr_object_definition['object_definition_ref_object_id'] as $key => $object_definition_ref_object_id) {
+
+					$ref_media_type_id = $arr_type_set['object_descriptions'][$object_description_id]['object_description_ref_type_id'];
+					$ref_media_object_id = $object_definition_ref_object_id;
+					
+					if ($object_id != $ref_media_object_id) {
+					
+						$arr_thumbnail_object = self::getPublicInterfaceObjects($ref_media_type_id, ['objects' => $ref_media_object_id], true, false, false, false, ['no_thumbnails' => true]);
+						$arr_media_type_set = StoreType::getTypeSet($ref_media_type_id);
+						$image_filename = self::getObjectImage($arr_media_type_set, $arr_thumbnail_object[$ref_media_object_id]);
+			
+					
+						if ($image_filename) {
+			
+							return SiteStartVars::getCacheUrl('img', [false, 200], $image_filename);
+							
+						} else {
+							
+							$arr_thumbnail_objects[$ref_media_object_id] = $arr_thumbnail_object[$ref_media_object_id];
+						}
+					}
+				}
+			}
+		}
+	
+		foreach ((array)$arr_thumbnail_objects as $thumbnail_object_id => $arr_thumbnail_object) {
+
+			$image_filename = self::getObjectReferencedThumbnail($arr_thumbnail_object);
+			
+			if ($image_filename) {
+				
+				return $image_filename;
+			}	
+		}
+		
+		return false;
+	}
 	
 	private static function getObjectImage($arr_type_set, $arr_object) {
-		
+	
 		$image_filename = false;
 	
 		foreach ((array)$arr_object['object_definitions'] as $object_description_id => $arr_object_definition) {
@@ -3753,7 +3848,7 @@ class ui_data extends base_module {
 		$filter = new FilterTypeObjects($type_id, 'id');
 		$filter->setVersioning('added');
 		$filter->setFilter($arr_filter);
-		$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($public_user_interface_active_custom_project_id)]);	
+		$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($public_user_interface_active_custom_project_id), 'project_id' => $public_user_interface_active_custom_project_id]);	
 				
 		//Check if a project filter is present and if so set it
 		if ($arr_project['types'][$type_id]['type_filter_id']) {

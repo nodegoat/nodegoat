@@ -146,11 +146,11 @@ class data_linked_data extends base_module {
 								<select name="response_label">'.cms_general::createDropdown([['id' => $arr_resource['response_label'], 'name' => $arr_resource['response_label']]]).'</select>
 							</li>
 							<li>
-								<label></label><span>
+								<label>'.getLabel('lbl_values').'</label><span>
 									<input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" />'
 								.'</span>
 							</li><li>
-								<label>'.getLabel('lbl_values').'</label>
+								<label></label>
 								'.cms_general::createSorter($arr_sorter_values, true).'
 							</li>
 						</ul>

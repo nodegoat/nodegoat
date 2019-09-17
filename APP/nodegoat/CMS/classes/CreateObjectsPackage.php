@@ -9,7 +9,7 @@
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
-class createObjectsPackage {
+class CreateObjectsPackage {
 
 	private $arr_type_sets = [];
 	

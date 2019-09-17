@@ -21,6 +21,7 @@ DB::setTable('DATA_NODEGOAT_TYPE_OBJECTS', DATABASE_NODEGOAT_CONTENT.'.data_type
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS', DATABASE_NODEGOAT_CONTENT.'.data_type_object_definitions');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS', DATABASE_NODEGOAT_CONTENT.'.data_type_object_subs');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE', DATABASE_NODEGOAT_CONTENT.'.data_type_object_sub_date');
+DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE_CHRONOLOGY', DATABASE_NODEGOAT_CONTENT.'.data_type_object_sub_date_chronology');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_LOCATION_GEOMETRY', DATABASE_NODEGOAT_CONTENT.'.data_type_object_sub_location_geometry');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS', DATABASE_NODEGOAT_CONTENT.'.data_type_object_sub_definitions');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_FILTERS', DATABASE_NODEGOAT_CONTENT.'.data_type_object_filters');
@@ -41,12 +42,14 @@ DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_SOURCES', DATABASE_NODEGO
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_ANALYSES', DATABASE_NODEGOAT_CONTENT.'.data_type_object_analyses');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_ANALYSIS_STATUS', DATABASE_NODEGOAT_CONTENT.'.data_type_object_analysis_status');
 
-DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_DATING', DATABASE_NODEGOAT_CONTENT.'.data_type_object_dating');
+DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS', DATABASE_NODEGOAT_CONTENT.'.data_type_object_status');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_DISCUSSION', DATABASE_NODEGOAT_CONTENT.'.data_type_object_discussion');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_LOCK', DATABASE_NODEGOAT_CONTENT.'.data_type_object_lock');
 
-DB::setTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_LOCATION', DATABASE_NODEGOAT_CONTENT.'.cache_type_object_sub_location');
+DB::setTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_DATE_PATH', DATABASE_NODEGOAT_CONTENT.'.cache_type_object_sub_date_path');
+DB::setTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_DATE', DATABASE_NODEGOAT_CONTENT.'.cache_type_object_sub_date');
 DB::setTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_LOCATION_PATH', DATABASE_NODEGOAT_CONTENT.'.cache_type_object_sub_location_path');
+DB::setTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_LOCATION', DATABASE_NODEGOAT_CONTENT.'.cache_type_object_sub_location');
 
 define('DIR_TYPE_OBJECT_MEDIA', DIR_UPLOAD.'media/');
 define('DIR_HOME_TYPE_OBJECT_MEDIA', DIR_ROOT_STORAGE.DIR_HOME.DIR_TYPE_OBJECT_MEDIA);
@@ -104,7 +107,7 @@ class cms_nodegoat_definitions extends base_module {
 					
 					if ($options['type_ids']) {
 						
-						$arr_types = StoreType::getTypes(false, $options['type_ids'], 'reversal');
+						$arr_types = StoreType::getTypes($options['type_ids'], 'reversal');
 						
 						$arr_values = [];
 						
@@ -146,16 +149,6 @@ class cms_nodegoat_definitions extends base_module {
 		];
 	}
 	
-	public static function getReferenceUsage() {
-		
-		return [
-			['id' => 'object', 'name' => getLabel('lbl_object')],
-			['id' => 'object_sub_details', 'name' => getLabel('lbl_object_sub')],
-			['id' => 'object_sub_description', 'name' => getLabel('lbl_object_sub').' '.getLabel('lbl_description')],
-			['id' => 'object_description', 'name' => getLabel('lbl_object_description')],
-		];
-	}
-	
 	public static function getSetConditionActions($type = false, $action = false) {
 		
 		$arr = [
@@ -165,6 +158,7 @@ class cms_nodegoat_definitions extends base_module {
 			'limit_text' => ['id' => 'limit_text', 'name' => getLabel('lbl_limit').' '.getLabel('lbl_text'), 'value' => ['number', ['type' => 'value', 'info' => getLabel('inf_replace_text_value')]]],
 			'add_text_prefix' => ['id' => 'add_text_prefix', 'name' => getLabel('lbl_prefix').' '.getLabel('lbl_text'), 'value' => ['value', ['type' => 'check', 'info' => getLabel('inf_override_default_or_previous')]]],
 			'add_text_affix' => ['id' => 'add_text_affix', 'name' => getLabel('lbl_affix').' '.getLabel('lbl_text'), 'value' => ['value', ['type' => 'check', 'info' => getLabel('inf_override_default_or_previous')]]],
+			'regex_replace' => ['id' => 'regex_replace', 'name' => getLabel('lbl_regular_expression'), 'value' => [['type' => 'regex', 'info' => getLabel('inf_regular_expression_replace')], ['type' => 'check', 'info' => getLabel('inf_override_default_or_previous')]]],
 			'color' => ['id' => 'color', 'name' => getLabel('lbl_highlight_color'), 'value' => ['color', ['type' => 'check', 'info' => getLabel('inf_add_to_previous')]]],
 			'weight' => ['id' => 'weight', 'name' => getLabel('lbl_weight').' ('.getLabel('lbl_multiply').')', 'value' => ['number', ['type' => 'number_use_object_description_id', 'info' => getLabel('lbl_multiply_with').' '.getLabel('lbl_object_description')], ['type' => 'number_use_object_analysis_id', 'info' => getLabel('lbl_multiply_with').' '.getLabel('lbl_analysis')], ['type' => 'check', 'info' => getLabel('inf_add_to_previous')]]],
 			'remove' => ['id' => 'remove', 'name' => getLabel('lbl_remove').' '.getLabel('lbl_value'), 'value' => ['check']],
@@ -175,10 +169,10 @@ class cms_nodegoat_definitions extends base_module {
 		
 		if ($type == 'object_name') {
 			
-			return ['background_color' => $arr['background_color'], 'text_emphasis' => $arr['text_emphasis'], 'text_color' => $arr['text_color'], 'limit_text' => $arr['limit_text'], 'add_text_prefix' => $arr['add_text_prefix'], 'add_text_affix' => $arr['add_text_affix']];
+			return ['background_color' => $arr['background_color'], 'text_emphasis' => $arr['text_emphasis'], 'text_color' => $arr['text_color'], 'limit_text' => $arr['limit_text'], 'add_text_prefix' => $arr['add_text_prefix'], 'add_text_affix' => $arr['add_text_affix'], 'regex_replace' => $arr['regex_replace']];
 		} else if ($type == 'object_values') {
 			
-			return ['background_color' => $arr['background_color'], 'text_emphasis' => $arr['text_emphasis'], 'text_color' => $arr['text_color'], 'remove' => $arr['remove']];
+			return ['background_color' => $arr['background_color'], 'text_emphasis' => $arr['text_emphasis'], 'text_color' => $arr['text_color'], 'regex_replace' => $arr['regex_replace'], 'remove' => $arr['remove']];
 		} else if ($type == 'object_nodes') {
 			
 			return ['color' => $arr['color'], 'weight' => $arr['weight'], 'geometry_color' => $arr['geometry_color'], 'geometry_stroke_color' => $arr['geometry_stroke_color'], 'icon' => $arr['icon']];
@@ -208,7 +202,7 @@ class cms_nodegoat_definitions extends base_module {
 			
 			$arr = [
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DATING'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DISCUSSION'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_LOCK'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_VERSION'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
@@ -223,6 +217,8 @@ class cms_nodegoat_definitions extends base_module {
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_SOURCES'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'object_sub_details_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DETAILS'), 'id']],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE_CHRONOLOGY'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_LOCATION_GEOMETRY'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_VERSION'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_SOURCES'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
@@ -252,20 +248,20 @@ class cms_nodegoat_definitions extends base_module {
 	
 	public static function runTypeObjectCaching($arr_options = []) {
 		
-		$date = false;
-		
 		if (!$arr_options['reset']) {
 			
-			$is_updated = FilterTypeObjects::getTypesUpdatedSince($arr_options['date_executed']['previous'], [], true);
+			$is_updated = FilterTypeObjects::getTypesUpdatedAfter($arr_options['date_executed']['previous'], [], true);
 			
 			if (!$is_updated) {
 				return;
 			}
 			
-			$date = $arr_options['date_executed']['previous'];
+			StoreTypeObjectsProcessing::cacheTypeObjectSubs($arr_options['date_executed']['previous'], $arr_options['date_executed']['now']);
+			
+			return;
 		}
-
-		StoreTypeObjects::cacheTypeObjectSubLocations($date);
+			
+		StoreTypeObjectsProcessing::cacheTypeObjectSubs();
 	}
 	
 	public static function buildTypeObjectCaching($arr_options = []) {
@@ -281,19 +277,19 @@ class cms_nodegoat_definitions extends base_module {
 	
 	public static function runReversals($arr_options = []) {
 		
-		$is_updated = FilterTypeObjects::getTypesUpdatedSince($arr_options['date_executed']['previous'], [], true);
+		$is_updated = FilterTypeObjects::getTypesUpdatedAfter($arr_options['date_executed']['previous'], [], true);
 		
 		if (!$is_updated) {
 			return;
 		}
 		
 		if ($arr_options['type_ids']) {
-			$arr_types = StoreType::getTypes(false, $arr_options['type_ids'], 'reversal');
+			$arr_types = StoreType::getTypes($arr_options['type_ids'], 'reversal');
 		} else {
-			$arr_types = StoreType::getTypes(false, false, 'reversal');
+			$arr_types = StoreType::getTypes(false, 'reversal');
 		}
 		
-		StoreTypeObjects::setReversals($arr_types);
+		StoreTypeObjectsProcessing::setReversals($arr_types);
 	}
 	
 	public static function runReversalsSelection($arr_options = []) {

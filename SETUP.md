@@ -12,6 +12,7 @@ Update the new nodegoat setup with this repository:
 1. Compile nodegoat's services, see [Programs](SETUP.md#programs).
 1. Login to your nodegoat CMS (cms.yournodegoathost.com), go to User Management, and add a new user to 'User' (see the [1100CC Guides](https://lab1100.com/1100cc/guides#create-user)).
 1. You can now login with your new user account to your nodegoat HOME (yournodegoathost.com).
+1. Login to your nodegoat CMS, go to Jobs, and make sure the Job Scheduler is running (see the [1100CC Guides](https://lab1100.com/1100cc/guides#run-jobs)).
 
 ## Database
 
@@ -28,8 +29,8 @@ Grant the 1100CC MySQL users their nodegoat_content and a nodegoat_temp privileg
 GRANT SELECT, INSERT, UPDATE, DELETE, DROP ON nodegoat_content.* TO 1100CC_cms@localhost;
 GRANT SELECT, INSERT, UPDATE, DELETE ON nodegoat_content.* TO 1100CC_home@localhost;
 
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, CREATE TEMPORARY TABLES ON nodegoat_temp.* TO 1100CC_cms@localhost;
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, CREATE TEMPORARY TABLES ON nodegoat_temp.* TO 1100CC_home@localhost;
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, CREATE TEMPORARY TABLES, EXECUTE, CREATE ROUTINE, ALTER ROUTINE ON nodegoat_temp.* TO 1100CC_cms@localhost;
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, CREATE TEMPORARY TABLES, EXECUTE ON nodegoat_temp.* TO 1100CC_home@localhost;
 ```
 
 Import additional SQL to their respective databases:

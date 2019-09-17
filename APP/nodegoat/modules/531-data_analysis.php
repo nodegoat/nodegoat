@@ -222,10 +222,10 @@ class data_analysis extends base_module {
 					
 					<fieldset><ul>
 						<li>
-							<label></label><span><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></span>
+							<label>'.getLabel('lbl_analysis').'</label><span><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></span>
 						</li>
 						<li>
-							<label>'.getLabel('lbl_analysis').'</label>';
+							<label></label>';
 							
 							$arr_analysis_context_includes = $arr_analysis_context['include'];
 							if ($arr_analysis_context_includes) {
@@ -558,7 +558,7 @@ class data_analysis extends base_module {
 			$arr_type_filters = toolbar::getFilter();
 			$type_id = toolbar::getFilterTypeId();
 			
-			if (!custom_projects::checkAccesType($type_id)) {
+			if (!custom_projects::checkAccessType('view', $type_id)) {
 				return;
 			}
 			
@@ -603,6 +603,14 @@ class data_analysis extends base_module {
 			}
 
 			$collect = self::getTypeAnalysisCollector($type_id, $arr_filters, $arr_scope);
+			
+			$arr_nodegoat_details = cms_nodegoat_details::getDetails();
+			if ($arr_nodegoat_details['processing_time']) {
+				timeLimit($arr_nodegoat_details['processing_time']);
+			}
+			if ($arr_nodegoat_details['processing_memory']) {
+				memoryBoost($arr_nodegoat_details['processing_memory']);
+			}
 				
 			$analyse = new AnalyseTypeObjectsServer($type_id, $arr_analysis);
 			
@@ -756,7 +764,7 @@ class data_analysis extends base_module {
 		}
 		
 		$collect = new CollectTypeObjects($arr_type_network_paths, 'all');
-		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id'])]);
+		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
 		$collect->setConditions(false);
 		$collect->init($arr_filters, false);
 			

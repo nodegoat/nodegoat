@@ -1,3 +1,22 @@
+CREATE TABLE `cache_type_object_sub_date` (
+  `object_sub_id` int(11) NOT NULL,
+  `date_start_start` bigint(11) NOT NULL DEFAULT '0',
+  `date_start_end` bigint(11) DEFAULT NULL,
+  `date_end_start` bigint(11) DEFAULT NULL,
+  `date_end_end` bigint(11) NOT NULL DEFAULT '0',
+  `active` tinyint(1) NOT NULL DEFAULT '0',
+  `status` tinyint(4) NOT NULL DEFAULT '0',
+  `state` tinyint(4) NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `cache_type_object_sub_date_path` (
+  `object_sub_id` int(11) NOT NULL,
+  `path_object_sub_id` int(11) NOT NULL,
+  `active` tinyint(1) NOT NULL DEFAULT '0',
+  `status` tinyint(4) NOT NULL DEFAULT '0',
+  `state` tinyint(4) NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `cache_type_object_sub_location` (
   `object_sub_id` int(11) NOT NULL,
   `object_sub_details_id` int(11) NOT NULL,
@@ -7,19 +26,23 @@ CREATE TABLE `cache_type_object_sub_location` (
   `ref_object_id` int(11) DEFAULT NULL,
   `ref_type_id` int(11) DEFAULT NULL,
   `ref_object_sub_details_id` int(11) DEFAULT NULL,
-  `status` tinyint(4) DEFAULT '0'
+  `active` tinyint(1) NOT NULL DEFAULT '0',
+  `status` tinyint(4) NOT NULL DEFAULT '0',
+  `state` tinyint(4) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `cache_type_object_sub_location_path` (
   `object_sub_id` int(11) NOT NULL,
   `path_object_sub_id` int(11) NOT NULL,
-  `status` tinyint(4) DEFAULT '0'
+  `active` tinyint(1) NOT NULL DEFAULT '0',
+  `status` tinyint(4) NOT NULL DEFAULT '0',
+  `state` tinyint(4) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `data_type_objects` (
   `id` int(11) NOT NULL,
   `type_id` int(11) NOT NULL,
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `version` int(11) NOT NULL DEFAULT '1',
   `active` tinyint(1) NOT NULL DEFAULT '0',
   `status` tinyint(4) NOT NULL DEFAULT '0'
@@ -38,13 +61,6 @@ CREATE TABLE `data_type_object_analysis_status` (
   `user_id` int(11) NOT NULL,
   `analysis_id` int(11) NOT NULL,
   `date` datetime NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE `data_type_object_dating` (
-  `object_id` int(11) NOT NULL,
-  `date` datetime NOT NULL,
-  `date_object` datetime NOT NULL,
-  `date_discussion` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `data_type_object_definitions` (
@@ -129,6 +145,14 @@ CREATE TABLE `data_type_object_sources` (
   `hash` binary(16) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `data_type_object_status` (
+  `object_id` int(11) NOT NULL,
+  `date` datetime NOT NULL,
+  `date_object` datetime NOT NULL,
+  `date_discussion` datetime DEFAULT NULL,
+  `status` smallint(6) NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `data_type_object_subs` (
   `id` int(11) NOT NULL,
   `object_id` int(11) NOT NULL,
@@ -145,8 +169,23 @@ CREATE TABLE `data_type_object_subs` (
 
 CREATE TABLE `data_type_object_sub_date` (
   `object_sub_id` int(11) NOT NULL,
-  `date_start` bigint(20) NOT NULL,
-  `date_end` bigint(20) NOT NULL,
+  `span_period_amount` smallint(6) NOT NULL DEFAULT '0',
+  `span_period_unit` tinyint(4) NOT NULL DEFAULT '0',
+  `span_cycle_object_id` int(11) NOT NULL DEFAULT '0',
+  `version` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `data_type_object_sub_date_chronology` (
+  `object_sub_id` int(11) NOT NULL,
+  `offset_amount` smallint(6) NOT NULL DEFAULT '0',
+  `offset_unit` tinyint(4) NOT NULL DEFAULT '0',
+  `cycle_object_id` int(11) NOT NULL DEFAULT '0',
+  `cycle_direction` tinyint(4) NOT NULL DEFAULT '0',
+  `date_value` bigint(20) DEFAULT NULL,
+  `date_object_sub_id` int(11) DEFAULT NULL,
+  `date_direction` tinyint(4) NOT NULL DEFAULT '0',
+  `identifier` tinyint(4) NOT NULL,
+  `active` tinyint(1) NOT NULL,
   `version` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -240,6 +279,7 @@ CREATE TABLE `def_types` (
   `label` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `color` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
   `condition_id` int(11) NOT NULL,
+  `clearance_edit` tinyint(4) NOT NULL,
   `date` datetime NOT NULL,
   `use_object_name` tinyint(1) NOT NULL,
   `object_name_in_overview` tinyint(1) NOT NULL
@@ -317,14 +357,16 @@ CREATE TABLE `def_type_object_sub_details` (
   `type_id` int(11) NOT NULL,
   `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
   `is_required` tinyint(1) NOT NULL,
-  `is_unique` tinyint(1) NOT NULL,
+  `is_single` tinyint(1) NOT NULL,
   `clearance_edit` tinyint(4) NOT NULL,
   `clearance_view` tinyint(4) NOT NULL,
   `has_date` tinyint(1) NOT NULL,
-  `is_date_range` tinyint(1) NOT NULL,
+  `is_date_period` tinyint(1) NOT NULL,
   `date_use_object_sub_details_id` int(11) NOT NULL DEFAULT '0',
-  `date_use_object_sub_description_id` int(11) NOT NULL DEFAULT '0',
-  `date_use_object_description_id` int(11) NOT NULL DEFAULT '0',
+  `date_start_use_object_sub_description_id` int(11) NOT NULL DEFAULT '0',
+  `date_start_use_object_description_id` int(11) NOT NULL DEFAULT '0',
+  `date_end_use_object_sub_description_id` int(11) NOT NULL DEFAULT '0',
+  `date_end_use_object_description_id` int(11) NOT NULL DEFAULT '0',
   `has_location` tinyint(1) NOT NULL,
   `location_ref_only` tinyint(1) NOT NULL DEFAULT '0',
   `location_ref_type_id` int(11) NOT NULL,
@@ -339,14 +381,23 @@ CREATE TABLE `def_type_object_sub_details` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+ALTER TABLE `cache_type_object_sub_date`
+  ADD PRIMARY KEY (`object_sub_id`,`active`,`status`) USING BTREE,
+  ADD KEY `state` (`state`);
+
+ALTER TABLE `cache_type_object_sub_date_path`
+  ADD PRIMARY KEY (`object_sub_id`,`path_object_sub_id`,`active`,`status`) USING BTREE,
+  ADD KEY `state` (`state`);
+
 ALTER TABLE `cache_type_object_sub_location`
-  ADD PRIMARY KEY (`object_sub_id`,`geometry_object_sub_id`),
-  ADD KEY `status` (`status`),
-  ADD KEY `ref_type_id` (`ref_type_id`,`object_sub_details_id`,`ref_object_id`) USING BTREE;
+  ADD PRIMARY KEY (`object_sub_id`,`geometry_object_sub_id`,`active`,`status`) USING BTREE,
+  ADD KEY `ref_type_id` (`ref_type_id`,`object_sub_details_id`,`ref_object_id`) USING BTREE,
+  ADD KEY `state` (`state`);
 
 ALTER TABLE `cache_type_object_sub_location_path`
-  ADD PRIMARY KEY (`object_sub_id`,`path_object_sub_id`),
-  ADD KEY `status` (`status`);
+  ADD PRIMARY KEY (`object_sub_id`,`path_object_sub_id`,`active`,`status`) USING BTREE,
+  ADD KEY `state` (`state`),
+  ADD KEY `path_object_sub_id` (`path_object_sub_id`);
 
 ALTER TABLE `data_type_objects`
   ADD PRIMARY KEY (`id`,`version`),
@@ -360,11 +411,6 @@ ALTER TABLE `data_type_object_analyses`
 ALTER TABLE `data_type_object_analysis_status`
   ADD PRIMARY KEY (`user_id`,`analysis_id`),
   ADD KEY `date` (`date`);
-
-ALTER TABLE `data_type_object_dating`
-  ADD PRIMARY KEY (`object_id`),
-  ADD KEY `date` (`date`),
-  ADD KEY `date_edited` (`date_object`,`date_discussion`);
 
 ALTER TABLE `data_type_object_definitions`
   ADD PRIMARY KEY (`object_id`,`object_description_id`,`identifier`,`version`),
@@ -412,6 +458,12 @@ ALTER TABLE `data_type_object_sources`
   ADD KEY `ref_type_id` (`ref_type_id`),
   ADD KEY `ref_object_id` (`ref_object_id`) USING BTREE;
 
+ALTER TABLE `data_type_object_status`
+  ADD PRIMARY KEY (`object_id`),
+  ADD KEY `date` (`date`),
+  ADD KEY `date_edited` (`date_object`,`date_discussion`),
+  ADD KEY `status` (`status`);
+
 ALTER TABLE `data_type_object_subs`
   ADD PRIMARY KEY (`id`,`version`),
   ADD KEY `object_id` (`object_id`,`object_sub_details_id`),
@@ -420,7 +472,13 @@ ALTER TABLE `data_type_object_subs`
   ADD KEY `active` (`active`,`status`);
 
 ALTER TABLE `data_type_object_sub_date`
-  ADD PRIMARY KEY (`object_sub_id`,`version`);
+  ADD PRIMARY KEY (`object_sub_id`,`version`),
+  ADD KEY `span_cycle_object_id` (`span_cycle_object_id`);
+
+ALTER TABLE `data_type_object_sub_date_chronology`
+  ADD PRIMARY KEY (`object_sub_id`,`version`,`identifier`) USING BTREE,
+  ADD KEY `cycle_object_id` (`cycle_object_id`) USING BTREE,
+  ADD KEY `date_object_sub_id` (`date_object_sub_id`);
 
 ALTER TABLE `data_type_object_sub_definitions`
   ADD PRIMARY KEY (`object_sub_id`,`object_sub_description_id`,`version`),
@@ -509,8 +567,8 @@ ALTER TABLE `def_type_object_sub_details`
   ADD KEY `location_ref_type_id` (`location_ref_type_id`),
   ADD KEY `type_id` (`type_id`),
   ADD KEY `date_use_object_sub_details_id` (`date_use_object_sub_details_id`),
-  ADD KEY `date_use_object_sub_description_id` (`date_use_object_sub_description_id`),
-  ADD KEY `date_use_object_description_id` (`date_use_object_description_id`),
+  ADD KEY `date_use_object_sub_description_id` (`date_start_use_object_sub_description_id`),
+  ADD KEY `date_use_object_description_id` (`date_start_use_object_description_id`),
   ADD KEY `location_use_object_sub_details_id` (`location_use_object_sub_details_id`),
   ADD KEY `location_use_object_sub_description_id` (`location_use_object_sub_description_id`),
   ADD KEY `location_use_object_description_id` (`location_use_object_description_id`),

@@ -110,8 +110,8 @@ function MapSocial(element, obj_parent, options) {
 	this.init = function() {
 
 		ASSETS.fetch({script: [
-			'/js/d3.min.js',
-			'/CMS/js/pixi.min.js'
+			'/js/support/d3.min.js',
+			'/CMS/js/support/pixi.min.js'
 		], font: [
 			'pixel'
 		]}, function() {
@@ -186,7 +186,7 @@ function MapSocial(element, obj_parent, options) {
 					
 					var arr_condition = arr_data.legend.conditions[key];
 					
-					if (arr_condition.weight) {
+					if (arr_condition.weight && arr_condition.weight > 0) {
 						is_weighted = true;
 					}
 				}	
@@ -199,6 +199,7 @@ function MapSocial(element, obj_parent, options) {
 				elm_canvas.height = height;	
 				elm[0].appendChild(elm_canvas);
 				
+				//PIXI.GRAPHICS_CURVES.adaptive = true;
 				PIXI.Graphics.CURVES.adaptive = true;
 				
 				elm_plot_dots = new PIXI.Container();
@@ -244,8 +245,8 @@ function MapSocial(element, obj_parent, options) {
 				shader.uniforms.scale = [1.0, 1.0];
 
 				size_renderer = {width: pos_map.view.width, height: pos_map.view.height};
-				renderer = PIXI.autoDetectRenderer(size_renderer.width, size_renderer.height, {transparent: true, antialias: true});
-				renderer_2 = PIXI.autoDetectRenderer(size_renderer.width, size_renderer.height, {transparent: true, antialias: true});
+				renderer = PIXI.autoDetectRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
+				renderer_2 = PIXI.autoDetectRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
 
 				stage = new PIXI.Container();
 				elm_plot_particles = new PIXI.Container();
@@ -1902,15 +1903,16 @@ function MapSocial(element, obj_parent, options) {
 		for (var i = 0, len = nodes.length; i < len; i++) {
 			
 			var arr_node = nodes[i];
-			var conditions_weight = arr_node.conditions_weight;
-
-			if (force_options.node_stop_size && conditions_weight > force_options.node_stop_size) {
-			
-				conditions_weight = force_options.node_stop_size;
-			}
 			
 			if (is_weighted) {
 				
+				var conditions_weight = arr_node.conditions_weight;
+
+				if (force_options.node_stop_size && conditions_weight > force_options.node_stop_size) {
+				
+					conditions_weight = force_options.node_stop_size;
+				}
+			
 				if (conditions_weight > max_complete_connections) {
 					max_complete_connections = conditions_weight;
 				}
@@ -1926,14 +1928,15 @@ function MapSocial(element, obj_parent, options) {
 		for (var i = 0, len = nodes.length; i < len; i++) {
 			
 			var arr_node = nodes[i];
-			var conditions_weight = arr_node.conditions_weight;
-
-			if (force_options.node_stop_size && conditions_weight > force_options.node_stop_size) {
-				
-				conditions_weight = force_options.node_stop_size;
-			}
 						
 			if (is_weighted) {
+				
+				var conditions_weight = arr_node.conditions_weight;
+
+				if (force_options.node_stop_size && conditions_weight > force_options.node_stop_size) {
+					
+					conditions_weight = force_options.node_stop_size;
+				}
 
 				if (conditions_weight / max_complete_connections > label_threshold) {
 					arr_node.show_text = true;
@@ -2214,16 +2217,24 @@ function MapSocial(element, obj_parent, options) {
 	}
 	
 	var addNode = function(arr_object, add) {		
-			
+	
 		if (setdata && !arr_object.checked) {
 			checkNode(arr_object);
 		}
 		
-		if (setdata && arr_object.inactive) {
-			return;
+		if (setdata) {
+			
+			if (arr_object.inactive) {
+				return;
+			}
+
+			if (arr_object.sub_object_parents.length + arr_object.object_parents.length == 0) {
+				return;
+			}
+			
 		}
 		
-		if (setdata && (arr_object.sub_object_parents.length + arr_object.object_parents.length == 0)) {
+		if (arr_object.has_weight && arr_object.total_weight == 0) {
 			return;
 		}
 		
@@ -2707,9 +2718,12 @@ function MapSocial(element, obj_parent, options) {
 							}
 
 							// Weight of object applied to target node 
-							if (arr_object_definition.style && arr_object_definition.style.weight) {
+							if (arr_object_definition.style && typeof arr_object_definition.style.weight !== 'undefined') {
 
 								arr_target_object.conditions_weight += arr_object_definition.style.weight;
+								
+								arr_target_object.has_weight = true;
+								arr_target_object.total_weight += arr_object_definition.style.weight;
 							}
 							
 							if (arr_object_definition.style && arr_object_definition.style.color) {
@@ -2784,9 +2798,12 @@ function MapSocial(element, obj_parent, options) {
 								
 								
 								// Cross Referencing weight added to target node
-								if (arr_object_sub_definition.style && arr_object_sub_definition.style.weight) {
+								if (arr_object_sub_definition.style && typeof arr_object_sub_definition.style.weight !== 'undefined') {
 
 									arr_objects[target_object_id].conditions_weight += arr_object_sub_definition.style.weight;
+									
+									arr_objects[target_object_id].has_weight = true;
+									arr_objects[target_object_id].total_weight += arr_object_sub_definition.style.weight;
 								}	
 								
 								// Cross Referencing color added to target node
@@ -2828,9 +2845,12 @@ function MapSocial(element, obj_parent, options) {
 			} 
 			
 			// Weight of sub-object applied to current node
-			if (object_sub.style && object_sub.style.weight) {
+			if (object_sub.style && typeof object_sub.style.weight !== 'undefined') {
 	
 				object.conditions_weight += object_sub.style.weight;
+				
+				object.has_weight = true;
+				object.total_weight += object_sub.style.weight;
 			}
 										
 			// Color of sub-object applied to current node
@@ -2991,9 +3011,14 @@ function MapSocial(element, obj_parent, options) {
 			arr_object.conditions = {'object': [], 'object_sub': [], 'object_definition': [], 'object_sub_definition': []};
 			arr_object.colors = [];
 			arr_object.conditions_weight = 1;
+			arr_object.total_weight = 0;
 			
-			if (arr_object.style && arr_object.style.weight) {
+			if (arr_object.style && typeof arr_object.style.weight !== 'undefined') {
+				
 				arr_object.conditions_weight += arr_object.style.weight;
+				
+				arr_object.has_weight = true;
+				arr_object.total_weight += arr_object.style.weight;
 			}
 			
 			if (arr_object.style && arr_object.style.color) {

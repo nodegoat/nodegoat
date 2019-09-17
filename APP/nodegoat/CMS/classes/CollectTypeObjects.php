@@ -43,8 +43,6 @@ class CollectTypeObjects {
 
 	public function __construct($arr_type_network_paths, $view = 'all') {
 		
-		memoryBoost();
-
 		$this->arr_type_network_paths = $arr_type_network_paths;
 		$this->view = $view;
 	}
@@ -93,7 +91,7 @@ class CollectTypeObjects {
 			
 			$s_arr_object_definitions =& $arr_object['object_definitions'];
 			
-			foreach ($arr_selection_required['object_descriptions'] as $object_description_id) {
+			foreach ($arr_selection_required['object_descriptions'] as $object_description_id => $arr_required) {
 				unset($s_arr_object_definitions[$object_description_id]);
 			}
 		}
@@ -118,7 +116,7 @@ class CollectTypeObjects {
 					
 					$s_arr_object_sub_definitions =& $arr_object_sub['object_sub_definitions'];
 					
-					foreach ($arr_selection_required_object_sub_details['object_sub_descriptions'] as $object_sub_description_id) {
+					foreach ($arr_selection_required_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_required) {
 						unset($s_arr_object_sub_definitions[$object_sub_description_id]);
 					}
 				}
@@ -595,7 +593,7 @@ class CollectTypeObjects {
 					
 						if ($arr_objects) {
 
-							$arr_result = $filter->getResultInfo(true);
+							$arr_result = $filter->getProcessedResultInfo();
 							$this->arr_types_found = array_merge_recursive($this->arr_types_found, $arr_result['types_found']);
 							
 							$has_objects = true;
@@ -676,7 +674,7 @@ class CollectTypeObjects {
 								}
 								
 								if ($arr_selection && !$arr_selection['object_descriptions'][$object_description_id]) {
-									$arr_selection_required['object_descriptions'][$object_description_id] = $object_description_id;
+									$arr_selection_required['object_descriptions'][$object_description_id]['object_description_reference'] = $object_description_id;
 								}
 								
 								if ($collapse) {
@@ -785,7 +783,7 @@ class CollectTypeObjects {
 										}
 										
 										if ($arr_selection && !$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id]) {
-											$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = $object_sub_connection_id;
+											$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id]['object_sub_description_reference'] = $object_sub_connection_id;
 										}
 										
 										if ($collapse) {
@@ -822,7 +820,7 @@ class CollectTypeObjects {
 							foreach ((array)$arr_target_type_object_connections['object_descriptions'] as $object_description_id => $arr_connection) {
 								
 								if (!$arr_selection['object_descriptions'][$object_description_id]) {
-									$arr_selection_required['object_descriptions'][$object_description_id] = $object_description_id;
+									$arr_selection_required['object_descriptions'][$object_description_id]['object_description_reference'] = $object_description_id;
 								}
 							}
 							foreach ((array)$arr_target_type_object_connections['object_sub_details'] as $object_sub_details_id => $arr_object_sub_connections) {
@@ -842,7 +840,12 @@ class CollectTypeObjects {
 									} else {
 									
 										if (!$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id]) {
-											$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = $object_sub_connection_id;
+											
+											$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id]['object_sub_description_reference'] = $object_sub_connection_id;
+											
+											if (!$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details']) {
+												$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_details'] = [];
+											}
 										}
 									}
 								}
@@ -1006,7 +1009,7 @@ class CollectTypeObjects {
 						
 						$this->arr_path_objects[$path_new][$in_out] += $arr_objects;
 						
-						$arr_result = $filter->getResultInfo(true);
+						$arr_result = $filter->getProcessedResultInfo();
 						$this->arr_types_found = array_merge_recursive($this->arr_types_found, $arr_result['types_found']);
 					}
 					
@@ -1128,6 +1131,15 @@ class CollectTypeObjects {
 		foreach ($arr_path_options as $path => $value) {
 		
 			$this->arr_path_options[$path] = array_merge((array)$this->arr_path_options[$path], $value);
+		}
+	}
+	
+	public function getPathOptions($path = false) {
+		
+		if ($path) {
+			return $this->arr_path_options[$path];
+		} else {
+			return $this->arr_path_options;
 		}
 	}
 	

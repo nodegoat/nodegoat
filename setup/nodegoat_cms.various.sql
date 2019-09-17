@@ -87,3 +87,6 @@ INSERT INTO `site_user_group_link` (`group_id`, `from_table`, `from_column`, `to
 (1, 'nodegoat_cms.users', 'id', 'nodegoat_home.user_link_nodegoat_custom_projects', 'user_id', 'project_id', '', 0, 1, 0, 2),
 (1, 'nodegoat_home.user_details', 'user_id', 'nodegoat_home.user_preferences', 'user_id', '0', '', 0, 0, 0, 4),
 (1, 'nodegoat_home.user_link_nodegoat_custom_projects', 'project_id', 'nodegoat_home.def_nodegoat_custom_projects', 'id', 'name', 'projects', 1, 0, 0, 3);
+
+INSERT INTO `site_jobs` (`module`, `method`, `options`, `seconds`, `date_executed`, `running`, `process_id`, `process_date`) VALUES
+('cms_nodegoat_definitions', 'runTypeObjectCaching', '', 1, UTC_TIMESTAMP(), 0, NULL, NULL);

@@ -80,7 +80,7 @@ class ExportObjectNetwork {
 
 				if ($str_identifier_connection_column) {
 					
-					$this->arr_collector[$str_identifier_connection_column][$arr_info['object_sub_id']][$cur_target_object_id] = $cur_target_object_id;
+					$this->arr_collector[$str_identifier_connection_column][$arr_info['object_id']][$arr_info['object_sub_id']][$cur_target_object_id] = $cur_target_object_id;
 				}
 			}
 		} else {

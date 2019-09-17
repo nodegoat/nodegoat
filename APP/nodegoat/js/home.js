@@ -1858,14 +1858,14 @@ function UISelection() {
 		$('<div id="y:ui_selection:get_bookify_selection_data-0"></div>').appendTo(obj.elm_list_container).data({value: {selection_id: selection_id, arr_selection: arr_selection}}).quickCommand(function(data) {
 			
 			ASSETS.fetch({script: [
-				'/js/pdfmake.min.js',
-				'/js/vfs_fonts.js'
+				'/js/support/pdfmake.min.js',
+				'/js/support/vfs_fonts.js'
 			]}, function() {
 				
 				var docDefinition = {content: [], styles: {}};
 				
 				var func_get_content = function(arr_content, width) {
-					
+				
 					if (arr_content['elm_type'] == 'image') {
 						
 						var content_data = {image: arr_content['content'], width: width, margin: [0, 0, 0, 0]};
@@ -1874,6 +1874,46 @@ function UISelection() {
 						
 						var content_data = {image: arr_content['content'], width: width, margin: [0, 0, 0, 30]};
 						
+					} else if (arr_content['elm_type'] == 'object_subs') {
+						
+						var content_data = {style: arr_content['style']};
+						
+						if (arr_content['content'].indexOf('</span>') != -1) {
+							
+							var temp_elm = document.createElement('div');
+							temp_elm.innerHTML = arr_content['content'];
+
+							var text = temp_elm.innerText || text_elements.textContent; 
+
+							for (var i in temp_elm.childNodes) {
+								
+								var style = temp_elm.childNodes[i].style;
+
+								if (style) {
+								
+									if (style['color']) {
+										var arr_color = parseCssColor(style['color']);
+										var hex = '#'+(0x1000000 + (arr_color.r << 16) + (arr_color.g << 8) + arr_color.b).toString(16).slice(1);
+										content_data['color'] = hex;
+									}
+									
+									if (style['font-weight']) {
+										content_data['bold'] = true;
+									}
+									
+									if (style['font-style']) {
+										content_data['italics'] = true;
+									}
+								}
+							}
+							
+							content_data['text'] = text;
+							
+						} else {
+							
+							content_data['text'] = arr_content['content'];
+						}
+
 					} else {
 						
 						var content;
@@ -1886,7 +1926,6 @@ function UISelection() {
 						} else {
 							
 							content = temp_elm.text();
-							
 						}
 						
 						var content_data = {text: content.trim().replace(/\t/g, ''), style: arr_content['style'], pageBreak: arr_content['pagebreak']};
@@ -1919,6 +1958,7 @@ function UISelection() {
 								docDefinition.content.push({table: {widths: [400, 100], body: [[col_1, col_2]]}, layout: 'noBorders'});
 								
 							} else {
+								
 								for (var j = 0; j < data[i]['content']['section_1'].length; j++) {
 									docDefinition.content.push(func_get_content(data[i]['content']['section_1'][j], 500));
 								}
@@ -1939,9 +1979,12 @@ function UISelection() {
 				docDefinition.defaultStyle = { font: 'lmroman' };
 				docDefinition.styles['title'] = { fontSize: 22, bold: true, alignment: 'center' };
 				docDefinition.styles['heading'] = { fontSize: 18, bold: true, alignment: 'center', margin: [0,50,0,20] };
+				docDefinition.styles['subheading'] = { fontSize: 16, bold: true, alignment: 'center', margin: [0,50,0,20] };
 				docDefinition.styles['text'] = { fontSize: 11,  margin: [0, 0, 10, 5], lineHeight: 1.2};
 				docDefinition.styles['note'] = { fontSize: 12, italics: true, margin: [0, 5, 0, 5] };
 				docDefinition.styles['source'] = { fontSize: 10, margin: [0, 0, 0, 15] };
+				docDefinition.styles['object_sub_details'] = { fontSize: 10, margin: [0, 20, 0, 0] };
+				docDefinition.styles['object_sub_definitions'] = { fontSize: 8, margin: [20, 0, 0, 0] };
 				
 				docDefinition.styles['caption'] = { fontSize: 8, italics: true, margin: [0, 3, 0, 0] };
 	

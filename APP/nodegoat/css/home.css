@@ -3,6 +3,7 @@
 body { background-color: #a3ce6c; }
 
 h1 { margin: 10px 0px; }
+hr { border-bottom-width: 1px; }
 
 @font-face 
 	{font-family: 'pixel';
@@ -24,6 +25,8 @@ h1 { margin: 10px 0px; }
 .page-login .back .mod.login section.info { width: 400px; margin: 0 auto;  margin-bottom: 40px; padding: 20px; box-sizing: border-box; }
 .page-login .back .mod.login form { width: 400px; margin: 0 auto;  background-color: rgba(255, 255, 255, 0.6); padding: 50px; box-sizing: border-box; }
 .page-login .back .mod.login + .mod nav { width: 400px; margin: 0 auto; }
+
+.dir-login .site { max-width: 1500px; }
 
 /* MOD ADAPTATION */
 
@@ -164,11 +167,14 @@ div.analysis-object > span.analysis-workspace { text-decoration: underline; }
 div.analysis-object > span + span::before { content: "|"; padding: 0px 4px; }
 
 .data_viewer .record > dl > li > dd { max-width: 800px; }
-.data_viewer .record > dl > li > dd > span.icon { display: inline-block; color: #444444; margin-left: 4px; margin-right: 2px; }
-.data_viewer .record > dl > li > dd > span.icon svg { height: 12px; }
-.data_viewer .record > dl > li > dd > span.icon + span { margin-left: 4px; }
+.data_viewer .record > dl > li > dd > span.icon,
+.data_viewer .record > dl > li > dd ul > li > span.icon { display: inline-block; color: #444444; margin-left: 4px; margin-right: 2px; }
+.data_viewer .record > dl > li > dd > span.icon svg,
+.data_viewer .record > dl > li > dd ul > li > span.icon svg { height: 12px; }
+.data_viewer .record > dl > li > dd > span.icon + span,
+.data_viewer .record > dl > li > dd ul > li > span.icon + span { margin-left: 4px; }
+.data_viewer .record > dl > li > dd > ul ul { margin-left: 20px; }
 .data_viewer .record > dl > li > dd > div { display: inline-block; }
-.data_viewer .record > dl > li > dd > div > span + span::before { content: " "; }
 .data_viewer .record > dl > li > dd > div.analysis-object > span + span::before { content: "|"; }
 .data_viewer .record > dl > li > dd > div > img { display: block; }
 .data_viewer .record > dl > li > dd > div > div.album > img + img { margin-top: 8px; }

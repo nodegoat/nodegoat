@@ -53,7 +53,7 @@ class header extends base_module {
 		}
 
 		Settings::set('domain_administrator_mode', ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN && Settings::get('domain_administrator_mode')));
-
+		
 		SiteEndVars::addTitle('nodegoat');
 	}
 	
