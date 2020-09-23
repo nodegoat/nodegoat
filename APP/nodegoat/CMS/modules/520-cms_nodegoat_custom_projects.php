@@ -2193,7 +2193,7 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	public static function getProjectScopeTypes($project_id) {
 		
-		$arr_project = self::getProjects(false, $project_id);
+		$arr_project = self::getProjects($project_id);
 	
 		if ($arr_project['project']['full_scope_enable']) {
 			
@@ -2209,7 +2209,7 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	public static function checkProjectTypeAccess($type, $project_id, $type_id) {
 		
-		$arr_project = self::getProjects(false, $project_id);
+		$arr_project = self::getProjects($project_id);
 		
 		$found = ($arr_project['types'][$type_id] ? 'project' : false);
 		
@@ -2266,7 +2266,7 @@ class cms_nodegoat_custom_projects extends base_module {
 			
 			foreach ($arr_user_project_type_filtering as $project_id => $arr_project_type_filtering) {
 				
-				$arr_project = self::getProjects(false, $project_id);
+				$arr_project = self::getProjects($project_id);
 				$arr_type_filter_default = ($arr_project['types'][$type_id]['type_filter_id'] ? self::getProjectTypeFilters($project_id, false, false, $arr_project['types'][$type_id]['type_filter_id'], true) : false);
 				
 				$arr_project_type_filters = self::getProjectTypeFilters($project_id, false, $type_id, array_unique(array_keys($arr_project_type_filtering)));
