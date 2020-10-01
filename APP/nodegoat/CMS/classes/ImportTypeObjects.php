@@ -31,12 +31,12 @@ class ImportTypeObjects {
 	private $stmt_update_log = false;
 	private $arr_object_id_row_number = [];
 			
-    public function __construct($user_id, $import_template_id, $source_file_id) {
+    public function __construct($import_template_id, $source_file_id) {
 
 		memoryBoost(1024);
 		timeLimit(0);
 
-		$this->user_id = $user_id;
+		$this->user_id = $_SESSION['USER_ID'];
 		$this->import_template_id = (int)$import_template_id;	
 		$this->arr_import_template = cms_nodegoat_import::getImportTemplates($this->import_template_id);
 		$this->type_id = $this->arr_import_template['import_template']['type_id'];
