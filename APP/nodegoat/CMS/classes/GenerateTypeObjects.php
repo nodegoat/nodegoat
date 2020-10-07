@@ -6723,7 +6723,7 @@ class GenerateTypeObjects {
 	
 	public static function encodeTypeObjectId($type_id, $object_id) {
 		
-		$context_id = $type_id.'_'.NODEGOAT_ID;
+		$context_id = $type_id;
 		$object_id = (int)$object_id;
 		
 		$len_o = strlen($object_id);
