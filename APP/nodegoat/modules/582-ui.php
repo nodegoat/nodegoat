@@ -2086,7 +2086,7 @@ class ui extends base_module {
 					
 		$public_user_interface_id = SiteStartVars::getFeedback('public_user_interface_id');
 		$public_user_interface_active_custom_project_id = SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
-		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds(public_user_interface_id, $public_user_interface_active_custom_project_id, false);
+		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds($public_user_interface_id, $public_user_interface_active_custom_project_id, false);
 		$arr_project = cms_nodegoat_custom_projects::getProjects($public_user_interface_active_custom_project_id);
 		$arr_public_interface_settings = cms_nodegoat_public_interfaces::getPublicInterfaceSettings($public_user_interface_id);
 		$filter_is_active = false;		
