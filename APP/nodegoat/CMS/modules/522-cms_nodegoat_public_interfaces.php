@@ -413,7 +413,6 @@ class cms_nodegoat_public_interfaces extends base_module {
 		
 			$res = DB::query("UPDATE ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACES')." SET
 					name = '".DBFunctions::strEscape($arr['name'])."',
-					user_id = ".(int)$user_id.",
 					mode = '".DBFunctions::strEscape($arr['mode'])."',
 					settings = '".DBFunctions::strEscape($public_interface_settings)."',
 					description = '".DBFunctions::strEscape($arr['description'])."',
