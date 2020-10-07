@@ -6812,9 +6812,7 @@ class GenerateTypeObjects {
 			$count += 2;
 		}
 		
-		$pos = strpos($context_id, '_');
-		$type_id = (int)substr($context_id, 0, $pos);
-		$domain_id = substr($context_id, $pos + 1);
+		$type_id = (int)$context_id;
 		
 		$count = 0;
 		
