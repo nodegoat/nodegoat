@@ -23,10 +23,6 @@ class custom_projects extends base_module {
 	public static function modulePreload() {
 		
 		if (SiteStartVars::$page['name'] == 'viewer') {
-					
-			if (!$_SESSION['CUR_USER']) {
-				error(getLabel('msg_missing_information'));
-			}
 			
 			$arr_request_vars = SiteStartVars::getModVariables(0);
 
@@ -113,10 +109,6 @@ class custom_projects extends base_module {
 			toolbar::setActionSpace('api');
 			
 			$arr_request_vars = SiteStartVars::getModVariables(0);
-			
-			if (!$_SESSION['CUR_USER']) {
-				error(getLabel('msg_missing_information').' Unknown '.getLabel('name', 'D').' domain.', TROUBLE_INVALID_REQUEST, LOG_CLIENT);
-			}
 				
 			$arr_api_configuration = cms_nodegoat_api::getConfiguration(SiteStartVars::$api['id']);
 			$arr_projects = cms_nodegoat_custom_projects::getProjects();
@@ -1884,6 +1876,15 @@ class custom_projects extends base_module {
 	}
 	
 	public static function checkAccessType($type, $type_id, $error = true) {
+		
+		if (!$_SESSION['custom_projects']['project_id']) {
+			
+			if ($error) {
+				error(getLabel('msg_no_custom_project_active'));
+			} else {
+				return false;
+			}
+		}
 				
 		$found = cms_nodegoat_custom_projects::checkProjectTypeAccess($type, $_SESSION['custom_projects']['project_id'], $type_id);
 		
