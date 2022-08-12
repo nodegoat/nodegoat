@@ -1,88 +1,127 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
-function MapSocial(element, obj_parent, options) {
+function MapSocial(elm_draw, PARENT, options) {
 
-	var elm = $(element),
-	obj = this,
-	obj_map = false,
+	var elm = $(elm_draw),
+	SELF = this;
 	
+	const DISPLAY_VECTOR = 1;
+	const DISPLAY_PIXEL = 2;
+	
+	var has_init = false,
 	stage_ns = 'http://www.w3.org/2000/svg',
 	elm_svg = false,
 	elm_canvas = false,
 	svg = false,
 	svg_group = false,
-	display = 'vector',
+	display = DISPLAY_VECTOR,
 	elm_selected_node_container = false,
 	elm_search_container = false,
 	elm_analyse_container = false,
+	elm_layout = false,
+	elm_layout_statistics = false,
+	elm_layout_select = false,
+	elm_layout_status = false,
+	elm_plot_lines = false,
 	elm_plot_dots = false,
+	elm_plot_info = false,
 	arr_data = false,
-	arr_object_subs_loop = [],
+	arr_loop_object_subs = [],
 	include_location_nodes = false,
 	show_disconnected_node = false,
-	width = elm.width(),
-	height = elm.height(),
-	setdata = false,
-	pre_graph_init = true,
-	max_complete_connections = false,
-	max_current_connections = 1,
-	max_value = false,
-	nodes = [],
-    links = [],
-	force_options = {},
+	in_predraw = true,
+	in_first_run = true,
+	do_redraw = false,
+	do_draw = false,
+	count_loop = 0,
+	num_node_weight_max = false,
+	num_link_weight_max = false,
+	arr_nodes = {},
+	arr_links = {},
+	arr_object_subs_children = {},
+	arr_loop_nodes = [],
+    arr_loop_links = [],
+    arr_active_nodes = [],
+    arr_active_links = [],
 	key_move = false,
-	position = {x: 0, y: 0},
 	simulation = false,
-	node_drag = false,
-	dragging = false,
+	use_simulation_native = false,
+	is_dragging_node = false,
+	is_dragging = false,
 	hovering = false,
-	cur_node_position = false,
+	focus_object_id = false,
+	cur_node_id = false,
 	arr_highlighted_nodes = [],
 	arr_remove_nodes = [],
+	size_init = {width: 0, height: 0},
 	size_renderer = {},
 	renderer = false,
 	renderer_2 = false,
 	stage = false,
 	stage_2 = false,
 	drawer = false,
-	first_run = true,
-	scale = 1,
-	init_size = {width: 0, height: 0},
+	drawer_2 = false,
+	drawer_defs = false,
+	num_scale = 1,
 	static_layout = false,
 	static_layout_interval = 0,
 	static_layout_timer = window.performance.now(),
-
-	pos_hover_poll = {x: 0, y: 0},
+	font_family = 'var(--font-site)',
+	size_text = 12,
+	color_text = '#000000',
+	color_highlight_node = '#d92b2b',
+	color_highlight_node_connect = '#ff7070',
+	color_highlight_link = 'rgba(255,0,0,0.4)',
+	
+	size_node_max = null,
+	size_node_min = null,
+	size_node_start = null,
+	size_node_stop = null,
+	color_node = null,
+	color_node_stroke = null,
+	width_node_stroke = null,
+	
+	pos_hover_poll = false,
+	pos_move = {x: 0, y: 0},
 	pos_translation = {x: 0, y: 0},
 	
-	metrics = false,
+	use_metrics = false,
 	metrics_process = false,
 	
 	arr_assets_colors_parsed = {},
 	
-	ua = window.navigator.userAgent,
-	msie = ua.indexOf("MSIE "),
+	geometry_shader = false,
+	geometry_lines = false,
+	geometry_mesh = false,
+	buffer_geometry_lines_position = false,
+	buffer_geometry_lines_normal = false,
+	buffer_geometry_lines_color = false,
+	length_geometry_lines_position = 12,
+	length_geometry_lines_color = 12 * 2,
+	do_update_geometry_lines_color = false,
+	count_links = 0,
+	count_nodes = 0,
+	arr_assets_texture_icons = {},
 	
-	shader = false,
-	gl = false,
-	glCore = false,
-	vertices = [],
-	colors = [],
-	position_vertexbuffer = false,
-	link_vertex_position = 0,
-	linkcount = 0,
-	
-	draw = false,
 	is_weighted = false,
-	label_threshold = 0.1,
+	force_options = {},
+	forceatlas2_options = {},
+	width_line = 1.5,
+	show_line = true,
+	show_arrowhead = false,
+	num_label_threshold = 0.1,
+	show_icon_as_node = false,
+	num_size_dot_icons = 15,
+	num_offset_dot_icons = 4,
+	spacer_elm_icons = 2,
 
 	key_animate = false,
 	
@@ -92,179 +131,311 @@ function MapSocial(element, obj_parent, options) {
 		
 	var parseColor = function(str) {
 		
-		if (display == 'vector') {
+		if (display == DISPLAY_VECTOR) {
 			return str;
 		}
 		
 		var hex = arr_assets_colors_parsed['h_'+str];
 		
-		if (!hex) {
+		if (hex == null) {
 			
-			var hex = parseCssColorToHex(str);
+			var hex = parseCSSColorToHex(str);
 			arr_assets_colors_parsed['h_'+str] = hex;
 		}
 		
 		return hex;
 	};
+	
+	var parseColorLink = function(str) {
+		
+		if (display == DISPLAY_VECTOR) {
+			return str;
+		}
+		
+		var arr_color = arr_assets_colors_parsed['a_'+str];
+		
+		if (arr_color == null) {
+			
+			var arr_color = parseCSSColor(str);
+			arr_assets_colors_parsed['a_'+str] = arr_color;
+		}
+		
+		return arr_color;
+	};
     			
 	this.init = function() {
+		
+		var parseBool = function(value, loose) {
+			if (value == 'true') {
+				return true;
+			} else if (value == 'false') {
+				return false;
+			} else if (loose) {
+				return value;
+			} else {
+				return false;
+			}
+		};
 
-		ASSETS.fetch({script: [
-			'/js/support/d3.min.js',
-			'/CMS/js/support/pixi.min.js'
-		], font: [
+		display = options.arr_visual.social.settings.display;
+		static_layout = options.arr_visual.social.settings.static_layout;
+		static_layout_interval = options.arr_visual.social.settings.static_layout_interval;
+		
+		var use_capture = (options.arr_visual.capture.enable ? true : false);
+				
+		size_node_max = parseFloat(options.arr_visual.social.dot.size.max);
+		size_node_min = parseFloat(options.arr_visual.social.dot.size.min);
+		size_node_start = parseFloat(options.arr_visual.social.dot.size.start);
+		size_node_stop = parseFloat(options.arr_visual.social.dot.size.stop);
+		color_node = options.arr_visual.social.dot.color;
+		color_node_stroke = options.arr_visual.social.dot.stroke_color;
+		width_node_stroke = options.arr_visual.social.dot.stroke_width;
+		
+		force_options = {
+			friction: parseFloat(options.arr_visual.social.force.friction),
+			charge: parseInt(options.arr_visual.social.force.charge),
+			gravity: parseFloat(options.arr_visual.social.force.gravity),
+			theta: parseFloat(options.arr_visual.social.force.theta)
+		};
+		
+		forceatlas2_options = {
+			lin_log_mode: options.arr_visual.social.forceatlas2.lin_log_mode,
+			outbound_attraction_distribution: options.arr_visual.social.forceatlas2.outbound_attraction_distribution,
+			adjust_sizes: options.arr_visual.social.forceatlas2.adjust_sizes,
+			edge_weight_influence: options.arr_visual.social.forceatlas2.edge_weight_influence,
+			scaling_ratio: options.arr_visual.social.forceatlas2.scaling_ratio,
+			strong_gravity_mode: options.arr_visual.social.forceatlas2.strong_gravity_mode,
+			gravity: options.arr_visual.social.forceatlas2.gravity,
+			slow_down: options.arr_visual.social.forceatlas2.slow_down,
+			optimize_theta: options.arr_visual.social.forceatlas2.optimize_theta
+		};
+		
+		const arr_setting_advanced = options.arr_visual.social.settings.social_advanced;
+		
+		if (typeof arr_setting_advanced.force_friction != 'undefined') {
+			force_options.friction = parseFloat(arr_setting_advanced.force_friction);
+		}
+		if (typeof arr_setting_advanced.force_charge != 'undefined') {
+			force_options.charge = parseInt(arr_setting_advanced.force_charge);
+		}
+		if (typeof arr_setting_advanced.force_gravity != 'undefined') {
+			force_options.gravity = parseFloat(arr_setting_advanced.force_gravity);
+		}
+		if (typeof arr_setting_advanced.force_theta != 'undefined') {
+			force_options.theta = parseFloat(arr_setting_advanced.force_theta);
+		}
+		
+		if (typeof arr_setting_advanced.highlight_node_color != 'undefined') {
+			color_highlight_node = arr_setting_advanced.highlight_node_color;
+		}
+		if (typeof arr_setting_advanced.highlight_node_connect_color != 'undefined') {
+			color_highlight_node_connect = arr_setting_advanced.highlight_node_connect_color;
+		}
+		if (typeof arr_setting_advanced.highlight_link_color != 'undefined') {
+			color_highlight_link = arr_setting_advanced.highlight_link_color;
+		}
+		
+		if (typeof arr_setting_advanced.label_threshold != 'undefined') {
+			num_label_threshold = parseBool(arr_setting_advanced.label_threshold, true);
+		}
+		if (typeof arr_setting_advanced.metrics != 'undefined') {
+			//use_metrics = parseBool(arr_setting_advanced.metrics, false);
+		}
+		if (typeof arr_setting_advanced.size_dot_icons != 'undefined') {
+			num_size_dot_icons = parseInt(arr_setting_advanced.size_dot_icons);
+		}
+		if (typeof arr_setting_advanced.offset_dot_icons != 'undefined') {
+			num_offset_dot_icons = parseInt(arr_setting_advanced.offset_dot_icons);
+		}
+		if (typeof arr_setting_advanced.show_icon_as_node != 'undefined') {
+			show_icon_as_node = parseBool(arr_setting_advanced.show_icon_as_node, true);
+		}
+		show_line = options.arr_visual.social.line.show;
+		show_arrowhead = (show_line ? options.arr_visual.social.line.arrowhead_show : false);			
+		if (options.arr_visual.social.settings.disconnected_dot_show) {
+			show_disconnected_node = true;
+		}
+		if (options.arr_visual.social.settings.include_location_references) {
+			include_location_nodes = true;
+		}
+		
+		var pos_map = PARENT.obj_map.getPosition();
+		size_init = {width: pos_map.size.width, height: pos_map.size.height};
+		
+		let arr_scripts = ['/js/support/d3-force.pack.js'];
+		if (display == DISPLAY_PIXEL) {
+			arr_scripts.push('/CMS/js/support/pixi.min.js');
+		}
+
+		ASSETS.fetch({script: arr_scripts, font: [
 			'pixel'
 		]}, function() {
 			
-			obj_map = obj_parent.obj_map;
+			has_init = true;
+
+			arr_data = PARENT.getData();
 			
-			display = (options.arr_visual.social.settings.display == 2 ? 'pixel' : 'vector');
-			static_layout = options.arr_visual.social.settings.static_layout;
-			static_layout_interval = options.arr_visual.social.settings.static_layout_interval;
+			if (arr_data.focus && arr_data.focus.object_id) {
+				focus_object_id = arr_data.focus.object_id;
+			}
+
+			var count_start = 0;
 			
-			var parseBool = function(value, loose) {
-				if (value == 'true') {
-					return true;
-				} else if (value == 'false') {
-					return false;
-				} else if (loose) {
-					return value;
-				} else {
-					return false;
+			count_start++; // Main loading
+
+			var func_start = function() {
+				
+				if (count_start > 0) {
+					return;
 				}
+			
+				SELF.drawData = drawData;
+				
+				key_move = PARENT.obj_map.move(rePosition);
+				
+				if (num_zoom_initialise) {
+					PARENT.obj_map.setZoom(PARENT.obj_map.getZoom());
+				}
+				
+				PARENT.doDraw();
 			};
 			
-			force_options.node_max_size = options.arr_visual.social.dot.size.max;
-			force_options.node_min_size = options.arr_visual.social.dot.size.min;
-			force_options.node_start_size = options.arr_visual.social.dot.size.start;
-			force_options.node_stop_size = options.arr_visual.social.dot.size.stop;
-			force_options.node_color = options.arr_visual.social.dot.color;
-			force_options.node_stroke_color = options.arr_visual.social.dot.stroke_color;
-			force_options.node_stroke_width = options.arr_visual.social.dot.stroke_width;
-			force_options.show_line = options.arr_visual.social.line.show;
-			force_options.link_arrowhead = options.arr_visual.social.line.arrowhead_show;
-			force_options.friction = 0.9;
-			force_options.charge = -100;
-			force_options.gravity = 0.08;
-			force_options.theta = 0.8;
-			
-			if (typeof options.arr_visual.social.settings.social_advanced.force_friction != 'undefined') {
-				force_options.friction = parseBool(options.arr_visual.social.settings.social_advanced.force_friction, true);
-			}
-			if (typeof options.arr_visual.social.settings.social_advanced.force_charge != 'undefined') {
-				force_options.charge = parseBool(options.arr_visual.social.settings.social_advanced.force_charge, true);
-			}
-			if (typeof options.arr_visual.social.settings.social_advanced.force_gravity != 'undefined') {
-				force_options.gravity = parseBool(options.arr_visual.social.settings.social_advanced.force_gravity, true);
-			}
-			if (typeof options.arr_visual.social.settings.social_advanced.force_theta != 'undefined') {
-				force_options.theta = parseBool(options.arr_visual.social.settings.social_advanced.force_theta, true);
-			}
-			if (typeof options.arr_visual.social.settings.social_advanced.label_threshold != 'undefined') {
-				label_threshold = parseBool(options.arr_visual.social.settings.social_advanced.label_threshold, true);
-			}
-			if (typeof options.arr_visual.social.settings.social_advanced.metrics != 'undefined') {
-				metrics = parseBool(options.arr_visual.social.settings.social_advanced.metrics, false);
-			}
-
-			if (options.arr_visual.social.settings.disconnected_dot_show) {
-				show_disconnected_node = true;
-			}
-			
-			if (options.arr_visual.social.settings.include_location_references) {
-				include_location_nodes = true;
-			}
-			
-			var pos_map = obj_map.getPosition();
-			init_size = {width: pos_map.size.width, height: pos_map.size.height};
-
-			arr_data = obj_parent.getData();
-			
 			if (arr_data.legend.conditions) {
+				
+				var arr_media = [];
 				
 				for (var key in arr_data.legend.conditions) {
 					
 					var arr_condition = arr_data.legend.conditions[key];
 					
+					if (arr_condition.icon) {			
+						arr_media.push(arr_condition.icon);
+					}
+					
 					if (arr_condition.weight && arr_condition.weight > 0) {
 						is_weighted = true;
 					}
 				}	
-			}
+
+				if (arr_media.length) {
+					
+					count_start++ // Media loading
+					
+					ASSETS.fetch({media: arr_media}, function() {
+						
+						if (display == DISPLAY_PIXEL) {
+							
+							for (var i = 0, len = arr_media.length; i < len; i++) {
+							
+								var resource = arr_media[i];
+								var arr_medium = ASSETS.getMedia(resource);
+								var elm_image = arr_medium.image.cloneNode(false);
 								
-			if (display == 'pixel') {
+								var texture = new PIXI.Texture.from(elm_image);
+								
+								arr_assets_texture_icons[resource] = {texture: texture, width: arr_medium.width, height: arr_medium.height};
+							}
+						}
+						
+						count_start--; // Media loaded
+						
+						func_start();
+						
+					});
+				}
+			}
+			
+			var num_zoom_initialise = pos_map.level;
+				
+			if (display == DISPLAY_PIXEL) {
+									
+				if (num_zoom_initialise < 0) {
+					num_scale = num_scale * Math.pow(0.7, Math.abs(num_zoom_initialise));
+				} else if (num_zoom_initialise > 0) {
+					num_scale = num_scale * Math.pow(1.4286, num_zoom_initialise);
+				}
+				
+				size_renderer = {width: pos_map.size.width, height: pos_map.size.height, resolution: pos_map.render.resolution};
 				
 				elm_canvas = document.createElement('canvas');
-				elm_canvas.width = width;
-				elm_canvas.height = height;	
+				elm_canvas.width = size_renderer.width;
+				elm_canvas.height = size_renderer.height;	
 				elm[0].appendChild(elm_canvas);
 				
-				//PIXI.GRAPHICS_CURVES.adaptive = true;
-				PIXI.Graphics.CURVES.adaptive = true;
-				
-				elm_plot_dots = new PIXI.Container();
-							
-				glCore = PIXI.glCore;
-				
-				var contextOptions = {
-					antialias:true,
-					transparent: true
-				};
-				
-				gl = glCore.createContext(elm_canvas, contextOptions);
-				
-				var vertex_shader = 
-					'precision mediump float;' +
-					'attribute vec2 a_position;' +
-					'attribute vec4 a_color;' +
-					'varying vec4 v_color;' +
-					'uniform vec2 bounds;' +
-					'uniform vec2 translation;' +
-					'uniform vec2 stagetranslation;' +
-					'uniform vec2 scale;' +
-					'void main(void) {' +
-					' 	vec2 pos = ((((a_position.xy + translation.xy) * scale.xy) + stagetranslation.xy) / bounds.xy) * 2.0 - 1.0;' +
-					' 	gl_Position = vec4(pos * vec2(1, -1), 0, 1.0);' +
-					' 	v_color = a_color;' +
-					'}';
-					
-				var fragment_shader =
-					'precision mediump float;' +
-					'varying vec4 v_color;' +
-					'void main(void) {' +
-					'	gl_FragColor = v_color;' +
-					'}';
-				
-				
-				shader = new glCore.GLShader(gl, vertex_shader, fragment_shader);
-				shader.bind();
-				
-				shader.uniforms.bounds = [width, height];
-				shader.uniforms.translation = [0, 0];
-				shader.uniforms.fulltranslation = [0, 0];
-				shader.uniforms.scale = [1.0, 1.0];
+				PIXI.GRAPHICS_CURVES.adaptive = true;
+				PIXI.GRAPHICS_CURVES.maxLength = (use_capture ? 2 : 10); // Use higher segment resolution (shorter curve lengths) when capturing
+				PIXI.settings.SPRITE_MAX_TEXTURES = Math.min(PIXI.settings.SPRITE_MAX_TEXTURES, 16);
 
-				size_renderer = {width: pos_map.view.width, height: pos_map.view.height};
-				renderer = PIXI.autoDetectRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
-				renderer_2 = PIXI.autoDetectRenderer({width: size_renderer.width, height: size_renderer.height, transparent: true, antialias: true});
+				geometry_lines = new PIXI.Geometry();
+
+				var vertex_shader = `
+					precision mediump float;
+					attribute vec2 a_position;
+					//attribute vec2 a_normal;
+					attribute vec4 a_color;
+					varying vec4 v_color;
+					uniform vec2 u_bounds;
+					uniform vec2 u_translation;
+					uniform vec2 u_stagetranslation;
+					uniform vec2 u_scale;
+					uniform float u_width_line;
+					void main(void) {
+						//vec2 delta = a_normal * u_width_line;
+					 	//vec2 pos = ((((a_position.xy + delta.xy + u_translation.xy) * u_scale.xy) + u_stagetranslation.xy) / u_bounds.xy) * 2.0 - 1.0;
+					 	vec2 pos = ((((a_position.xy + u_translation.xy) * u_scale.xy) + u_stagetranslation.xy) / u_bounds.xy) * 2.0 - 1.0;
+					 	gl_Position = vec4(pos * vec2(1, -1), 0, 1.0);
+					 	v_color = a_color;
+					}
+				`;
+					
+				var fragment_shader = `
+					precision mediump float;
+					varying vec4 v_color;
+					void main(void) {
+						gl_FragColor = v_color;
+					}
+				`;
+
+				geometry_shader = PIXI.Shader.from(vertex_shader, fragment_shader);
+				
+				geometry_shader.uniforms.u_bounds = [size_renderer.width, size_renderer.height];
+				geometry_shader.uniforms.u_translation = [0, 0];
+				geometry_shader.uniforms.u_stagetranslation = [0, 0];
+				geometry_shader.uniforms.u_scale = [1.0, 1.0];
+				//geometry_shader.uniforms.u_width_line = width_line;
+
+				renderer = PIXI.autoDetectRenderer({width: size_renderer.width, height: size_renderer.height, backgroundAlpha: 0, antialias: true, preserveDrawingBuffer: use_capture, resolution: size_renderer.resolution, autoDensity: true});
+				renderer_2 = PIXI.autoDetectRenderer({width: size_renderer.width, height: size_renderer.height, backgroundAlpha: 0, antialias: true, preserveDrawingBuffer: use_capture, resolution: size_renderer.resolution, autoDensity: true});
 
 				stage = new PIXI.Container();
-				elm_plot_particles = new PIXI.Container();
-				//stage.addChild(elm_plot_particles);
-				stage.addChild(elm_plot_dots);
-				
 				stage_2 = new PIXI.Container();
 				
-				elm[0].appendChild(renderer.view);
-				elm[0].appendChild(renderer_2.view);
+				elm_plot_lines = new PIXI.Container();
+				elm_plot_dots = new PIXI.Container();
+				elm_plot_info = new PIXI.Container();
 				
+				stage.addChild(elm_plot_lines);
+				stage.addChild(elm_plot_dots);
+				stage_2.addChild(elm_plot_info);
+				
+				drawer = renderer.view;
+				elm[0].appendChild(drawer);
+				drawer_2 = renderer_2.view;
+				elm[0].appendChild(drawer_2);
+				
+				renderer.plugins.interaction.autoPreventDefault = false;
+				renderer_2.plugins.interaction.autoPreventDefault = false;
+				drawer.style.removeProperty('touch-action');
+				drawer_2.style.removeProperty('touch-action');
+				
+				font_family = 'pixel';
+				size_text = 8;
 			} else {
-
 
 				size_renderer = {width: pos_map.size.width, height: pos_map.size.height};
 				
 				renderer = document.createElementNS(stage_ns, 'svg');
-				renderer.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xlink', 'http://www.w3.org/1999/xlink');
+				renderer.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns', stage_ns);
 				
 				drawer = renderer;
 				drawer.style.width = size_renderer.width+'px';
@@ -272,196 +443,252 @@ function MapSocial(element, obj_parent, options) {
 				
 				elm[0].appendChild(drawer);
 				
-				stage = renderer.ownerDocument;		
+				stage = renderer.ownerDocument;
+				
+				drawer_defs = stage.createElementNS(stage_ns, 'defs');
+				drawer.appendChild(drawer_defs);
+				
 				svg_group = stage.createElementNS(stage_ns, 'g');		
-				drawer.appendChild(svg_group);				
+				drawer.appendChild(svg_group);
 				
+				const drawer_style_body = stage.createElementNS(stage_ns, 'style');
+				drawer.appendChild(drawer_style_body);
 				
-				if (msie > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./)) {
-					// no markers
-				} else { 				
-					if (force_options.link_arrowhead) {
+				const node_style = document.createTextNode(`
+					*[data-visible="0"] { display: none; }
+				`);
+				drawer_style_body.appendChild(node_style);
+				
+				if (use_capture) {
+					
+					count_start++; // Font loading
+										
+					font_family = 'pixel';
+					size_text = 8;
+					
+					ASSETS.getFiles(elm, ['Unibody8Pro-Regular'], function(arr_files) {
 						
-						var defs = stage.createElementNS(stage_ns, 'defs');
-						var marker = stage.createElementNS(stage_ns, 'marker');
-						var marker_path = stage.createElementNS(stage_ns, 'path');
-						var marker_selected = stage.createElementNS(stage_ns, 'marker');
-						var marker_selected_path = stage.createElementNS(stage_ns, 'path');
+						for (const str_identifier in arr_files) {
 						
-						svg_group.appendChild(defs);
-						defs.appendChild(marker);
-						defs.appendChild(marker_selected);
+							const reader = new FileReader();
+							reader.onload = function(e) {
+								
+								const str_url = e.target.result;
+
+								const node_style = document.createTextNode(`
+									@font-face 
+										{ 
+											font-family: 'pixel';
+											src: url('`+str_url+`') format('woff');
+											font-style: normal;
+											font-weight: normal;
+										}
+								`);
+								drawer_style_body.appendChild(node_style);
+								
+							};
+							reader.readAsDataURL(arr_files[str_identifier]);
+						}
 						
-						marker.setAttribute('id', 'end');
-						marker.setAttribute('class', 'marker-end');
-						marker.setAttribute('viewBox', '0 -5 10 10');
-						marker.setAttribute('refX', 15);
-						marker.setAttribute('refY', -1.5);
-						marker.setAttribute('fill', force_options.node_stroke_color);
-						marker.setAttribute('markerWidth', 6);
-						marker.setAttribute('markerHeight', 6);
-						marker.setAttribute('orient', 'auto');
+						count_start--; // Font loaded
 						
-						marker_selected.setAttribute('id', 'end-selected');
-						marker_selected.setAttribute('class', 'marker-end');
-						marker_selected.setAttribute('viewBox', '0 -5 10 10');
-						marker_selected.setAttribute('refX', 15);
-						marker_selected.setAttribute('refY', -1.5);
-						marker_selected.setAttribute('fill', '#ff9999');
-						marker_selected.setAttribute('markerWidth', 6);
-						marker_selected.setAttribute('markerHeight', 6);
-						marker_selected.setAttribute('orient', 'auto');
-						
-						marker_path.setAttribute('d', 'M0,-5L10,0L0,5');
-						marker_selected_path.setAttribute('d', 'M0,-5L10,0L0,5');
-						
-						marker.appendChild(marker_path);
-						marker_selected.appendChild(marker_selected_path);
-						
-					}
+						func_start();
+					}, {}, 'blob', '/css/fonts/', '.woff');
+				}
+			
+				if (show_arrowhead) {
+					
+					var defs = stage.createElementNS(stage_ns, 'defs');
+					var marker = stage.createElementNS(stage_ns, 'marker');
+					var marker_path = stage.createElementNS(stage_ns, 'path');
+					var marker_selected = stage.createElementNS(stage_ns, 'marker');
+					var marker_selected_path = stage.createElementNS(stage_ns, 'path');
+					
+					svg_group.appendChild(defs);
+					defs.appendChild(marker);
+					defs.appendChild(marker_selected);
+					
+					marker.setAttribute('id', 'end');
+					marker.setAttribute('class', 'marker-end');
+					marker.setAttribute('viewBox', '0 -5 10 10');
+					marker.setAttribute('refX', 15);
+					marker.setAttribute('refY', -1.5);
+					marker.setAttribute('fill', color_node_stroke);
+					marker.setAttribute('markerWidth', 6);
+					marker.setAttribute('markerHeight', 6);
+					marker.setAttribute('orient', 'auto');
+					
+					marker_selected.setAttribute('id', 'end-selected');
+					marker_selected.setAttribute('class', 'marker-end');
+					marker_selected.setAttribute('viewBox', '0 -5 10 10');
+					marker_selected.setAttribute('refX', 15);
+					marker_selected.setAttribute('refY', -1.5);
+					marker_selected.setAttribute('fill', '#ff9999');
+					marker_selected.setAttribute('markerWidth', 6);
+					marker_selected.setAttribute('markerHeight', 6);
+					marker_selected.setAttribute('orient', 'auto');
+					
+					marker_path.setAttribute('d', 'M0,-5L10,0L0,5');
+					marker_selected_path.setAttribute('d', 'M0,-5L10,0L0,5');
+					
+					marker.appendChild(marker_path);
+					marker_selected.appendChild(marker_selected_path);
 				}
 			}
-			
+
 			addListeners();
 			
-			obj.drawData = drawData;
-			
-			key_move = obj_map.move(rePosition);
-			
-			obj_parent.doDraw();
+			count_start--; // Main loaded
+				
+			func_start();
 		});
 	};
 	
 	this.close = function() {
 		
-		if (!obj_map) { // Nothing loaded yet
+		if (!has_init) { // Nothing loaded yet
 			return;
 		}
 
 		elm_selected_node_container.remove();
 		elm_search_container.remove();
+		elm_layout.remove();
 		
 		ANIMATOR.animate(null, key_animate);
 
-		simulation.stop();
+		simulation.close();
 		
-		if (display == 'pixel') { // Destroy WEBGL memory
+		if (display == DISPLAY_PIXEL) { // Destroy WEBGL memory
 			stage.destroy(true);
 			stage_2.destroy(true);
 			renderer.destroy();
 			renderer_2.destroy();
+			
+			for (var resource in arr_assets_texture_icons) {
+				
+				if (arr_assets_texture_icons[resource].texture) {
+					
+					arr_assets_texture_icons[resource].texture.destroy(true);
+				}
+			}
 		}
 	};
 	
-	var drawData = function(date_range) {
+	var drawData = function(dateint_range_new, dateint_range_bounds, settings_timeline_new) {
 
-		var drawn = false;
+		in_predraw = false;
 
-		if (!setdata) {
-
-			// prep and clean from possible previous run
-			for (var object_id in arr_data.objects) {
-				
-				setNodeProperties(false, object_id, false);
-				
-				arr_data.objects[object_id].social_visualisation_attributes_added = false;
-				arr_data.objects[object_id].checked = false;
-
-			}	
+		if (count_loop == 0) {
 			
-			// Update arr_data.objects to inlcude all objects (refs in descs) and create arr_data.links for links between objects
-			arr_set_data = obj.setObjectsLinks(arr_data);
+			in_predraw = true;
 			
-			arr_data.objects = arr_set_data.objects;
-			arr_data.links = arr_set_data.links;
+			parseData();
 
-			// Run first to set all values correctly, then draw with current frame
-			//if (date_range.min != arr_data.date_range.min || date_range.max != arr_data.date_range.max) {
-				
-				setCheckSub(arr_data.date_range);
-				
-				setNodesLinks();
-				
-				createLinkElms();
-				drawn = true;
-				
-			//}
+			var dateinta_range = {min: DATEPARSER.dateInt2Absolute(dateint_range_bounds.min), max: DATEPARSER.dateInt2Absolute(dateint_range_bounds.max)};
 			
-			setdata = true;
-		}
-
-		
-		for (var object_id in arr_data.objects) {
+			setCheckObjectSubs(dateinta_range);
+			checkNodes();
+			setNodesLinksValues();
+			createLinkElms();
 			
-			arr_data.objects[object_id].checked = false;
-
-		}
-					
-		setCheckSub(date_range);
-
-		// Check if graph was not drawn before as a result of a pre defined frame
-		if (pre_graph_init && !drawn) {
-			
-			setNodesLinks();
-			createLinkElms();		
-		}
-					
-		for (var i = 0, len = links.length; i < len; i++) {
-			
-			setLinkColor(links[i]);
-		}
-			
-		if (pre_graph_init) {
-
-			for (var i = 0, len = nodes.length; i < len; i++) {
+			for (let i = 0, len = arr_loop_nodes.length; i < len; i++) {
 				
-				drawNodeElm(nodes[i]);
+				const arr_node = arr_loop_nodes[i];
+				
+				if (!arr_node.is_active) {
+					continue;
+				}
+				
+				const num_index = arr_active_nodes.push(arr_node);
+				
+				arr_node.index = num_index - 1;
+				
+				drawNodeElm(arr_node);
 			}
-		}
-
-		if (pre_graph_init) {
 			
-			pre_graph_init = false;
-
-			simulation = new handleForceSimulation();
-			simulation.init();
-			simulation.start();
+			for (let i = 0, len = arr_loop_links.length; i < len; i++) {
+			
+				const arr_link = arr_loop_links[i];
 				
-			// Calculate layout before first draw
-			if (nodes.length + links.length < 1000) {
-				
-				// For small graphs, just run simulation 100- or nodes.lenght-times
-				var runs = Math.max(100, nodes.length);
-				for (var i = 0; i < runs; i++) {
-					
-					simulation.resume();
-					simulation.step();
-					simulation.stop();
+				if (!arr_link.is_active) {
+					continue;
 				}
 
-				draw = true;
-
-			} else {
-				// For larger graphs, show progress of running simulation
-				elm_selected_node_container.removeClass('hide');
-				doTick();
+				arr_active_links.push(arr_link);
 			}
 			
+			simulation = new HandleSimulation();
+			simulation.init();
+			
+			in_predraw = false;
+		}
+
+		var dateinta_range = {min: DATEPARSER.dateInt2Absolute(dateint_range_new.min), max: DATEPARSER.dateInt2Absolute(dateint_range_new.max)};
+					
+		setCheckObjectSubs(dateinta_range);
+		checkNodes();
+			
+		arr_active_nodes.splice(0, arr_active_nodes.length); // Clear live array
+		arr_active_links.splice(0, arr_active_links.length); // Clear live array
+		
+		for (let i = 0, len = arr_loop_nodes.length; i < len; i++) {
+		
+			const arr_node = arr_loop_nodes[i];
+			
+			if (!arr_node.is_active) {
+				continue;
+			}
+			
+			const num_index = arr_active_nodes.push(arr_node);
+			
+			arr_node.index = num_index - 1;
+		}
+					
+		for (let i = 0, len = arr_loop_links.length; i < len; i++) {
+			
+			const arr_link = arr_loop_links[i];
+			
+			if (!arr_link.is_active) {
+				continue;
+			}
+			
+			arr_active_links.push(arr_link);
+			
+			setLinkColor(arr_link);
+		}
+		
+		elm_layout_statistics[0].innerHTML = '<p>Nodes: '+arr_active_nodes.length+' Links: '+arr_active_links.length+'</p>';
+		
+		simulation.start();
+		
+		if (count_loop == 0) {
+			
+			doTick();
 		} else {
 			
-			draw = true;
-			simulation.start();
-			
+			do_draw = true;
+
 			if (metrics_process) {
-				metrics_process.update(date_range);
+				metrics_process.update(dateinta_range);
 			}
-		}	
+		}
+		
+		count_loop++;
 			
 		if (!key_animate) {
 			
 			key_animate = ANIMATOR.animate(function() {
+				
+				if (!do_draw) {
+					
+					if (!is_dragging_node && !in_first_run) {
+						interact();
+					}
+					
+					return true;
+				}
 
-				if (draw && static_layout) {
+				if (static_layout) {
 
 					var interval = window.performance.now() - static_layout_timer;
 					
@@ -470,29 +697,26 @@ function MapSocial(element, obj_parent, options) {
 						static_layout_timer = window.performance.now();
 					}
 					
-					first_run = false;
-					
-				} else if (draw && !static_layout) {
+					in_first_run = false;
+				} else {
 					
 					drawTick();
-					first_run = false;
-					
+					in_first_run = false;
 				}
 				
-				if (!node_drag && !first_run) {
+				if (!is_dragging_node) {
 					interact();
 				}
 
 				if (simulation.stopDraw()) {
 					
-					draw = false;
+					do_draw = false;
 					
 					if (static_layout) {
 						drawTick();
 					}
 					
 					simulation.stop();
-					
 				}
 				
 				return true;
@@ -500,168 +724,987 @@ function MapSocial(element, obj_parent, options) {
 		}
 	};
 	
-	var handleForceSimulation = function() {
-		
-		var obj = this;
-		var layout = false;
-		
-		this.init = function() {
-			
-			// D3 Force
-
-			layout = d3.layout.force();	
-			layout.nodes(nodes)
-				.links(links)
-				.size([width, height])
-				.charge(force_options.charge)
-				.gravity(force_options.gravity)
-				.theta(force_options.theta)
-				.friction(force_options.friction)
-				.linkDistance(function(d) {
-					return ((1 - (d.value / max_value))*80)+parseInt(force_options.node_max_size);
-				});
-
-			
-			//layout = d3.forceSimulation()
-			//	.nodes(nodes)
-			//	.force('charge', d3.forceManyBody())
-			//	.force('link', d3.forceLink().links(links))
-			//	.force('center', d3.forceCenter(width / 2, height / 2));
-			
-			// FR
-			// Alternative force implementation
-		};	
-		this.start = function() {
-			
-			// D3 Force
-			// D3 force timer runs in the background until alpha is below threshold
-			// Can be stopped with .stop()/.alpha(0)
-			layout.start();
-				
-			// FR
-		};
-		this.resume = function() {
-			
-			// D3 Force
-			layout.alpha(0.1);
-				
-			// FR
-		};		
-		this.step = function() {
-			
-			// D3 Force
-			layout.tick();
-				
-			// FR
-		};		
-		this.stop = function() {
-			
-			// D3 Force
-			layout.alpha(0);
-				
-			// FR
-		};
-		this.stopDraw = function() {
-			
-			// D3 Force
-			// Stop drawing if force is under threshold
-			if (layout.alpha() < 0.01) {
-				return true;
-			} else {
-				return false;
-			}
-				
-			// FR
-		};
-		this.getSpeed = function() {
-			
-			// D3 Force
-			return layout.alpha();
-				
-			// FR
-		};
-		this.resize = function() {
-			
-			// D3 Force
-			layout.size([width, height])
-				
-			// FR
-		};
-	};
-	
 	var doTick = function() {
 
 		if (simulation.stopDraw()) {
 			
 			simulation.stop();
-			
-			elm_selected_node_container.addClass('hide');	
 					
-			draw = true;
+			do_draw = true;
 			
 			return;
-			
 		} else {
 
-			var perc = 100*((1-simulation.getSpeed())/0.99);
-			
-			elm_selected_node_container.html('<p>Nodes: '+nodes.length+', Links: '+links.length+'</p><p>Layout complete: '+perc.toFixed(2)+'%</p>');
-			
 			setTimeout(function () {
 				doTick();
 			}, 0);
-			
 		}
-		
 	};
 	
+	var HandleSimulation = function() {
+		
+		var SELF = this;
+		
+		this.draw = null;
+		this.layout = null;
+		
+		var num_threshold = 1;
+		const num_threshold_stop = 0.01;
+		var str_layout = '';
+				
+		this.setSpeed = function(num_state) {
+			
+			num_threshold = num_state;
+		};
+		this.getSpeed = function() {
+			
+			return num_threshold;
+		};
+		this.getSpeedThreshold = function() {
+			
+			return num_threshold_stop;
+		};
+		this.stopDraw = function() {
+			
+			SELF.step();
+			
+			// Stop drawing if force is under threshold
+			if (num_threshold < num_threshold_stop) {
+			
+				return true;
+			} else {
+
+				return false;
+			}
+		};
+					
+		this.setRunning = function(is_running) {
+			
+			if (is_running === false) {
+				elm_layout[0].classList.remove('running');
+			} else {
+				elm_layout[0].classList.add('running');
+			}
+		};
+		
+		this.setRunningLayout = function(str_layout_new) {
+			
+			var str_layout_new = (str_layout_new ? str_layout_new : '');
+			
+			if (str_layout === str_layout_new) {
+				return false;
+			}
+			
+			str_layout = str_layout_new;
+			elm_layout_select[0].value = str_layout;
+			
+			return true;
+		};
+		this.isRunningLayout = function(str_layout_check) {
+
+			if (str_layout === (str_layout_check ? str_layout_check : '')) {
+				return true;
+			}
+			
+			return false;
+		};
+		
+		this.setRunningStatistics = function(str_html) {
+			
+			elm_layout_status[0].innerHTML = str_html;
+		};
+		
+		this.draw = (use_simulation_native ? new HandleSimulationDrawNative(SELF) : new HandleSimulationDrawWorker(SELF));
+		this.layout = new HandleSimulationLayout(SELF);
+	};
+	
+	var HandleSimulationDrawNative = function(obj) {
+		
+		var PARENT = obj;
+		var SELF = this;
+			
+		var simulate = false;
+		var simulate_force_links = false;
+		
+		PARENT.init = function() {
+			
+			PARENT.setRunningStatistics('<p>Layout complete: 0%</p>');
+			
+			simulate_force_links = d3.forceLink();
+			
+			simulate = d3.forceSimulation()
+				.nodes(arr_active_nodes)
+				.force('charge', d3.forceManyBody()
+					.strength(force_options.charge)
+					.theta(force_options.theta)
+				)
+				.force('link', simulate_force_links
+					.links(arr_active_links)
+					.distance(function(d) {
+						return ((1 - (d.weight / num_link_weight_max))*80) + size_node_max;
+					}))
+				.force("x", d3.forceX(size_renderer.width / 2)
+					.strength(force_options.gravity)
+				)
+				.force("y", d3.forceY(size_renderer.height / 2)
+					.strength(force_options.gravity)
+				)
+				//.force('center', d3.forceCenter(size_renderer.width / 2, size_renderer.height / 2)
+				//	.strength(force_options.gravity)
+				//)
+				.velocityDecay(force_options.friction)
+			;
+			simulate.stop();
+		};
+		PARENT.start = function() {
+			
+			PARENT.layout.stop();
+			
+			PARENT.setRunning();
+			PARENT.setRunningLayout();
+			PARENT.setSpeed(1);
+			
+			simulate.nodes(arr_active_nodes);
+			simulate_force_links.links(arr_active_links);
+			
+			simulate.alpha(1);
+		};
+		PARENT.step = function() {
+			
+			if (!PARENT.isRunningLayout()) { // Could be running an other layout
+				return;
+			}
+			
+			simulate.tick();
+			
+			PARENT.setSpeed(simulate.alpha());
+			
+			const has_stopped = (PARENT.getSpeed() < PARENT.getSpeedThreshold());
+			
+			if (!has_stopped) {
+				
+				const num_perc = 100*((1 - PARENT.getSpeed()) / (1 - PARENT.getSpeedThreshold()));
+				
+				PARENT.setRunningStatistics('<p>Layout complete: '+num_perc.toFixed(2)+'%</p>');
+				
+			} else {
+
+				identifier_running = false;
+				
+				PARENT.setRunningStatistics('<p>Layout complete: 100%</p>');
+			}
+		};
+		PARENT.resume = function() {
+			
+			PARENT.layout.stop();
+			
+			PARENT.setRunning();
+			PARENT.setRunningLayout();
+			PARENT.setSpeed(0.1);
+			
+			simulate.alpha(0.1);
+		};		
+		PARENT.stop = function() {
+			
+			PARENT.layout.stop();
+			
+			PARENT.setRunning(false);
+			PARENT.setSpeed(0);
+			
+			simulate.alpha(0);
+		};
+		PARENT.close = function() {
+			
+			PARENT.stop();
+		};
+		PARENT.resize = function() {
+			
+			simulate.force("x", d3.forceX(size_renderer.width / 2)
+					.strength(force_options.gravity)
+				)
+				.force("y", d3.forceY(size_renderer.height / 2)
+					.strength(force_options.gravity)
+				)
+			;
+		};
+	};
+	
+	var HandleSimulationDrawWorker = function(obj) {
+		
+		var PARENT = obj;
+		var SELF = this;
+		
+		var worker = false;
+		var is_running = false;
+		var identifier_running = false;
+		
+		var arr_matrix_nodes = null;
+		var arr_matrix_edges = null;
+		const num_properties_nodes = 5;
+		const num_properties_edges = 3;
+				
+		PARENT.init = function() {
+			
+			PARENT.setRunningStatistics('<p>Layout complete: 0%</p>');
+			
+			setMatrix();
+			
+			worker = createForceWorker();
+
+			worker.addEventListener('message', function(event) {
+				
+				const has_identifier = (event.data.identifier !== false);
+				const do_continue = (is_running && has_identifier && event.data.identifier == identifier_running); // Is the running iteration still relevant?
+				
+				arr_matrix_nodes = new Float32Array(event.data.nodes);
+				
+				var arr_nodes_matrix_index = [];
+				
+				for (let i = 0, len = arr_matrix_nodes.length; i < len; i += num_properties_nodes) {
+					
+					const num_index = arr_matrix_nodes[i + 4];
+					const arr_node = arr_loop_nodes[num_index];
+										
+					if (do_continue && (arr_node.fixed || arr_node.fixed != arr_matrix_nodes[i + 3])) {
+						
+						if (arr_node.fixed) {
+						
+							arr_matrix_nodes[i] = arr_node.x;
+							arr_matrix_nodes[i + 1] = arr_node.y;
+						}
+						
+						arr_matrix_nodes[i + 3] = arr_node.fixed;
+							
+						arr_nodes_matrix_index.push(i);
+					} else {
+						
+						arr_node.x = arr_matrix_nodes[i];
+						arr_node.y = arr_matrix_nodes[i + 1];
+					}
+				}
+
+				if (do_continue) {
+					
+					PARENT.setSpeed(event.data.alpha);
+					const has_stopped = (PARENT.getSpeed() < PARENT.getSpeedThreshold());
+					
+					if (!has_stopped) {
+						
+						worker.postMessage({
+								action: 'loop',
+								nodes: arr_matrix_nodes.buffer,
+								nodes_state: (arr_nodes_matrix_index.length ? arr_nodes_matrix_index : false),
+								identifier: identifier_running,
+								iterations: 1
+							},
+							[arr_matrix_nodes.buffer]
+						);
+						
+						const num_perc = 100*((1 - PARENT.getSpeed()) / (1 - PARENT.getSpeedThreshold()));
+						
+						PARENT.setRunningStatistics('<p>Layout complete: '+num_perc.toFixed(2)+'%</p>');
+						
+					} else {
+
+						identifier_running = false;
+						
+						PARENT.setRunningStatistics('<p>Layout complete: 100%</p>');
+					}
+				}
+			});
+			
+			worker.postMessage({
+					action: 'init',
+					nodes: arr_matrix_nodes.buffer,
+					settings: {
+						friction: force_options.friction,
+						charge: force_options.charge,
+						gravity: force_options.gravity,
+						charge: force_options.charge,
+						theta: force_options.theta,
+						link_weight_max: num_link_weight_max,
+						node_size_max: size_node_max,
+						width: size_renderer.width,
+						height: size_renderer.height
+					}
+				}
+			);
+		};
+		PARENT.start = function() {
+			
+			PARENT.layout.stop();
+			
+			PARENT.setRunning();
+			const has_changed = PARENT.setRunningLayout();
+			
+			setMatrix();
+			
+			is_running = true;
+			identifier_running = count_loop;
+			PARENT.setSpeed(1);
+			
+			worker.postMessage({
+					action: 'start',
+					nodes: arr_matrix_nodes.buffer,
+					nodes_state: (has_changed ? 'update' : false),
+					alpha: 1,
+					edges: arr_matrix_edges.buffer,
+					identifier: identifier_running,
+					iterations: 1
+				},
+				[arr_matrix_nodes.buffer, arr_matrix_edges.buffer]
+			);
+		};
+		PARENT.step = function() {};
+		PARENT.resume = function() {
+			
+			PARENT.layout.stop();
+			
+			PARENT.setRunning();
+			const has_changed = PARENT.setRunningLayout();
+
+			if (!is_running || identifier_running === false) {
+				
+				is_running = true;
+				identifier_running = count_loop;
+				PARENT.setSpeed(0.1);
+				
+				if (has_changed) {
+					updateMatrixNodes();
+				}
+
+				worker.postMessage({
+						action: 'resume',
+						nodes: arr_matrix_nodes.buffer,
+						nodes_state: (has_changed ? 'update' : 'pass'),
+						alpha: 0.1,
+						identifier: identifier_running,
+						iterations: 1
+					},
+					[arr_matrix_nodes.buffer]
+				);
+			} else {
+				
+				is_running = true;
+				PARENT.setSpeed(0.1);
+				
+				worker.postMessage({
+						action: 'resume',
+						alpha: 0.1,
+						identifier: identifier_running,
+						iterations: 1
+					}
+				);
+			}
+		};		
+		PARENT.stop = function() {
+			
+			PARENT.layout.stop();
+			
+			PARENT.setRunning(false);
+			is_running = false;
+			identifier_running = false;
+			
+			worker.postMessage({
+					action: 'stop'
+				}
+			);
+		};
+		PARENT.close = function() {
+			
+			PARENT.stop();
+			
+			if (!worker) {
+				return;
+			}
+			
+			worker.terminate();
+			worker = false;
+		};
+		PARENT.resize = function() {
+		
+			worker.postMessage({
+					action: 'settings',
+					settings: {
+						width: size_renderer.width,
+						height: size_renderer.height,
+						gravity: force_options.gravity
+					}
+				}
+			);
+		};
+		
+		var setMatrix = function() {
+			
+			// Allocating Byte arrays
+			let len_matrix = arr_active_nodes.length * num_properties_nodes;
+			arr_matrix_nodes = new Float32Array(len_matrix);
+			len_matrix = arr_active_links.length * num_properties_edges;
+			arr_matrix_edges = new Float32Array(len_matrix);
+						
+			// Iterate through nodes
+			for (let i = 0, j = 0, len = arr_active_nodes.length; i < len; i++) {
+				
+				const arr_node = arr_active_nodes[i];
+							
+				// Populating byte array
+				arr_matrix_nodes[j] = arr_node.x;
+				arr_matrix_nodes[j + 1] = arr_node.y;
+				arr_matrix_nodes[j + 2] = arr_node.weight;
+				arr_matrix_nodes[j + 3] = arr_node.fixed;
+				arr_matrix_nodes[j + 4] = arr_node.count;
+				
+				j += num_properties_nodes;
+			}
+			
+			// Iterate through edges
+			for (let i = 0, j = 0, len = arr_active_links.length; i < len; i++) {
+				
+				const arr_link = arr_active_links[i];
+				
+				arr_matrix_edges[j] = arr_link.source.index;
+				arr_matrix_edges[j + 1] = arr_link.target.index;
+				arr_matrix_edges[j + 2] = arr_link.weight;
+				
+				j += num_properties_edges;
+			}
+		};
+		
+		var updateMatrixNodes = function() {
+			
+			for (let i = 0, len = arr_matrix_nodes.length; i < len; i += num_properties_nodes) {
+				
+				const num_index = arr_matrix_nodes[i + 4];
+				const arr_node = arr_loop_nodes[num_index];
+				
+				arr_matrix_nodes[i] = arr_node.x;
+				arr_matrix_nodes[i + 1] = arr_node.y;
+				arr_matrix_nodes[i + 3] = arr_node.fixed;
+			}
+		};
+				
+		var createForceWorker = function() {
+			
+			var func_worker = function() {
+				
+				var simulate = false;
+				var simulate_force_links = false;
+				
+				var arr_nodes = [];
+				var arr_active_edges = [];
+				var arr_active_nodes = [];
+				
+				var arr_matrix_nodes = false;
+				var arr_matrix_edges = false;
+				
+				const num_properties_nodes = 5;
+				const num_properties_edges = 3;
+				
+				function init(arr_settings) {
+					
+					simulate_force_links = d3.forceLink();
+					
+					simulate = d3.forceSimulation()
+						.nodes(arr_active_nodes)
+						.force('charge', d3.forceManyBody()
+							.strength(arr_settings.charge)
+							.theta(arr_settings.theta)
+						)
+						.force('link', simulate_force_links
+							.links(arr_active_edges)
+							.distance(function(d) {
+								return ((1 - (d.weight / arr_settings.link_weight_max))*80) + arr_settings.node_size_max;
+							}))
+						.force("x", d3.forceX(arr_settings.width / 2)
+							.strength(arr_settings.gravity)
+						)
+						.force("y", d3.forceY(arr_settings.height / 2)
+							.strength(arr_settings.gravity)
+						)
+						//.force('center', d3.forceCenter(arr_settings.width / 2, arr_settings.height / 2)
+						//	.strength(arr_settings.gravity)
+						//)
+						.velocityDecay(arr_settings.friction)
+					;
+					simulate.stop();
+				}
+				
+				function initNodes(arr_matrix_nodes_buffer) {
+					
+					arr_matrix_nodes = arr_matrix_nodes_buffer;
+					
+					for (let i = 0, len = arr_matrix_nodes.length; i < len; i += num_properties_nodes) {
+
+						var arr_node = {
+							x: arr_matrix_nodes[i],
+							y: arr_matrix_nodes[i + 1],
+							weight: arr_matrix_nodes[i + 2],
+							fixed: arr_matrix_nodes[i + 3],
+							count: arr_matrix_nodes[i + 4]
+						};
+						
+						if (arr_node.fixed) {
+							arr_node.fx = arr_node.x;
+							arr_node.fy = arr_node.y;
+						}
+						
+						arr_nodes[arr_node.count] = arr_node;
+						arr_active_nodes.push(arr_node);
+					}		
+				}
+				
+				function passNodes(arr_matrix_nodes_buffer) {
+					
+					arr_matrix_nodes = arr_matrix_nodes_buffer;
+				}
+				
+				function setNodes(arr_matrix_nodes_buffer, do_position) {
+					
+					arr_matrix_nodes = arr_matrix_nodes_buffer;
+					
+					arr_active_nodes = [];
+					
+					for (let i = 0, len = arr_matrix_nodes.length; i < len; i += num_properties_nodes) {
+						
+						const num_count = arr_matrix_nodes[i + 4];
+
+						var arr_node = arr_nodes[num_count];
+						
+						arr_node.weight = arr_matrix_nodes[i + 2];
+						
+						if (do_position) {
+							
+							arr_node.x = arr_matrix_nodes[i];
+							arr_node.y = arr_matrix_nodes[i + 1];
+							
+							arr_node.fixed = arr_matrix_nodes[i + 3];
+							if (arr_node.fixed) {
+								arr_node.fx = arr_node.x;
+								arr_node.fy = arr_node.y;
+							} else {
+								arr_node.fx = null;
+								arr_node.fy = null;
+							}
+						}
+
+						arr_active_nodes.push(arr_node);
+					}
+					
+					simulate.nodes(arr_active_nodes);
+				}
+				
+				function updateNodesByMatrixIndex(arr_node_indices) {
+										
+					for (let i = 0, len = arr_node_indices.length; i < len; i++) {
+						
+						const num_index_matrix = arr_node_indices[i];										
+						const num_count = arr_matrix_nodes[num_index_matrix + 4];
+
+						var arr_node = arr_nodes[num_count];
+						
+						arr_node.x = arr_matrix_nodes[num_index_matrix];
+						arr_node.y = arr_matrix_nodes[num_index_matrix + 1];
+						
+						arr_node.fixed = arr_matrix_nodes[num_index_matrix + 3];
+						if (arr_node.fixed) {
+							arr_node.fx = arr_node.x;
+							arr_node.fy = arr_node.y;
+						} else {
+							arr_node.fx = null;
+							arr_node.fy = null;
+						}
+					}		
+				}
+				
+				function getNodes() {
+					
+					for (let i = 0, j = 0, len = arr_matrix_nodes.length; i < len; i += num_properties_nodes) {
+					
+						const arr_node = arr_active_nodes[j];
+						
+						arr_matrix_nodes[i] = arr_node.x;
+						arr_matrix_nodes[i + 1] = arr_node.y;
+						arr_matrix_nodes[i + 4] = arr_node.count;
+						
+						j++;
+					}
+					
+					return arr_matrix_nodes;
+				}
+				
+				function setEdges(arr_matrix_edges_buffer) {
+					
+					arr_matrix_edges = arr_matrix_edges_buffer;
+					
+					arr_active_edges = [];
+					
+					for (let i = 0, len = arr_matrix_edges.length; i < len; i += num_properties_edges) {
+				
+						var arr_edge = {
+							source: arr_active_nodes[arr_matrix_edges[i]],
+							target: arr_active_nodes[arr_matrix_edges[i + 1]],
+							weight: arr_matrix_edges[i + 2]
+						};
+						
+						arr_active_edges.push(arr_edge);
+					}
+					
+					simulate_force_links.links(arr_active_edges);
+				}
+
+				function setConfiguration(arr_settings) {
+					
+					simulate.force("x", d3.forceX(arr_settings.width / 2)
+							.strength(arr_settings.gravity)
+						)
+						.force("y", d3.forceY(arr_settings.height / 2)
+							.strength(arr_settings.gravity)
+						)
+					;
+				}
+				
+				function ready() {
+					
+					var arr_matrix_nodes_buffer = getNodes();
+					
+					self.postMessage(
+						{
+							nodes: arr_matrix_nodes_buffer.buffer,
+							alpha: simulate.alpha(),
+							identifier: false
+						},
+						[arr_matrix_nodes_buffer.buffer]
+					);
+				}
+						
+				function run(n, identifier) {
+					
+					for (var i = 0; i < n; i++) {
+						simulate.tick();
+					}
+					
+					var arr_matrix_nodes_buffer = getNodes();
+					
+					self.postMessage(
+						{
+							nodes: arr_matrix_nodes_buffer.buffer,
+							alpha: simulate.alpha(),
+							identifier: identifier
+						},
+						[arr_matrix_nodes_buffer.buffer]
+					);
+				}
+
+				var func_listener = function(e) {
+					
+					const nodes_state = (e.data.nodes_state != null ? e.data.nodes_state : false);
+					
+					switch (e.data.action) {
+						case 'init':
+						
+							initNodes(new Float32Array(e.data.nodes));
+													
+							init(e.data.settings);
+							
+							ready();
+							break;
+							
+						case 'settings':
+
+							setConfiguration(e.data.settings);
+							break;
+							
+						case 'start':
+
+							setNodes(new Float32Array(e.data.nodes), (nodes_state == 'update' ? true : false));
+							setEdges(new Float32Array(e.data.edges));
+							
+							simulate.alpha(e.data.alpha);
+							
+							run(e.data.iterations, e.data.identifier);
+							break;
+							
+						case 'resume':
+														
+							if (nodes_state == 'pass') {
+								passNodes(new Float32Array(e.data.nodes));
+							} else if (nodes_state == 'update') {
+								setNodes(new Float32Array(e.data.nodes), true);
+							}
+							
+							simulate.alpha(e.data.alpha);
+							
+							if (nodes_state) {
+								run(e.data.iterations, e.data.identifier);
+							}
+							break;
+							
+						case 'loop':
+						
+							passNodes(new Float32Array(e.data.nodes));
+							
+							if (e.data.nodes_state) {
+								updateNodesByMatrixIndex(e.data.nodes_state);
+							}
+											
+							run(e.data.iterations, e.data.identifier);
+							break;
+								
+						case 'stop':
+						
+							simulate.alpha(0);
+							break;
+
+						default:
+					}
+				};
+
+				self.addEventListener('message', func_listener);
+			};
+
+			var worker = ASSETS.createWorker(func_worker, ['/js/support/d3-force.pack.js']);
+
+			return worker;
+		};
+	};
+	
+	var HandleSimulationLayout = function(obj) {
+		
+		var PARENT = obj;
+		var SELF = this;
+		
+		var worker = null;
+		
+		this.startLayoutForceAtlas2 = function() {
+			
+			PARENT.stop();
+			
+			PARENT.setRunning();
+			PARENT.setRunningLayout('forceatlas2');
+			PARENT.setRunningStatistics('<p>Layout iterations: 0</p>');
+			
+			PARENT.setSpeed(1); // Continuous
+			
+			const num_properties_nodes = 10;
+			const num_properties_edges = 3;
+			
+			// Allocating Byte arrays
+			let len_matrix = arr_active_nodes.length * num_properties_nodes;
+			arr_matrix_nodes = new Float32Array(len_matrix);
+			len_matrix = arr_active_links.length * num_properties_edges;
+			arr_matrix_edges = new Float32Array(len_matrix);
+			
+			var count_iteration = 0;
+			
+			// Iterate through nodes
+			for (let i = 0, j = 0, len = arr_active_nodes.length; i < len; i++) {
+				
+				const arr_node = arr_active_nodes[i];
+
+				// Populating byte array
+				arr_matrix_nodes[j] = arr_node.x;
+				arr_matrix_nodes[j + 1] = arr_node.y;
+				arr_matrix_nodes[j + 2] = 0;
+				arr_matrix_nodes[j + 3] = 0;
+				arr_matrix_nodes[j + 4] = 0;
+				arr_matrix_nodes[j + 5] = 0;
+				arr_matrix_nodes[j + 6] = arr_node.weight;
+				arr_matrix_nodes[j + 7] = 1;
+				arr_matrix_nodes[j + 8] = arr_node.radius;
+				arr_matrix_nodes[j + 9] = arr_node.fixed;
+				
+				j += num_properties_nodes;
+			}
+			
+			// Iterate through edges
+			for (let i = 0, j = 0, len = arr_active_links.length; i < len; i++) {
+				
+				const arr_link = arr_active_links[i];
+				
+				arr_matrix_edges[j] = arr_link.source.index * num_properties_nodes;
+				arr_matrix_edges[j + 1] = arr_link.target.index * num_properties_nodes;
+				arr_matrix_edges[j + 2] = arr_link.weight;
+				
+				j += num_properties_edges;
+			}
+			
+			worker = createForceAtlas2Worker();
+			
+			worker.postMessage({
+					action: 'start',
+					nodes: arr_matrix_nodes.buffer,
+					edges: arr_matrix_edges.buffer,
+					iterations: 1,
+					settings: {
+						linLogMode: forceatlas2_options.lin_log_mode,
+						outboundAttractionDistribution: forceatlas2_options.outbound_attraction_distribution,
+						adjustSizes: forceatlas2_options.adjust_sizes,
+						edgeWeightInfluence: forceatlas2_options.edge_weight_influence,
+						scalingRatio: forceatlas2_options.scaling_ratio,
+						strongGravityMode: forceatlas2_options.strong_gravity_mode,
+						gravity: forceatlas2_options.gravity,
+						slowDown: forceatlas2_options.slow_down,
+						barnesHutOptimize: (forceatlas2_options.optimize_theta > 0 ? true : false),
+						barnesHutTheta: forceatlas2_options.optimize_theta
+					}
+				},
+				[arr_matrix_nodes.buffer, arr_matrix_edges.buffer]
+			);
+			
+			worker.addEventListener('message', function(event) {
+				
+				arr_matrix_nodes = new Float32Array(event.data.nodes);
+				
+				for (let i = 0, j = 0, len = arr_matrix_nodes.length; i < len; i += num_properties_nodes) {
+					
+					const arr_node = arr_active_nodes[j];
+					
+					arr_node.x = arr_matrix_nodes[i];
+					arr_node.y = arr_matrix_nodes[i + 1];
+					
+					j++;
+				}
+				
+				if (worker) {
+					
+					count_iteration++;
+					PARENT.setRunningStatistics('<p>Layout iterations: '+count_iteration+'</p>');
+					
+					worker.postMessage({
+							action: 'loop',
+							nodes: arr_matrix_nodes.buffer,
+							iterations: 1
+						},
+						[arr_matrix_nodes.buffer]
+					);
+				}
+			});
+		};
+
+		var createForceAtlas2Worker = function() {
+			
+			var func_worker = function() {
+		
+				var forceatlas2 = new LayoutForceAtlas2();
+				
+				function run(n) {
+					
+					for (var i = 0; i < n; i++) {
+						forceatlas2.pass();
+					}
+					
+					arr_matrix_nodes = forceatlas2.getNodes();
+					
+					self.postMessage(
+						{nodes: arr_matrix_nodes.buffer},
+						[arr_matrix_nodes.buffer]
+					);
+				}
+
+				var func_listener = function(e) {
+					
+					switch (e.data.action) {
+						case 'start':
+						
+							forceatlas2.init(
+								new Float32Array(e.data.nodes),
+								new Float32Array(e.data.edges),
+								e.data.settings
+							);
+
+							run(e.data.iterations);
+							break;
+
+						case 'loop':
+						
+							forceatlas2.setNodes(new Float32Array(e.data.nodes));
+							
+							run(e.data.iterations);
+							break;
+
+						case 'settings':
+
+							forceatlas2.setConfiguration(e.data.settings);
+							break;
+
+						default:
+					}
+				};
+
+				self.addEventListener('message', func_listener);
+			};
+
+			var worker = ASSETS.createWorker(func_worker, ['/js/LayoutForceAtlas2.js']);
+
+			return worker;
+		};
+		
+		this.stop = function() {
+			
+			if (!worker) {
+				return false;
+			}
+			
+			worker.terminate();
+			
+			worker = null;
+			arr_matrix_nodes = null;
+			arr_matrix_edges = null;
+			
+			return true;
+		};
+	}
+		
 	var interact = function() {
 
-		var pos_hover = obj_map.getMousePosition();
+		const pos_hover = PARENT.obj_map.getMousePosition();
 			
 		if (!pos_hover) {
 			
-			if (pos_hover_poll.x) {
+			if (pos_hover_poll) {
 				
-				pos_hover_poll = pos_hover;
-				hover(false, false);
-				cur_node_position = false;
-				elm.removeClass('hovering');
+				pos_hover_poll = false;
+				hoverNode(false, false);
+				cur_node_id = false;
+				elm[0].classList.remove('hovering');
 			}
 		} else {
 						
-			var x_point = pos_hover.x;
-			var y_point = pos_hover.y;
+			const x_point = pos_hover.x;
+			const y_point = pos_hover.y;
 
-			if (!pos_hover_poll || (Math.abs(x_point-pos_hover_poll.x) > 4 || Math.abs(y_point-pos_hover_poll.y) > 4)) {
+			if (!pos_hover_poll || (Math.abs(x_point-pos_hover_poll.x) > 0 || Math.abs(y_point-pos_hover_poll.y) > 0)) {
 			
 				pos_hover_poll = pos_hover;
-				var hovering = false;
+				let is_hovering = false;
 
-				for (var i = 0, len = nodes.length; i < len; i++) {
+				for (let i = 0, len = arr_active_nodes.length; i < len; i++) {
 					
-					var arr_node = nodes[i];
-					var distance_between_mouse_position_x_and_node_position_x = (((arr_node.x + pos_translation.x) * scale) + (stage.position ? stage.position.x : '')) - pos_hover_poll.x;
-					var distance_between_mouse_position_y_and_node_position_y = (((arr_node.y + pos_translation.y) * scale) + (stage.position ? stage.position.y : '')) - pos_hover_poll.y;
+					const arr_node = arr_active_nodes[i];
+					const dx = (((arr_node.x + pos_translation.x) * num_scale) + (stage.position ? stage.position.x : '')) - pos_hover_poll.x;
+					const dy = (((arr_node.y + pos_translation.y) * num_scale) + (stage.position ? stage.position.y : '')) - pos_hover_poll.y;
 					
-					var totall_distance_squared = distance_between_mouse_position_x_and_node_position_x * distance_between_mouse_position_x_and_node_position_x + distance_between_mouse_position_y_and_node_position_y * distance_between_mouse_position_y_and_node_position_y;
-					var radius_squared = ((arr_node.r + force_options.node_stroke_width) * scale) * ((arr_node.r + force_options.node_stroke_width) * scale);
+					const distance_squared = dx * dx + dy * dy;
+					const radius_squared = ((arr_node.radius + width_node_stroke + 2) * num_scale) * ((arr_node.radius + width_node_stroke + 2) * num_scale);
 
-					if (totall_distance_squared < radius_squared) {
+					if (distance_squared < radius_squared) {
 						
-						hover(arr_node.node_position, true);
-						hovering = true;	
-						cur_node_position = arr_node.node_position;
-						elm.addClass('hovering');
+						is_hovering = true;
 						
+						if (cur_node_id !== arr_node.id) {
+								
+							hoverNode(arr_node, true);
+							cur_node_id = arr_node.id;
+							elm[0].classList.add('hovering');
+						}
 					}
-					
 				}
 				
-				if (cur_node_position !== false && !hovering) {
-					hover(false, false);
-					cur_node_position = false;
-					elm.removeClass('hovering');
+				if (cur_node_id !== false && !is_hovering) {
+					
+					hoverNode(false, false);
+					cur_node_id = false;
+					elm[0].classList.remove('hovering');
 				}
 			}
 		}	
@@ -669,174 +1712,148 @@ function MapSocial(element, obj_parent, options) {
 
 	var rePosition = function(move, pos, zoom, calc_zoom) {
 
-		width = pos.size.width;
-		height = pos.size.height;
-		var redraw = false;
+		var width = pos.size.width;
+		var height = pos.size.height;
 
-		if (calc_zoom) { // Zoomed
+		if (calc_zoom) { // Zoomed related
 			
-			if (display == 'pixel') {
-				if (calc_zoom == '-1') {
-					scale = scale * 0.7;
-				} else if (calc_zoom == '+1') {
-					scale = scale * 1.4286;
+			if (display == DISPLAY_PIXEL) {
+				
+				if (typeof calc_zoom == 'string') { // Zoom in/out
+					
+					const num_zoom = parseInt(calc_zoom);
+					
+					if (num_zoom < 0) {
+						num_scale = num_scale * Math.pow(0.7, Math.abs(num_zoom));
+					} else if (num_zoom > 0) {
+						num_scale = num_scale * Math.pow(1.4286, num_zoom);
+					}
 				}
 			} else {
-				scale = width/init_size.width;
+				num_scale = width/size_init.width;
 			}
 
-			redraw = true;
+			do_redraw = true;
 		}
 		
-		if (display == 'pixel') {
+		if (display == DISPLAY_PIXEL) {
 			
-			if (width != init_size.width || height != init_size.height) {
+			if (width != size_renderer.width || height != size_renderer.height) {
 				
-				redraw = true;
-				draw = true;
+				do_redraw = true;
+				do_draw = true;
 					
-				size_renderer.width = width;
-				size_renderer.height = height;
+				size_renderer.resolution = pos.render.resolution;
 				
 				renderer.resize(width, height);
-				renderer_2.resize(width, height);		
+				renderer.resolution = size_renderer.resolution;
+				renderer_2.resize(width, height);
+				renderer_2.resolution = size_renderer.resolution;
 				
 				elm_canvas.width = width;
 				elm_canvas.height = height;	
 								
-				shader.uniforms.bounds = [width, height];	
+				geometry_shader.uniforms.u_bounds = [width, height];	
 				
 				simulation.resize();
-				simulation.start();
-				
+				simulation.resume();
 			}
-									
+			
 			if (move === true) { // Move Starts
-				if (node_drag === false) {
-					position.x = pos.x;
-					position.y = pos.y;
-					dragging = true;
-				}
+				
+				pos_move.x = pos.x;
+				pos_move.y = pos.y;
+				is_dragging = true;
 			}
-			if (move !== false && dragging) { // Moving...
+			if (move !== false && is_dragging && !is_dragging_node) { // Moving...
 				
-				pos_translation.x = pos_translation.x - (position.x - pos.x) / scale;
-				pos_translation.y = pos_translation.y - (position.y - pos.y) / scale;
+				pos_translation.x = pos_translation.x - ((pos_move.x - pos.x) / num_scale);
+				pos_translation.y = pos_translation.y - ((pos_move.y - pos.y) / num_scale);
 				
-				shader.uniforms.translation = [pos_translation.x, pos_translation.y];
+				geometry_shader.uniforms.u_translation = [pos_translation.x, pos_translation.y];
 
-				position.x = pos.x;
-				position.y = pos.y;
-				
-				
+				pos_move.x = pos.x;
+				pos_move.y = pos.y;
 			}
-			if (move === false && dragging) { // Move Ends
-				dragging = false;
+			if (move === false && is_dragging) { // Move Ends
+				is_dragging = false;
 			}
 			
-			if (calc_zoom == '-1' || calc_zoom == '+1') { 
+			if (typeof calc_zoom == 'string') { // Zoom in/out
 				
-				stage.position.x = (size_renderer.width - (size_renderer.width * scale)) / 2;
-				stage_2.position.x = (size_renderer.width - (size_renderer.width * scale)) / 2;
+				stage.position.x = (width - (width * num_scale)) / 2;
+				stage_2.position.x = (width - (width * num_scale)) / 2;
 				
-				stage.position.y = (size_renderer.height - (size_renderer.height * scale)) / 2;
-				stage_2.position.y = (size_renderer.height - (size_renderer.height * scale)) / 2;
-				
-				//stage.position.x = size_renderer.width - ((Math.abs(pos.x) - size_renderer.width) * scale - (Math.abs(pos.x) - size_renderer.width));
-				//stage.position.y = size_renderer.height - ((Math.abs(pos.y) - size_renderer.height) * scale - (Math.abs(pos.y) - size_renderer.height));
-				
-				//stage.position.x = stage.position.x - ((Math.abs(pos.x) - stage.position.x) * scale - (Math.abs(pos.x) - stage.position.x));
-				//stage.position.y = stage.position.y - ((Math.abs(pos.y) - stage.position.y) * scale - (Math.abs(pos.y) - stage.position.y));
+				stage.position.y = (height - (height * num_scale)) / 2;
+				stage_2.position.y = (height - (height * num_scale)) / 2;
 
-				shader.uniforms.stagetranslation = [stage.position.x, stage.position.y];
-				shader.uniforms.scale = [scale, scale];
-				
+				geometry_shader.uniforms.u_stagetranslation = [stage.position.x, stage.position.y];
+				geometry_shader.uniforms.u_scale = [num_scale, num_scale];
 			}
-			
 		} else {
 				
 			drawer.style.width = width+'px';
 			drawer.style.height = height+'px';
 			
-			svg_group.setAttribute('transform', 'scale('+scale+')');
-			
+			svg_group.setAttribute('transform', 'scale('+num_scale+')');
 		}
+		
+		size_renderer.width = width;
+		size_renderer.height = height;
 
-		if (!first_run) {
-			
-			if (redraw && display == 'pixel') {
-				for (var i = 0, len = nodes.length; i < len; i++) {
-					nodes[i].redraw_node = true;
-				}
-			}
-			
+		if (!in_first_run) {
+						
 			drawTick();
 		}
 	};
 	
 	var createLinkElms = function() {	
 		
-		if (!force_options.show_line) {
-			
+		if (!show_line) {
 			return;
 		}
 		
-		if (display == 'pixel') {
+		if (display == DISPLAY_PIXEL) {
 
-			var uvs = new Uint16Array(links.length * 4);
+			buffer_geometry_lines_position = new PIXI.Buffer(new Float32Array(arr_loop_links.length * length_geometry_lines_position));
+			//buffer_geometry_lines_normal = new PIXI.Buffer(new Float32Array(arr_loop_links.length * length_geometry_lines_position));
+			buffer_geometry_lines_color = new PIXI.Buffer(new Float32Array(arr_loop_links.length * length_geometry_lines_color));
+
+			geometry_lines.addAttribute('a_position', buffer_geometry_lines_position, 2);
+			//geometry_lines.addAttribute('a_normal', buffer_geometry_lines_normal, 2);
+			geometry_lines.addAttribute('a_color', buffer_geometry_lines_color, 4);
 			
-			for (var i = 0; i < links.length * 4; i++) {
-				vertices[i] = 0;
-				uvs[i/2] = i/2;	
-			}
+			geometry_mesh = new PIXI.Mesh(geometry_lines, geometry_shader);
+			geometry_mesh.blendMode = PIXI.BLEND_MODES.NORMAL_NPM; // Not pre-multiplied alpha
 			
-			for (var i = 0; i < links.length * 8; i++) {
-				colors[i] = 0;
-			}
-			
-			vertices = new Float32Array(vertices);
-			colors = new Float32Array(colors);
-			
-			position_vertexbuffer = new glCore.GLBuffer.createVertexBuffer(gl, vertices, gl.DYNAMIC_DRAW);
-			colors_vertexbuffer = new glCore.GLBuffer.createVertexBuffer(gl, colors, gl.DYNAMIC_DRAW);
-			
-			var indexbuffer = new glCore.GLBuffer.createIndexBuffer(gl, uvs);
-			var vertexarrayobject = new glCore.VertexArrayObject(gl);
-			vertexarrayobject.addIndex(indexbuffer)
-				.addAttribute(position_vertexbuffer, shader.attributes.a_position)
-				.addAttribute(colors_vertexbuffer, shader.attributes.a_color)
-				.bind();
-				
+			elm_plot_lines.addChild(geometry_mesh);
 		} else {
 					
-			for (var i = 0, len = links.length; i < len; i++) {
+			for (var i = 0, len = arr_loop_links.length; i < len; i++) {
 				
-				var arr_link = links[i];
+				var arr_link = arr_loop_links[i];
 				
 				arr_link.elm = stage.createElementNS(stage_ns, 'path');
-				svg_group.appendChild(links[i].elm);
+				svg_group.appendChild(arr_loop_links[i].elm);
 				
 				arr_link.elm.setAttribute('fill', 'none');
-				arr_link.elm.setAttribute('stroke', links[i].color);
-				arr_link.elm.setAttribute('stroke-width', '1.5px');
+				arr_link.elm.setAttribute('stroke', arr_loop_links[i].color);
+				arr_link.elm.setAttribute('stroke-width', width_line+'px');
 				
-				if (force_options.link_arrowhead) {
+				if (show_arrowhead) {
 					arr_link.elm.setAttribute('marker-end', 'url(#end)');
 				}
-				
 			}
-			
 		}
-				
 	};
 	
 	var drawNodeElm = function(arr_node) {
 			
 		var elm = arr_node.elm;
-		var radius = 0;
-		var highlight = false;
-		arr_node.redraw_node = false;
-		
+		var num_radius = 0;
+		var do_highlight = false;
+		var str_identifier = '';
+			
 		// Set the primary color of the node
 		if (!arr_node.color) {
 						
@@ -857,378 +1874,432 @@ function MapSocial(element, obj_parent, options) {
 			} else {
 				
 				// Color set by Visualisation 
-				arr_node.color = force_options.node_color;
+				arr_node.color = color_node;
 			}
 		}
 		
 		var color = arr_node.color;
 		
-		if (arr_node.hightlight_color) {
+		if (arr_node.highlight_color) {
 			
-			color = arr_node.hightlight_color;
+			color = arr_node.highlight_color;
 			
-			highlight = true;
-			arr_node.hightlight_color = false;
-
+			do_highlight = true;
+			arr_node.highlight_color = false;
 		}
+		
+		str_identifier += color;
 	
-		if (!highlight && arr_node.has_conditions) {
+		if (!do_highlight && arr_node.has_conditions) {
 			
 			// update conditioned colors and weight
-			handleConditions(arr_node);	
-						
+			handleConditions(arr_node);
+			
+			str_identifier += arr_node.identifier_condition;
 		}
 		
 		if (is_weighted) {
 
-			var conditions_weight = arr_node.conditions_weight;
+			var weight_conditions = arr_node.weight_conditions;
 			
-			if (force_options.node_start_size && conditions_weight < force_options.node_start_size) {
+			if (size_node_start && weight_conditions < size_node_start) {
 				
-				conditions_weight = force_options.node_start_size;
+				weight_conditions = size_node_start;
 			}	
 			
-			if (force_options.node_stop_size && conditions_weight > force_options.node_stop_size) {
+			if (size_node_stop && weight_conditions > size_node_stop) {
 				
-				conditions_weight = force_options.node_stop_size;
+				weight_conditions = size_node_stop;
 			}		
 				
-			var size = conditions_weight;
-			
+			arr_node.weight = weight_conditions;
 		} else {
 			
-			var size = arr_node.in.length + arr_node.out.length;
-		}
-
-		radius = size/max_complete_connections * force_options.node_max_size;
-
-		if (radius > 0 && radius < force_options.node_min_size) {
-			
-			radius = force_options.node_min_size;
-			
+			arr_node.weight = arr_node.count_in + arr_node.count_out;
 		}
 		
-		if (radius == 0 && show_disconnected_node == true) {
+		// Set Radius to 0 when node has no position (has been removed when it fell out of the selection)
+		if (!arr_node.is_alive) {
 			
-			radius = force_options.node_min_size;
-			
-		}
-
-		arr_node.r = Math.round(radius);
-
-		if (display == 'pixel') {
-			
-			/*
-			var size = arr_node.r * scale;
-			var hex_color = arr_node.color;
-			
-			var identifier_texture = size+'-'+hex_color;
-			var elm_container = arr_elm_particles[identifier_texture];
-
-			if (!elm_container || elm_container[0].children.length >= size_max_elm_container) {
-				
-				if (elm_container) { // Container is full
-					
-					var elm_container = false;
-					var count = 0;
-					
-					while (1) {
-						
-						var identifier_texture_temp = identifier_texture+'-'+count;
-						
-						if (!arr_elm_particles[identifier_texture_temp]) {
-
-							arr_elm_particles[identifier_texture_temp] = arr_elm_particles[identifier_texture];
-							break;
-						} else if (arr_elm_particles[identifier_texture_temp][0].children.length < (size_max_elm_container / 10)) {
-							
-							elm_container = arr_elm_particles[identifier_texture_temp];
-							arr_elm_particles[identifier_texture_temp] = arr_elm_particles[identifier_texture];
-							arr_elm_particles[identifier_texture] = elm_container;
-							break;
-						}
-						
-						count++;
-					}
-				}
-				
-				arr_elm_particles[identifier_texture] = [];
-				arr_elm_particles[identifier_texture][0] = arr_elm_particles[identifier_texture][1] = new PIXI.particles.ParticleContainer(size_max_elm_container, {position: true, alpha: true});
-				var elm_container = arr_elm_particles[identifier_texture];
-				elm_plot_particles.addChild(elm_container[0]);
-			}
-			
-			var arr_texture = arr_assets_texture_line_dots[identifier_texture];
-							
-			if (!arr_texture) {
-				
-				var arr_texture = [];
-				
-				var elm = new PIXI.Graphics();
-				elm.beginFill(hex_color, 1);
-				elm.drawCircle(size, size, size);
-				elm.endFill();
-				
-				arr_texture[0] = elm.generateCanvasTexture();
-				arr_texture[1] = arr_texture[0];
-					
-				arr_assets_texture_line_dots[identifier_texture] = arr_texture;
-			}
-			
-			var elm = new PIXI.Sprite(arr_texture[0]);
-			elm.position.x = 0;
-			elm.position.y = 0;
-			elm.anchor.x = 0.5;
-			elm.anchor.y = 0.5;
-			
-			elm_container[0].addChild(elm);
-			
-					var elm_group = new PIXI.Container();
-					
-					var cur_count = 0;
-					
-					var elm = new PIXI.Graphics();
-					if (width_dot_stroke) {
-						elm.lineStyle(width_dot_stroke, parseColor(color_dot_stroke), 1);
-					}
-					elm.drawCircle(0, 0, (r + width_dot_stroke/2));
-					
-					elm_group.addChild(elm);
-
-					for(var i = 0, len = arr.length; i < len; i++) {
-								
-						var start = (cur_count / count) * 2 * Math.PI;
-						cur_count += arr[i].count;
-						var end = (cur_count / count) * 2 * Math.PI;
-						
-						var elm = new PIXI.Graphics();
-						elm.beginFill(parseColor(arr[i].color), 1);
-						elm.moveTo(0, 0)
-							.lineTo(r * Math.cos(start), r * Math.sin(start))
-							.arc(0, 0, r, start, end, false)
-							.lineTo(0, 0);
-						elm.endFill();
-						
-						elm_group.addChild(elm);
-						
-						arr[i].count = 0;
-					}
-					
-					elm_plot_dots.addChild(elm_group);
-					
-					var elm = elm_group; 
-			
-			*/
-						
-			if (!elm) {
-				
-				if (arr_node.conditions.length) {
-					
-					elm = new PIXI.Container();
-					
-				} else {
-					
-					elm = new PIXI.Graphics();
-					
-				}
-				
-				arr_node.elm = elm;
-				elm_plot_dots.addChild(elm);
-				
-				if (arr_node.show_text) {
-					
-					var elm_text = new PIXI.Text(arr_node.name, {fontSize: 8, fontFamily: 'pixel'});
-								
-					stage_2.addChild(elm_text);
-								
-					elm_text.position.x = 0;
-					elm_text.position.y = 0;
-					
-					arr_node.elm_text = elm_text;
-					
-				}
-				
-				
-			} else {
-				
-
-				if (arr_node.has_conditions) {
-					
-					arr_node.elm.children = [];
-					
-				} else {
-					
-					arr_node.elm.clear();
-					
-				}				
-				
-				var current_node_elm_position = elm.position;
-				
-			}
-			
-			if (radius) {
-				
-				var size = radius * scale;
-				
-				if (arr_node.has_conditions) {
-					
-					var elm_stroke = new PIXI.Graphics();
-					elm_stroke.lineStyle(force_options.node_stroke_width, parseColor(force_options.node_stroke_color), 1);
-					elm_stroke.drawCircle(0, 0, (size + force_options.node_stroke_width/2));
-					
-					elm.addChild(elm_stroke);
-					
-					if (highlight) {
-						
-						arr_node.colors = [{'color': color, 'portion': 1}];
-						
-					}
-
-					var current_portion = 0; 
-					
-					for (var i = 0; i < arr_node.colors.length; i++) {
-						
-						var start = current_portion * 2 * Math.PI;
-						current_portion = current_portion + arr_node.colors[i].portion;
-						var end = current_portion * 2 * Math.PI;
-						
-						var elm_portion = new PIXI.Graphics();
-						elm_portion.beginFill(parseColor(arr_node.colors[i].color), 1);
-						elm_portion.moveTo(0, 0)
-							.lineTo(size * Math.cos(start), size * Math.sin(start))
-							.arc(0, 0, size, start, end, false)
-							.lineTo(0, 0);
-						elm_portion.endFill();
-						
-						elm.addChild(elm_portion);
-						
-					}
-								
-				} else {
-				
-					elm.lineStyle(force_options.node_stroke_width, parseColor(force_options.node_stroke_color), 1);
-					elm.beginFill(parseColor(color), 1);
-					elm.drawCircle(0, 0, size);
-					elm.endFill();
-					
-				}
-				
-				if (current_node_elm_position) {
-					
-					elm.position = current_node_elm_position;
-					
-				} else {
-					
-					elm.position.x = 0;
-					elm.position.y = 0;
-				}
-				
-				if (arr_node.elm_text) {
-					arr_node.elm_text.alpha = 1;
-				}
-				
-			} else {
-				
-				if (arr_node.elm_text) {
-					arr_node.elm_text.alpha = 0;
-				}
-			}			
-		
+			num_radius = 0;
 		} else {
 			
-			if (!elm) {
+			num_radius = (arr_node.weight / num_node_weight_max) * size_node_max;
+
+			if (num_radius > 0 && num_radius < size_node_min) {
 				
-				var elm = stage.createElementNS(stage_ns, 'g');
-				svg_group.appendChild(elm);
-				
-				if (arr_node.show_text) {
-					var elm_text = stage.createElementNS(stage_ns, 'text');
-					var textnode = stage.createTextNode(arr_node.name);
-					elm_text.appendChild(textnode);
-					elm.appendChild(elm_text);
-				}
-			
-				var elm_circle = stage.createElementNS(stage_ns, 'circle');
-				elm.appendChild(elm_circle);
-				elm_circle.setAttribute('stroke', parseColor(force_options.node_stroke_color));
-				elm_circle.setAttribute('stroke-width', force_options.node_stroke_width);
-				
-				arr_node.elm = elm;
-				
-			} else {
-				
-				var elm_circles = arr_node.elm.getElementsByTagName('circle');
-				var elm_circle = elm_circles[0];
-				
-				if (arr_node.show_text) {
-					var elm_texts = arr_node.elm.getElementsByTagName('text');
-					var elm_text = elm_texts[0];
-				}
-				
+				num_radius = size_node_min;
 			}
+		}
+
+		if (num_radius == 0 && show_disconnected_node == true) {
 			
-			elm.setAttribute('data-node_position', arr_data.objects[arr_node.id].node_position);
-			
-			if (arr_node.has_conditions) {
-			
-				// Remove previous pie
-				var elm_paths = arr_node.elm.getElementsByTagName('path');
-				
-				while (elm_paths.length) {
-					arr_node.elm.removeChild(elm_paths[elm_paths.length - 1]);
+			num_radius = size_node_min;
+		}
+		
+		str_identifier += num_radius+'-'+num_scale;
+		
+		if (str_identifier == arr_node.identifier) {
+
+			if (display == DISPLAY_PIXEL) {
+				elm.visible = true;
+				if (arr_node.show_text) {
+					arr_node.elm_text.visible = true;
 				}
+			} else {
+				elm.dataset.visible = 1;
+			}
+		} else {
+
+			arr_node.radius = Math.round(num_radius);
+
+			if (display == DISPLAY_PIXEL) {
 				
-				if (!highlight) {
+				pos_elm = false;
+							
+				if (!elm) {
 					
-					if (arr_node.colors.length == 1) {
+					if (arr_node.has_conditions) {
 						
-						color = arr_node.colors[0].color;
-						
+						elm = new PIXI.Container();
 					} else {
 						
-						color = 'none';
+						elm = new PIXI.Graphics();
+					}
+					
+					arr_node.elm = elm;
+					elm_plot_dots.addChild(elm);
+					
+					if (arr_node.show_text) {
 						
-						var current_portion = 0; 
-						var x = 0;
-						var y = 0;
+						var elm_text = new PIXI.Text(arr_node.name_text, {fontSize: size_text, fontFamily: font_family});
+						
+						elm_text.anchor.x = 0;
+						elm_text.anchor.y = 0.5;
+									
+						elm_plot_info.addChild(elm_text);
+
+						arr_node.elm_text = elm_text;
+					}
+				} else {
+
+					if (arr_node.has_conditions) {
+						
+						elm.children = [];
+					} else {
+						
+						elm.clear();
+					}
+					
+					elm.visible = true;
+					
+					if (arr_node.show_text) {
+						arr_node.elm_text.visible = true;
+					}
+
+					pos_elm = elm.position;
+				}
+				
+				if (num_radius) {
+					
+					const num_size = num_radius * num_scale;
+					const num_width_stroke = width_node_stroke * num_scale;
+					
+					if (arr_node.has_conditions) {
+						
+						if (!show_icon_as_node) {
 							
-						for (var i = 0; i < arr_node.colors.length; i++) {
-
-							var start = current_portion * 2 * Math.PI;
-							current_portion = current_portion + arr_node.colors[i].portion;
-							var end = current_portion * 2 * Math.PI;
-
-							var elm_path = stage.createElementNS(stage_ns, 'path');
+							let elm_stroke = new PIXI.Graphics();
+							elm_stroke.lineStyle(num_width_stroke, parseColor(color_node_stroke), 1);
 							
-							elm_path.setAttribute('d','M '+Math.floor(x)+','+Math.floor(y)+' L '+(Math.floor(x) + radius * Math.cos(start))+','+(Math.floor(y) + radius * Math.sin(start))+' A '+radius+','+radius+' 0 '+(end - start < Math.PI ? 0 : 1)+',1 '+(Math.floor(x) + radius * Math.cos(end))+','+(Math.floor(y) + radius * Math.sin(end))+' z');
+							if (arr_node.colors === false) {
+								
+								elm_stroke.beginFill(parseColor(color), 1);
+								elm_stroke.drawCircle(0, 0, (num_size + (num_width_stroke/2)));
+								elm_stroke.endFill();
+							} else {
+								
+								elm_stroke.drawCircle(0, 0, (num_size + (num_width_stroke/2)));
+								
+								if (do_highlight) {
+									
+									arr_node.colors = [{color: color, portion: 1}];
+								}
 
-							elm_path.style.fill = arr_node.colors[i].color;
+								var current_portion = 0; 
+								
+								for (var i = 0; i < arr_node.colors.length; i++) {
+									
+									var num_start = current_portion * 2 * Math.PI;
+									current_portion = current_portion + arr_node.colors[i].portion;
+									var num_end = current_portion * 2 * Math.PI;
+									
+									var elm_portion = new PIXI.Graphics();
+									elm_portion.beginFill(parseColor(arr_node.colors[i].color), 1);
+									elm_portion.moveTo(0, 0)
+										.lineTo(num_size * Math.cos(num_start), num_size * Math.sin(num_start))
+										.arc(0, 0, num_size, num_start, num_end, false)
+										.lineTo(0, 0);
+									elm_portion.endFill();
+									
+									elm.addChild(elm_portion);
+								}
+							}
 							
-							arr_node.elm.appendChild(elm_path);
+							elm.addChild(elm_stroke);
+						}
+		
+						if (arr_node.icons !== false && arr_node.icons.length) {
+							
+							let num_height_sum = 0;
+							let num_width_sum = 0;
+							
+							const num_size_icon = (show_icon_as_node ? num_size * 2 : num_size_dot_icons * num_scale);
+							
+							for (let i = 0, len = arr_node.icons.length; i < len; i++) {
+								
+								const resource = arr_node.icons[i];
+								const arr_resource = arr_assets_texture_icons[resource];
 
+								const elm_icon = new PIXI.Sprite(arr_resource.texture);
+								const num_scale_icon = (arr_resource.width / arr_resource.height);
+								
+								const num_width_icon = (num_size_icon * num_scale_icon);
+								elm_icon.height = num_size_icon;
+								elm_icon.width = num_width_icon;
+								if (i > 0) {
+									num_width_sum += spacer_elm_icons;
+								}
+								elm_icon.position.x = num_width_sum;
+								elm_icon.position.y = num_height_sum;
+								num_height_sum += 0;
+								num_width_sum += num_width_icon;
+
+								if (i == 0) {
+									
+									if (len > 1) {
+										
+										var elm_icons = new PIXI.Container();
+										elm_icons.addChild(elm_icon);
+									} else {
+										
+										var elm_icons = elm_icon;
+									}
+								} else {
+									
+									elm_icons.addChild(elm_icon);
+								}
+							}
+							
+							if (show_icon_as_node) {
+								
+								var num_offset = -(num_size_icon / 2);
+							
+							} else {
+								
+								if (num_offset_dot_icons == 0) {
+									var num_offset = -(num_size_icon / 2);
+								} else if (num_offset_dot_icons < 0) {
+									var num_offset = -((num_size + num_width_stroke) / 2) + num_offset_dot_icons - num_size_icon;
+								} else {
+									var num_offset = ((num_size + num_width_stroke) / 2) + num_offset_dot_icons;
+								}
+							}
+							
+							elm_icons.position.x = Math.floor(-(num_width_sum / 2));
+							elm_icons.position.y = Math.floor(num_offset);
+							
+							elm.addChild(elm_icons);
+						}
+					} else {
+					
+						elm.lineStyle(num_width_stroke, parseColor(color_node_stroke), 1);
+						elm.beginFill(parseColor(color), 1);
+						elm.drawCircle(0, 0, (num_size + (num_width_stroke/2)));
+						elm.endFill();
+					}
+					
+					if (pos_elm) {
+						
+						elm.position = pos_elm;
+					} else {
+						
+						elm.position.x = 0;
+						elm.position.y = 0;
+					}
+					
+					if (arr_node.elm_text) {
+						arr_node.elm_text.alpha = 1;
+					}
+				} else {
+					
+					if (arr_node.elm_text) {
+						arr_node.elm_text.alpha = 0;
+					}
+				}			
+			
+			} else {
+				
+				if (!elm) {
+					
+					var elm = stage.createElementNS(stage_ns, 'g');
+					svg_group.appendChild(elm);
+					
+					if (arr_node.show_text) {
+						var elm_text = stage.createElementNS(stage_ns, 'text');
+						elm_text.style.fontSize = size_text+'px';
+						elm_text.style.fontFamily = font_family;
+						elm_text.style.fill = color_text;
+						elm_text.style.dominantBaseline = 'central';
+						var node_text = stage.createTextNode(arr_node.name_text);
+						elm_text.appendChild(node_text);
+						elm.appendChild(elm_text);
+					}
+				
+					var elm_circle = stage.createElementNS(stage_ns, 'circle');
+					elm.appendChild(elm_circle);
+					elm_circle.setAttribute('stroke', parseColor(color_node_stroke));
+					elm_circle.setAttribute('stroke-width', width_node_stroke);
+					
+					arr_node.elm = elm;
+				} else {
+					
+					var elms_circle = elm.getElementsByTagName('circle');
+					var elm_circle = elms_circle[0];
+					
+					if (arr_node.show_text) {
+						var elms_text = elm.getElementsByTagName('text');
+						var elm_text = elms_text[0];
+					}
+					
+					elm.dataset.visible = 1;
+				}
+				
+				elm.dataset.node_id = arr_node.id;
+				
+				if (arr_node.has_conditions) {
+				
+					// Remove possible previous pie and icons
+					var elm_paths = arr_node.elm.getElementsByTagName('g');
+					
+					while (elm_paths.length) {
+						arr_node.elm.removeChild(elm_paths[elm_paths.length - 1]);
+					}
+					
+					if (arr_node.colors !== false && !do_highlight) {
+						
+						if (arr_node.colors.length == 1) {
+							
+							color = arr_node.colors[0].color;
+						} else {
+							
+							color = 'none';
+							
+							if (!show_icon_as_node) {
+
+								var current_portion = 0; 
+								var x = 0;
+								var y = 0;
+								var elm_pie = stage.createElementNS(stage_ns, 'g');
+			
+								for (var i = 0; i < arr_node.colors.length; i++) {
+
+									var num_start = current_portion * 2 * Math.PI;
+									current_portion = current_portion + arr_node.colors[i].portion;
+									var num_end = current_portion * 2 * Math.PI;
+
+									var elm_path = stage.createElementNS(stage_ns, 'path');
+									
+									elm_path.setAttribute('d','M '+Math.floor(x)+','+Math.floor(y)+' L '+(Math.floor(x) + num_radius * Math.cos(num_start))+','+(Math.floor(y) + num_radius * Math.sin(num_start))+' A '+num_radius+','+num_radius+' 0 '+(num_end - num_start < Math.PI ? 0 : 1)+',1 '+(Math.floor(x) + num_radius * Math.cos(num_end))+','+(Math.floor(y) + num_radius * Math.sin(num_end))+' z');
+									elm_path.style.fill = arr_node.colors[i].color;
+									
+									elm_pie.appendChild(elm_path);
+								}
+								
+								arr_node.elm.appendChild(elm_pie);
+							}
+						}
+					}
+						
+					if (arr_node.icons !== false && arr_node.icons.length) {
+						
+						var num_height_sum = 0;
+						var num_width_sum = 0;
+						var elm_icons = stage.createElementNS(stage_ns, 'g');
+				
+						for (var i = 0, len = arr_node.icons.length; i < len; i++) {
+						
+							var resource = arr_node.icons[i];
+							var arr_resource = ASSETS.getMedia(resource);
+
+							var elm_icon = stage.createElementNS(stage_ns, 'image');
+							elm_icon.setAttribute('href', arr_resource.resource);
+							var num_scale_icon = (arr_resource.width / arr_resource.height);
+							
+							var num_size_icon = (show_icon_as_node ? num_radius * 2 : num_size_dot_icons);
+							var num_width_icon = num_size_icon * num_scale_icon;
+							elm_icon.setAttribute('height', num_size_icon);
+							elm_icon.setAttribute('width', num_width_icon);
+							if (i > 0) {
+								num_width_sum += spacer_elm_icons;
+							}
+							elm_icon.setAttribute('x', num_width_sum);
+							elm_icon.setAttribute('y', num_height_sum);
+							num_height_sum += 0;
+							num_width_sum += num_width_icon;
+
+							elm_icons.appendChild(elm_icon);
 						}
 						
+						if (show_icon_as_node) {
+							
+							var num_offset = -(num_size_icon / 2);
+						
+						} else {
+							
+							if (num_offset_dot_icons == 0) {
+								var num_offset = -(num_size_icon / 2);
+							} else if (num_offset_dot_icons < 0) {
+								var num_offset = -((num_radius + width_node_stroke) / 2) + num_offset_dot_icons - num_size_icon;
+							} else {
+								var num_offset = ((num_radius + width_node_stroke) / 2) + num_offset_dot_icons;
+							}
+						}
+						
+						elm_icons.setAttribute('transform', 'translate('+(-(num_width_sum / 2))+' '+(num_offset)+')');
+						
+						arr_node.elm.appendChild(elm_icons);
 					}
 				}
-			
-			}
-			
-			elm_circle.setAttribute('r', (radius ? (radius + force_options.node_stroke_width/2) : 0));
-			elm_circle.setAttribute('fill', color);
-			
-			if (arr_node.show_text) {
-				if (radius) {	
-					elm_text.setAttribute('opacity', 1);		
-					elm_text.setAttribute('dx', (radius ? (radius + force_options.node_stroke_width/2) + 3 : 0));
+
+				if (arr_node.icons !== false && arr_node.icons.length && show_icon_as_node) {
+
+					elm_circle.setAttribute('r', 0);
+				
 				} else {
-					elm_text.setAttribute('opacity', 0);
+					
+					elm_circle.setAttribute('r', (num_radius ? (num_radius + width_node_stroke/2) : 0));
+				}
+				
+				elm_circle.setAttribute('fill', color);
+				
+				if (arr_node.show_text) {
+					
+					if (num_radius) {
+						
+						elm_text.setAttribute('opacity', 1);		
+						elm_text.setAttribute('dx', (num_radius ? (num_radius + width_node_stroke/2) + 3 : 0));
+					} else {
+						
+						elm_text.setAttribute('opacity', 0);
+					}
 				}
 			}
-
 		}
 		
 		arr_node.color = false;
-		
+		arr_node.redraw_node = false;
+		arr_node.identifier = str_identifier;
 	}
 	
 	var handleConditions = function(arr_node) {
@@ -1236,212 +2307,269 @@ function MapSocial(element, obj_parent, options) {
 		// Node size is based on amount of links
 		// One link can set multiple colours
 		// One part is relative to total amount of parts (i.e. links)
-		// One part may containe multiple colours
+		// One part may contain multiple colours
 		// Grouped later by colour
 		
-		// Do we need one part for conditions generated by the object itself? Based on object or sub-object conditions
-		var part_based_on_object_conditions = 0;
-	
-		// Conditions based on object
-		if (arr_node.conditions.object.length) {
+		var has_part_condition_object = 0;
+		var num_parts_total = 0;
+		
+		if (arr_node.is_alive) {
 			
-			part_based_on_object_conditions = 1;
-		} else {
-
-			// Conditions based on object subs
-			for (var i = 0; i < arr_node.conditions.object_sub.length; i++) {
+			// Do we need one part for conditions generated by the object itself? Based on own object or sub-object conditions
 			
-				if (arr_data.object_subs[arr_node.conditions.object_sub[i].source_id].active) {
-					part_based_on_object_conditions = 1;
-					break;
+			// Conditions based on object			
+			if (arr_node.conditions.object.length) {
+					
+				has_part_condition_object = 1;
+			} else {
+				
+				// Conditions based on object subs
+				for (let i = 0, len = arr_node.conditions.object_sub.length; i < len; i++) {
+					
+					const arr_condition = arr_node.conditions.object_sub[i];
+				
+					if (arr_object_subs_children[arr_condition.source_id].is_active) {
+						
+						has_part_condition_object = 1;
+						break;
+					}
 				}
 			}
+			
+			// Total number of parts is based on all incoming relations (that can generate cross-referenced conditions) and one part for object conditions
+			num_parts_total = has_part_condition_object + arr_node.count_in;
 		}
-		
-		// Total number of parts is based on all incoming relations (that can generate cross-referenced conditions) and one part for object conditions
-		var total_number_of_parts = part_based_on_object_conditions + arr_node.in.length;
 		
 		// If no parts are there, return.
-		if (!total_number_of_parts) {
+		if (!num_parts_total) {
 			
-			arr_node.colors = [{'color': arr_node.color, 'portion': 1}];
+			arr_node.weight_conditions = 1;
+			arr_node.colors = false;
+			arr_node.icons = false;
+			arr_node.identifier_condition = '';
+			
 			return;
 		}
-	
+		
+		var str_identifier = '';
 		var arr_condition_colors = [];
+		var arr_condition_icons = [];
 		var arr_parts = {};
 		var arr_grouped_colors = {};
-		var count = 0;
-		var conditions_weight = 0;
-		var unconditioned_part = 0;
+		var num_parts_condition_referenced = 0;
+		var num_parts_condition_none = 0;
+		var num_weight_conditions = 0;
 		
-		// Cross referenced conditions based on object definitions
-		for (var i = 0; i < arr_node.conditions.object_definition.length; i++) {
+		// Cross referenced conditions based on referenced object definitions
+		
+		str_identifier += 'od';
+		for (let i = 0, len = arr_node.conditions.object_parent.length; i < len; i++) {
 
-			var arr_condition = arr_node.conditions.object_definition[i];
-			var parent_pos = indexOfFor(arr_node.object_parents, arr_condition.source_id);
-			if (parent_pos == -1) {
+			const arr_condition = arr_node.conditions.object_parent[i];
+
+			if (!arr_node.object_parents[arr_condition.source_id]) {
 				continue;
 			}
+			
+			str_identifier += arr_condition.source_id;
 			
 			if (!arr_parts['o_'+arr_condition.source_id]) {
-				arr_parts['o_'+arr_condition.source_id] = {'colors': []};
-				count++;
+				arr_parts['o_'+arr_condition.source_id] = {colors: []};
+				num_parts_condition_referenced++;
 			}
 			
-			arr_parts['o_'+arr_condition.source_id].colors.push({'color': arr_condition.color});
-
-			conditions_weight += arr_condition.conditions_weight;
+			if (arr_condition.color) {
+				arr_parts['o_'+arr_condition.source_id].colors.push(arr_condition.color);
+			}
+			
+			num_weight_conditions += arr_condition.weight;
+			
+			if (arr_condition.icon) {
+				arr_condition_icons.push(arr_condition.icon);
+			}
 		}
 		
-		// Cross referenced conditions based on sub object definitions
-		for (var i = 0; i < arr_node.conditions.object_sub_definition.length; i++) {
+		// Cross referenced conditions based on referenced sub object definitions
+		
+		str_identifier += 'sod';
 			
-			var arr_condition = arr_node.conditions.object_sub_definition[i];
-			var parent_pos = indexOfFor(arr_node.sub_object_parents, arr_condition.source_id);
-			if (parent_pos == -1) {
+		for (let i = 0, len = arr_node.conditions.object_sub_parent.length; i < len; i++) {
+			
+			const arr_condition = arr_node.conditions.object_sub_parent[i];
+			
+			if (!arr_node.object_sub_parents[arr_condition.source_id]) {
 				continue;
 			}
 			
-			if (!arr_parts['s_'+arr_condition.source_id]) {
-				arr_parts['s_'+arr_condition.source_id] = {'colors': []};
-				count++;
+			const object_id = arr_data.object_subs[arr_condition.source_id].object_id; // Need object_id as identifier for the part as sub object references can be multiple
+			
+			str_identifier += object_id;
+			
+			if (!arr_parts['s_'+object_id]) {
+				arr_parts['s_'+object_id] = {colors: []};
+				num_parts_condition_referenced++;
 			}
 			
-			arr_parts['s_'+arr_condition.source_id].colors.push({'color': arr_condition.color});
-
-			conditions_weight += arr_condition.conditions_weight;
+			if (arr_condition.color) {
+				arr_parts['s_'+object_id].colors.push(arr_condition.color);
+			}
+			
+			num_weight_conditions += arr_condition.weight;
+			
+			if (arr_condition.icon) {
+				arr_condition_icons.push(arr_condition.icon);
+			}
 		}
-		
-		if (count > total_number_of_parts) {
-			total_number_of_parts = count;
-		} else {
-			unconditioned_part = total_number_of_parts - count;
-		}
-	
-		if (part_based_on_object_conditions) {
 
-			arr_parts['object'] = {'colors': []};	
+		if (has_part_condition_object) {
+			
+			str_identifier += 'o';
+			
+			arr_parts.object = {colors: []};
 				
 			// Conditions based on object
-			for (var i = 0; i < arr_node.conditions.object.length; i++) {
+			for (let i = 0, len = arr_node.conditions.object.length; i < len; i++) {
 				
-				var arr_condition = arr_node.conditions.object[i];
-				arr_parts['object'].colors.push({'color': arr_condition.color});
-
-				conditions_weight += arr_condition.conditions_weight;
+				const arr_condition = arr_node.conditions.object[i];
+								
+				if (arr_condition.color) {
+					arr_parts.object.colors.push(arr_condition.color);
+				}
+				
+				num_weight_conditions += arr_condition.weight;
+				
+				if (arr_condition.icon) {
+					arr_condition_icons.push(arr_condition.icon);
+				}
 			}
 
 			// Conditions based on object subs
-			for (var i = 0; i < arr_node.conditions.object_sub.length; i++) {
-				
-				var arr_condition = arr_node.conditions.object_sub[i];
-				if (arr_data.object_subs[arr_condition.source_id].active) {
 			
-					var arr_condition = arr_node.conditions.object_sub[i];
-					arr_parts['object'].colors.push({'color': arr_condition.color});
-
-					conditions_weight += arr_condition.conditions_weight;
+			str_identifier += 's';
+			
+			for (let i = 0, len = arr_node.conditions.object_sub.length; i < len; i++) {
+				
+				const arr_condition = arr_node.conditions.object_sub[i];
+				
+				if (!arr_object_subs_children[arr_condition.source_id].is_active) {
+					continue;
+				}
 					
+				str_identifier += arr_condition.source_id;
+				
+				if (arr_condition.color) {
+					arr_parts.object.colors.push(arr_condition.color);
+				}
+				
+				num_weight_conditions += arr_condition.weight;
+				
+				if (arr_condition.icon) {
+					arr_condition_icons.push(arr_condition.icon);
 				}
 			}
 		}
+		
+		num_parts_condition_none = (num_parts_total - num_parts_condition_referenced);
+		
+		for (const part_id in arr_parts) {
 			
-		for (var part_id in arr_parts) {
+			const arr_part = arr_parts[part_id];
 			
-			var part = arr_parts[part_id];
+			const num_percentage_part = (part_id == 'object' ? (num_parts_condition_none / num_parts_total) : (1 / num_parts_total));
+			const num_percentage_part_color = (num_percentage_part / arr_part.colors.length);
 			
-			if (part_id == 'object') {
+			for (let i = 0, len = arr_part.colors.length; i < len; i++) {
 				
-				var portion_of_part = unconditioned_part/total_number_of_parts;
+				const str_color = arr_part.colors[i];
 				
-			} else {
-			
-				var portion_of_part = 1/total_number_of_parts;
-			}
-			
-			var portion_of_part_colours = portion_of_part / part.colors.length;
-			
-			for (var i = 0; i < part.colors.length; i++) {
-				
-				if (!arr_grouped_colors[part.colors[i].color]) {
+				if (!arr_grouped_colors[str_color]) {
 					
-					arr_grouped_colors[part.colors[i].color] = {'color': part.colors[i].color, 'portion': 0};
-					arr_condition_colors.push(arr_grouped_colors[part.colors[i].color]);
+					arr_grouped_colors[str_color] = {color: str_color, portion: 0};
+					arr_condition_colors.push(arr_grouped_colors[str_color]);
 				}
 				
-				arr_grouped_colors[part.colors[i].color].portion += portion_of_part_colours;
+				arr_grouped_colors[str_color].portion += num_percentage_part_color;
 			}
 		}	
 
-		if (!part_based_on_object_conditions && total_number_of_parts > count) {
+		if (!has_part_condition_object && num_parts_total > num_parts_condition_referenced) {
 
 			if (!arr_grouped_colors[arr_node.color]) {
 				
-				arr_grouped_colors[arr_node.color] = {'color': arr_node.color, 'portion': 0};
+				arr_grouped_colors[arr_node.color] = {color: arr_node.color, portion: 0};
 				arr_condition_colors.push(arr_grouped_colors[arr_node.color]);
 			}
 			
-			arr_grouped_colors[arr_node.color].portion += unconditioned_part/total_number_of_parts;	
+			arr_grouped_colors[arr_node.color].portion += (num_parts_condition_none / num_parts_total);	
 		}
-		
 
-		if (conditions_weight) {
-			arr_node.conditions_weight = 1 + conditions_weight;
-		}
-		
-					
 		if (!arr_condition_colors.length) {
-			arr_condition_colors.push({'color': arr_node.color, 'portion': 1})
+			arr_condition_colors.push({color: arr_node.color, portion: 1})
 		}
-
-		arr_node.colors = arr_condition_colors;
 		
+		arr_node.weight_conditions = 1 + num_weight_conditions;
+		arr_node.colors = arr_condition_colors;
+		arr_node.icons = arr_condition_icons;
+		arr_node.identifier_condition = str_identifier;
 	}
 	
 	var drawTick = function() {
-
-		if (display == 'pixel') {
-			var position_points = 4;
-			var color_points = 8;
-		}
 		
-		// Redraw Links
-		if (force_options.show_line) {
+		if (do_redraw) { // New draw
 			
-			for (var i = 0, len = links.length; i < len; i++) {
+			// Prepare asset tracking
+			pos_hover_poll = false;
+		}
+
+		// Redraw Links
+		if (show_line) {
+			
+			for (let i = 0, len = arr_active_links.length; i < len; i++) {
 				
-				if (display == 'pixel') {
-
-					var start = links[i].count * position_points;
-					vertices[start++] = links[i].source.x;
-					vertices[start++] = links[i].source.y;				
-					vertices[start++] = links[i].target.x;				
-					vertices[start++] = links[i].target.y;
-
-					var start = links[i].count * color_points;
-					colors[start++] = 0;
-					colors[start++] = 0;
-					colors[start++] = 0;
-					colors[start++] = (links[i].value/max_value < 0.1 ? 0.1 : links[i].value/max_value);
-					colors[start++] = 0;
-					colors[start++] = 0;
-					colors[start++] = 0;
-					colors[start++] = (links[i].value/max_value < 0.1 ? 0.1 : links[i].value/max_value);
+				const active_link = arr_active_links[i];
+				
+				if (display == DISPLAY_PIXEL) {
+							
+					const offset = active_link.count * length_geometry_lines_position;
 					
+					const node_source = active_link.source;
+					const node_target = active_link.target;
 					
+					const dx = node_target.x - node_source.x;
+					const dy = node_target.y - node_source.y;
+					const dl = Math.sqrt(dx * dx + dy * dy);
+					const dy_normalised = (dy / dl);
+					const dx_normalised = (dx / dl);
+					
+					const num_width = width_line / 2;
+					
+					buffer_geometry_lines_position.data[offset + 0] = node_source.x + (-dy_normalised * num_width);
+					buffer_geometry_lines_position.data[offset + 1] = node_source.y + (dx_normalised * num_width);
+					buffer_geometry_lines_position.data[offset + 2] = node_source.x + (dy_normalised * num_width);
+					buffer_geometry_lines_position.data[offset + 3] = node_source.y + (-dx_normalised * num_width);
+					buffer_geometry_lines_position.data[offset + 4] = node_target.x + (-dy_normalised * num_width);
+					buffer_geometry_lines_position.data[offset + 5] = node_target.y + (dx_normalised * num_width);
+					
+					buffer_geometry_lines_position.data[offset + 6] = node_target.x + (-dy_normalised * num_width);
+					buffer_geometry_lines_position.data[offset + 7] = node_target.y + (dx_normalised * num_width);
+					buffer_geometry_lines_position.data[offset + 8] = node_target.x + (dy_normalised * num_width);
+					buffer_geometry_lines_position.data[offset + 9] = node_target.y + (-dx_normalised * num_width);
+					buffer_geometry_lines_position.data[offset + 10] = node_source.x + (dy_normalised * num_width);
+					buffer_geometry_lines_position.data[offset + 11] = node_source.y + (-dx_normalised * num_width);
 				} else {
 					
-					if (links[i].elm) {
-						var dx = links[i].target.x - links[i].source.x,
-						dy = links[i].target.y - links[i].source.y,
-						dr = Math.sqrt(dx * dx + dy * dy) * 2.5;
-						links[i].elm.setAttribute('d', "M" + links[i].source.x + "," + links[i].source.y + "A" + dr + "," + dr + " 0 0,1 " + links[i].target.x + "," + links[i].target.y);
+					if (active_link.elm) {
+						
+						const dx = active_link.target.x - active_link.source.x;
+						const dy = active_link.target.y - active_link.source.y;
+						const dr = Math.sqrt(dx * dx + dy * dy) * 2.5;
+						
+						active_link.elm.setAttribute('d', 'M' + active_link.source.x + ',' + active_link.source.y + 'A' + dr + ',' + dr + ' 1,0,0 ' + active_link.target.x + ',' + active_link.target.y);
 
 						// Show previously hidden link after it has received its new position
-						if (links[i].action == 'show') {
-							links[i].elm.setAttribute('class', '');
-							links[i].action = false;
+						if (active_link.action == 'show') {
+							active_link.elm.dataset.visible = 1;
+							active_link.action = false;
 						}
 					}
 				}
@@ -1449,99 +2577,61 @@ function MapSocial(element, obj_parent, options) {
 		}
 		
 		// Redraw Nodes
-		for (var i = 0, len = nodes.length; i < len; i++) {
+		for (let i = 0, len = arr_active_nodes.length; i < len; i++) {
 			
-			var arr_node = nodes[i];			
-			var radius = arr_node.r;
-			var pos_x = arr_node.x;
-			var pos_y = arr_node.y;
+			const arr_node = arr_active_nodes[i];			
+			const num_radius = arr_node.radius;
+			const pos_x = arr_node.x;
+			const pos_y = arr_node.y;
 			
-			if (arr_node.redraw_node) {
+			if (arr_node.redraw_node || (do_redraw && display == DISPLAY_PIXEL)) {
 
 				drawNodeElm(arr_node);
-				arr_node.redraw_node = false;
 			}
-			
-			arr_node.checked = false;
-			
-			if (display == 'pixel') {
+						
+			if (display == DISPLAY_PIXEL) {
 
-				arr_node.elm.position.x = (pos_x + pos_translation.x) * scale;
-				arr_node.elm.position.y = (pos_y + pos_translation.y) * scale;
+				arr_node.elm.position.x = (pos_x + pos_translation.x) * num_scale;
+				arr_node.elm.position.y = (pos_y + pos_translation.y) * num_scale;
 				
 				if (arr_node.elm_text) {
-					arr_node.elm_text.position.x = arr_node.elm.position.x + (radius * scale) + 3;
+					arr_node.elm_text.position.x = arr_node.elm.position.x + (num_radius * num_scale) + 3;
 					arr_node.elm_text.position.y = arr_node.elm.position.y;
 				}
-    
 			} else {
 				
 				arr_node.elm.setAttribute('transform', 'translate(' + pos_x + ',' + pos_y + ')');
-				
 			}
 		}
 		
-		if (display == 'pixel') {
+		if (display == DISPLAY_PIXEL) {
 			
-			if (force_options.show_line) {
+			if (show_line) {
+			
+				buffer_geometry_lines_position.update();
+				//buffer_geometry_lines_normal.update();
 				
-				position_vertexbuffer.upload(vertices);			
-				colors_vertexbuffer.upload(colors);			
-				gl.clear(gl.COLOR_BUFFER_BIT);
-				gl.enable(gl.BLEND);
-				gl.viewport(0, 0, width, height);
-				gl.drawElements(gl.LINES, vertices.length, gl.UNSIGNED_SHORT, 0);
-
+				if (do_update_geometry_lines_color) {
+					
+					buffer_geometry_lines_color.update();
+					do_update_geometry_lines_color = false;
+				}
 			}
 			
 			renderer.render(stage);
 			renderer_2.render(stage_2);
 		}
 		
+		do_redraw = false;
 	};
-
-	var addDownloadElm = function() {
-		
-		var legends = obj_parent.elm_controls.find('.legends');
-		elm_download = $('<button type="button" class="hide"><span class="icon"></span></button>').appendTo(legends);
-		
-		ASSETS.getIcons(elm, ['download'], function(data) {
-				
-			elm_download[0].children[0].innerHTML = data.download;
-		});
-				
-		elm_download_graph = $('<a href="#"></a>').appendTo(legends);
-		
-		elm_download[0].addEventListener('click', function() {
-
-			var svg_data = elm[0].innerHTML;
-			var filename = 'graph.svg';
-			svg_data = svg_data.replace(/^<svg/, '<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg"');
-			
-			if (window.navigator.msSaveOrOpenBlob) {
-				var fileData = [svg_data];
-				var blobObject = new Blob(fileData);
-				elm_download_graph.click(function(){
-					window.navigator.msSaveOrOpenBlob(blobObject, filename);
-				});
-			} else {
-				var url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg_data);
-				elm_download_graph.attr('download', filename).attr('href', url);
-			}
-			
-			elm_download_graph[0].click();
-		});		
-	}
 		
 	var addListeners = function () {
-		
-		addDownloadElm();
-		
-		var legends = obj_parent.elm_controls.find('.legends');
-		elm_search_container = $('<figure />').addClass('search-nodes').appendTo(legends);
 				
-		var search_input = $('<input type="search" />').appendTo(elm_search_container),
-		dropdown = $('<ul />').addClass('dropdown hide').appendTo(elm_search_container);
+		const elm_legends = PARENT.elm_controls.find('.legends');
+		elm_search_container = $('<figure />').addClass('search-nodes').appendTo(elm_legends);
+				
+		const search_input = $('<input type="search" />').appendTo(elm_search_container),
+		elm_dropdown = $('<ul />').addClass('dropdown hide').appendTo(elm_search_container);
 		
 		search_input[0].addEventListener('focus', function() {
 			
@@ -1555,17 +2645,17 @@ function MapSocial(element, obj_parent, options) {
 		
 		var searchNodes = function() {
 			
-			var cur_input = search_input.val();
-			var max_results = 10;
-			var arr_results = [];
-			dropdown.empty().removeClass('hide');
+			const cur_input = search_input.val();
+			const max_results = 10;
+			const arr_results = [];
+			elm_dropdown.empty().removeClass('hide');
 			
-			for (var i = 0; i < nodes.length; i++) {
+			for (let i = 0; i < arr_active_nodes.length; i++) {
 				
-				if (nodes[i].name && nodes[i].name.toLowerCase().indexOf(cur_input.toLowerCase()) > -1) {
+				if (arr_active_nodes[i].name && arr_active_nodes[i].name.toLowerCase().indexOf(cur_input.toLowerCase()) > -1) {
 					
-					cur_total = nodes[i].sub_object_parents.length+nodes[i].object_parents.length;
-					arr_results.push({cur_total: cur_total, name: nodes[i].html_name, node_position: i});
+					cur_total = (arr_active_nodes[i].count_object_sub_parents + arr_active_nodes[i].count_object_parents);
+					arr_results.push({cur_total: cur_total, name: arr_active_nodes[i].name, id: arr_active_nodes[i].id});
 				}
 			}
 			
@@ -1575,28 +2665,30 @@ function MapSocial(element, obj_parent, options) {
 					return parseFloat(b.cur_total) - parseFloat(a.cur_total);
 				});
 				
-				for (var i = 0; i < (arr_results.length > max_results ? max_results : arr_results.length); i++) {
+				for (let i = 0; i < (arr_results.length > max_results ? max_results : arr_results.length); i++) {
 					
-					var result_li = $('<li />').appendTo(dropdown);
-					var result_elm = $('<a>'+arr_results[i].name+'</a>').data('node_position', arr_results[i].node_position).appendTo(result_li);
+					const elm_li = $('<li />').appendTo(elm_dropdown);
+					const elm_result = $('<a>'+arr_results[i].name+'</a>').appendTo(elm_li);
 					
-					result_elm[0].addEventListener('click', function() {
+					elm_result[0].dataset.node_id = arr_results[i].id;
+					
+					elm_result[0].addEventListener('click', function() {
 						
-						hover($(this).data('node_position'), true);
-						dropdown.addClass('hide');
+						hoverNode(arr_nodes[this.dataset.node_id], true);
+						elm_dropdown.addClass('hide');
 						
 					});
 					
-					result_elm[0].addEventListener('mouseenter', function() {
+					elm_result[0].addEventListener('mouseenter', function() {
 						
-						hover($(this).data('node_position'), true);
+						hoverNode(arr_nodes[this.dataset.node_id], true);
 						$(this).addClass('active'); 
 						
-					})
+					});
 					
-					result_elm[0].addEventListener('mouseleave', function() {
+					elm_result[0].addEventListener('mouseleave', function() {
 						
-						hover(false, false);
+						hoverNode(false, false);
 						$(this).removeClass('active'); 
 						
 					});
@@ -1604,253 +2696,364 @@ function MapSocial(element, obj_parent, options) {
 				}
 			} else {
 				
-				dropdown.append('<li><a>No results.</a></li>');
+				elm_dropdown.append('<li><a>No results.</a></li>');
 			}
 		};
 		
-		dropdown[0].addEventListener('mouseleave', function() {
+		elm_dropdown[0].addEventListener('mouseleave', function() {
 			
-			dropdown.addClass('hide');
+			elm_dropdown.addClass('hide');
 			search_input.blur();
 		});
 		
-		elm_selected_node_container = $('<figure />').addClass('selected-node hide').appendTo(legends);
+		elm_layout = $('<figure class="run-layout"></figure>').appendTo(elm_legends);
+		elm_layout_statistics = $('<div></div>').appendTo(elm_layout);
+		elm_layout_status = $('<div></div>').appendTo(elm_layout);
+		elm_layout_select = $('<select><option value="">D3 Force</option><option value="forceatlas2">ForceAtlas2</option></select>').appendTo(elm_layout);
+		const elm_layout_run = $('<button type="button"><span class="icon"></span></button>').appendTo(elm_layout);
+		const elm_layout_stop = $('<button type="button"><span class="icon"></span></button>').appendTo(elm_layout);
+				
+		ASSETS.getIcons(elm, ['play', 'stop'], function(data) {
+			elm_layout_run[0].children[0].innerHTML = data.play;
+			elm_layout_stop[0].children[0].innerHTML = data.stop;
+		});
+			
+		elm_layout_run[0].addEventListener('click', function(e) {
+			
+			if (!simulation) {
+				return;
+			}
+			
+			const str_algorithm = elm_layout_select.val();
+			
+			switch (str_algorithm) {
+				case 'forceatlas2':
+					simulation.layout.startLayoutForceAtlas2();
+					do_draw = true;
+					break;
+				case '':
+				default:
+					simulation.resume();
+					do_draw = true;
+					break;
+			}
+		});
+		elm_layout_stop[0].addEventListener('click', function(e) {
+			
+			simulation.stop();
+			do_draw = true;
+		});
+		
+		elm_selected_node_container = $('<figure />').addClass('selected-node hide').appendTo(elm_legends);
+		
+		elm[0].addEventListener('mousedown', function(e) {
 
-
+			if (cur_node_id !== false) {
+				return;
+			}
+			
+			elm_selected_node_container.addClass('hide');
+		});
+				
+		var is_mousedown = false;
+		
+		var func_mouse_down = function(e) {
+			
+			is_mousedown = true;
+			
+			if (cur_node_id !== false) {
+				arr_nodes[cur_node_id].fixed = (arr_nodes[cur_node_id].fixed ? 2 : 1);
+			}
+		};
 			
 		elm[0].addEventListener('touchstart', function(e) {
 			
-			interact();
-		});
-
-		var mousedown = false;
-		
-		elm[0].addEventListener('mousedown', function(e) {
-			
-			mousedown = true;
-			
-			if (cur_node_position !== false) {
-				nodes[cur_node_position].fixed = (nodes[cur_node_position].fixed ? 2 : 1);
+			if (in_first_run) {
+				return;
 			}
+			
+			interact();
+			
+			func_mouse_down(e);
+		});		
+		elm[0].addEventListener('mousedown',  function(e) {
+			
+			if (POSITION.isTouch()) {
+				return;
+			}
+			
+			func_mouse_down(e);
 		});
-		
-		elm[0].addEventListener('mousemove', function(e) {
 
-			if (mousedown && cur_node_position !== false) {
+		var func_mouse_move = function(e) {
+
+			if (is_mousedown && cur_node_id !== false) {
 				
+				e.preventDefault();
+				e.stopPropagation();
+
 				elm[0].arr_link = false;
 				elm[0].arr_info_box = false;
 				
-				if (mousedown) {
-					e.stopPropagation();
-				}
+				is_dragging_node = true;
 				
-				node_drag = true;
+				const pos_hover = PARENT.obj_map.getMousePosition();
+				const arr_node = arr_nodes[cur_node_id];
 				
-				var pos_hover = obj_map.getMousePosition();
-
-				nodes[cur_node_position].x = nodes[cur_node_position].px = (pos_hover.x - pos_translation.x - (stage.position ? stage.position.x : '')) / scale;
-				nodes[cur_node_position].y = nodes[cur_node_position].py = (pos_hover.y - pos_translation.y - (stage.position ? stage.position.y : '')) / scale;
+				arr_node.x = ((pos_hover.x - (stage.position ? stage.position.x : 0)) / num_scale) - pos_translation.x;
+				arr_node.y = ((pos_hover.y - (stage.position ? stage.position.y : 0)) / num_scale) - pos_translation.y;
 				
-				drawTick();
-			}
-		});
-		
-		elm[0].addEventListener('mouseup', function(e) {
-				
-			mousedown = false;
-			
-			if (node_drag) {
-				
-				node_drag = false;
-				nodes[cur_node_position].fixed = (nodes[cur_node_position].fixed == 2 ? false : 2);
+				arr_node.fx = arr_node.x;
+				arr_node.fy = arr_node.y;
 				
 				simulation.resume();
-				draw = true;
+				do_draw = true;
+			}
+		};
+		
+		elm[0].addEventListener('mousemove', func_mouse_move);
+		elm[0].addEventListener('touchmove', func_mouse_move);
+		
+		var func_mouse_up = function(e) {
+				
+			is_mousedown = false;
+			pos_hover_poll = false;
+			
+			if (is_dragging_node) {
+				
+				const arr_node = arr_nodes[cur_node_id];
+				
+				is_dragging_node = false;
+				
+				if (arr_node.fixed == 2) {
+					
+					arr_node.fixed = 0;
+					arr_node.fx = null;
+					arr_node.fy = null;
+				}
+
+				simulation.resume();
+				do_draw = true;
+			} else {
+
+				if (cur_node_id !== false && arr_nodes[cur_node_id].fixed == 1) {
+					arr_nodes[cur_node_id].fixed = 0;
+				}
+			}
+		};
+		
+		elm[0].addEventListener('mouseup', function(e) {
+			
+			if (POSITION.isTouch()) {
+				return;
 			}
 			
+			func_mouse_up(e);
 		});
+		elm[0].addEventListener('touchend', func_mouse_up);
 	
-
-		if (metrics) {
-			metrics_process = new MapNetworkMetrics(legends, obj_parent);
+		if (use_metrics) {
+			metrics_process = new MapNetworkMetrics(elm_legends, PARENT);
 		}
-
 	};
 	
-	var hover = function (node_position, show_box, highlight) {
+	var hoverNode = function (arr_node, show_box, do_highlight) {
 		
 		elm[0].removeAttribute('title');
 		
-		if (highlight !== false) {
+		if (do_highlight !== false) {
 			
 			while (arr_highlighted_nodes.length) {
 				
-				var unhighlighted_node_position = arr_highlighted_nodes.pop();
-				drawNodeElm(nodes[unhighlighted_node_position]);
+				const node_id = arr_highlighted_nodes.pop();
+				drawNodeElm(arr_nodes[node_id]);
 			}
 			
-			for (var i = 0; i < links.length; i++) {
+			for (let i = 0; i < arr_loop_links.length; i++) {
 				
-				setLinkColor(links[i], false);
+				const arr_link = arr_loop_links[i];
 				
-				if (force_options.link_arrowhead && display == 'vector' && links[i].elm) {
+				if (!arr_link.is_active) {
+					continue;
+				}
+				
+				setLinkColor(arr_link, false);
+				
+				if (show_arrowhead && display == DISPLAY_VECTOR) {
 					
-					links[i].elm.setAttribute('marker-end', 'url(#end)');
+					arr_link.elm.setAttribute('marker-end', 'url(#end)');
 				}
 			}
-			
 		}
 		
-		if (node_position === false) {
+		if (arr_node === false) {
+			
 			elm[0].arr_link = false;
 			elm[0].arr_info_box = false;
-		}
-			
-		if (node_position !== false) {
+		} else {
 				
-			var object = arr_data.objects[nodes[node_position].id],
-			connections = {},
-			cur_in = 0,
-			cur_out = 0,
-			connection_object_parents = [],
-			connection_object_sub_parents = [];
+			const connections = {};
+			let cur_in = 0;
+			let cur_out = 0;
+			let connection_object_parents = [];
+			let connection_object_sub_parents = [];
 
-			if (highlight !== false) {
+			if (do_highlight !== false) {
 
-				nodes[node_position].hightlight_color = '#D92B2B';
-				drawNodeElm(nodes[node_position]);
+				arr_node.highlight_color = color_highlight_node;
+				drawNodeElm(arr_node);
 				
-				if (arr_highlighted_nodes.indexOf(node_position) === -1) {
-					arr_highlighted_nodes.push(node_position);
+				if (arr_highlighted_nodes.indexOf(arr_node.id) === -1) {
+					arr_highlighted_nodes.push(arr_node.id);
 				}
 				
-				elm[0].setAttribute('title', nodes[node_position].html_name);
-				
+				elm[0].setAttribute('title', arr_node.name);
 			}
 						
-			var arr_connect_objects = []
-			for (var i = 0, len = links.length; i < len; i++) {
+			const arr_connect_objects = [];
+			
+			for (let i = 0, len = arr_loop_links.length; i < len; i++) {
+
+				const arr_link = arr_loop_links[i];
 				
-				var connected_object_id = false;
-				
-				if (links[i].target.id == object.id) {
-					
-					cur_in++
-					connected_object_id = links[i].source.id;
-				} else if (links[i].source.id == object.id) {
-					
-					cur_out++
-					connected_object_id = links[i].target.id;
+				if (!arr_link.is_active) {
+					continue;
 				}
 				
-				if (connected_object_id) {
+				let arr_node_connected = false;
+				
+				if (arr_link.target.id == arr_node.id) {
 					
-					arr_connect_objects.push({object_id: connected_object_id});
+					cur_in++
+					arr_node_connected = arr_link.source;
+				} else if (arr_link.source.id == arr_node.id) {
+					
+					cur_out++
+					arr_node_connected = arr_link.target;
+				}
+				
+				if (arr_node_connected) {
+					
+					const connected_object_id = arr_node_connected.id;
+					
+					arr_connect_objects.push({object_id: connected_object_id, type_id: arr_node_connected.type_id});
+					
+					const arr_object_parents = [arr_link.source_object_id, arr_link.target_object_id];
+					const count_object_parents = 2;
 					
 					if (!connections[connected_object_id]) {
 						
-						connections[connected_object_id] = {id: connected_object_id, name: arr_data.objects[connected_object_id].name, count: links[i].object_parents.length+links[i].sub_object_parents.length, parents: {'object_parents': links[i].object_parents, 'sub_object_parents': links[i].sub_object_parents}, total: arr_data.objects[connected_object_id].in.length+arr_data.objects[connected_object_id].out.length}
-					
+						connections[connected_object_id] = {
+							id: connected_object_id, 
+							name: arr_node_connected.name, 
+							count: count_object_parents + arr_link.count_object_sub_parents, 
+							parents: {
+								object_parents: arr_object_parents, 
+								object_sub_parents: Object.keys(arr_link.object_sub_parents)
+							}, 
+							total: (arr_node_connected.count_in + arr_node_connected.count_out)
+						};					
 					} else {
 						
-						connections[connected_object_id].parents.object_parents = connections[connected_object_id].parents.object_parents.concat(links[i].object_parents);
-						connections[connected_object_id].parents.sub_object_parents = connections[connected_object_id].parents.sub_object_parents.concat(links[i].sub_object_parents);
-						connections[connected_object_id].count = connections[connected_object_id].count + links[i].object_parents.length+links[i].sub_object_parents.length;
+						connections[connected_object_id].parents.object_parents = connections[connected_object_id].parents.object_parents.concat(arr_object_parents);
+						connections[connected_object_id].parents.object_sub_parents = connections[connected_object_id].parents.object_sub_parents.concat(Object.keys(arr_link.object_sub_parents));
+						connections[connected_object_id].count = (connections[connected_object_id].count + count_object_parents + arr_link.count_object_sub_parents);
 					}
 					
-					if (highlight !== false) {
+					if (do_highlight !== false) {
 						
-						if (force_options.link_arrowhead && display == 'vector' && links[i].elm) {
-							links[i].elm.setAttribute('marker-end', 'url(#end-selected)');
+						if (show_arrowhead && display == DISPLAY_VECTOR) {
+							arr_link.elm.setAttribute('marker-end', 'url(#end-selected)');
 						}
 						
-						setLinkColor(links[i], 'rgba(255,0,0,0.4)');
+						setLinkColor(arr_link, color_highlight_link);
 						
-						nodes[arr_data.objects[connected_object_id].node_position].hightlight_color = '#FF7070';
-						drawNodeElm(nodes[arr_data.objects[connected_object_id].node_position]);
+						arr_node_connected.highlight_color = color_highlight_node_connect;
+						drawNodeElm(arr_node_connected);
 						
-						if (arr_highlighted_nodes.indexOf(arr_data.objects[connected_object_id].node_position) === -1) {
-							arr_highlighted_nodes.push(arr_data.objects[connected_object_id].node_position);
+						if (arr_highlighted_nodes.indexOf(connected_object_id) === -1) {
+							arr_highlighted_nodes.push(connected_object_id);
 						}
 				
 					}
 					
-					connection_object_parents = connection_object_parents.concat(links[i].object_parents);
-					connection_object_sub_parents = connection_object_sub_parents.concat(links[i].sub_object_parents);
+					connection_object_parents = connection_object_parents.concat(arr_object_parents);
+					connection_object_sub_parents = connection_object_sub_parents.concat(Object.keys(arr_link.object_sub_parents));
 				}
 			}
 			
-			elm[0].arr_link = {object_id: parseInt(object.id), type_id: parseInt(object.type_id), object_sub_ids: object.sub_object_parents, connect_object_ids: arr_connect_objects};
-			elm[0].arr_info_box = {name: object.name};
+			elm[0].arr_link = {object_id: parseInt(arr_node.id), type_id: parseInt(arr_node.type_id), object_sub_ids: arr_node.object_sub_parents, connect_object_ids: arr_connect_objects};
+			elm[0].arr_info_box = {name: arr_node.name};
 
 			if (show_box) {
 				
-				var span = $('<span class="a">'+object.html_name+'</span>').data('node_position', node_position);
+				const elm_span = $('<span class="a">'+arr_node.name+'</span>');
+				
+				elm_span[0].dataset.node_id = arr_node.id;
 									
-				span[0].addEventListener('mouseenter', function() {
+				elm_span[0].addEventListener('mouseenter', function() {
 				
-					hover($(this).data('node_position'), false);
+					hoverNode(arr_nodes[this.dataset.node_id], false);
 				});		
 							
-				span[0].addEventListener('mouseleave', function() {
+				elm_span[0].addEventListener('mouseleave', function() {
 				
-					hover(false, false);
+					hoverNode(false, false);
 				});		
 							
-				span[0].addEventListener('click', function() {
+				elm_span[0].addEventListener('click', function() {
 				
 					elm.click();
 				});
 				
-				elm_selected_node_container.removeClass('hide').html(span);
-				var info = [{label: 'out-Links', elm: cur_out+'/'+object.out.length}];
-				var details = getDataDetails(nodes[node_position].id, connection_object_parents, connection_object_sub_parents);
+				elm_selected_node_container.removeClass('hide').html(elm_span);
+				const info = [{label: 'out-Links', elm: cur_out+'/'+arr_node.count_out}];
+				const details = getDataDetails(arr_node.id, connection_object_parents, connection_object_sub_parents);
 				
-				for (var object_definition_id in details.source.object_definitions) {
-				
-					var object_description_name = (arr_data.info.object_descriptions[object_definition_id].object_description_name ? arr_data.info.object_descriptions[object_definition_id].object_description_name : '-');
-					
-					info.push({label: arr_data.info.types[object.type_id].name+' '+object_description_name, elm: details.source.object_definitions[object_definition_id]});
+				for (const object_definition_id in details.source.object_definitions) {
+										
+					info.push({label: arr_data.info.types[arr_node.type_id].name+' '+arr_data.info.object_descriptions[object_definition_id].object_description_name, elm: details.source.object_definitions[object_definition_id]});
 				}
 							
-				for (var type_id in details.source.object_subs) {
+				for (const type_id in details.source.object_subs) {
 								
-					for (var object_sub_details_id in details.source.object_subs[type_id]) {	
+					for (const object_sub_details_id in details.source.object_subs[type_id]) {	
 								
-						for (var object_sub_definition_id in details.source.object_subs[type_id][object_sub_details_id]) {
+						for (const object_sub_definition_id in details.source.object_subs[type_id][object_sub_details_id]) {
 							
-							info.push({label: arr_data.info.types[type_id].name+' ['+arr_data.info.object_sub_details[object_sub_details_id].object_sub_details_name+']', elm: details.source.object_subs[type_id][object_sub_details_id][object_sub_definition_id]});
+							const str_object_sub_details = (object_sub_details_id ? '['+arr_data.info.object_sub_details[object_sub_details_id].object_sub_details_name+']' : '-'); // Could be collapsed and not exist
+													
+							info.push({label: arr_data.info.types[type_id].name+' '+str_object_sub_details, elm: details.source.object_subs[type_id][object_sub_details_id][object_sub_definition_id]});
 						}
 					}
 				}
 				
-				info.push({label: 'in-Links', elm: cur_in+'/'+object.in.length});
+				info.push({label: 'in-Links', elm: cur_in+'/'+arr_node.count_in});
 				
-				for (var type_id in details.target.object_definitions) {
+				for (const type_id in details.target.object_definitions) {
 					
-					for (var object_definition_id in details.target.object_definitions[type_id]) {
-						
-						var object_description_name = (arr_data.info.object_descriptions[object_definition_id].object_description_name ? arr_data.info.object_descriptions[object_definition_id].object_description_name : '-');
-												
-						info.push({label: arr_data.info.types[type_id].name+' '+object_description_name, elm: details.target.object_definitions[type_id][object_definition_id]});
+					for (const object_definition_id in details.target.object_definitions[type_id]) {
+				
+						info.push({label: arr_data.info.types[type_id].name+' '+arr_data.info.object_descriptions[object_definition_id].object_description_name, elm: details.target.object_definitions[type_id][object_definition_id]});
 					}
 				}	
 							
-				for (var type_id in details.target.object_subs) {	
+				for (const type_id in details.target.object_subs) {	
 							
-					for (var object_sub_details_id in details.target.object_subs[type_id]) {
+					for (const object_sub_details_id in details.target.object_subs[type_id]) {
 								
-						for (var object_sub_definition_id in details.target.object_subs[type_id][object_sub_details_id]) {
+						for (const object_sub_definition_id in details.target.object_subs[type_id][object_sub_details_id]) {
 							
-							info.push({label: arr_data.info.types[type_id].name+' ['+arr_data.info.object_sub_details[object_sub_details_id].object_sub_details_name+']', elm: details.target.object_subs[type_id][object_sub_details_id][object_sub_definition_id]});
+							const str_object_sub_details = (object_sub_details_id ? '['+arr_data.info.object_sub_details[object_sub_details_id].object_sub_details_name+']' : '-'); // Could be collapsed and not exist
+							
+							info.push({label: arr_data.info.types[type_id].name+' '+str_object_sub_details, elm: details.target.object_subs[type_id][object_sub_details_id][object_sub_definition_id]});
 						}
 					}
 				}				
 				
-				var arr_connections = [];
+				const arr_connections = [];
 				
-				for (var connected_object_id in connections) {
+				for (const connected_object_id in connections) {
 					
 					arr_connections.push(connections[connected_object_id]);
 				}
@@ -1859,665 +3062,624 @@ function MapSocial(element, obj_parent, options) {
 					return parseFloat(b.count) - parseFloat(a.count);
 				});
 				
-				for (var i = 0; i < (arr_connections.length > 9 ? 10 : arr_connections.length); i++) {
+				for (let i = 0; i < (arr_connections.length > 9 ? 10 : arr_connections.length); i++) {
 					
-					var connection_relations = $('<span title="Number of relations between '+object.name+' and '+arr_connections[i].name+' (total links of '+arr_connections[i].name+')">'+arr_connections[i].count+' ('+arr_connections[i].total+')</span>');
-					var connection_name = $('<span id="y:data_view:view_type_object-'+arr_data.objects[arr_connections[i].id].type_id+'_'+arr_connections[i].id+'" class="a popup">'+arr_connections[i].name+'</span>').data('node_position', arr_data.objects[arr_connections[i].id].node_position);
+					const elm_connection_relations = $('<span title="Number of relations between '+arr_node.name+' and '+arr_connections[i].name+' (total links of '+arr_connections[i].name+')">'+arr_connections[i].count+' ('+arr_connections[i].total+')</span>');
+					const elm_connection_name = $('<span id="y:data_view:view_type_object-'+arr_nodes[arr_connections[i].id].type_id+'_'+arr_connections[i].id+'" class="a popup">'+arr_connections[i].name+'</span>');
+					
+					elm_connection_name[0].dataset.node_id = arr_connections[i].id;
 
-					connection_name[0].addEventListener('mouseenter', function() {
+					elm_connection_name[0].addEventListener('mouseenter', function() {
 						
-						hover($(this).data('node_position'), false);
+						hoverNode(arr_nodes[this.dataset.node_id], false);
 					})
 					
-					connection_name[0].addEventListener('mouseleave', function() {
+					elm_connection_name[0].addEventListener('mouseleave', function() {
 						
-						hover(false, false);
+						hoverNode(false, false);
 					});
 					
-					info.push({label: connection_name, elm: connection_relations});
+					info.push({label: elm_connection_name, elm: elm_connection_relations});
 				};
 				
-				var list = $('<dl />').appendTo(elm_selected_node_container);
+				const list = $('<dl />').appendTo(elm_selected_node_container);
 				
-				for (var key in info) {
-					var li = $('<li />').appendTo(list);
-					var dt = $('<dt />').html(info[key].label).appendTo(li);
-					var dd = $('<dd />').html(info[key].elm).appendTo(li);
+				for (const key in info) {
+					
+					const li = $('<li />').appendTo(list);
+					const dt = $('<dt />').html(info[key].label).appendTo(li);
+					const dd = $('<dd />').html(info[key].elm).appendTo(li);
 				}
 			}
 		}
 		
 		TOOLTIP.update();
 		
-		if (display == 'pixel' && !first_run && !draw) {
-			// Rerender stage to show/hide highlight colours
+		if (display == DISPLAY_PIXEL && !in_first_run && !do_draw) { // Rerender stage to show/hide highlight colours
+			
+			if (do_update_geometry_lines_color) {
+				
+				buffer_geometry_lines_color.update();
+				do_update_geometry_lines_color = false;
+			}
+				
 			renderer.render(stage);
 		}
 	};
 	
-	var setNodesLinks = function() {
+	var setNodesLinksValues = function() {
 
-		max_complete_connections = 1;
-		max_value = 1;
+		num_node_weight_max = 1;
+		num_link_weight_max = 1;
 
-		for (var i = 0, len = nodes.length; i < len; i++) {
+		for (let i = 0, len = arr_loop_nodes.length; i < len; i++) {
 			
-			var arr_node = nodes[i];
+			const arr_node = arr_loop_nodes[i];
+			
+			if (!arr_node.is_active) {
+				continue;
+			}
 			
 			if (is_weighted) {
 				
-				var conditions_weight = arr_node.conditions_weight;
+				let num_weight_conditions = arr_node.weight_conditions;
 
-				if (force_options.node_stop_size && conditions_weight > force_options.node_stop_size) {
+				if (size_node_stop && num_weight_conditions > size_node_stop) {
 				
-					conditions_weight = force_options.node_stop_size;
+					num_weight_conditions = size_node_stop;
 				}
 			
-				if (conditions_weight > max_complete_connections) {
-					max_complete_connections = conditions_weight;
+				if (num_weight_conditions > num_node_weight_max) {
+					num_node_weight_max = num_weight_conditions;
 				}
-				
 			} else {
 				
-				if (arr_node.out.length + arr_node.in.length > max_complete_connections) {
-					max_complete_connections = arr_node.out.length + arr_node.in.length;
+				if (arr_node.count_out + arr_node.count_in > num_node_weight_max) {
+					num_node_weight_max = arr_node.count_out + arr_node.count_in;
 				}
 			}
 		}
 		
-		for (var i = 0, len = nodes.length; i < len; i++) {
+		for (let i = 0, len = arr_loop_nodes.length; i < len; i++) {
 			
-			var arr_node = nodes[i];
+			const arr_node = arr_loop_nodes[i];
+			
+			if (!arr_node.is_active) {
+				continue;
+			}
 						
 			if (is_weighted) {
 				
-				var conditions_weight = arr_node.conditions_weight;
+				let num_weight_conditions = arr_node.weight_conditions;
 
-				if (force_options.node_stop_size && conditions_weight > force_options.node_stop_size) {
+				if (size_node_stop && num_weight_conditions > size_node_stop) {
 					
-					conditions_weight = force_options.node_stop_size;
+					num_weight_conditions = size_node_stop;
 				}
 
-				if (conditions_weight / max_complete_connections > label_threshold) {
+				if (num_weight_conditions / num_node_weight_max > num_label_threshold) {
 					arr_node.show_text = true;
 				}
 							
 			} else {
 				
-				if ((arr_node.out.length + arr_node.in.length) / max_complete_connections > label_threshold) {
+				if ((arr_node.count_out + arr_node.count_in) / num_node_weight_max > num_label_threshold) {
 					arr_node.show_text = true;
 				}
 			}
 		}
 		
-		for (var i = 0, len = links.length; i < len; i++) {
+		for (let i = 0, len = arr_loop_links.length; i < len; i++) {
 			
-			var arr_link = links[i];
+			const arr_link = arr_loop_links[i];
 			
-			if (arr_link.value > max_value) {
-				max_value = arr_link.value;
+			if (!arr_link.is_active) {
+				continue;
 			}
 			
-			arr_link.source = nodes[arr_data.objects[arr_link.source].node_position];
-			arr_link.target = nodes[arr_data.objects[arr_link.target].node_position];
+			if (arr_link.weight > num_link_weight_max) {
+				num_link_weight_max = arr_link.weight;
+			}
 		}		
 	};
 	
-	var checkInRange = function(arr_object_sub) {
-		
-		if (setdata) {
-						
-			if (obj_parent.obj_data.arr_inactive_types[arr_data.objects[arr_object_sub.object_id].type_id]) {
-				return false;
-			}
-			
-			var arr_object = arr_data.objects[arr_object_sub.object_id];
-			
-			if (obj_parent.obj_data.arr_loop_inactive_conditions.length) {
-				
-				for (var i = 0, len = obj_parent.obj_data.arr_loop_inactive_conditions.length; i < len; i++) {
-					
-					var has_inactive_condition = hasCondition(arr_object, obj_parent.obj_data.arr_loop_inactive_conditions[i]);
-					
-					if (has_inactive_condition) {
-						return false;
-					}
-				}
-			}
-		}
+	var checkObjectSubInRange = function(arr_object_sub) {
 
-		return true;
+		return checkNodeInRange(arr_nodes[arr_object_sub.object_id]);
 	};
 	
-	var setCheckSub = function(date_range) {
+	var setCheckObjectSubs = function(dateinta_range) {
 
 		// Single date sub objects
-		for (var i = 0, len = arr_data.date.arr_loop.length; i < len; i++) {
+		for (let i = 0, len = arr_data.date.arr_loop.length; i < len; i++) {
 			
-			var date = arr_data.date.arr_loop[i];
-			var in_range = (date >= date_range.min && date <= date_range.max);
-			var arr_object_subs = arr_data.date[date];
+			const date = arr_data.date.arr_loop[i];
+			const dateinta = DATEPARSER.dateInt2Absolute(date);
+			const in_range_date = (dateinta >= dateinta_range.min && dateinta <= dateinta_range.max);
+			const arr_object_subs = arr_data.date[date];
 		
-			for (var j = 0; j < arr_object_subs.length; j++) {
+			for (let j = 0; j < arr_object_subs.length; j++) {
+				
+				let in_range = in_range_date;
 				
 				if (in_range) {
 					
-					var arr_object_sub = arr_data.object_subs[arr_object_subs[j]];
+					const arr_object_sub = arr_data.object_subs[arr_object_subs[j]];
 					
-					in_range = checkInRange(arr_object_sub);
+					in_range = checkObjectSubInRange(arr_object_sub);
 				}
 				
-				checkSub(arr_object_subs[j], !in_range);
+				checkObjectSub(arr_object_subs[j], !in_range);
 			}
 		}
 		
 		// Sub objects with a date range
-		for (var i = 0, len = arr_data.range.length; i < len; i++) {
+		for (let i = 0, len = arr_data.range.length; i < len; i++) {
 			
-			var arr_object_sub = arr_data.object_subs[arr_data.range[i]];
-			var in_range = ((arr_object_sub.date_start >= date_range.min && arr_object_sub.date_start <= date_range.max) || (arr_object_sub.date_end >= date_range.min && arr_object_sub.date_end <= date_range.max) || (arr_object_sub.date_start < date_range.min && arr_object_sub.date_end > date_range.max));
+			const arr_object_sub = arr_data.object_subs[arr_data.range[i]];
 			
+			const dateinta_start = DATEPARSER.dateInt2Absolute(arr_object_sub.date_start);
+			const dateinta_end = DATEPARSER.dateInt2Absolute(arr_object_sub.date_end);
+			
+			let in_range = ((dateinta_start >= dateinta_range.min && dateinta_start <= dateinta_range.max) || (dateinta_end >= dateinta_range.min && dateinta_end <= dateinta_range.max) || (dateinta_start < dateinta_range.min && dateinta_end > dateinta_range.max));
+
 			if (in_range) {
-				in_range = checkInRange(arr_object_sub);
+				in_range = checkObjectSubInRange(arr_object_sub);
 			}
 			
-			checkSub(arr_data.range[i], !in_range);
+			checkObjectSub(arr_data.range[i], !in_range);
 		}
-		
-		for (var i = 0; i < arr_remove_nodes.length; i++) {
-			
-			var object_id = arr_remove_nodes[i];
-			arr_data.objects[object_id].checked = false;
-			drawNodeElm(arr_data.objects[object_id]);
-		}
-		
 	};
 	
-	var checkSub = function(object_sub_id, remove) {
+	var checkObjectSub = function(object_sub_id, do_remove) {
 
-		var object_sub = arr_data.object_subs[object_sub_id],
-		count_object_sub_child_nodes = object_sub.child_nodes.length,
-		count_object_sub_child_links = object_sub.child_links.length;
+		const arr_object_sub_children = arr_object_subs_children[object_sub_id];
+		let count_nodes = arr_object_sub_children.child_nodes.length;
+		let count_links = arr_object_sub_children.child_links.length;
 		
-		object_sub.active = !remove;
+		arr_object_sub_children.is_active = !do_remove;
 		
 		// Nodes and Links are added, removed or updated based on sub-object and object parents
 		// They set whether a node/link may or may not exist
 		// The size of the node/link is based on the number of links
 			
-		while (count_object_sub_child_nodes--) {
+		while (count_nodes--) {
+
+			const object_id = arr_object_sub_children.child_nodes[count_nodes];
+			const arr_node = arr_nodes[object_id];
 			
-			var active = false,
-			object_id = object_sub.child_nodes[count_object_sub_child_nodes],
-			arr_object = arr_data.objects[object_id],
-			arr_sub_object_parents = arr_object.sub_object_parents,
-			arr_object_parents = arr_object.object_parents;
+			const has_parent_id = (arr_node.object_sub_parents[object_sub_id] === true);
 			
-			if (arr_sub_object_parents.length || arr_object_parents.length) {
-				var active = true;
-			}
+			if (do_remove) {
+				
+				if (has_parent_id) {
 					
-			var parent_pos = indexOfFor(arr_sub_object_parents, object_sub_id);
-			if (remove) {
-				if (parent_pos > -1) {
-					arr_sub_object_parents.splice(parent_pos, 1);
-					if (active) {				
-						
-						arr_object.redraw_node = true;
-								
-						if (arr_sub_object_parents.length == 0 && arr_object_parents.length == 0) {
-							removeNode(arr_object);
-						}
-					} 
+					arr_node.object_sub_parents[object_sub_id] = false;
+					arr_node.count_object_sub_parents--;
 				}
 			} else {
 
-				if (parent_pos == -1) { // add node
-
-					arr_object.redraw_node = true;
+				if (!has_parent_id) { // add node
 					
-					arr_sub_object_parents.push(object_sub_id);		
-					if (!active) {
-	
-						addNode(arr_object, true);
-					} else {
-	
-						addNode(arr_object, false);
-					}
+					arr_node.object_sub_parents[object_sub_id] = true;
+					arr_node.count_object_sub_parents++;
 				} 
 			}
-			
-			checkNode(arr_object);
 		}
 		
-		while (count_object_sub_child_links--) {
+		while (count_links--) {
 			
-			var active = false,
-			link_id = object_sub.child_links[count_object_sub_child_links],
-			arr_link = arr_data.links[link_id],
-			arr_sub_object_parents = arr_link.sub_object_parents,
-			arr_object_parents = arr_link.object_parents;
+			const link_id = arr_object_sub_children.child_links[count_links];
+			const arr_link = arr_links[link_id];
 			
-			if (arr_sub_object_parents.length || arr_object_parents.length) {
-				var active = true;
-			}
-			
-			var parent_pos = indexOfFor(arr_sub_object_parents, object_sub_id);
+			const has_parent_id = (arr_link.object_sub_parents[object_sub_id] === true);
 
-			if (remove) {
-				if (parent_pos > -1) {
+			if (do_remove) {
+				if (has_parent_id) {
 					
-					arr_sub_object_parents.splice(parent_pos, 1);
-					
-					if (active) {
-						
-						removeLink(arr_link);
-					} 
+					arr_link.object_sub_parents[object_sub_id] = false;
+					arr_link.count_object_sub_parents--;
 				} 
 			} else {					
-				if (parent_pos == -1) {
+				if (!has_parent_id) {
 					
-					arr_sub_object_parents.push(object_sub_id);
-					
-					if (!active) {
-						
-						addLink(arr_link);
-					}
+					arr_link.object_sub_parents[object_sub_id] = true;
+					arr_link.count_object_sub_parents++;
 				}
 			}
-			
-			checkLink(arr_link);
-			
 		}
-		
-	}
+	};
 	
-	var checkNode = function(arr_object) {
-
-		if (!setdata) {
-			return;
+	var checkNodes = function() {
+		
+		for (let i = 0, len = arr_loop_nodes.length; i < len; i++) {
+				
+			const arr_node = arr_loop_nodes[i];
+			
+			arr_node.is_enabled = checkNodeInRange(arr_node);
 		}
-
-		var has_inactive_condition = false;
 		
-		if (!arr_object.checked) {
-		
-			arr_object.checked = true;
+		for (let i = 0, len = arr_loop_nodes.length; i < len; i++) { // Setting all nodes' static object links to removed, when applicable. Point of depature, clean slate.
 			
-			if (obj_parent.obj_data.arr_loop_inactive_conditions.length) {
-				
-				for (var i = 0, len = obj_parent.obj_data.arr_loop_inactive_conditions.length; i < len; i++) {
-					
-					var has_inactive_condition = hasCondition(arr_object, obj_parent.obj_data.arr_loop_inactive_conditions[i]);
-					
-					if (has_inactive_condition) {
-						break;
-					}
-				}
+			const arr_node = arr_loop_nodes[i];
+			const do_add = (arr_node.is_enabled && arr_node.count_object_sub_parents);
+			
+			if (!do_add) {
+				checkRemoveNode(arr_node);
 			}
+		}
+		
+		for (let i = 0, len = arr_loop_nodes.length; i < len; i++) { // Adding all nodes' static object links, when applicable.
 			
-			if (has_inactive_condition || obj_parent.obj_data.arr_inactive_types[arr_object.type_id]) {
-					
-				arr_object.inactive = true;
-				removeNode(arr_object);
-				
+			const arr_node = arr_loop_nodes[i];
+			const do_add = (arr_node.is_enabled && arr_node.count_object_sub_parents);
+			
+			if (do_add) {
+				checkAddNode(arr_node);
+			}
+		}
+		
+		for (let i = 0, len = arr_loop_nodes.length; i < len; i++) {
+			
+			const arr_node = arr_loop_nodes[i];
+			
+			if (arr_node.is_enabled && (arr_node.count_object_parents || arr_node.count_object_sub_parents)) {
+				addNode(arr_node);
 			} else {
-				
-				if (arr_object.inactive) {
-					
-					arr_object.inactive = false;
-					
-					addNode(arr_object, true);
-				}
-			}
-			
-			if (arr_object.child_nodes && arr_object.child_nodes.length) {
-				
-				for (var i = 0, len = arr_object.child_nodes.length; i < len; i++) {
-					
-					var arr_object_child = arr_data.objects[arr_object.child_nodes[i]];
-					
-					if (arr_object_child.id !== arr_object.id) {
-						checkNode(arr_object_child);
-					}
-				}
-			}
-			
-			if (arr_object.child_links && arr_object.child_links.length) {
-				
-				for (var i = 0, len = arr_object.child_links.length; i < len; i++) {
-					
-					var arr_link = arr_data.links[arr_object.child_links[i]];
-					checkLink(arr_link);
-				}
+				removeNode(arr_node);
 			}
 		}
-	}
-	
-	var checkLink = function(arr_link) {
 		
-		if (!setdata) {
-			return;
-		}
-			
-		if ((arr_data.objects[arr_link.source_id].inactive || arr_data.objects[arr_link.target_id].inactive) ||
-			(arr_data.objects[arr_link.source_id].sub_object_parents.length + arr_data.objects[arr_link.source_id].object_parents.length == 0 || arr_data.objects[arr_link.target_id].sub_object_parents.length + arr_data.objects[arr_link.target_id].object_parents.length == 0)) {
-			
-			arr_link.inactive = true;				
-			removeLink(arr_link);
-			
-		} else {
-		
-			if (arr_link.inactive) {
+		for (let i = 0, len = arr_loop_links.length; i < len; i++) {
 				
-				arr_link.inactive = false;
+			const arr_link = arr_loop_links[i];
+			
+			if (in_predraw) {
+				arr_link.source = arr_nodes[arr_link.source_object_id];
+				arr_link.target = arr_nodes[arr_link.target_object_id];
+			}
+			
+			if (!arr_link.source.is_alive || !arr_link.target.is_alive) {
+				removeLink(arr_link);
+			} else if (!arr_link.has_object_parent && arr_link.has_object_sub_parents && !arr_link.count_object_sub_parents) {
+				removeLink(arr_link);
+			} else {
 				addLink(arr_link);
 			}
 		}
-	}
-	
-	var addNode = function(arr_object, add) {		
-	
-		if (setdata && !arr_object.checked) {
-			checkNode(arr_object);
-		}
 		
-		if (setdata) {
+		for (let i = 0; i < arr_remove_nodes.length; i++) {
 			
-			if (arr_object.inactive) {
-				return;
-			}
+			const object_id = arr_remove_nodes[i];
 
-			if (arr_object.sub_object_parents.length + arr_object.object_parents.length == 0) {
-				return;
-			}
-			
+			drawNodeElm(arr_nodes[object_id]);
 		}
 		
-		if (arr_object.has_weight && arr_object.total_weight == 0) {
+		arr_remove_nodes = [];
+	};
+	
+	var checkRemoveNode = function(arr_node) {
+		
+		if (!arr_node.child_nodes.length) {
 			return;
 		}
 		
-		if (add) {
-			
-			if (arr_object.node_position === false) {
-			
-				var pos = nodes.push(arr_object);
-				
-				arr_object.node_position = pos - 1;
-								
-				arr_object.redraw_node = true;
-			}
-			
-		}
-		
-		if (arr_object.child_nodes && arr_object.child_nodes.length) {
-			
-			for (var i = 0; i < arr_object.child_nodes.length; i++) {
-				
-				var object_child_id = arr_object.child_nodes[i],
-				arr_object_child = arr_data.objects[object_child_id];
-			
-				var parent_pos = indexOfFor(arr_object_child.object_parents, arr_object.id);
-				
-				checkNode(arr_object_child);
-				
-				if (parent_pos == -1) {
-					
-					arr_object_child.object_parents[arr_object_child.object_parents.length] = arr_object.id;
-							
-					if ((arr_object_child.object_parents.length + arr_object_child.sub_object_parents) == 1) {
-						addNode(arr_object_child, true);
-					} else {						
-						updateNode(arr_object_child, arr_object.id, false);
-					}
-				}
-			}
-		}
-		
-		if (arr_object.child_links && arr_object.child_links.length) {
-			
-			for (var i = 0; i < arr_object.child_links.length; i++) {
-				
-				var active = false,
-				link_id = arr_object.child_links[i],
-				arr_link = arr_data.links[link_id];
-				
-				if (arr_link) {
-					
-					if (arr_link.sub_object_parents.length || arr_link.object_parents.length) {
-						var active = true;
-					}
-					
-					var parent_pos = indexOfFor(arr_link.object_parents, arr_object.id);
-					
-					if (parent_pos == -1) {
-						
-						arr_link.object_parents.push(arr_object.id);
-						
-						if (!active) {
-							
-							addLink(arr_link);
-							
-						}
-					} else {
-						
-						checkLink(arr_link);
-					}
-				}
-			}
-		}
-	}
-	
-	var updateNode = function(arr_object, parent_id, remove) {
-
-		if (setdata && arr_object.inactive) {
+		if (arr_node.is_enabled && arr_node.count_object_sub_parents) {
 			return;
 		}
 		
-		var parent_pos = indexOfFor(arr_object.object_parents, parent_id);
+		arr_node.is_checked = false; // This additional switch helps to identify possible mutual static links that negate a natural flow (cancel each other) in the next checkAddNode-phase
 		
-		if (remove) {
-			if (parent_pos > -1) {
-				arr_object.object_parents.splice(parent_pos, 1);
+		for (let i = 0, len = arr_node.child_nodes.length; i < len; i++) {
+			
+			const arr_node_child = arr_nodes[arr_node.child_nodes[i]];
+			
+			if (arr_node_child.object_parents[arr_node.id]) {
+				
+				arr_node_child.object_parents[arr_node.id] = false;
+				arr_node_child.count_object_parents--;
 			}
-		} else {
-			if (parent_pos == -1) {
-				arr_object.object_parents.push(parent_id);
+
+			if (arr_node_child.is_checked) {
+				checkRemoveNode(arr_node_child);
+			}
+		}
+	};
+	
+	var checkAddNode = function(arr_node) {
+		
+		if (!arr_node.child_nodes.length) {
+			return;
+		}
+		
+		if (!arr_node.is_enabled) {
+			return;
+		}
+		
+		arr_node.is_checked = true;
+		
+		for (let i = 0, len = arr_node.child_nodes.length; i < len; i++) {
+			
+			const arr_node_child = arr_nodes[arr_node.child_nodes[i]];
+			
+			if (!arr_node_child.object_parents[arr_node.id]) {
+				
+				arr_node_child.object_parents[arr_node.id] = true;
+				arr_node_child.count_object_parents++;
+			}
+			
+			if (!arr_node_child.is_checked) {
+				checkAddNode(arr_node_child);
+			}
+		}
+	};
+	
+	var checkNodeInRange = function(arr_node) {
+		
+		if (in_predraw) {
+			return true;
+		}
+				
+		if (PARENT.obj_data.arr_inactive_types[arr_node.type_id]) {
+			return false;
+		}
+				
+		if (PARENT.obj_data.arr_loop_inactive_conditions.length) {
+			
+			for (let i = 0, len = PARENT.obj_data.arr_loop_inactive_conditions.length; i < len; i++) {
+				
+				const has_inactive_condition = hasCondition(arr_node, PARENT.obj_data.arr_loop_inactive_conditions[i]);
+				
+				if (has_inactive_condition) {
+					return false;
+				}
 			}
 		}
 
-		if (arr_object.object_parents.length == 0 && arr_object.sub_object_parents.length == 0) {
-		
-			removeNode(arr_object);
-		
-		} else {
-
-			arr_object.redraw_node = true;
-		}
+		return true;
 	}
 	
-	var removeNode = function(arr_object) {
+	var addNode = function(arr_node) {
+	
+		if (arr_node.weight_total === 0) {
+			return;
+		}
+		
+		if (arr_node.is_alive) {
+			
+			if (arr_node.conditions.object_sub.length) { // Check if node has changed internally (node has sub-object conditions).
+				
+				var str_identifier = '';
+				
+				for (let i = 0, len = arr_node.conditions.object_sub.length; i < len; i++) {
+					
+					const arr_condition = arr_node.conditions.object_sub[i];
+					
+					if (arr_object_subs_children[arr_condition.source_id].is_active) {
+						
+						str_identifier += arr_condition.source_id;
+					}
+				}
+				
+				if (str_identifier != arr_node.identifier_condition_self) {
+
+					arr_node.identifier_condition_self = str_identifier;
+					arr_node.redraw_node = true;
+					
+					return;
+				}
+			} else {
+				return;
+			}
+		}
+		
+		arr_node.is_alive = true;
+		arr_node.is_active = true;
+		arr_node.redraw_node = true;
+	}
+		
+	var removeNode = function(arr_node) {
+			
+		if (!arr_node.is_alive) {
+			return;
+		}
+		
+		arr_node.is_alive = false;
+		arr_node.redraw_node = true;
 
 		if (show_disconnected_node == false) {
 			
-			var cur_pos = arr_object.node_position;
-			
-			if (cur_pos !== false) {
-				
-				if (cur_pos == cur_node_position) {
+			if (arr_node.is_active) {
 					
-					cur_node_position = false;
-				}
+				arr_node.is_active = false;
 				
-				if (cur_pos == nodes.length - 1) {
+				if (arr_node.elm !== false) {
 					
-					nodes.pop();
-				} else {
-					
-					nodes[cur_pos] = nodes.pop();
-					
-					var arr_repositioned_node = arr_data.objects[nodes[cur_pos].id];
-					arr_repositioned_node.node_position = cur_pos;
-					arr_repositioned_node.redraw_node = true;
-
-				}
-				
-				arr_object.node_position = false;
-			}
-		}
-		
-		if (arr_object.child_links && arr_object.child_links.length) {
-			
-			for (var i = 0; i < arr_object.child_links.length; i++) {
-				
-				var active = false,
-				link_id = arr_object.child_links[i],
-				arr_link = arr_data.links[link_id];
-				
-				if (arr_link.object_parents.length) {
-					var parent_pos = indexOfFor(arr_link.object_parents, arr_object.id);
-					if (parent_pos > -1) {
+					if (display == DISPLAY_PIXEL) {
 						
-						arr_link.object_parents.splice(parent_pos, 1);
-						
-						removeLink(arr_link);
-					}
-				}
-			}
-		}
-		
-		if (arr_object.child_nodes && arr_object.child_nodes.length) {
-			
-			for (var i = 0; i < arr_object.child_nodes.length; i++) {
-				
-				var arr_object_child = arr_data.objects[arr_object.child_nodes[i]];
-				var parent_pos = indexOfFor(arr_object_child.object_parents, arr_object.id);
-				
-				if (parent_pos > -1) {
-					
-					arr_object_child.object_parents.splice(parent_pos, 1);
-					
-					if (arr_object_child.object_parents.length == 0 && arr_object_child.sub_object_parents.length == 0) {
-						removeNode(arr_object_child);
+						arr_node.elm.visible = false;
+						if (arr_node.show_text) {
+							arr_node.elm_text.visible = false;
+						}
 					} else {
-						updateNode(arr_object_child, arr_object.id, true);
+						
+						arr_node.elm.dataset.visible = 0;
 					}
-				}	
+				}
+			}
+		} else {
+			
+			if (arr_node.elm) {
+		
+				arr_remove_nodes.push(arr_node.id);
 			}
 		}
-		
-		
-		if (arr_object.elm) {
-		
-			arr_remove_nodes.push(arr_object.id);
-
-		}
-		
-	
 	}
+	
 	var addLink = function(arr_link) {
 
-		if (arr_link.link_position !== false) {
+		if (arr_link.is_active) {
 			return;
 		}
-	
-		var arr_source_node = arr_data.objects[arr_link.source_id];
-		var arr_target_node = arr_data.objects[arr_link.target_id];
+
+		var arr_source_node = arr_link.source;
+		var arr_target_node = arr_link.target;
 		
-		if (setdata && (arr_source_node.inactive || arr_target_node.inactive)) {
-			return;
-		}
-		
-		var pos_source_node = indexOfFor(arr_source_node.out, arr_link.id);	
-		if (pos_source_node == -1) {
-			arr_source_node.out.push(arr_link.id);
+		var has_source_node = (arr_source_node.out[arr_link.id] === true);
+		if (!has_source_node) {
+			arr_source_node.out[arr_link.id] = true;
+			arr_source_node.count_out++;
 			arr_source_node.redraw_node = true;
 		}
 		
-		var pos_target_object = indexOfFor(arr_target_node.in, arr_link.id);	
-		if (pos_target_object == -1) {
-			arr_target_node.in.push(arr_link.id);
+		var has_target_object = (arr_target_node.in[arr_link.id] === true);
+		if (!has_target_object) {
+			arr_target_node.in[arr_link.id] = true;
+			arr_target_node.count_in++;
 			arr_target_node.redraw_node = true;
 		}
-				
-		var pos = links.push(arr_link);
-		arr_link.link_position = pos - 1;
-				
-		if (display == 'vector' && arr_link.elm) {
-			arr_link.action = 'show'; 
-		} else if (display == 'pixel') {
-			//arr_link.pos = [0,0,0,0];
-		}
 		
-	}
+		arr_link.is_active = true;
+		
+		if (show_line && !in_predraw) {
+			
+			if (display == DISPLAY_VECTOR) {
+				arr_link.action = 'show'; 
+			} else if (display == DISPLAY_PIXEL) {
+
+			}
+		}
+	};
 	
 	var removeLink = function(arr_link) {
 		
-		if (arr_link.inactive || (arr_link.sub_object_parents.length == 0 && arr_link.object_parents.length == 0)) {
+		if (!arr_link.is_active) {
+			return;
+		}
 
-			var cur_pos = arr_link.link_position;
-			
-			if (cur_pos === false) {
-				return;
-			}
+		var arr_source_node = arr_link.source;
+		var arr_target_node = arr_link.target;
+						
+		var has_source_node = (arr_source_node.out[arr_link.id] === true);
+		if (has_source_node) {
+			arr_source_node.out[arr_link.id] = false;
+			arr_source_node.count_out--;
+			arr_source_node.redraw_node = true;
+		}
+		
+		var has_target_object = (arr_target_node.in[arr_link.id] === true);
+		if (has_target_object) {
+			arr_target_node.in[arr_link.id] = false;
+			arr_target_node.count_in--;
+			arr_target_node.redraw_node = true;
+		}
 
-			var arr_source_node = arr_data.objects[arr_link.source_id];
-			var arr_target_node = arr_data.objects[arr_link.target_id];
-							
-			var pos_source_node = indexOfFor(arr_source_node.out, arr_link.id);	
-			if (pos_source_node > -1) {
-				arr_source_node.out.splice(pos_source_node, 1);
-				arr_source_node.redraw_node = true;
-			}
+		if (show_line && !in_predraw) {
 			
-			var pos_target_object = indexOfFor(arr_target_node.in, arr_link.id);	
-			if (pos_target_object > -1) {
-				arr_target_node.in.splice(pos_target_object, 1);
-				arr_target_node.redraw_node = true;
-			}
-			
-			if (cur_pos == links.length - 1) {
-				links.pop();
+			if (display == DISPLAY_VECTOR) {
+				
+				arr_link.elm.dataset.visible = 0;
 			} else {
-				links[cur_pos] = links.pop();
-				arr_data.links[links[cur_pos].id].link_position = cur_pos;
-			}
-			
-			arr_link.link_position = false;
-			
-			if (display == 'vector' && arr_link.elm) {
-				arr_link.elm.setAttribute('class', 'hide');
-			} else if (display == 'pixel') {
-				vertices[arr_link.pos[0]] = 0;
-				vertices[arr_link.pos[1]] = 0;				
-				vertices[arr_link.pos[2]] = 0;				
-				vertices[arr_link.pos[3]] = 0;
+				
+				var offset = arr_link.count * length_geometry_lines_position;
+
+				buffer_geometry_lines_position.data[offset + 0] = 0;
+				buffer_geometry_lines_position.data[offset + 1] = 0;
+				buffer_geometry_lines_position.data[offset + 2] = 0;
+				buffer_geometry_lines_position.data[offset + 3] = 0;
+				buffer_geometry_lines_position.data[offset + 4] = 0;
+				buffer_geometry_lines_position.data[offset + 5] = 0;
+				buffer_geometry_lines_position.data[offset + 6] = 0;
+				buffer_geometry_lines_position.data[offset + 7] = 0;
+				buffer_geometry_lines_position.data[offset + 8] = 0;
+				buffer_geometry_lines_position.data[offset + 9] = 0;
+				buffer_geometry_lines_position.data[offset + 10] = 0;
+				buffer_geometry_lines_position.data[offset + 11] = 0;
 			}
 		}
-	}
+		
+		arr_link.is_active = false;
+	};
 	
-	var setLinkColor = function(link, color) {
+	var setLinkColor = function(arr_link, color) {
+		
+		if (!show_line) {
+			return;
+		}
+		
+		var num_alpha = 0.2;
 
 		if (color) {
-			link.color = parseColor(color);
+			
+			arr_link.color = parseColorLink(color);
 		} else {
-			var level = Math.round((1 - (link.value/max_value))*200);
-			if (level < 10) {
-				level = 10;
+			
+			var num_level = Math.round((1 - (arr_link.weight / num_link_weight_max)) * 200);
+			if (num_level < 10) {
+				num_level = 10;
 			}
-			var alpha = (display == 'pixel' ? '0.8' : '0.2');
-			link.color = parseColor('rgba('+level+','+level+','+level+','+alpha+')');
+			
+			arr_link.color = parseColorLink('rgba('+num_level+','+num_level+','+num_level+','+num_alpha+')');
 		}
-		if (display == 'vector' && link.elm) {
-			link.elm.setAttribute('stroke', link.color);
+		
+		if (show_line) {
+			
+			if (display == DISPLAY_VECTOR) {
+				
+				arr_link.elm.setAttribute('stroke', arr_link.color);
+			} else {
+				
+				const offset = arr_link.count * length_geometry_lines_color;
+				const num_r = (arr_link.color.r / 255);
+				const num_g = (arr_link.color.g / 255);
+				const num_b = (arr_link.color.b / 255);
+				const num_a = arr_link.color.a;
+				
+				buffer_geometry_lines_color.data[offset + 0] = num_r;
+				buffer_geometry_lines_color.data[offset + 1] = num_g;
+				buffer_geometry_lines_color.data[offset + 2] = num_b;
+				buffer_geometry_lines_color.data[offset + 3] = num_a;
+				buffer_geometry_lines_color.data[offset + 4] = num_r;
+				buffer_geometry_lines_color.data[offset + 5] = num_g;
+				buffer_geometry_lines_color.data[offset + 6] = num_b;
+				buffer_geometry_lines_color.data[offset + 7] = num_a;
+				buffer_geometry_lines_color.data[offset + 8] = num_r;
+				buffer_geometry_lines_color.data[offset + 9] = num_g;
+				buffer_geometry_lines_color.data[offset + 10] = num_b;
+				buffer_geometry_lines_color.data[offset + 11] = num_a;
+
+				buffer_geometry_lines_color.data[offset + 12] = num_r;
+				buffer_geometry_lines_color.data[offset + 13] = num_g;
+				buffer_geometry_lines_color.data[offset + 14] = num_b;
+				buffer_geometry_lines_color.data[offset + 15] = num_a;
+				buffer_geometry_lines_color.data[offset + 16] = num_r;
+				buffer_geometry_lines_color.data[offset + 17] = num_g;
+				buffer_geometry_lines_color.data[offset + 18] = num_b;
+				buffer_geometry_lines_color.data[offset + 19] = num_a;
+				buffer_geometry_lines_color.data[offset + 20] = num_r;
+				buffer_geometry_lines_color.data[offset + 21] = num_g;
+				buffer_geometry_lines_color.data[offset + 22] = num_b;
+				buffer_geometry_lines_color.data[offset + 23] = num_a;
+				
+				do_update_geometry_lines_color = true;
+			}
 		}
 	}
 
 	var getDataDetails = function (object_id, arr_object_parents, arr_object_sub_parents) {
 		
 		//instead of storing this in the arr we work with, we collect it when we need it
-		var object = arr_data.objects[object_id];
+		var inferred = false;
+		
+		if (arr_data.objects[object_id]) {
+			
+			var object = arr_data.objects[object_id];
+			
+		} else {
+			
+			var object = {object_definitions: {}};
+			
+		}
 		arr_object_parents = arrUnique(arr_object_parents),
 		arr_object_sub_parents = arrUnique(arr_object_sub_parents),
 		details = {source: {object_definitions: {}, object_subs: {}}, target: {object_definitions: {}, object_subs: {}}};
@@ -2555,16 +3717,17 @@ function MapSocial(element, obj_parent, options) {
 										details.source.object_subs[type_id] = {};
 									}
 									
-									if (!details.source.object_subs[type_id][object_sub.object_sub_details_id]) {
-										details.source.object_subs[type_id][object_sub.object_sub_details_id] = {};
+									const object_sub_details_id = (object_sub.object_sub_details_id ? object_sub.object_sub_details_id : ''); // Could be collapsed
+									
+									if (!details.source.object_subs[type_id][object_sub_details_id]) {
+										details.source.object_subs[type_id][object_sub_details_id] = {};
 									}
 									
-									if (!details.source.object_subs[type_id][object_sub.object_sub_details_id][object_sub_definition_id]) {
-										details.source.object_subs[type_id][object_sub.object_sub_details_id][object_sub_definition_id] = 1;
+									if (!details.source.object_subs[type_id][object_sub_details_id][object_sub_definition_id]) {
+										details.source.object_subs[type_id][object_sub_details_id][object_sub_definition_id] = 1;
 									} else {
-										details.source.object_subs[type_id][object_sub.object_sub_details_id][object_sub_definition_id]++;
+										details.source.object_subs[type_id][object_sub_details_id][object_sub_definition_id]++;
 									}
-									
 								}
 							}
 						}
@@ -2578,7 +3741,11 @@ function MapSocial(element, obj_parent, options) {
 			
 			if (arr_object_parents[i] != object_id) {
 				
-				var ref_object = arr_data.objects[arr_object_parents[i]];
+				if (arr_data.objects[arr_object_parents[i]]) {
+					var ref_object = arr_data.objects[arr_object_parents[i]];
+				} else {
+					var ref_object = {'object_definitions': {}};
+				}
 				
 				for (var object_definition_id in ref_object.object_definitions) {
 					
@@ -2631,14 +3798,16 @@ function MapSocial(element, obj_parent, options) {
 										details.target.object_subs[type_id] = {};
 									}
 									
-									if (!details.target.object_subs[type_id][object_sub.object_sub_details_id]) {
-										details.target.object_subs[type_id][object_sub.object_sub_details_id] = {};
+									const object_sub_details_id = (object_sub.object_sub_details_id ? object_sub.object_sub_details_id : ''); // Could be collapsed
+									
+									if (!details.target.object_subs[type_id][object_sub_details_id]) {
+										details.target.object_subs[type_id][object_sub_details_id] = {};
 									}
 									
-									if (!details.target.object_subs[type_id][object_sub.object_sub_details_id][object_sub_definition_id]) {
-										details.target.object_subs[type_id][object_sub.object_sub_details_id][object_sub_definition_id] = 1;
+									if (!details.target.object_subs[type_id][object_sub_details_id][object_sub_definition_id]) {
+										details.target.object_subs[type_id][object_sub_details_id][object_sub_definition_id] = 1;
 									} else {
-										details.target.object_subs[type_id][object_sub.object_sub_details_id][object_sub_definition_id]++;
+										details.target.object_subs[type_id][object_sub_details_id][object_sub_definition_id]++;
 									}
 								}
 							}
@@ -2651,193 +3820,159 @@ function MapSocial(element, obj_parent, options) {
 		return details;
 	}
 		
-	this.setObjectsLinks = function(arr_data) {
-
-		var arr_data = arr_data;
-		var arr_object_subs_loop = Object.keys(arr_data.object_subs);
-		var count_arr_object_subs = arr_object_subs_loop.length;
-		var arr_objects = arr_data.objects;
-		var arr_links = {};
-		var arr_object_subs = arr_data.object_subs;
-
-		var mutuals = {};
+	var parseData = function() {
 		
-		var makeLink = function(source_id, target_id) {
+		arr_nodes = {};
+		arr_links = {};
+		arr_object_subs_children = {};
+		
+		const arr_object_subs = arr_data.object_subs;
+		const arr_loop_object_subs = Object.keys(arr_object_subs);
+		let count_arr_object_subs = arr_loop_object_subs.length;
+		
+		const makeLink = function(source_object_id, target_object_id) {
 			
-			var link_id = source_id + target_id;
+			const link_id = source_object_id+'_'+target_object_id;
 			
 			if (!arr_links[link_id]) {
 
-				arr_links[link_id] = {id: link_id, count: linkcount++, source: source_id, target: target_id, source_id: source_id, target_id: target_id, object_parents: [], sub_object_parents: [], value: 0, show_text: false, link_position: false, pos: [link_vertex_position++, link_vertex_position++, link_vertex_position++, link_vertex_position++]};
+				arr_links[link_id] = {id: link_id, count: count_links, source: false, target: false, source_object_id: source_object_id, target_object_id: target_object_id, has_object_parent: false,
+					object_sub_parents: {}, count_object_sub_parents: 0, has_object_sub_parents: false,
+					weight: 0, elm: false,
+					is_active: false
+				};
+				
+				arr_loop_links[count_links] = arr_links[link_id];
+				
+				count_links++;
 			}
 			
-			arr_links[link_id].value++;
+			arr_links[link_id].weight++;
 
 			return link_id;
 		}
 		
-		for (var object_id in arr_objects) {
+		const arr_objects = arr_data.objects;
+		
+		for (const object_id in arr_objects) {
 			
-			var object = arr_objects[object_id];
+			const arr_object = arr_objects[object_id];
 			
 			setNodeProperties(false, object_id, false);
 			
-			for (var object_definition_id in object.object_definitions) {
+			const arr_node = arr_nodes[object_id];
+			
+			for (const object_definition_id in arr_object.object_definitions) {
 				
-				var arr_object_definition = object.object_definitions[object_definition_id];
+				const arr_object_definition = arr_object.object_definitions[object_definition_id];
 
 				if (arr_object_definition && arr_object_definition.ref_object_id.length) {
 					
-					for (var i = 0; i < arr_object_definition.ref_object_id.length; i++) {
+					let has_conditions = false;
+					
+					for (let i = 0, len = arr_object_definition.ref_object_id.length; i < len; i++) {
 													
-						var target_object_id = setNodeProperties(arr_data.info.object_descriptions[object_definition_id].object_description_ref_type_id, arr_object_definition.ref_object_id[i] + '', arr_object_definition.value[i]);
+						const target_object_id = setNodeProperties(arr_data.info.object_descriptions[object_definition_id].object_description_ref_type_id, arr_object_definition.ref_object_id[i], arr_object_definition.value[i]);
 						
 						if (object_id != target_object_id) {
 							
-							var arr_target_object = arr_objects[target_object_id];
+							const arr_target_node = arr_nodes[target_object_id];
 							
-							if (arr_target_object && arr_target_object.child_nodes && arr_target_object.child_nodes.length && indexOfFor(arr_target_object.child_nodes, object_id) != -1) {
+							arr_node.child_nodes.push(target_object_id);	
 								
-								// Mutual object descriptions keep both objects alive. To avoid this, we store mutual object descriptions the second time at the sub-objects
-								if (!mutuals[object_id]) {
-									mutuals[object_id] = [];
-								}
+							const link_id = makeLink(object_id, target_object_id);
 								
-								var link_id = makeLink(object_id, target_object_id);
+							arr_links[link_id].has_object_parent = true;
 								
-								mutuals[object_id].push({target_object_id: target_object_id, link_id: link_id});
-								
-							} else {
-								
-								object.child_nodes.push(target_object_id);	
-								
-								var link_id = makeLink(object_id, target_object_id);
-								
-								object.child_links.push(link_id);	
-								
-							}
+							arr_node.child_links.push(link_id);	
 
 							// Weight of object applied to target node 
 							if (arr_object_definition.style && typeof arr_object_definition.style.weight !== 'undefined') {
 
-								arr_target_object.conditions_weight += arr_object_definition.style.weight;
-								
-								arr_target_object.has_weight = true;
-								arr_target_object.total_weight += arr_object_definition.style.weight;
+								arr_target_node.weight_conditions += arr_object_definition.style.weight;
+								arr_target_node.weight_total += arr_object_definition.style.weight;
 							}
 							
 							if (arr_object_definition.style && arr_object_definition.style.color) {
 								
-								arr_target_object.has_conditions = true;
+								arr_target_node.has_conditions = true;
+								arr_target_node.conditions.object_parent = arr_target_node.conditions.object_parent.concat(setCondition(arr_object_definition.style, arr_object.style, object_id));
 								
-								if (typeof arr_object_definition.style.color == 'object') {
-									
-									for (var i = 0; i < arr_object_definition.style.color.length; i++) {
-										
-										var label = false;
-										
-										if (object.style.conditions) {
-											
-											label = getConditionLabel(arr_object_definition.style.color[i], object.style.conditions);
-										}
-										arr_target_object.conditions.object_definition.push({'label': label, 'source_id': object_id, 'color': arr_object_definition.style.color[i], 'conditions_weight': (arr_object_definition.style.weight ? arr_object_definition.style.weight : 0)});
-									}
-									
-								} else {
-									
-									var label = false;
-									
-									if (object.style.conditions) {
-										
-										label = getConditionLabel(arr_object_definition.style.color, object.style.conditions);
-									}
-									
-									arr_target_object.conditions.object_definition.push({'label': label, 'source_id': object_id, 'color': arr_object_definition.style.color, 'conditions_weight': (arr_object_definition.style.weight ? arr_object_definition.style.weight : 0)});
-								}
+								has_conditions = true;
 							}
+						}
+					}
+					
+					if (has_conditions) {
+						
+						for (const str_identifier_condition in arr_object.style.conditions) {
+							
+							arr_node.conditions.object_definition.push({identifier: str_identifier_condition, source_id: object_id});
 						}
 					}
 				}
 			}			
 		}
 		
-		var arr_objects_with_sub_object_parent = {};
-		var orphanage_sub_object_id = false;
-		
 		while (count_arr_object_subs--) {
 			
-			var object_sub_id = arr_object_subs_loop[count_arr_object_subs];
-			var object_sub = arr_object_subs[object_sub_id];
-			var object_id = object_sub.object_id+'';
-			object_sub.child_nodes = [object_id];
-			object_sub.child_links = [];
-
-			var object = arr_objects[object_id];
+			const object_sub_id = arr_loop_object_subs[count_arr_object_subs];
+			const arr_object_sub = arr_object_subs[object_sub_id];
+			const object_id = arr_object_sub.object_id+'';
 			
-			arr_objects_with_sub_object_parent[object_id] = true;
+			const arr_object_sub_children = {child_nodes: [object_id], child_links: [], is_active: false};
 
-			if (object_sub.object_sub_definitions) {
+			const arr_node = arr_nodes[object_id];
+
+			if (arr_object_sub.object_sub_definitions) {
 				
-				for (var object_sub_definition_id in object_sub.object_sub_definitions) {
+				for (const object_sub_definition_id in arr_object_sub.object_sub_definitions) {
 					
-					var arr_object_sub_definition = object_sub.object_sub_definitions[object_sub_definition_id];
+					const arr_object_sub_definition = arr_object_sub.object_sub_definitions[object_sub_definition_id];
 					
 					if (arr_object_sub_definition && arr_object_sub_definition.ref_object_id.length) {
 						
-						for (var i = 0; i < arr_object_sub_definition.ref_object_id.length; i++) {
+						let has_conditions = false;
+						
+						for (let i = 0, len = arr_object_sub_definition.ref_object_id.length; i < len; i++) {
 							
-							var target_object_id = setNodeProperties(arr_data.info.object_sub_descriptions[object_sub_definition_id].object_sub_description_ref_type_id, arr_object_sub_definition.ref_object_id[i] + '', arr_object_sub_definition.value[i]);	
+							const target_object_id = setNodeProperties(arr_data.info.object_sub_descriptions[object_sub_definition_id].object_sub_description_ref_type_id, arr_object_sub_definition.ref_object_id[i], arr_object_sub_definition.value[i]);	
 							
 							if (object_id != target_object_id) {
 								
-								object_sub.child_nodes.push(target_object_id);
+								const arr_target_node = arr_nodes[target_object_id];
+								
+								arr_object_sub_children.child_nodes.push(target_object_id);
 									
-								var link_id = makeLink(object_id, target_object_id);
+								const link_id = makeLink(object_id, target_object_id);
 								
-								object_sub.child_links.push(link_id);
+								arr_links[link_id].has_object_sub_parents = true;
 								
-								
+								arr_object_sub_children.child_links.push(link_id);
+
 								// Cross Referencing weight added to target node
 								if (arr_object_sub_definition.style && typeof arr_object_sub_definition.style.weight !== 'undefined') {
 
-									arr_objects[target_object_id].conditions_weight += arr_object_sub_definition.style.weight;
-									
-									arr_objects[target_object_id].has_weight = true;
-									arr_objects[target_object_id].total_weight += arr_object_sub_definition.style.weight;
+									arr_target_node.weight_conditions += arr_object_sub_definition.style.weight;
+									arr_target_node.weight_total += arr_object_sub_definition.style.weight;
 								}	
 								
 								// Cross Referencing color added to target node
 								if (arr_object_sub_definition.style && arr_object_sub_definition.style.color) {
 									
-									arr_objects[target_object_id].has_conditions = true;
+									arr_target_node.has_conditions = true;
+									arr_target_node.conditions.object_sub_parent = arr_target_node.conditions.object_sub_parent.concat(setCondition(arr_object_sub_definition.style, arr_object_sub.style, object_sub_id));
 									
-									if (typeof arr_object_sub_definition.style.color == 'object') {
-										
-										for (var i = 0; i < arr_object_sub_definition.style.color.length; i++) {
-											
-											var label = false;
-											
-											if (object_sub.style.conditions) {
-												
-												label = getConditionLabel(arr_object_sub_definition.style.color[i], object_sub.style.conditions);
-											}
-											
-											arr_objects[target_object_id].conditions.object_sub_definition.push({'label': label, 'source_id': object_sub_id, 'color': arr_object_sub_definition.style.color[i], 'conditions_weight': (arr_object_sub_definition.style.weight ? arr_object_sub_definition.style.weight : 0)});
-										}
-
-									} else { 
-										
-										var label = false;
-										
-										if (object_sub.style.conditions) {
-												
-											label = getConditionLabel(arr_object_sub_definition.style.color, object_sub.style.conditions);
-										}
-										
-										arr_objects[target_object_id].conditions.object_sub_definition.push({'label': label, 'source_id': object_sub_id, 'color': arr_object_sub_definition.style.color, 'conditions_weight': (arr_object_sub_definition.style.weight ? arr_object_sub_definition.style.weight : 0)});
-									}
+									has_conditions = true;
 								}
+							}
+						}
+						
+						if (has_conditions) {
+							
+							for (const str_identifier_condition in arr_object_sub.style.conditions) {
 								
+								arr_node.conditions.object_sub_definition.push({identifier: str_identifier_condition, source_id: object_sub_id});
 							}
 						}
 					}
@@ -2845,122 +3980,128 @@ function MapSocial(element, obj_parent, options) {
 			} 
 			
 			// Weight of sub-object applied to current node
-			if (object_sub.style && typeof object_sub.style.weight !== 'undefined') {
+			if (arr_object_sub.style && typeof arr_object_sub.style.weight !== 'undefined') {
 	
-				object.conditions_weight += object_sub.style.weight;
-				
-				object.has_weight = true;
-				object.total_weight += object_sub.style.weight;
+				arr_node.weight_conditions += arr_object_sub.style.weight;
+				arr_node.weight_total += arr_object_sub.style.weight;
 			}
 										
 			// Color of sub-object applied to current node
-			if (object_sub.style && object_sub.style.color) {
+			if (arr_object_sub.style && arr_object_sub.style.color) {
 				
-				object.has_conditions = true;
-				
-				if (typeof object_sub.style.color == 'object') {
-					
-					for (var i = 0; i < object_sub.style.color.length; i++) {
-						
-						var label = false;
-						
-						if (object_sub.style.conditions) {
-							
-							label = getConditionLabel(object_sub.style.color[i], object_sub.style.conditions);
-						}
-						
-						object.conditions.object_sub.push({'label': label, 'source_id': object_sub_id, 'color': object_sub.style.color[i], 'conditions_weight': (object_sub.style.weight ? object_sub.style.weight : 0)});
-					
-					}
-					
-				} else {
-					
-					var label = false;
-						
-					if (object_sub.style.conditions) {
-							
-						label = getConditionLabel(object_sub.style.color, object_sub.style.conditions);
-					}
-					
-					object.conditions.object_sub.push({'label': label, 'source_id': object_sub_id, 'color': object_sub.style.color, 'conditions_weight': (object_sub.style.weight ? object_sub.style.weight : 0)});
-				}
+				arr_node.has_conditions = true;
+				arr_node.conditions.object_sub = arr_node.conditions.object_sub.concat(setCondition(arr_object_sub.style, arr_object_sub.style, object_sub_id));
 			}
 			
-			if (include_location_nodes && object_sub.location_object_id) {
+			if (include_location_nodes && arr_object_sub.location_object_id) {
 				
-				var target_object_id = setNodeProperties(object_sub.location_type_id, object_sub.location_object_id + '', object_sub.location_name);
+				var target_object_id = setNodeProperties(arr_object_sub.location_type_id, arr_object_sub.location_object_id, arr_object_sub.location_name);
 				
 				if (object_id != target_object_id) {	
 							
-					object_sub.child_nodes.push(target_object_id);
+					arr_object_sub_children.child_nodes.push(target_object_id);
 					
 					var link_id = makeLink(object_id, target_object_id);
 					
-					object_sub.child_links.push(link_id);
+					arr_links[link_id].has_object_sub_parents = true;
 					
+					arr_object_sub_children.child_links.push(link_id);
 				}
 			}
-		}
-
-		
-		if (mutuals[object_id]) {
-
-			var arr_mutual = mutuals[object_id];
 			
-			for (var i = 0; i < arr_mutual.length; i++) {
-				
-				object_sub.child_links.push(arr_mutual[i].link_id);
-				
-				object_sub.child_nodes.push(arr_mutual[i].target_object_id);	
-			}
+			arr_object_subs_children[object_sub_id] = arr_object_sub_children;
 		}
-
-		return {objects: arr_objects, links: arr_links, object_subs: arr_object_subs};
 	}
 	
-	var getConditionLabel = function(color, arr_parent_conditions) {
+	var setCondition = function(arr_style, arr_parent_style, source_id) {
+
+		arr_conditions = [];
 		
-		var arr_legend_conditions = arr_data.legend.conditions;
+		const is_array_color = (typeof arr_style.color == 'object');
+		const is_array_icon = (typeof arr_style.icon == 'object');
+		const num_weight = (typeof arr_style.weight !== 'undefined' ? arr_style.weight : false);
 		
-		for (var label in arr_legend_conditions) {
+		const arr_legend_conditions = arr_data.legend.conditions;
+		
+		for (const str_identifier_condition in arr_parent_style.conditions) {
 			
-			if (arr_parent_conditions[label] && arr_legend_conditions[label].color == color) {
+			const arr_legend_condition = arr_legend_conditions[str_identifier_condition];
+			
+			let color = null;
+			let icon = null;
+
+			if (arr_legend_condition.color) {
 				
-				return label;
+				if (is_array_color) {
+					
+					for (let i = 0, len = arr_style.color.length; i < len; i++) {
+						
+						if (arr_legend_condition.color === arr_style.color[i]) {
+							
+							color = arr_style.color[i];
+							break;
+						}
+					}
+				} else if (arr_legend_condition.color === arr_style.color) {
+					color = arr_style.color;
+				}
 			}
+			
+			if (arr_legend_condition.icon) {
+				
+				if (is_array_icon) {
+					
+					for (let i = 0, len = arr_style.icon.length; i < len; i++) {
+						
+						if (arr_legend_condition.icon === arr_style.icon[i]) {
+							
+							icon = arr_style.icon[i];
+							break;
+						}
+					}
+				} else if (arr_legend_condition.icon === arr_style.icon) {
+					icon = arr_style.icon;
+				}
+			}
+			
+			if (color === null && icon === null && num_weight === null) {
+				continue;
+			}
+			
+			arr_conditions.push({identifier: str_identifier_condition, source_id: source_id, color: color, icon: icon, weight: (num_weight !== null ? num_weight : 0)});
 		}
 		
-		return false;
+		return arr_conditions;
 	}
 	 
-	var hasCondition = function(arr_object, condition_label) {
+	var hasCondition = function(arr_node, condition_label) {
 		
-		var arr_conditions = arr_object.conditions;
+		const arr_conditions = arr_node.conditions;
 		
-		for (var i = 0, len = arr_conditions.object.length; i < len; i++) {
+		for (let i = 0, len = arr_conditions.object.length; i < len; i++) {
 			
-			if (condition_label == arr_conditions.object[i].label) {
+			if (condition_label === arr_conditions.object[i].identifier) {
 				return true;
 			}
 		}
 		
-		for (var i = 0, len = arr_conditions.object_sub.length; i < len; i++) {
+		for (let i = 0, len = arr_conditions.object_sub.length; i < len; i++) {
 			
-			if (condition_label == arr_conditions.object_sub[i].label) {
+			if (condition_label === arr_conditions.object_sub[i].identifier) {
 				return true;
 			}
 		}
 		
-		for (var i = 0, len = arr_conditions.object_definition.length; i < len; i++) {
+		for (let i = 0, len = arr_conditions.object_definition.length; i < len; i++) {
 			
-			if (condition_label == arr_conditions.object_definition[i].label) {
+			if (condition_label === arr_conditions.object_definition[i].identifier) {
 				return true;
 			}
 		}
 		
-		for (var i = 0, len = arr_conditions.object_sub_definition.length; i < len; i++) {
+		for (let i = 0, len = arr_conditions.object_sub_definition.length; i < len; i++) {
 			
-			if (condition_label == arr_conditions.object_sub_definition[i].label) {
+			if (condition_label === arr_conditions.object_sub_definition[i].identifier) {
 				return true;
 			}
 		}
@@ -2970,107 +4111,94 @@ function MapSocial(element, obj_parent, options) {
 	
 	var setNodeProperties = function(type_id, object_id, name) {
 		
-		var arr_object = {};
-		var inferred = true;
-		
-		if (arr_data.objects[object_id]) { // Object is present in objects in arr_data
+		var object_id = object_id+''; // Make string so all IDs have same format
+	
+		if (!arr_nodes[object_id]) {
 			
-			arr_object = arr_data.objects[object_id];
-			inferred = false;
-			name = arr_object.name;
-			type_id = arr_object.type_id;
-		}
-		
-		if (!arr_object.social_visualisation_attributes_added) {
+			var arr_node = {};
 			
-			arr_object.id = object_id + ''; //make string
-			arr_object.type_id = type_id;
+			arr_node.id = object_id;
+			arr_node.count = count_nodes;
+			arr_node.index = null;
+			//arr_node.x = (size_renderer.width / 2);
+			//arr_node.y = (size_renderer.height / 2);
+			arr_node.x = (Math.random() * 100) - (100 / 2) + (size_renderer.width / 2);
+			arr_node.y = (Math.random() * 100) - (100 / 2) + (size_renderer.height / 2);
+			arr_node.radius = 1;
+			arr_node.weight = 1;
+			arr_node.fixed = 0;
 			
-			arr_object.html_name = name;
-			arr_object.name = stripHTMLTags(name);
+			arr_node.has_conditions = false;
+			arr_node.conditions = {object: [], object_sub: [], object_parent: [], object_sub_parent: [], object_definition: [], object_sub_definition: []};
+			arr_node.identifier_condition = '';
+			arr_node.identifier_condition_self = '';
+			arr_node.colors = false;
+			arr_node.icons = false;
+			arr_node.weight_conditions = 1;
+			arr_node.weight_total = null;
 			
-			arr_object.social_visualisation_attributes_added = true;
-			arr_object.inferred = inferred;
-							
-			arr_object.child_links = [];
-			arr_object.child_nodes = [];
-			arr_object.object_parents = [];
-			arr_object.sub_object_parents = [];
-			
-			arr_object.in = [];
-			arr_object.out = [];
-			arr_object.r = 0;
-			arr_object.checked = false;
-			arr_object.inactive = false;
-			arr_object.node_position = false;
-			arr_object.elm = false;
-			arr_object.redraw_node = false;
-			arr_object.show_text = false;
-			
-			arr_object.has_conditions = false;
-			arr_object.conditions = {'object': [], 'object_sub': [], 'object_definition': [], 'object_sub_definition': []};
-			arr_object.colors = [];
-			arr_object.conditions_weight = 1;
-			arr_object.total_weight = 0;
-			
-			if (arr_object.style && typeof arr_object.style.weight !== 'undefined') {
+			if (arr_data.objects[object_id]) { // Object is present in objects in arr_data
 				
-				arr_object.conditions_weight += arr_object.style.weight;
+				var arr_object = arr_data.objects[object_id];
+				var name = arr_object.name;
+				var type_id = arr_object.type_id;
 				
-				arr_object.has_weight = true;
-				arr_object.total_weight += arr_object.style.weight;
-			}
-			
-			if (arr_object.style && arr_object.style.color) {
-				
-				arr_object.has_conditions = true;
-				
-				if (typeof arr_object.style.color == 'object') {
+				if (arr_object.style && typeof arr_object.style.weight !== 'undefined') {
 					
-					for (var i = 0; i < arr_object.style.color.length; i++) {
-						
-						var label = false;
-							
-						if (arr_object.style.conditions) {
-								
-							label = getConditionLabel(arr_object.style.color[i], arr_object.style.conditions);
-						}
-						
-						arr_object.conditions.object.push({'label': label, 'color': arr_object.style.color[i], 'conditions_weight': (arr_object.style.weight ? arr_object.style.weight : 0)});
-					}
+					arr_node.weight_conditions += arr_object.style.weight;
+					arr_node.weight_total += arr_object.style.weight;
+				}
+				
+				if (arr_object.style && arr_object.style.color) {
 					
-				} else {
-					
-					var label = false;
-						
-					if (arr_object.style.conditions) {
-							
-						label = getConditionLabel(arr_object.style.color, arr_object.style.conditions);
-					}
-
-					arr_object.conditions.object.push({'label': label, 'color': arr_object.style.color, 'conditions_weight': (arr_object.style.weight ? arr_object.style.weight : 0)});
+					arr_node.has_conditions = true;
+					arr_node.conditions.object = arr_node.conditions.object.concat(setCondition(arr_object.style, arr_object.style, false));
 				}
 			}
-		
-			arr_data.objects[object_id] = arr_object;
 			
+			arr_node.type_id = type_id;
+			
+			arr_node.name = name;
+			arr_node.name_text = stripHTMLTags(name);
+							
+			arr_node.child_links = [];
+			arr_node.child_nodes = [];
+			arr_node.object_parents = {};
+			arr_node.object_sub_parents = {};
+			arr_node.count_object_parents = 0;
+			arr_node.count_object_sub_parents = 0;
+			
+			arr_node.in = {};
+			arr_node.out = {};
+			arr_node.count_in = 0;
+			arr_node.count_out = 0;
+			arr_node.is_enabled = false;
+			arr_node.is_alive = false;
+			arr_node.is_active = false;
+			arr_node.is_checked = false;
+			arr_node.identifier = '';
+			arr_node.elm = false;
+			arr_node.elm_text = false;
+			arr_node.color = false;
+			arr_node.redraw_node = false;
+			arr_node.show_text = false;
+			
+			if (focus_object_id == object_id) {
+				
+				arr_node.x = (size_renderer.width / 2 / num_scale);
+				arr_node.y = (size_renderer.height / 2 / num_scale);
+				
+				arr_node.fixed = 1;
+				arr_node.fx = arr_node.x;
+				arr_node.fy = arr_node.y;
+			}
+			
+			arr_nodes[object_id] = arr_node;
+			arr_loop_nodes[arr_node.count] = arr_node;
+				
+			count_nodes++;
 		}
 	
-		return arr_object.id;
-		
+		return object_id;
 	}
-		
-	var indexOfFor = function(array, check) {
-		
-		for (var i = 0, len = array.length; i < len; i++) {
-			
-			if (array[i] == check) {
-				return i;
-			}
-		}
-		
-		return -1;
-    };
-
-
 };

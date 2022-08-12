@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -17,14 +17,17 @@ function MapDrawPoints(element, obj_parent, options) {
 	}, options || {});
 
 	var	arr_data = {},
-	svg = false,
-	svg_plot = false,
-	svg_ns = 'http://www.w3.org/2000/svg',
-	elm_svg = false,
+	stage = false,
+	stage_ns = 'http://www.w3.org/2000/svg',
+	renderer = false,
+	drawer = false,
+	elm_plot = false,
 	key_move = false,
 	
 	pos_offset_x = 0,
 	pos_offset_y = 0,
+	pos_offset_extra_x = 0,
+	pos_offset_extra_y = 0,
 	
 	obj_map = false;
 	
@@ -32,11 +35,13 @@ function MapDrawPoints(element, obj_parent, options) {
 		
 		obj_map = obj_parent.obj_map;
 					
-		elm_svg = document.createElementNS(svg_ns, 'svg');
-		elm_svg.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xlink', 'http://www.w3.org/1999/xlink');
-		elm[0].appendChild(elm_svg);
+		renderer = document.createElementNS(stage_ns, 'svg');
+		renderer.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns', stage_ns);
 		
-		svg = elm_svg.ownerDocument;
+		drawer = renderer;
+		elm[0].appendChild(drawer);
+		
+		stage = renderer.ownerDocument;
 				
 		key_move = obj_map.move(rePosition);
 	};
@@ -48,19 +53,35 @@ function MapDrawPoints(element, obj_parent, options) {
 	
 	var rePosition = function(move, pos, zoom, calc_zoom) {
 		
-		if (move === false || calc_zoom) {
+		if (move === false || calc_zoom === false || calc_zoom) { // Move stop, resize, or zoomed
 	
-			// Reposition svg
-			var width = elm.width();
-			var height = elm.height();
+			// Reposition drawer
+			var width = pos.size.width;
+			var height = pos.size.height;
 			
-			pos_offset_x = pos.offset.x;
-			pos_offset_y = pos.offset.y;
+			drawer.style.width = width+'px';
+			drawer.style.height = height+'px';
 			
-			elm_svg.style.width = width;
-			elm_svg.style.height = height;
+			var redraw = (calc_zoom ? true : false);
 			
-			if (calc_zoom) {
+			var x = -pos.x - pos.offset.x - (width/2);
+			var y = -pos.y - pos.offset.y - (height/2);
+
+			if (redraw || (x - pos_offset_extra_x) + (pos.view.width/2) > (width/2) || (x - pos_offset_extra_x) - (pos.view.width/2) < -(width/2) || (y - pos_offset_extra_y) + (pos.view.height/2) > (height/2) || (y - pos_offset_extra_y) - (pos.view.height/2) < -(height/2)) {
+		
+				pos_offset_extra_x = x;
+				pos_offset_extra_y = y;
+
+				var str = 'translate('+x+'px, '+y+'px)';
+				drawer.style.transform = drawer.style.webkitTransform = str;
+				
+				redraw = true;
+			}
+
+			pos_offset_x = pos.offset.x + pos_offset_extra_x;
+			pos_offset_y = pos.offset.y + pos_offset_extra_y;
+			
+			if (redraw) {
 				obj_parent.doDraw();
 			}
 		}
@@ -71,17 +92,17 @@ function MapDrawPoints(element, obj_parent, options) {
 		arr_data = arr_data_source;
 		
 		obj_parent.doDraw();
-	}
+	};
 	
 	this.drawData = function() {
 		
-		if (svg_plot) {
-			elm_svg.removeChild(svg_plot);
+		if (elm_plot) {
+			drawer.removeChild(elm_plot);
 		}
 		
-		svg_plot = svg.createElementNS(svg_ns, 'g');
-		svg_plot.setAttribute('class', 'plot');
-		elm_svg.appendChild(svg_plot);
+		elm_plot = stage.createElementNS(stage_ns, 'g');
+		elm_plot.setAttribute('class', 'plot');
+		drawer.appendChild(elm_plot);
 		
 		if (!options.arr_visual) {
 			return;
@@ -104,14 +125,14 @@ function MapDrawPoints(element, obj_parent, options) {
 		var x = xy.x - (r/2) - pos_offset_x;
 		var y = xy.y - (r/2) - pos_offset_y;
 		
-		var elm = svg.createElementNS(svg_ns, 'circle');
+		var elm = stage.createElementNS(stage_ns, 'circle');
 		elm.setAttribute('cx', x);
 		elm.setAttribute('cy', y);
 		elm.setAttribute('r', r);
 		elm.style.fill = color;
 		elm.style.stroke = options.arr_visual.dot.stroke_color;
 		elm.style.strokeWidth = options.arr_visual.dot.stroke_width;
-		svg_plot.appendChild(elm);
+		elm_plot.appendChild(elm);
 		
 		return elm;
 	};

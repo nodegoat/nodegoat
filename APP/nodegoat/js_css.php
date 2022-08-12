@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -13,9 +13,9 @@
 
 	$arr['js'] = [
 		DIR_JS.'home.js',
+		DIR_JS.'MapManager.js',
 		DIR_JS.'MapTimeline.js',
 		DIR_JS.'MapSocial.js',
-		DIR_JS.'Map.js',
 		DIR_JS.'MapData.js',
 		DIR_JS.'MapGeo.js',
 		DIR_JS.'MapGeoUtilities.js',

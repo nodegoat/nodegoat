@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -12,13 +12,13 @@
 class header extends base_module {
 
 	public static function moduleProperties() {
-		static::$label = getLabel('ttl_header');
+		static::$label = getLabel('lbl_header');
 		static::$parent_label = getLabel('ttl_site');
 	}
 	
 	public static function moduleVariables() {
 		
-		$return .= '<select name="directory_id" title="Directory">';
+		$return = '<select name="directory_id" title="Directory">';
 		$return .= directories::createDirectoriesDropdown(directories::getDirectories(), false, true);
 		$return .= '</select>';
 		
@@ -46,15 +46,17 @@ class header extends base_module {
 	
 	public static function modulePreload() {
 		
-		$_SESSION['NODEGOAT_CLEARANCE'] = (int)$_SESSION['CUR_USER'][DB::getTableName('TABLE_USER_DETAILS')]['clearance'];
+		$_SESSION['NODEGOAT_CLEARANCE'] = (int)($_SESSION['CUR_USER'][DB::getTableName('TABLE_USER_DETAILS')]['clearance'] ?? null);
 		
 		if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_ADMIN) {
 			Settings::override('messaging_allow_message_all', false);
 		}
-
+		
 		Settings::set('domain_administrator_mode', ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN && Settings::get('domain_administrator_mode')));
 		
+		
 		SiteEndVars::addTitle('nodegoat');
+		
 	}
 	
 	public function contents() {
@@ -89,7 +91,7 @@ class header extends base_module {
 		$toolbar = new toolbar;
 		$toolbar = $toolbar->contents();
 
-		$return .= '<a href="'.(SiteStartVars::$login_dir ? SiteStartVars::$login_dir['path'].'/' : '/').'" alt="'.getLabel('name', 'D').'"></a>';
+		$return = '<a href="'.(SiteStartVars::$login_dir ? SiteStartVars::$login_dir['path'].'/' : '/').'" alt="'.getLabel('name', 'D').'"></a>';
 		$return .= '<span></span><span></span>'; // Helpers
 		$return .= '<div class="navigation">'.$navigation.'</div>'.($logout ? '<div class="logout">'.$logout.'</div>' : '').($toolbar ? '<div class="toolbar">'.$toolbar.'</div>' : '');
 		

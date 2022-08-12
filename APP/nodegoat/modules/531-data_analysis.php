@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -18,7 +18,7 @@ class data_analysis extends base_module {
 	
 	public function createAnalysisRun($type_id, $arr_analysis) {
 	
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		$arr_analysis_storage = [];
@@ -66,7 +66,7 @@ class data_analysis extends base_module {
 			
 	public function createAnalysisSettings($type_id, $arr_analysis = [], $arr_analysis_context = []) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		
 		Labels::setVariable('icon', '<span class="icon">'.getIcon('info-point').'</span>');
@@ -262,7 +262,7 @@ class data_analysis extends base_module {
 		
 	private function createSelectAnalysis($type_id, $store = false) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		$return = '<fieldset><legend>'.getLabel(($store ? 'lbl_save' : 'lbl_select')).'</legend>
@@ -282,7 +282,7 @@ class data_analysis extends base_module {
 	
 	private function createSelectAnalysisContext($type_id, $store = false) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		$return = '<fieldset><legend>'.getLabel(($store ? 'lbl_save' : 'lbl_select')).'</legend>
@@ -302,13 +302,13 @@ class data_analysis extends base_module {
 
 	public static function createTypeAnalysisTableHeader($type_id, $arr_analysis, $arr_analysis_context) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		$return = '';
 		
 		if ($arr_analysis) {
-			$return .= '<span class="analysis-workspace" title="'.htmlspecialchars(getLabel('lbl_analysis').' <strong>• '.getLabel('lbl_workspace').'</strong>').'">A</span>';
+			$return .= '<span class="analysis-workspace" title="'.strEscapeHTML(getLabel('lbl_analysis').' <strong>• '.getLabel('lbl_workspace').'</strong>').'">Σ</span>';
 		}
 		
 		if ($arr_analysis_context['include']) {
@@ -317,7 +317,7 @@ class data_analysis extends base_module {
 			
 			foreach ($arr_analysis_context_analyses as $arr_analysis_context_analysis) {
 				
-				$return .= '<span title="'.htmlspecialchars(getLabel('lbl_analysis_context').' <strong>'.$arr_analysis_context_analysis['label'].'</strong>').'">A</span>';
+				$return .= '<span title="'.strEscapeHTML(getLabel('lbl_analysis_context').' <strong>'.$arr_analysis_context_analysis['label'].'</strong>').'">Σ</span>';
 			}
 		}
 		
@@ -326,7 +326,7 @@ class data_analysis extends base_module {
 	
 	public static function createTypeAnalysisViewValue($type_id, $arr_analysis, $arr_analysis_context, $analysis_value = false) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		$arr_analysis_value = [];
@@ -340,7 +340,7 @@ class data_analysis extends base_module {
 			
 		if ($arr_analysis) {
 			
-			$return .= '<span class="analysis-workspace" title="'.htmlspecialchars(getLabel('lbl_analysis').' <strong>• '.getLabel('lbl_workspace').'</strong>').'">'.$arr_analysis_value[$count].'</span>';
+			$return .= '<span class="analysis-workspace" title="'.strEscapeHTML(getLabel('lbl_analysis').' <strong>• '.getLabel('lbl_workspace').'</strong>').'">'.$arr_analysis_value[$count].'</span>';
 			$count++;
 		}
 		
@@ -350,7 +350,7 @@ class data_analysis extends base_module {
 			
 			foreach ($arr_analysis_context_analyses as $arr_analysis_context_analysis) {
 				
-				$return .= '<span title="'.htmlspecialchars(getLabel('lbl_analysis_context').' <strong>'.$arr_analysis_context_analysis['label'].'</strong>').'">'.$arr_analysis_value[$count].'</span>';
+				$return .= '<span title="'.strEscapeHTML(getLabel('lbl_analysis_context').' <strong>'.$arr_analysis_context_analysis['label'].'</strong>').'">'.$arr_analysis_value[$count].'</span>';
 				$count++;
 			}
 		}
@@ -362,7 +362,7 @@ class data_analysis extends base_module {
 	
 	public static function createTypeAnalysesSelection($type_id) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		$arr_object_analyses = cms_nodegoat_custom_projects::getProjectTypeAnalyses($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, $arr_use_project_ids);
@@ -641,9 +641,9 @@ class data_analysis extends base_module {
 			$this->html = '<form data-method="update_analysis">'
 				.$this->createAnalysisSettings($type_id, $arr_analysis, $arr_analysis_context)
 				.'<input type="submit" data-tab="analysis-analysis" name="clear_analysis" value="'.getLabel('lbl_remove').' '.getLabel('lbl_analysis').'" />'
-				.'<input type="submit" data-tab="analysis-analysis" name="save_run_analysis" class="save" value="'.getLabel('lbl_save').' '.getLabel('lbl_settings').' & '.getLabel('lbl_run').'" />'
+				.'<input type="submit" data-tab="analysis-analysis" name="save_run_analysis" class="save" value="'.getLabel('lbl_apply').' '.getLabel('lbl_settings').' & '.getLabel('lbl_run').'" />'
 				.'<input type="submit" data-tab="analysis-context" name="clear_analysis_context" value="'.getLabel('lbl_remove').' '.getLabel('lbl_analysis').' '.getLabel('lbl_context').'" />'
-				.'<input type="submit" data-tab="analysis-context" value="'.getLabel('lbl_save').' '.getLabel('lbl_settings').'" />'
+				.'<input type="submit" data-tab="analysis-context" value="'.getLabel('lbl_apply').' '.getLabel('lbl_settings').'" />'
 			.'</form>';
 		}
 		
@@ -721,7 +721,7 @@ class data_analysis extends base_module {
 			
 			if ($_POST['analysis_id']) {
 				
-				$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+				$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 				$arr_use_project_ids = array_keys($arr_project['use_projects']);
 				
 				$arr_analysis = cms_nodegoat_custom_projects::getProjectTypeAnalyses($_SESSION['custom_projects']['project_id'], false, false, $_POST['analysis_id'], $arr_use_project_ids);
@@ -737,7 +737,7 @@ class data_analysis extends base_module {
 			
 			if ($_POST['analysis_context_id']) {
 				
-				$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+				$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 				$arr_use_project_ids = array_keys($arr_project['use_projects']);
 				
 				$arr_analysis_context = cms_nodegoat_custom_projects::getProjectTypeAnalysesContexts($_SESSION['custom_projects']['project_id'], false, false, $_POST['analysis_context_id'], $arr_use_project_ids);
@@ -751,20 +751,20 @@ class data_analysis extends base_module {
 	
 	public static function getTypeAnalysisCollector($type_id, $arr_filters, $arr_scope) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		if ($arr_scope['paths']) {
-			$trace = new TraceTypeNetwork(array_keys($arr_project['types']), true, true);
-			$trace->filterTypeNetwork($arr_scope['paths']);
+			$trace = new TraceTypesNetwork(array_keys($arr_project['types']), true, true);
+			$trace->filterTypesNetwork($arr_scope['paths']);
 			$trace->run($type_id, false, 3);
 			$arr_type_network_paths = $trace->getTypeNetworkPaths(true);
 		} else {
 			$arr_type_network_paths = ['start' => [$type_id => ['path' => [0]]]];
 		}
 		
-		$collect = new CollectTypeObjects($arr_type_network_paths, 'all');
-		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
+		$collect = new CollectTypesObjects($arr_type_network_paths, GenerateTypeObjects::VIEW_ALL);
+		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
 		$collect->setConditions(false);
 		$collect->init($arr_filters, false);
 			
@@ -833,7 +833,7 @@ class data_analysis extends base_module {
 				// Interaction settings
 				if ($analysis_id) {
 					
-					$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+					$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 					$arr_use_project_ids = array_keys($arr_project['use_projects']);
 				} else {
 					
@@ -863,7 +863,7 @@ class data_analysis extends base_module {
 				// Interaction settings
 				if ($analysis_context_id) {
 					
-					$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+					$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 					$arr_use_project_ids = array_keys($arr_project['use_projects']);
 				} else {
 					
@@ -895,7 +895,7 @@ class data_analysis extends base_module {
 			}
 			if ($arr_analysis_context['include']) {
 				
-				$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+				$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 				$arr_use_project_ids = array_keys($arr_project['use_projects']);
 				
 				$arr_analysis_context_analyses = cms_nodegoat_custom_projects::getProjectTypeAnalyses($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, array_keys($arr_analysis_context['include']), $arr_use_project_ids);

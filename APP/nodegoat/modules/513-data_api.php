@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -49,14 +49,21 @@ class data_api extends base_module {
 			unset($arr_request_vars[key($arr_request_vars)]);
 		}
 		
-		if (count($arr_request_vars) == 1 || (!$arr_request_vars && $_REQUEST['id'])) {
-			
-			$identifier = ($arr_request_vars[0] ?: $_REQUEST['id']);
-			
-			$this->apiIdentifier($identifier);
-			
+		$num_request_vars = count($arr_request_vars);
+				
+		if ($num_request_vars == 1 && $arr_request_vars[0] != 'reconcile') {
+						
+			$this->apiIdentifier($arr_request_vars[0]);
 			return;
-		} else if (!$arr_request_vars) {
+		} else if ($num_request_vars == 3 && $arr_request_vars[0] == 'project' && ($arr_request_vars[2] != 'data' && $arr_request_vars[2] != 'model' && $arr_request_vars[2] != 'analysis' && $arr_request_vars[2] != 'reconcile')) {
+						
+			$this->apiIdentifier($arr_request_vars[2]);
+			return;
+		} else if (!$num_request_vars && $_REQUEST['id']) {
+						
+			$this->apiIdentifier($_REQUEST['id']);
+			return;
+		} else if (!$num_request_vars) {
 			
 			return;
 		}
@@ -65,15 +72,25 @@ class data_api extends base_module {
 		
 		foreach ($arr_request_vars as $value) {
 			
-			if ($value == 'data' || $value == 'model' || $value == 'analysis') {
+			if ($value == 'data' || $value == 'model' || $value == 'analysis' || $value == 'reconcile') {
+				
 				$this->arr_settings['mode'] = $value;
 			} else if ($value == 'type' || $value == 'scope' || $value == 'filter' || $value == 'object' || $value == 'use') {
+				
 				$setting = $value;
 				$this->arr_settings[$setting] = false;
 			} else if ($setting) {
+				
 				if ($setting == 'object') {
+					
 					$value = explode(',', $value);
+					
+					foreach ($value as &$object_id) {
+						$object_id = GenerateTypeObjects::parseTypeObjectID($object_id);
+					}
+					unset($object_id);
 				}
+				
 				$this->arr_settings[$setting] = $value;
 			}
 		}
@@ -104,6 +121,13 @@ class data_api extends base_module {
 			} else {
 				$this->apiDataAnalysis();
 			}
+		} else if ($this->arr_settings['mode'] == 'reconcile') {
+			
+			if ($_SERVER['REQUEST_METHOD'] === 'PUT' || $_SERVER['REQUEST_METHOD'] === 'DELETE') {
+				// Not possible
+			} else {
+				$this->apiDataReconcile();
+			}
 		} else {
 			
 			$this->errorInput('No mode specified');
@@ -112,7 +136,7 @@ class data_api extends base_module {
 	
 	private function apiIdentifier($identifier) {
 		
-		$arr_id = GenerateTypeObjects::decodeTypeObjectId($identifier);
+		$arr_id = GenerateTypeObjects::decodeTypeObjectID($identifier);
 		
 		if ($arr_id) { // nodegoat ID
 			
@@ -121,7 +145,7 @@ class data_api extends base_module {
 		} else {
 			
 			$project_id = $_SESSION['custom_projects']['project_id'];
-			$arr_project = cms_nodegoat_custom_projects::getProjects($project_id);
+			$arr_project = StoreCustomProject::getProjects($project_id);
 			
 			$arr_type_ids = array_keys($arr_project['types']);
 			
@@ -137,6 +161,11 @@ class data_api extends base_module {
 			if ($arr_type_object_descriptions) {
 
 				$arr_type_objects = FilterTypeObjects::getTypesObjectsByObjectDescriptions($identifier, $arr_type_object_descriptions);
+			}
+			
+			if (!$arr_type_objects) {
+				
+				$arr_type_objects = FilterTypeObjects::getObjectsTypeObjects($identifier);
 			}
 			
 			if (!$arr_type_objects) {
@@ -170,6 +199,7 @@ class data_api extends base_module {
 		
 		$arr_api_configuration = cms_nodegoat_api::getConfiguration(SiteStartVars::$api['id']);
 		$url = $arr_api_configuration['projects'][$_SESSION['custom_projects']['project_id']]['identifier_url'];
+		$url = ($url && !SiteStartVars::getRequestOutputFormat(['application/json', 'application/ld+json']) ? $url : false);
 		
 		if ($url) {
 			
@@ -205,7 +235,9 @@ class data_api extends base_module {
 				);
 			}
 			
-			Response::location($url);		
+			$url = Labels::parseTextVariables($url);
+			
+			Response::location($url);
 		} else {
 		
 			$this->arr_settings['mode'] = 'data';
@@ -225,7 +257,7 @@ class data_api extends base_module {
 		}
 		
 		$project_id = $_SESSION['custom_projects']['project_id'];
-		$arr_project = cms_nodegoat_custom_projects::getProjects($project_id);
+		$arr_project = StoreCustomProject::getProjects($project_id);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		$type_id = (int)$this->arr_settings['type'];
@@ -238,7 +270,7 @@ class data_api extends base_module {
 		
 		if ($_REQUEST['scope'] && !is_numeric($_REQUEST['scope'])) { // Scope form
 
-			$arr_scope = json_decode($_REQUEST['scope'], true);
+			$arr_scope = JSON2Value($_REQUEST['scope']);
 			
 			$arr_scope = data_model::parseTypeNetwork($arr_scope);
 		} else if ($_REQUEST['scope'] || (int)$this->arr_settings['scope']) { // Scope ID
@@ -261,32 +293,43 @@ class data_api extends base_module {
 		$arr_filters = $this->getRequestTypeFilters();
 	
 		$arr_limit = [];
+		$arr_order = [];
 		
 		if ($_REQUEST['limit'] || $_REQUEST['offset']) {
 			
 			$arr_limit = [(int)$_REQUEST['offset'], (int)$_REQUEST['limit']];
 		}
+		if ($_REQUEST['order']) {
+			
+			$arr_order = JSON2Value($_REQUEST['order']);
+			
+			if (!is_array($arr_order)) {
+				
+				$arr_order = explode(':', $_REQUEST['order']);
+				$arr_order = [$arr_order[0] => (strtoupper(($arr_order[1] ?? '')) == 'DESC' ? 'DESC' : 'ASC')];
+			}
+		}
 		
 		$output_mode = (self::$arr_output_modes_data[$_REQUEST['output']] ?: 'default');
 		
-		$arr_ref_type_ids = cms_nodegoat_custom_projects::getProjectScopeTypes($project_id);
+		$arr_ref_type_ids = StoreCustomProject::getScopeTypes($project_id);
 
 		if ($arr_scope['paths']) {
 						
-			$trace = new TraceTypeNetwork(array_keys($arr_project['types']), true, true);
-			$trace->filterTypeNetwork($arr_scope['paths']);
+			$trace = new TraceTypesNetwork(array_keys($arr_project['types']), true, true);
+			$trace->filterTypesNetwork($arr_scope['paths']);
 			$trace->run($type_id, false, 3);
 			$arr_type_network_paths = $trace->getTypeNetworkPaths(true);
 		} else {
 			$arr_type_network_paths = ['start' => [$type_id => ['path' => [0]]]];
 		}
 		
-		$collect = new CollectTypeObjects($arr_type_network_paths, ($output_mode == 'raw' ? 'storage' : 'set'));
+		$collect = new CollectTypesObjects($arr_type_network_paths, ($output_mode == 'raw' ? GenerateTypeObjects::VIEW_STORAGE : GenerateTypeObjects::VIEW_SET));
 		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids, 'project_id' => $project_id]);
 		
 		if ($output_mode != 'raw') {
 			
-			$collect->setConditions('style_include', function($type_id) {
+			$collect->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE_INCLUDE, function($type_id) {
 				return toolbar::getTypeConditions($type_id);
 			});
 		}
@@ -340,7 +383,7 @@ class data_api extends base_module {
 						
 						if ($object_description_id) {
 							
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, $object_description_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
 								continue;
 							}
 							
@@ -352,6 +395,9 @@ class data_api extends base_module {
 							}
 							if ($arr_selected['object_description_reference']) {
 								$s_arr['object_description_reference'] = $arr_selected['object_description_reference'];
+								if ($arr_selected['object_description_reference_value']) {
+									$s_arr['object_description_reference_value'] = $arr_selected['object_description_reference_value'];
+								}
 							}
 						}
 						
@@ -359,7 +405,7 @@ class data_api extends base_module {
 						
 						if ($object_sub_details_id) {
 
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 								continue;
 							}
 							
@@ -369,7 +415,7 @@ class data_api extends base_module {
 							
 							if ($object_sub_description_id) {
 
-								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 									continue;
 								}
 								
@@ -381,6 +427,9 @@ class data_api extends base_module {
 								}
 								if ($arr_selected['object_sub_description_reference']) {
 									$s_arr['object_sub_description_reference'] = $arr_selected['object_sub_description_reference'];
+									if ($arr_selected['object_sub_description_reference_value']) {
+										$s_arr['object_sub_description_reference_value'] = $arr_selected['object_sub_description_reference_value'];
+									}
 								}
 							} else if (!$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions']) { // Set empty selection on sub object descriptions if there are none selected
 								
@@ -393,7 +442,7 @@ class data_api extends base_module {
 
 					foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, $object_description_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
@@ -402,7 +451,7 @@ class data_api extends base_module {
 								
 					foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 							continue;
 						}
 
@@ -410,7 +459,7 @@ class data_api extends base_module {
 
 						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 													
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 								continue;
 							}
 								
@@ -425,23 +474,28 @@ class data_api extends base_module {
 					'collapse' => $collapse
 				];
 				
-				if ($path == 0 && $arr_limit) {
-					$arr_options['limit'] = $arr_limit;
+				if ($path == 0) {
+					if ($arr_limit) {
+						$arr_options['limit'] = $arr_limit;
+					}
+					if ($arr_order) {
+						$arr_options['order'] = $arr_order;
+					}
 				}
 				
 				$collect->setPathOptions([$path => $arr_options]);
 			}
 		}
 
-		$format = SiteStartVars::getRequestOutputFormat(['application/json', 'application/ld+json']);
+		$str_format = SiteStartVars::getRequestOutputFormat(['application/json', 'application/ld+json']);
 		
 		$obj_response = Response::getObject();
 				
-		if ($format == 'application/ld+json') {
+		if ($str_format == 'application/ld+json') {
 			
 			Response::setFormat(Response::getFormat() | Response::RENDER_LINKED_DATA);
 			
-			$request_id = BASE_URL.implode('/', $this->arr_request_vars);
+			$request_id = URL_BASE.implode('/', $this->arr_request_vars);
 			if ($_REQUEST) {
 				$request_id = $request_id.'?'.implode('&', $_REQUEST);
 			}
@@ -483,11 +537,14 @@ class data_api extends base_module {
 		
 		Response::openStream(false, $obj_response);
 
-		$output_objects = new CreateObjectsPackage($arr_type_sets);
+		$output_objects = new CreateTypesObjectsPackage($arr_type_sets);
+		if ($output_mode == 'raw') {
+			$output_objects->setMode(CreateTypesObjectsPackage::MODE_RAW);
+		}
 		
 		Mediator::checkState();
 
-		memoryBoost(1024);
+		memoryBoost(1000);
 		
 		$nr_stream = self::$nr_objects_stream;
 		
@@ -499,7 +556,7 @@ class data_api extends base_module {
 		
 		while ($collect->init($arr_filters)) {
 			
-			$arr_objects = $collect->getPathObjects(0);
+			$arr_objects = $collect->getPathObjects('0');
 			
 			Mediator::checkState();
 
@@ -538,7 +595,7 @@ class data_api extends base_module {
 		}
 		
 		$project_id = $_SESSION['custom_projects']['project_id'];
-		$arr_project = cms_nodegoat_custom_projects::getProjects($project_id);
+		$arr_project = StoreCustomProject::getProjects($project_id);
 		
 		$type_id = (int)$this->arr_settings['type'];
 		
@@ -558,19 +615,19 @@ class data_api extends base_module {
 		$this->count_objects_updated = 0;
 		$this->count_objects_added = 0;
 		
-		memoryBoost(1024);
+		memoryBoost(1000);
 		timeLimit(30 * 60);
 		
 		if (!$this->arr_settings['object']) { // Get Object IDs from the data
 			
 			$input = fopen('php://input', 'r');
-			$resource = fopen('php://temp/maxmemory:'.(100 * 1024 * 1024), 'r+'); // Keep resource in memory until it reaches 100MB, otherwise create a temporary file
+			$resource = fopen('php://temp/maxmemory:'.(100 * BYTE_MULTIPLIER * BYTE_MULTIPLIER), 'r+'); // Keep resource in memory until it reaches 100MB, otherwise create a temporary file
 			
 			stream_copy_to_stream($input, $resource);
 			
 			fclose($input);
 			
-			$stream = new StreamJSON($resource);
+			$stream = new StreamJSONInput($resource);
 
 			if ($_SERVER['REQUEST_METHOD'] === 'PATCH' || $_SERVER['REQUEST_METHOD'] === 'DELETE') {
 				
@@ -585,8 +642,10 @@ class data_api extends base_module {
 					if (!$arr_object) {
 						return;
 					}
+					
+					$object_id = GenerateTypeObjects::parseTypeObjectID(key($arr_object));
 
-					$this->arr_client_update_objects[key($arr_object)] = current($arr_object);
+					$this->arr_client_update_objects[$object_id] = current($arr_object);
 					
 					$count++;
 					
@@ -605,8 +664,9 @@ class data_api extends base_module {
 				}
 				
 				if ($this->count_objects_updated) {
-			
-					msg('A total of '.$this->count_objects_updated.' Objects have been '.($_SERVER['REQUEST_METHOD'] === 'DELETE' ? 'deleted' : 'updated').'.', false, LOG_CLIENT);
+					
+					Labels::setVariable('count', $this->count_objects_updated);
+					msg(getLabel(($_SERVER['REQUEST_METHOD'] === 'DELETE' ? 'msg_object_deleted' : 'msg_object_updated')), false, LOG_CLIENT);
 				}
 			} else {
 				
@@ -641,8 +701,9 @@ class data_api extends base_module {
 				}
 				
 				if ($this->count_objects_added) {
-			
-					msg('A total of '.$this->count_objects_added.' Objects have been added.', false, LOG_CLIENT);
+					
+					Labels::setVariable('count', $this->count_objects_added);
+					msg(getLabel('msg_object_added'), false, LOG_CLIENT);
 				}
 				
 				Mediator::checkState();
@@ -657,7 +718,9 @@ class data_api extends base_module {
 						return;
 					}
 					
-					$this->arr_client_update_objects[key($arr_object)] = current($arr_object);
+					$object_id = GenerateTypeObjects::parseTypeObjectID(key($arr_object));
+					
+					$this->arr_client_update_objects[$object_id] = current($arr_object);
 					
 					$count++;
 					
@@ -676,8 +739,9 @@ class data_api extends base_module {
 				}
 				
 				if ($this->count_objects_updated) {
-			
-					msg('A total of '.$this->count_objects_updated.' Objects have been updated.', false, LOG_CLIENT);
+					
+					Labels::setVariable('count', $this->count_objects_updated);
+					msg(getLabel('msg_object_updated'), false, LOG_CLIENT);
 				}
 				
 				if (!$this->count_objects_updated && !$this->count_objects_added) {
@@ -713,8 +777,9 @@ class data_api extends base_module {
 					}
 					
 					if ($this->count_objects_added) {
-			
-						msg('A total of '.$this->count_objects_added.' Objects have been added.', false, LOG_CLIENT);
+						
+						Labels::setVariable('count', $this->count_objects_added);
+						msg(getLabel('msg_object_added'), false, LOG_CLIENT);
 					}
 				}
 			}
@@ -728,7 +793,11 @@ class data_api extends base_module {
 			
 			$str_client = file_get_contents('php://input');
 			
-			$arr_object = ($str_client ? json_decode($str_client, true) : false);
+			if ($str_client) {
+				$arr_object = json_decode($str_client, true);
+			} else {
+				$arr_object = ($_SERVER['REQUEST_METHOD'] === 'DELETE' ? true : false);
+			}
 			
 			if ($arr_object) {
 				
@@ -737,8 +806,9 @@ class data_api extends base_module {
 				$this->apiDataStoreUpdateTypeObjects();
 				
 				if ($this->count_objects_updated) {
-			
-					msg('A total of '.$this->count_objects_updated.' Objects have been '.($_SERVER['REQUEST_METHOD'] === 'DELETE' ? 'deleted' : 'updated').'.', false, LOG_CLIENT);
+					
+					Labels::setVariable('count', $this->count_objects_updated);
+					msg(getLabel(($_SERVER['REQUEST_METHOD'] === 'DELETE' ? 'msg_object_deleted' : 'msg_object_updated')), false, LOG_CLIENT);
 				}
 			}
 		}
@@ -758,7 +828,7 @@ class data_api extends base_module {
 			$arr_filters['objects'][$object_id] = $object_id;
 		}
 		
-		$filter = new FilterTypeObjects($this->type_id, 'id');
+		$filter = new FilterTypeObjects($this->type_id, GenerateTypeObjects::VIEW_ID);
 		$filter->setVersioning();
 		$filter->setFilter($arr_filters);
 
@@ -811,7 +881,7 @@ class data_api extends base_module {
 		
 		if ($_SERVER['REQUEST_METHOD'] === 'PUT' || $_SERVER['REQUEST_METHOD'] === 'PATCH') {
 			
-			$storage->setMode(($_SERVER['REQUEST_METHOD'] === 'PUT' ? 'overwrite' : 'update'), false);
+			$storage->setMode(($_SERVER['REQUEST_METHOD'] === 'PUT' ? StoreTypeObjects::MODE_OVERWRITE : StoreTypeObjects::MODE_UPDATE), false);
 
 			GenerateTypeObjects::dropResults(); // Cleanup possible leftover tables: clean transaction
 			
@@ -835,7 +905,8 @@ class data_api extends base_module {
 				$storage->commit(($_SESSION['NODEGOAT_CLEARANCE'] >= NODEGOAT_CLEARANCE_USER));
 			} catch (Exception $e) {
 				
-				msg('An error occured while processing Object ID '.$object_id_processing.'.', false, LOG_CLIENT);
+				Labels::setVariable('object', 'ID '.$object_id_processing);
+				msg(getLabel('msg_object_error'), false, LOG_CLIENT);
 
 				DB::rollbackTransaction('data_api_store');
 				throw($e);
@@ -936,7 +1007,7 @@ class data_api extends base_module {
 		} else {
 			
 			$project_id = $_SESSION['custom_projects']['project_id'];
-			$arr_project = cms_nodegoat_custom_projects::getProjects($project_id);
+			$arr_project = StoreCustomProject::getProjects($project_id);
 			
 			$arr_types = $arr_project['types'];
 		}
@@ -960,8 +1031,11 @@ class data_api extends base_module {
 		$output_mode = (self::$arr_output_modes_data_model[$_REQUEST['output']] ?: 'default');
 		
 		if ($output_mode == 'template') {
-			$store_type = new StoreType(false);
+			$store_type = new StoreType(false, $_SESSION['USER_ID']);
 		}
+		
+		$arr_date_options = StoreType::getDateOptions();
+		$arr_location_options = StoreType::getLocationOptions();
 		
 		$arr_data = [];
 		
@@ -969,6 +1043,10 @@ class data_api extends base_module {
 			
 			$arr_type_set = StoreType::getTypeSet($type_id);
 			
+			if ($arr_type_set['type']['class'] == StoreType::TYPE_CLASS_SYSTEM || ($output_mode == 'template' && $arr_type_set['type']['class'] == StoreType::TYPE_CLASS_REVERSAL)) {
+				continue;
+			}
+						
 			$use_type_id = ($output_mode == 'template' ? $arr_type_set['type']['name'] : (int)$type_id);
 			
 			$s_arr_type =& $arr_data['types'][$use_type_id];
@@ -977,18 +1055,37 @@ class data_api extends base_module {
 			
 			$s_arr_type['type'] = [
 				'id' => $use_type_id,
-				'is_classification' => (bool)$arr_type_set['type']['is_classification'],
-				'is_reversal' => (bool)$arr_type_set['type']['is_reversal'],
+				'class' => $arr_type_set['type']['class'],
 				'name' => $arr_type_set['type']['name'],
 				'color' => $arr_type_set['type']['color']
 			];
-			
+
 			if ($this->is_administrator) {
 				
 				$s_arr_type['type'] += [
 					'use_object_name' => (bool)$arr_type_set['type']['use_object_name'],
 					'object_name_in_overview' => (bool)$arr_type_set['type']['object_name_in_overview']
 				];
+			}
+			
+			foreach ($arr_type_set['definitions'] as $definition_id => $arr_definition) {
+				
+				$definition_id = (int)$definition_id;
+				
+				if ($output_mode == 'template') {
+					
+					$s_arr_type['definitions'][] = [
+						'definition_name' => $arr_definition['definition_name'],
+						'definition_text' => $arr_definition['definition_text']
+					];
+				} else {
+
+					$s_arr_type['definitions'][$definition_id] = [
+						'definition_id' => $definition_id,
+						'definition_name' => $arr_definition['definition_name'],
+						'definition_text' => $arr_definition['definition_text']
+					];
+				}
 			}
             
 			foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
@@ -1005,8 +1102,8 @@ class data_api extends base_module {
 				$s_arr_type['object_descriptions'][$object_description_id] = [
 					'object_description_id' => $object_description_id,
 					'object_description_name' => $arr_object_description['object_description_name'],
-					'object_description_value_type' => $arr_object_description['object_description_value_type'],
-					'object_description_value_type_options' => $arr_object_description['object_description_value_type_options'],
+					'object_description_value_type_base' => $arr_object_description['object_description_value_type_base'],
+					'object_description_value_type_settings' => $arr_object_description['object_description_value_type_settings'],
 					'object_description_is_required' => (bool)$arr_object_description['object_description_is_required'],
 					'object_description_is_unique' => (bool)$arr_object_description['object_description_is_unique'],
 					'object_description_is_identifier' => (bool)$arr_object_description['object_description_is_identifier'],
@@ -1066,13 +1163,16 @@ class data_api extends base_module {
 					'object_sub_details_name' => $arr_object_sub_details_self['object_sub_details_name'],
 					'object_sub_details_is_single' => (bool)$arr_object_sub_details_self['object_sub_details_is_single'],
 					'object_sub_details_is_required' => (bool)$arr_object_sub_details_self['object_sub_details_is_required'],
+					'object_sub_details_has_date' => (bool)$arr_object_sub_details_self['object_sub_details_has_date'],
 					'object_sub_details_is_date_period' => (bool)$arr_object_sub_details_self['object_sub_details_is_date_period'],
+					'object_sub_details_date_setting' => ($arr_date_options[$arr_object_sub_details_self['object_sub_details_date_setting']]['id'] ?? ''),
 					'object_sub_details_date_use_object_sub_details_id' => $object_sub_details_date_use_object_sub_details_id,
 					'object_sub_details_date_start_use_object_sub_description_id' => $object_sub_details_date_start_use_object_sub_description_id,
 					'object_sub_details_date_start_use_object_description_id' => $object_sub_details_date_start_use_object_description_id,
 					'object_sub_details_date_end_use_object_sub_description_id' => $object_sub_details_date_end_use_object_sub_description_id,
 					'object_sub_details_date_end_use_object_description_id' => $object_sub_details_date_end_use_object_description_id,
-					'object_sub_details_location_ref_only' => (bool)$arr_object_sub_details_self['object_sub_details_location_ref_only'],
+					'object_sub_details_has_location' => (bool)$arr_object_sub_details_self['object_sub_details_has_location'],
+					'object_sub_details_location_setting' => ($arr_location_options[$arr_object_sub_details_self['object_sub_details_location_setting']]['id'] ?? ''),
 					'object_sub_details_location_ref_type_id' => $object_sub_details_location_ref_type_id,
 					'object_sub_details_location_ref_type_id_locked' => (bool)$arr_object_sub_details_self['object_sub_details_location_ref_type_id_locked'],
 					'object_sub_details_location_ref_object_sub_details_id' => $object_sub_details_location_ref_object_sub_details_id,
@@ -1107,8 +1207,8 @@ class data_api extends base_module {
 					$s_arr_object_sub_details['object_sub_descriptions'][$object_sub_description_id] = [
 						'object_sub_description_id' => $object_sub_description_id,
 						'object_sub_description_name' => $arr_object_sub_description['object_sub_description_name'],
-						'object_sub_description_value_type' => $arr_object_sub_description['object_sub_description_value_type'],
-						'object_sub_description_value_type_options' => $arr_object_sub_description['object_sub_description_value_type_options'],
+						'object_sub_description_value_type_base' => $arr_object_sub_description['object_sub_description_value_type_base'],
+						'object_sub_description_value_type_settings' => $arr_object_sub_description['object_sub_description_value_type_settings'],
 						'object_sub_description_is_required' => $arr_object_sub_description['object_sub_description_is_required'],
 						'object_sub_description_ref_type_id' => $object_sub_description_ref_type_id,
 						'object_sub_description_use_object_description_id' => $object_sub_description_use_object_description_id,
@@ -1189,7 +1289,7 @@ class data_api extends base_module {
 								
 				foreach ($arr_client_add_types as $arr_client_type) {
 					
-					$store_type = new StoreType(false);
+					$store_type = new StoreType(false, $_SESSION['USER_ID']);
 					
 					$type_id = $store_type->store((array)$arr_client_type['type'], (array)$arr_client_type['definitions'], (array)$arr_client_type['object_descriptions'], (array)$arr_client_type['object_sub_details']);
 					
@@ -1203,8 +1303,8 @@ class data_api extends base_module {
 				
 				foreach ($arr_client_resolve_types as $type_id => $arr_client_type) {
 					
-					$store_type = new StoreType($type_id);
-					$store_type->setMode('update');
+					$store_type = new StoreType($type_id, $_SESSION['USER_ID']);
+					$store_type->setMode(StoreType::MODE_UPDATE);
 					
 					$store_type->store((array)$arr_client_type['type'], (array)$arr_client_type['definitions'], (array)$arr_client_type['object_descriptions'], (array)$arr_client_type['object_sub_details']);
 				}
@@ -1218,14 +1318,15 @@ class data_api extends base_module {
 
 			DB::commitTransaction('data_model_api_store');
 			
-			msg('A total of '.count($arr_type_ids).' Types have been added.', false, LOG_CLIENT);
+			Labels::setVariable('count', count($arr_type_ids));
+			msg(getLabel('msg_type_added'), false, LOG_CLIENT);
 			
 			$this->data['types']['added'] = $arr_type_ids;
 		}
 		
 		if ($arr_client_update_types) {
 			
-			$store_type = new StoreType(false);
+			$store_type = new StoreType(false, $_SESSION['USER_ID']);
 						
 			foreach ($arr_client_update_types as $type_id => $arr_client_type) {
 				
@@ -1236,7 +1337,7 @@ class data_api extends base_module {
 
 			if ($_SERVER['REQUEST_METHOD'] === 'PUT' || $_SERVER['REQUEST_METHOD'] === 'PATCH') {
 				
-				$store_mode = ($_SERVER['REQUEST_METHOD'] === 'PUT' ? 'overwrite' : 'update');
+				$store_mode = ($_SERVER['REQUEST_METHOD'] === 'PUT' ? StoreType::MODE_OVERWRITE : StoreType::MODE_UPDATE);
 				
 				DB::startTransaction('data_model_api_store');
 
@@ -1246,7 +1347,7 @@ class data_api extends base_module {
 						
 					foreach ($arr_client_update_types as $type_id => $arr_client_type) {
 						
-						$store_type = new StoreType($type_id);
+						$store_type = new StoreType($type_id, $_SESSION['USER_ID']);
 						$store_type->setMode($store_mode);
 						
 						$store_type->store((array)$arr_client_type['type'], (array)$arr_client_type['definitions'], (array)$arr_client_type['object_descriptions'], (array)$arr_client_type['object_sub_details']);
@@ -1259,8 +1360,8 @@ class data_api extends base_module {
 					
 					foreach ($arr_client_resolve_types as $type_id => $arr_client_type) {
 					
-						$store_type = new StoreType($type_id);
-						$store_type->setMode('update');
+						$store_type = new StoreType($type_id, $_SESSION['USER_ID']);
+						$store_type->setMode(StoreType::MODE_UPDATE);
 						
 						$store_type->store((array)$arr_client_type['type'], (array)$arr_client_type['definitions'], (array)$arr_client_type['object_descriptions'], (array)$arr_client_type['object_sub_details']);
 					}
@@ -1274,19 +1375,21 @@ class data_api extends base_module {
 				
 				DB::commitTransaction('data_model_api_store');
 				
-				msg('A total of '.count($arr_client_update_types).' Types have been updated.', false, LOG_CLIENT);
+				Labels::setVariable('count', count($arr_client_update_types));
+				msg(getLabel('msg_type_updated'), false, LOG_CLIENT);
 					
 				$this->data['types']['updated'] = array_keys($arr_client_update_types);
 			} else if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 				
 				foreach ($arr_client_update_types as $type_id => $arr_client_type) {
 					
-					$store_type = new StoreType($type_id);
+					$store_type = new StoreType($type_id, $_SESSION['USER_ID']);
 					
 					$store_type->delType();
 				}
-							
-				msg('A total of '.count($arr_client_update_types).' Types have been deleted.', false, LOG_CLIENT);
+				
+				Labels::setVariable('count', count($arr_client_update_types));
+				msg(getLabel('msg_type_deleted'), false, LOG_CLIENT);
 				
 				$this->data['types']['deleted'] = array_keys($arr_client_update_types);
 			}
@@ -1302,7 +1405,7 @@ class data_api extends base_module {
 		}
 		
 		$project_id = $_SESSION['custom_projects']['project_id'];
-		$arr_project = cms_nodegoat_custom_projects::getProjects($project_id);
+		$arr_project = StoreCustomProject::getProjects($project_id);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		$type_id = (int)$this->arr_settings['type'];
@@ -1335,7 +1438,7 @@ class data_api extends base_module {
 		
 		Response::setFormat(Response::OUTPUT_TEXT);
 		
-		Response::sendHeader(false, 'graph.csv');
+		Response::sendFileHeaders(false, 'graph.csv');
 		
 		fpassthru($resource);
 	}
@@ -1347,7 +1450,7 @@ class data_api extends base_module {
 		}
 		
 		$project_id = $_SESSION['custom_projects']['project_id'];
-		$arr_project = cms_nodegoat_custom_projects::getProjects($project_id);
+		$arr_project = StoreCustomProject::getProjects($project_id);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		$type_id = (int)$this->arr_settings['type'];
@@ -1385,7 +1488,7 @@ class data_api extends base_module {
 				
 				 while (($arr_row = fgetcsv($file_client)) !== false) {
 
-					$object_id_processing = $arr_row[0];
+					$object_id_processing = GenerateTypeObjects::parseTypeObjectID($arr_row[0]);
 				
 					$storage->setObjectID($object_id_processing);
 					
@@ -1399,7 +1502,8 @@ class data_api extends base_module {
 				$storage->save();
 			} catch (Exception $e) {
 				
-				msg('An error occured while processing Object ID '.$object_id_processing.'.', false, LOG_CLIENT);
+				Labels::setVariable('object', 'ID '.$object_id_processing);
+				msg(getLabel('msg_object_error'), false, LOG_CLIENT);
 
 				DB::rollbackTransaction('data_api_store_analyse');
 				throw($e);
@@ -1433,7 +1537,8 @@ class data_api extends base_module {
 				$storage->save();
 			} catch (Exception $e) {
 				
-				msg('An error occured while processing Object ID '.$object_id_processing.'.', false, LOG_CLIENT);
+				Labels::setVariable('object', 'ID '.$object_id_processing);
+				msg(getLabel('msg_object_error'), false, LOG_CLIENT);
 
 				DB::rollbackTransaction('data_api_store_analyse');
 				throw($e);
@@ -1444,17 +1549,25 @@ class data_api extends base_module {
 
 		if ($this->count_objects_updated) {
 			
-			msg('A total of '.$this->count_objects_updated.' Objects have been updated.', false, LOG_CLIENT);
+			Labels::setVariable('count', $this->count_objects_updated);
+			msg(getLabel('msg_object_updated'), false, LOG_CLIENT);
 		} else {
 			
 			$this->errorInput('No (valid) data provided');
 		}
 	}
 	
+	// Get Data Reconcile
+		
+	private function apiDataReconcile() {
+	
+		// Version 8.1
+	}
+	
 	protected function getRequestTypeFilters() {
 		
 		$project_id = $_SESSION['custom_projects']['project_id'];
-		$arr_project = cms_nodegoat_custom_projects::getProjects($project_id);
+		$arr_project = StoreCustomProject::getProjects($project_id);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		$arr_filters = [];
@@ -1489,8 +1602,16 @@ class data_api extends base_module {
 		}
 		
 		if ($_REQUEST['object_id']) {
+			
 			$arr_filters['objects'] = explode(',', $_REQUEST['object_id']);
+			
+			foreach ($arr_filters['objects'] as &$object_id) {
+				$object_id = GenerateTypeObjects::parseTypeObjectID($object_id);
+			}
+			unset($object_id);
+			
 		} else if ($this->arr_settings['object']) {
+			
 			$arr_filters['objects'] = $this->arr_settings['object'];
 		}
 		

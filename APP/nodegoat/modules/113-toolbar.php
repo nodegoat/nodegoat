@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -20,6 +20,8 @@ class toolbar extends base_module {
 	private static $dynamic_filtering = false;
 
 	public function contents() {
+		
+		$return = '';
 	
 		if ($_SESSION['USER_ID']) {
 			
@@ -27,7 +29,7 @@ class toolbar extends base_module {
 			$nr_projects = count($_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')]);
 			
 			$return .= '<div class="project hide">'
-				.'<span>'.($str_project_name ? htmlspecialchars($str_project_name) : getLabel('lbl_none')).'</span>'
+				.'<span>'.($str_project_name ? strEscapeHTML($str_project_name) : getLabel('lbl_none')).'</span>'
 				.($nr_projects > 1 ? '<span title="'.getLabel('lbl_select').' '.getLabel('lbl_project').'" class="a icon popup" id="y:custom_projects:select-0">'.getIcon('updown-down').'</span>' : '')
 			.'</div>';
 	
@@ -38,8 +40,8 @@ class toolbar extends base_module {
 				.'<li class="settings">'
 					.'<span title="'.getLabel('lbl_visualisation').' '.getLabel('lbl_settings').'" class="a popup" id="y:data_visualise:edit_visualisation_settings-0">'
 						.'<span class="icon" data-category="full">'.getIcon('settings').'</span>'
-						.'<sup class="hide"><span class="scope hide" title="'.htmlspecialchars('<strong>'.getLabel('lbl_scope').'</strong> active').'">Sc</span><span class="context hide" title="'.htmlspecialchars('<strong>'.getLabel('lbl_context').'</strong> active').'">Cx</span><span class="frame hide" title="'.htmlspecialchars('<strong>'.getLabel('lbl_frame').'</strong> active').'">Fr</span></sup>'
-						.'<sub class="hide"><span class="visual-settings hide" title="'.htmlspecialchars('<strong>'.getLabel('lbl_visual_settings').'</strong> active').'">Vi</span></sub>'
+						.'<sup class="hide"><span class="scope hide" title="'.strEscapeHTML('<strong>'.getLabel('lbl_scope').'</strong> active').'">Sc</span><span class="context hide" title="'.strEscapeHTML('<strong>'.getLabel('lbl_context').'</strong> active').'">Cx</span><span class="frame hide" title="'.strEscapeHTML('<strong>'.getLabel('lbl_frame').'</strong> active').'">Fr</span></sup>'
+						.'<sub class="hide"><span class="visual-settings hide" title="'.strEscapeHTML('<strong>'.getLabel('lbl_visual_settings').'</strong> active').'">Vi</span></sub>'
 					.'</span>'
 				.'</li>'
 			.'</ul>';
@@ -54,8 +56,8 @@ class toolbar extends base_module {
 				.'<li class="settings">'
 					.'<span title="'.getLabel('lbl_analysis').' '.getLabel('lbl_settings').'" class="a popup" id="y:data_analysis:edit_analysis-0">'
 						.'<span class="icon" data-category="full">'.getIcon('settings').'</span>'
-						.'<sup class="hide"><span class="analysis hide" title="'.htmlspecialchars('<strong>'.getLabel('lbl_analysis').'</strong> active').'">An</span></sup>'
-						.'<sub class="hide"><span class="analysis-context hide" title="'.htmlspecialchars('<strong>'.getLabel('lbl_analysis_context').'</strong> active').'">Co</span></sub>'
+						.'<sup class="hide"><span class="analysis hide" title="'.strEscapeHTML('<strong>'.getLabel('lbl_analysis').'</strong> active').'">An</span></sup>'
+						.'<sub class="hide"><span class="analysis-context hide" title="'.strEscapeHTML('<strong>'.getLabel('lbl_analysis_context').'</strong> active').'">Co</span></sub>'
 					.'</span>'
 				.'</li>'
 			.'</ul>';
@@ -64,8 +66,8 @@ class toolbar extends base_module {
 				.'<li class="settings">'
 					.'<span title="'.getLabel('lbl_set').' '.getLabel('lbl_conditions').'" class="a popup" id="y:data_model:edit_condition-0">'
 						.'<span class="icon" data-category="full">'.getIcon('marker').'</span>'
-						.'<sup class="hide"><span class="condition hide" title="'.htmlspecialchars('<strong>'.getLabel('lbl_conditions').'</strong> active').'">Co</span></sup>'
-						.'<sub class="hide"><span class="condition-model-conditions hide" title="'.htmlspecialchars('<strong>'.getLabel('lbl_condition_model_conditions').'</strong> active').'">Mo</span></sub>'
+						.'<sup class="hide"><span class="condition hide" title="'.strEscapeHTML('<strong>'.getLabel('lbl_conditions').'</strong> active').'">Co</span></sup>'
+						.'<sub class="hide"><span class="condition-model-conditions hide" title="'.strEscapeHTML('<strong>'.getLabel('lbl_condition_model_conditions').'</strong> active').'">Mo</span></sub>'
 					.'</span>'
 				.'</li>'
 			.'</ul>';
@@ -81,6 +83,7 @@ class toolbar extends base_module {
 	public function createExportSettings($type_id, $arr_settings) {
 		
 		$arr_yes_no = [['id' => 1, 'name' => getLabel('lbl_yes')], ['id' => 0, 'name' => getLabel('lbl_no')]];
+		$arr_export_format_flow = [['id' => 'break', 'name' => getLabel('lbl_export_format_flow_break')], ['id' => 'continuous', 'name' => getLabel('lbl_export_format_flow_continuous')]];
 		
 		$return = '<div class="export-settings tabs">
 			<ul>
@@ -101,13 +104,17 @@ class toolbar extends base_module {
 			<div>
 				<div class="options fieldsets"><div>
 					<fieldset><legend>'.getLabel('lbl_export_format').'</legend><ul>
-						<li><label>'.getLabel('lbl_export_format_type').'</label><div><select name="export_settings[format][type]">'.cms_general::createDropdown(ExportObjectNetwork::getExportFormatTypes(), $arr_settings['format']['type']).'</select></div></li>
+						<li><label>'.getLabel('lbl_export_format_type').'</label><div><select name="export_settings[format][type]">'.cms_general::createDropdown(ExportTypesObjectsNetwork::getExportFormatTypes(), $arr_settings['format']['type']).'</select></div></li>
 						<li><label>'.getLabel('lbl_export_format_include_description_name').'</label><span>'.cms_general::createSelectorRadio($arr_yes_no, 'export_settings[format][include_description_name]', $arr_settings['format']['include_description_name']).'</span></li>
 					</ul></fieldset>
 
-					<fieldset><legend>'.getLabel('lbl_export_format').' (CSV)</legend><ul>
-						<li><label>'.getLabel('lbl_export_format_seperator').'</label><span><input type="text" name="export_settings[format][settings][csv][separator]" value="'.htmlspecialchars($arr_settings['format']['settings']['csv']['separator']).'" /></span></span></li>
-						<li><label>'.getLabel('lbl_export_format_enclose').'</label><span><input type="text" name="export_settings[format][settings][csv][enclose]" value="'.htmlspecialchars($arr_settings['format']['settings']['csv']['enclose']).'" /></span></span></li>
+					<fieldset><legend>'.getLabel('lbl_export_format').': CSV</legend><ul>
+						<li><label>'.getLabel('lbl_export_format_seperator').'</label><span><input type="text" name="export_settings[format][settings][csv][separator]" value="'.strEscapeHTML($arr_settings['format']['settings']['csv']['separator']).'" /></span></span></li>
+						<li><label>'.getLabel('lbl_export_format_enclose').'</label><span><input type="text" name="export_settings[format][settings][csv][enclose]" value="'.strEscapeHTML($arr_settings['format']['settings']['csv']['enclose']).'" /></span></span></li>
+					</ul></fieldset>
+					
+					<fieldset><legend>'.getLabel('lbl_export_format').': ODT</legend><ul>
+						<li><label>'.getLabel('lbl_export_format_flow').'</label><span>'.cms_general::createSelectorRadio($arr_export_format_flow, 'export_settings[format][settings][odt][flow]', $arr_settings['format']['settings']['odt']['flow']).'</span></li>
 					</ul></fieldset>
 				</div></div>
 			</div>
@@ -119,7 +126,7 @@ class toolbar extends base_module {
 	
 	private function createSelectExportSettings($type_id, $store = false) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		$return = '<fieldset><legend>'.getLabel(($store ? 'lbl_save' : 'lbl_select')).'</legend>
@@ -139,7 +146,7 @@ class toolbar extends base_module {
 		
 	private function createSelectScenario($type_id) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		$arr_scenarios = cms_nodegoat_custom_projects::getProjectTypeScenarios($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, $arr_use_project_ids);
@@ -223,12 +230,15 @@ class toolbar extends base_module {
 	
 	public static function js() {
 	
-		$return = "SCRIPTER.static('.toolbar', function(elm_scripter) {
+		$return = "
+		SCRIPTER.static('.toolbar', function(elm_scripter) {
 			
 			$('[id=y\\\:data_model\\\:edit_condition-0], [id=y\\\:data_analysis\\\:edit_analysis-0], [id=y\\\:toolbar\\\:manage_scenarios-0], [id=y\\\:data_visualise\\\:edit_visualisation_settings-0], [id=y\\\:custom_projects\\\:select-0], [id=y\\\:toolbar\\\:export_settings-0]').each(function() {
 				COMMANDS.setOptions(this, {overlay: 'document'});
 			});
-						
+		";
+		
+		$return .= "	
 			if ($('.data_entry').length) {
 				
 				var project_id = false;
@@ -369,6 +379,7 @@ class toolbar extends base_module {
 					}
 					
 					var elm_table = $('table[id^=d\\\\:data_entry\\\:data-]');
+					var datatable = getElement(elm_table).datatable;
 					
 					if (data.analysis_column !== undefined) {
 						
@@ -377,17 +388,18 @@ class toolbar extends base_module {
 							var elm_analysis_header = elm_table[0].querySelector('[data-identifier=analysis]');
 							
 							if (data.analysis_column || (!data.analysis_column && elm_analysis_header)) {
-								elm_table[0].datatable.handleColumn('[data-identifier=analysis]', data.analysis_column, '[data-identifier=version]');
+								datatable.handleColumn('[data-identifier=analysis]', data.analysis_column, '[data-identifier=version]');
 							}
 						}
 					}
 					
 					if (data.filter) {
-					
-						var elm_target = getElementData(elm_table, 'filter');
-						var func_target = COMMANDS.getTarget(elm_target);
 						
-						func_target({filter: data.filter.filter, active: data.filter.active});
+						if (data.scenario_has_cache) {
+							datatable.resetSort();
+						}
+											
+						datatable.setFilter(data.filter.filter, data.filter.active);
 					}
 				});
 			}
@@ -414,8 +426,25 @@ class toolbar extends base_module {
 			
 			var elm_scope = elm_scripter.find('.network.type');
 			SCRIPTER.runDynamic(elm_scope);
-		});
-		";
+			
+			elm_scripter.on('ajaxloaded scripter', function(e) {
+				
+				if (!getElement(e.detail.elm)) {
+					return;
+				}
+				
+				runElementSelectorFunction(e.detail.elm, '[name=\"export_settings[format][type]\"]', function(elm_found) {
+					SCRIPTER.triggerEvent(elm_found, 'update_export_settings');
+				});
+			}).on('change update_export_settings', '[name=\"export_settings[format][type]\"]', function(e) {
+			
+				var str_format_type = this.value;
+				var elms_settings = $(this).closest('.options').find('[name^=\"export_settings[format][settings]\"]');
+				
+				elms_settings.closest('fieldset').addClass('hide');
+				elms_settings.filter('[name^=\"export_settings[format][settings]['+str_format_type+']\"]').closest('fieldset').removeClass('hide');
+			});
+		});";
 		
 		return $return;
 	}
@@ -424,7 +453,7 @@ class toolbar extends base_module {
 
 		if ($method == "export") {
 			
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_USER) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_UNDER_REVIEW) {
 				
 				error(getLabel('msg_not_allowed'));
 				return;
@@ -440,13 +469,19 @@ class toolbar extends base_module {
 						
 			if ($_POST['get-download']) {
 				
-				$arr_filters = current(self::getFilter());
-				$arr_conditions = toolbar::getTypeConditions($type_id);
+				Response::setOutputUpdates(false); // Do not output anything that could mess up the export headers
 				
-				$collect = self::getExportCollector($type_id, $arr_filters, $arr_export_settings['scope'], $arr_conditions);
+				$arr_filters = current(self::getFilter());
+				$arr_ordering = current(self::getOrder());
+				$arr_conditions = toolbar::getTypeConditions($type_id);
 
-				$export = new ExportObjectNetwork($type_id, $arr_export_settings['scope']['types'], $arr_export_settings['format']);
-
+				$str_format_type = $arr_export_settings['format']['type'];
+				$str_class = 'ExportTypesObjectsNetwork'.strtoupper($str_format_type);
+				
+				$export = new $str_class($type_id, $arr_export_settings['scope']['types'], $arr_export_settings['format']);
+				
+				$collect = self::getExportCollector($type_id, $arr_filters, $arr_export_settings['scope'], $arr_conditions, $arr_ordering, $export->getCollectorSettings());
+				
 				$arr_nodegoat_details = cms_nodegoat_details::getDetails();
 				if ($arr_nodegoat_details['processing_time']) {
 					timeLimit($arr_nodegoat_details['processing_time']);
@@ -457,12 +492,19 @@ class toolbar extends base_module {
 			
 				$export->init($collect, $arr_filters);
 				
-				$response_format = Response::getFormat();
-				Response::setFormat(Response::OUTPUT_TEXT);
-					
-				$resource = $export->getPackage($arr_export_settings['format']['settings']['csv']);
+				$response_format = Response::getFormat(); // Response could have changed in the following steps; store it
 				
-				if ($resource === false) {
+				try {
+					
+					$has_package = $export->createPackage($arr_export_settings['format']['settings'][$str_format_type]);
+				} catch (Exception $e) {
+					
+					Response::setFormat($response_format);
+					
+					throw($e);
+				}
+				
+				if (!$has_package) {
 					
 					Response::setFormat($response_format);
 					
@@ -470,16 +512,7 @@ class toolbar extends base_module {
 					return;
 				}
 
-				$return = stream_get_contents($resource);
-	
-				$return = Response::parse($return);
-				
-				// UTF-8 BOM
-				$return = "\xEF\xBB\xBF".$return;
-
-				Response::sendHeader($return, 'export.'.$arr_export_settings['format']['type']);
-				
-				echo $return;
+				$export->readPackage('export');
 				
 				die;
 			} else {
@@ -496,7 +529,7 @@ class toolbar extends base_module {
 		
 			$this->html = '<form class="export_settings" data-method="update_export_settings">'.$this->createExportSettings($type_id, $arr_export_settings)
 				.'<input type="submit" name="reset" value="'.getLabel('lbl_reset').' '.getLabel('lbl_export').' '.getLabel('lbl_settings').'" />'
-				.'<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_settings').'" />'
+				.'<input type="submit" value="'.getLabel('lbl_apply').' '.getLabel('lbl_settings').'" />'
 			.'</form>';
 		}
 		
@@ -544,7 +577,7 @@ class toolbar extends base_module {
 			
 			if ($_POST['export_settings_id']) {
 				
-				$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+				$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 				$arr_use_project_ids = array_keys($arr_project['use_projects']);
 				
 				$arr_export_settings = cms_nodegoat_custom_projects::getProjectTypeExportSettings($_SESSION['custom_projects']['project_id'], false, false, $_POST['export_settings_id'], $arr_use_project_ids);
@@ -592,7 +625,7 @@ class toolbar extends base_module {
 				
 		if ($scenario_id) {
 
-			$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 			$arr_use_project_ids = array_keys($arr_project['use_projects']);
 			
 			$arr_scenario = cms_nodegoat_custom_projects::getProjectTypeScenarios($_SESSION['custom_projects']['project_id'], false, false, $scenario_id, $arr_use_project_ids);
@@ -605,8 +638,18 @@ class toolbar extends base_module {
 		// Filter
 		if (!$arr_scenario['filter_use_current']) {
 			
-			$arr_filters = self::getScenarioFilters($scenario_id);
-			self::setFilter([$arr_scenario['type_id'] => $arr_filters]);
+			if ($arr_scenario) {
+				
+				$arr_filters = self::getScenarioFilters($scenario_id);
+				self::setFilter([$arr_scenario['type_id'] => $arr_filters]);
+				
+				$scenario_hash = CacheProjectTypeScenario::generateHashFilter($_SESSION['custom_projects']['project_id'], $scenario_id, $arr_filters); // Hash only includes the filter part
+
+				$cache_scenario = new CacheProjectTypeScenario($_SESSION['custom_projects']['project_id'], $scenario_id);						
+				$has_scenario_cache = $cache_scenario->checkCacheFilter($scenario_hash, false);
+				
+				SiteEndVars::setFeedback('scenario_has_cache', $has_scenario_cache);
+			}
 			
 			if (self::$action_space === 0) {
 								
@@ -765,13 +808,20 @@ class toolbar extends base_module {
 		self::checkActiveSettings();
 	}
 
-	public static function checkActiveScenario($type, $arr_cur_filters, $arr_cur_scope, $arr_cur_conditions) {
+	public static function checkActiveScenario($do_enable = true) {
 		
-		if (!SiteStartVars::getFeedback('scenario_id')) {
+		$scenario_id = SiteStartVars::getFeedback('scenario_id');
+		
+		if (!$scenario_id) {
 			return false;
 		}
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		if (!$do_enable) {
+			SiteEndVars::setFeedback('scenario_id', null, true);
+			return false;
+		}
+		
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 						
 		$arr_scenario = cms_nodegoat_custom_projects::getProjectTypeScenarios($_SESSION['custom_projects']['project_id'], false, false, SiteStartVars::getFeedback('scenario_id'), $arr_use_project_ids);
@@ -783,57 +833,43 @@ class toolbar extends base_module {
 		
 		$type_id = $arr_scenario['type_id'];
 		
-		// Filter
-		if ($arr_scenario['filter_use_current']) {
+		// Breaks Scenario
+		if ($arr_scenario['filter_use_current'] || $arr_scenario['scope_use_current'] || $arr_scenario['condition_use_current']) {
 			SiteEndVars::setFeedback('scenario_id', null, true);
 			return false;
 		}
 		
-		$arr_filters = self::getScenarioFilters($arr_scenario['id']);
+		// Check Filters
+		$arr_cur_filters = current(static::getFilter());
+		$arr_filters = static::getScenarioFilters($arr_scenario['id']);
 		
 		if ($arr_cur_filters) {
 			
-			$filter = new FilterTypeObjects($type_id, 'id');
-			$filter->setDifferentiationId('scenario_'.$_SESSION['custom_projects']['project_id'].'_'.$arr_scenario['id']);
+			$arr_ref_type_ids = StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']);
+			
+			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ID);
+			$filter->setDifferentiationIdentifier('scenario_'.$_SESSION['custom_projects']['project_id'].'_'.$arr_scenario['id']);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids, 'project_id' => $_SESSION['custom_projects']['project_id']]);
 			$filter->setFilter($arr_cur_filters);
+			
 			$arr_cur_filters = $filter->getDepth();
 			$arr_cur_filters = $arr_cur_filters['arr_filters'];
 		}
 		
-		// Scope
-		$scope_id = SiteStartVars::getFeedback('scope_id');
-		if ($arr_scenario['scope_use_current'] || (!$scope_id && $scope_id !== false)) {
-			SiteEndVars::setFeedback('scenario_id', null, true);
-			return false;
-		}
-		
-		$arr_scope = data_visualise::getTypeScope($type_id);
-		
-		// Conditions
-		$condition_id = SiteStartVars::getFeedback('condition_id');
-		if ($arr_scenario['condition_use_current'] || (!$condition_id && $condition_id !== false)) {
-			SiteEndVars::setFeedback('scenario_id', null, true);
-			return false;
-		}
-		
-		$arr_conditions = toolbar::getTypeConditions($type_id);
-		
-		if (arrKsortRecursive($arr_cur_filters) !== arrKsortRecursive($arr_filters) || $arr_cur_scope !== $arr_scope || $arr_cur_conditions !== $arr_conditions) { // Check if the active (original) filter/scope/condition match the scenario
+		if ($arr_cur_filters !== $arr_filters) { // Check if the active (original) filter matches the scenario
 			
 			SiteEndVars::setFeedback('scenario_id', null, true);
 			return false;
 		}
 
-		$hash = self::getScenarioHash($arr_scenario['id'], $arr_cur_filters, $arr_cur_scope, $arr_cur_conditions);
-				
-		return $hash;
+		return $scenario_id;
 	}
 	
 	public static function getScenarioFilters($scenario_id) {
 				
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
-				
+			
 		$arr_scenario = cms_nodegoat_custom_projects::getProjectTypeScenarios($_SESSION['custom_projects']['project_id'], false, false, $scenario_id, $arr_use_project_ids);
 		$type_id = $arr_scenario['type_id'];
 		
@@ -842,9 +878,13 @@ class toolbar extends base_module {
 			$arr_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], false, false, $arr_scenario['filter_id'], (($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN || self::$action_space !== 0) ? true : false), $arr_use_project_ids);
 			$arr_filters = FilterTypeObjects::convertFilterInput($arr_filters['object']);
 			
-			$filter = new FilterTypeObjects($type_id, 'id');
-			$filter->setDifferentiationId('scenario_'.$_SESSION['custom_projects']['project_id'].'_'.$arr_scenario['id']);
+			$arr_ref_type_ids = StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']);
+			
+			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ID);
+			$filter->setDifferentiationIdentifier('scenario_'.$_SESSION['custom_projects']['project_id'].'_'.$arr_scenario['id']);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids, 'project_id' => $_SESSION['custom_projects']['project_id']]);
 			$filter->setFilter($arr_filters);
+			
 			$arr_filters = $filter->getDepth();
 			$arr_filters = $arr_filters['arr_filters'];
 		} else {
@@ -855,29 +895,70 @@ class toolbar extends base_module {
 		return $arr_filters;
 	}
 	
-	public static function getScenarioHash($scenario_id, $arr_filters, $arr_scope, $arr_conditions) {
+	public static function getScenarioFiltersData($scenario_id) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_scenario_filters = static::getScenarioFilters($scenario_id);
+		
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
-		
+			
 		$arr_scenario = cms_nodegoat_custom_projects::getProjectTypeScenarios($_SESSION['custom_projects']['project_id'], false, false, $scenario_id, $arr_use_project_ids);
 		$type_id = $arr_scenario['type_id'];
+
+		$scenario_hash = CacheProjectTypeScenario::generateHashFilter($_SESSION['custom_projects']['project_id'], $scenario_id, $arr_scenario_filters); // Hash only includes the filter part
+
+		$cache_scenario = new CacheProjectTypeScenario($_SESSION['custom_projects']['project_id'], $scenario_id);						
+		$has_scenario_cache = $cache_scenario->checkCacheFilter($scenario_hash);
 		
-		if ($arr_project['types'][$type_id]['type_filter_id']) {
-							
-			$arr_project_type_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], false, false, $arr_project['types'][$type_id]['type_filter_id'], true, $arr_use_project_ids);
-			$arr_project_type_filters = FilterTypeObjects::convertFilterInput($arr_project_type_filters['object']);
+		$arr_set_cache = ['result' => null];
+		
+		if ($has_scenario_cache) {
+		
+			$arr_set_cache['result'] = $cache_scenario->getCache();
 		} else {
 			
-			$arr_project_type_filters = [];
+			status(getLabel('msg_building_cache_scenario_filter'), false, getLabel('msg_wait'), ['identifier' => SiteStartVars::getSessionId(true).'cache_scenario_filter', 'duration' => 1000, 'persist' => true]);
 		}
 		
-		return hash('md5', serialize($arr_filters + $arr_project_type_filters)).'_'.hash('md5', serialize($arr_scope)).'_'.hash('md5', serialize($arr_conditions));
-	}
-	
-	public static function getScenarioPath($scenario_id, $type) {
+		$has_set_cache = ($arr_set_cache['result'] !== null);
+		
+		if ($has_set_cache) {
+			
+			$arr_filter_set = data_filter::parseUserFilterInput($arr_set_cache['result']);
+
+			$arr_filter = ['objects' => $arr_filter_set['objects']];
+		} else {
+			
+			$arr_ref_type_ids = StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']);
+		
+			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ID);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids, 'project_id' => $_SESSION['custom_projects']['project_id']]);
+			$filter->setFilter($arr_scenario_filters);
+			
+			if ($arr_project['types'][$type_id]['type_filter_id']) {
+
+				$arr_project_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], false, false, $arr_project['types'][$type_id]['type_filter_id'], true, $arr_use_project_ids);
 				
-		return DIR_CACHE_SCENARIOS.$type.'_'.$_SESSION['custom_projects']['project_id'].'_'.$scenario_id;
+				$filter->setFilter(FilterTypeObjects::convertFilterInput($arr_project_filters['object']));
+			}
+			
+			$filter->storeResultTemporarily();
+			
+			$arr_set_result = [];
+
+			$arr_info = $filter->getResultInfo(['objects' => true]);
+			
+			$arr_set_result['objects'] = $arr_info['objects'];
+			unset($arr_info['objects']);
+			
+			$cache_scenario->updateCache($arr_set_result);
+			
+			clearStatus(SiteStartVars::getSessionId(true).'cache_scenario_filter');
+			
+			$arr_filter = ['objects' => $arr_set_result['objects']];
+		}
+		
+		return $arr_filter;
 	}
 
 	public static function setFilter($arr_filters, $dynamic_filtering = false) {
@@ -935,6 +1016,27 @@ class toolbar extends base_module {
 		}
 	}
 	
+	public static function setOrder($arr_ordering, $dynamic_filtering = false) {
+		
+		if ($dynamic_filtering) {
+			
+			if (!self::$dynamic_filtering) {
+				return;
+			}
+			
+			$cur_type_id = self::getFilterTypeId();
+			$type_id = key($arr_ordering);
+			
+			if ($cur_type_id && $type_id != $cur_type_id) {
+				return;
+			}
+		}
+		
+		// $arr_ordering = array(type_id => arr_ordering = see GenerateTypeObjects)
+		
+		SiteEndVars::setFeedback('order', $arr_ordering, true);
+	}
+	
 	public static function enableDynamicFiltering() {
 			
 		self::$dynamic_filtering = true;
@@ -943,6 +1045,14 @@ class toolbar extends base_module {
 	public static function getFilter() {
 		
 		$arr = SiteStartVars::getFeedback('filter');
+		$arr = ($arr ?: []);
+		
+		return $arr;
+	}
+	
+	public static function getOrder() {
+		
+		$arr = SiteStartVars::getFeedback('order');
 		$arr = ($arr ?: []);
 		
 		return $arr;
@@ -992,6 +1102,7 @@ class toolbar extends base_module {
 		
 		$arr_analysis_context = cms_nodegoat_custom_projects::getProjectTypeAnalysesContexts($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, 0);
 		$bool_analysis_context = ($arr_analysis_context['object'] ? true : false);
+		$html_column = false;
 		
 		SiteEndVars::setFeedback('analysis_context', $bool_analysis_context);
 		
@@ -1046,7 +1157,7 @@ class toolbar extends base_module {
 		$arr_set = SiteStartVars::getFeedback('data_entry_filter_set');
 		$arr_set = $arr_set[$str_identifier];
 		
-		$str_filter = hash('md5', serialize($arr_filters));
+		$str_filter = value2Hash($arr_filters);
 		
 		if ($arr_set !== null && $str_filter == $arr_set['filter']) {
 			return $arr_set;
@@ -1064,21 +1175,45 @@ class toolbar extends base_module {
 		
 		SiteEndVars::setFeedback('data_entry_filter_set', $arr_set_all, true);
 	}
+	
+	public static function clearTypeFilterSet($str_identifier = false) {
+		
+		if ($str_identifier) {
+			
+			$arr_set_all = SiteStartVars::getFeedback('data_entry_filter_set');
+			$arr_set_all[$str_identifier] = null;
+		} else {
+			
+			$arr_set_all = [];
+		}
+		
+		SiteEndVars::setFeedback('data_entry_filter_set', $arr_set_all, true);
+	}
 		
 	public static function getTypeConditions($type_id, $object_name_only = false) {
 		
+		$arr_collect_conditions = [];
 		$arr_condition_ids = [];
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
-		$arr_use_project_ids = array_keys($arr_project['use_projects']);
-						
 		$arr_type_set = StoreType::getTypeSet($type_id);
+		
 		if ($arr_type_set['type']['condition_id']) { // Model settings
+			
+			
 			$arr_condition_ids[] = $arr_type_set['type']['condition_id'];
+			
 		}
 		
-		if ($arr_project['types'][$type_id]['type_condition_id']) { // Project settings
-			$arr_condition_ids[] = $arr_project['types'][$type_id]['type_condition_id'];
+		$arr_use_project_ids = [];
+		
+		if ($_SESSION['custom_projects']['project_id']) { // Project settings
+			
+			$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_use_project_ids = array_keys($arr_project['use_projects']);
+			
+			if (!empty($arr_project['types'][$type_id]['type_condition_id'])) { // Project settings
+				$arr_condition_ids[] = $arr_project['types'][$type_id]['type_condition_id'];
+			}
 		}
 		
 		// Interaction settings
@@ -1102,14 +1237,18 @@ class toolbar extends base_module {
 			if ($active_type_id != $type_id) {
 				
 				$arr_condition = cms_nodegoat_custom_projects::getProjectTypeConditions($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $active_type_id, $condition_id, true, $arr_use_project_ids);
+				$arr_condtion_model_object_type = ($arr_condition['model_object'][$type_id] ?? null);
 				
-				if ($arr_condition['model_object'][$type_id]['condition_id']) {
-					
-					$arr_condition_ids[] = $arr_condition['model_object'][$type_id]['condition_id'];
-				} else if ($arr_condition['model_object'][$type_id]['condition_use_current']) {
-					
-					if (!SiteStartVars::getFeedback('scenario_id') && !$arr_context) { // Only apply a user's condition when no scenarios or contexts are active
-						$arr_condition_ids[] = 0;
+				if ($arr_condtion_model_object_type) {
+						
+					if ($arr_condtion_model_object_type['condition_id']) {
+						
+						$arr_condition_ids[] = $arr_condtion_model_object_type['condition_id'];
+					} else if ($arr_condtion_model_object_type['condition_use_current']) {
+						
+						if (!SiteStartVars::getFeedback('scenario_id') && !$arr_context) { // Only apply a user's condition when no scenarios or contexts are active
+							$arr_condition_ids[] = 0;
+						}
 					}
 				}
 			} else {
@@ -1118,17 +1257,31 @@ class toolbar extends base_module {
 			}
 		}
 		
-		$arr_conditions = cms_nodegoat_custom_projects::getProjectTypeConditions($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, $arr_condition_ids, true, $arr_use_project_ids);
+		if ($arr_condition_ids) {
+			
+			$arr_conditions = cms_nodegoat_custom_projects::getProjectTypeConditions($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, $arr_condition_ids, true, $arr_use_project_ids);
+
+			foreach ($arr_condition_ids as $condition_id) { // Keep original sort
 				
+				$arr_condition = ($arr_conditions[$condition_id]['object'] ?? null);
+				
+				if (!$arr_condition) {
+					continue;
+				}
+				
+				$arr_collect_conditions[] = $arr_conditions[$condition_id]['object'];
+			}
+		}
+			
 		$arr_type_set_conditions = [];
 	
-		foreach ($arr_condition_ids as $condition_id) { // Keep original sort
+		foreach ($arr_collect_conditions as $arr_condition) {
 			
-			$arr_condition = data_model::parseTypeCondition($type_id, $arr_conditions[$condition_id]['object']);
+			$arr_condition = data_model::parseTypeCondition($type_id, $arr_condition);
 			
 			if ($object_name_only) {
 				
-				foreach ((array)$arr_condition['object'] as $arr_condition_setting) {
+				foreach (($arr_condition['object'] ?? []) as $arr_condition_setting) {
 					
 					if (!$arr_condition_setting['condition_in_object_name']) {
 						continue;
@@ -1137,7 +1290,7 @@ class toolbar extends base_module {
 					$arr_type_set_conditions['object'][] = $arr_condition_setting;
 				}
 				
-				foreach ((array)$arr_condition['object_descriptions'] as $object_description_id => $arr_condition_settings) {
+				foreach (($arr_condition['object_descriptions'] ?? []) as $object_description_id => $arr_condition_settings) {
 					
 					foreach ($arr_condition_settings as $arr_condition_setting) {
 						
@@ -1149,7 +1302,7 @@ class toolbar extends base_module {
 					}
 				}
 				
-				foreach ((array)$arr_condition['object_sub_details'] as $object_sub_details_id => $arr_condition_object_sub_details) {
+				foreach (($arr_condition['object_sub_details'] ?? [])  as $object_sub_details_id => $arr_condition_object_sub_details) {
 					
 					if (!$arr_condition_object_sub_details['object_sub_descriptions']) {
 						continue;
@@ -1170,21 +1323,21 @@ class toolbar extends base_module {
 			} else {
 
 				if ($arr_condition['object']) {
-					$arr_type_set_conditions['object'] = array_merge((array)$arr_type_set_conditions['object'], $arr_condition['object']);
+					$arr_type_set_conditions['object'] = array_merge(($arr_type_set_conditions['object'] ?? []) , $arr_condition['object']);
 				}
 				 
-				foreach ((array)$arr_condition['object_descriptions'] as $object_description_id => $arr_condition_settings) {
-					$arr_type_set_conditions['object_descriptions'][$object_description_id] = array_merge((array)$arr_type_set_conditions['object_descriptions'][$object_description_id], $arr_condition_settings);
+				foreach (($arr_condition['object_descriptions'] ?? [])  as $object_description_id => $arr_condition_settings) {
+					$arr_type_set_conditions['object_descriptions'][$object_description_id] = array_merge(($arr_type_set_conditions['object_descriptions'][$object_description_id] ?? []) , $arr_condition_settings);
 				}
 				
-				foreach ((array)$arr_condition['object_sub_details'] as $object_sub_details_id => $arr_condition_object_sub_details) {
+				foreach (($arr_condition['object_sub_details'] ?? [])  as $object_sub_details_id => $arr_condition_object_sub_details) {
 					
 					if ($arr_condition_object_sub_details['object_sub_details']) {
-						$arr_type_set_conditions['object_sub_details'][$object_sub_details_id]['object_sub_details'] = array_merge((array)$arr_type_set_conditions['object_sub_details'][$object_sub_details_id]['object_sub_details'], $arr_condition_object_sub_details['object_sub_details']);
+						$arr_type_set_conditions['object_sub_details'][$object_sub_details_id]['object_sub_details'] = array_merge(($arr_type_set_conditions['object_sub_details'][$object_sub_details_id]['object_sub_details'] ?? []) , $arr_condition_object_sub_details['object_sub_details']);
 					}
 					
-					foreach ((array)$arr_condition_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_condition_object_sub_description) {
-						$arr_type_set_conditions['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id] = array_merge((array)$arr_type_set_conditions['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id], $arr_condition_object_sub_description);
+					foreach (($arr_condition_object_sub_details['object_sub_descriptions'] ?? [])  as $object_sub_description_id => $arr_condition_object_sub_description) {
+						$arr_type_set_conditions['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id] = array_merge(($arr_type_set_conditions['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id] ?? []), $arr_condition_object_sub_description);
 					}
 				}
 			}
@@ -1193,15 +1346,15 @@ class toolbar extends base_module {
 		return $arr_type_set_conditions;
 	}
 	
-	public static function getExportCollector($type_id, $arr_filters, $arr_scope, $arr_conditions = false) {
+	public static function getExportCollector($type_id, $arr_filters, $arr_scope, $arr_conditions, $arr_ordering, $arr_settings) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		if ($arr_scope['paths']) {
 			
-			$trace = new TraceTypeNetwork(array_keys($arr_project['types']), true, true);
-			$trace->filterTypeNetwork($arr_scope['paths']);
+			$trace = new TraceTypesNetwork(array_keys($arr_project['types']), true, true);
+			$trace->filterTypesNetwork($arr_scope['paths']);
 			$trace->run($type_id, false, 3);
 			$arr_type_network_paths = $trace->getTypeNetworkPaths(true);
 		} else {
@@ -1209,9 +1362,9 @@ class toolbar extends base_module {
 			$arr_type_network_paths = ['start' => [$type_id => ['path' => [0]]]];
 		}
 		
-		$collect = new CollectTypeObjects($arr_type_network_paths);
-		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
-		$collect->setConditions('text', function($cur_type_id) use ($type_id, $arr_conditions) {
+		$collect = new CollectTypesObjects($arr_type_network_paths);
+		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
+		$collect->setConditions($arr_settings['conditions'], function($cur_type_id) use ($type_id, $arr_conditions) {
 			
 			if ($cur_type_id == $type_id && $arr_conditions !== false) {
 				return $arr_conditions;
@@ -1219,6 +1372,11 @@ class toolbar extends base_module {
 			
 			return toolbar::getTypeConditions($cur_type_id);
 		});
+		$collect->setGenerateCallback(function($generate, $cur_type_id) {
+			
+			$generate->setFormatMode(StoreTypeObjects::FORMAT_DATE_YMD);
+		});
+		$collect->setTypeOptions([$type_id => ['order' => $arr_ordering]]);
 		$collect->init($arr_filters, false);
 			
 		$arr_collect_info = $collect->getResultInfo();
@@ -1244,11 +1402,11 @@ class toolbar extends base_module {
 					$source_path = implode('-', $source_path);
 				}
 				
-				$arr_settings = $arr_scope['types'][$source_path][$cur_type_id];
+				$arr_scope_settings = $arr_scope['types'][$source_path][$cur_type_id];
 				
 				$arr_filtering = [];
 				
-				if ($arr_settings['filter']) {
+				if ($arr_scope_settings['filter']) {
 					
 					$arr_filtering = ['all' => true];
 				}
@@ -1259,56 +1417,49 @@ class toolbar extends base_module {
 					'object_sub_details' => []
 				];
 				
-				if ($arr_settings['name'] || $arr_settings['sources']) {
+				if ($arr_scope_settings['name'] || $arr_scope_settings['sources']) {
 					
 					$arr_selection['object']['all'] = true;
 				}
 				
-				if ($arr_settings['analysis']) {
+				if ($arr_scope_settings['analysis']) {
 					
-					$arr_analysis = data_analysis::getTypeAnalysis($cur_type_id);
-					$arr_analysis_context = data_analysis::getTypeAnalysisContext($cur_type_id);
+					$arr_analyses_active = data_analysis::getTypeAnalysesActive($cur_type_id);
 					
-					if ($arr_analysis || $arr_analysis_context) {
-						
-						$arr_selection['object']['analysis'] = [];
-						
-						if ($arr_analysis) {
-							
-							$arr_selection['object']['analysis'][] = ['id' => $arr_analysis['id'], 'user_id' => $arr_analysis['user_id'], 'algorithm' => $arr_analysis['algorithm']];
-						}
-						if ($arr_analysis_context['include']) {
-							
-							$arr_analysis_context_analyses = cms_nodegoat_custom_projects::getProjectTypeAnalyses($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $cur_type_id, array_keys($arr_analysis_context['include']), $arr_use_project_ids);
-								
-							foreach ($arr_analysis_context_analyses as $arr_analysis_context_analysis) {
-									
-								$arr_selection['object']['analysis'][] = ['id' => $arr_analysis_context_analysis['id'], 'algorithm' => $arr_analysis_context_analysis['algorithm']];
-							}
-						}
+					if ($arr_analyses_active) {
+						$arr_selection['object']['analysis'] = $arr_analyses_active;
 					}
 				}
 				
-				$arr_selected = ($arr_settings['selection'] ?: []);
+				$arr_selected = ($arr_scope_settings['selection'] ?: []);
 				
 				foreach ($arr_selected as $id => $value) {
+					
+					if ($id == 'name') {
+						
+						$arr_selection['object']['all'] = true;
+						
+						continue;
+					}
 					
 					$object_description_id = $value['object_description_id'];
 					
 					if ($object_description_id) {
 							
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, $object_description_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
 						$arr_selection['object_descriptions'][$object_description_id] = ['object_description_id' => true];
+						
+						continue;
 					}
 					
 					$object_sub_details_id = $value['object_sub_details_id'];
 					
 					if ($object_sub_details_id) {
 
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 							continue;
 						}
 						
@@ -1318,7 +1469,7 @@ class toolbar extends base_module {
 						
 						if ($object_sub_description_id) {
 							
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$cur_type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 								continue;
 							}
 							
@@ -1327,6 +1478,8 @@ class toolbar extends base_module {
 							
 							$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] = [];
 						}
+						
+						continue;
 					}
 				}
 								
@@ -1370,17 +1523,28 @@ class toolbar extends base_module {
 		
 		$arr = [
 			'format' => [
-				'type' => ($arr['format']['type'] ?: 'csv'),
+				'type' => $arr['format']['type'],
 				'include_description_name' => ($arr['format']['include_description_name'] !== null ? (bool)$arr['format']['include_description_name'] : true),
 				'settings' => $arr['format']['settings'],
 			],
 			'scope' => $arr['scope']
 		];
 		
+		$format_type = $arr['format']['type'];
+		$arr_format_types = ExportTypesObjectsNetwork::getExportFormatTypes();
+		
+		if (!$format_type || !$arr_format_types[$format_type]) {
+			$arr['format']['type'] = 'csv';
+		}
+		
 		$s_arr = &$arr['format']['settings']['csv'];
 		$s_arr = [
 			'separator' => ($s_arr['separator'] ?: ','),
 			'enclose' => ($s_arr['enclose'] ?: '"')
+		];
+		$s_arr = &$arr['format']['settings']['odt'];
+		$s_arr = [
+			'flow' => ($s_arr['flow'] ?: 'break')
 		];
 		
 		$arr['scope'] = data_model::parseTypeNetworkPick($arr['scope']);

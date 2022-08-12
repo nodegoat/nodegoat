@@ -1,38 +1,40 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
-function MapData(element, obj_parent, options) {
+function MapData(element, PARENT, arr_settings_options) {
 
 	var elm = $(element),
-	obj = this,
-	obj_map = obj_parent,
-	settings = $.extend({}, options || {});
+	SELF = this,
+	arr_settings = {};
 
-	var arr_data = {},
-	arr_data_parsed = {};
+	var arr_data = {};
 	
 	this.arr_inactive_types = {};
 	this.arr_inactive_object_sub_details = {};
 	this.arr_inactive_conditions = {};
 	this.arr_loop_inactive_conditions = [];
-	
+
 	this.init = function() {
 
-		obj_map.getDataCaller(getData);
+	};
+	
+	this.setSettings = function(arr_settings_options) {
+
+		arr_settings = $.extend(arr_settings, arr_settings_options || {});
 	};
 	
 	this.setData = function(arr_source_data) {
 					
 		arr_data = arr_source_data;
 
-		var identifier_parse = JSON.stringify(settings);
+		var identifier_parse = JSON.stringify(arr_settings);
 		
 		if (!arr_data.source) {
 			
@@ -53,14 +55,17 @@ function MapData(element, obj_parent, options) {
 				
 				arr_data[key] = arr_package[key];
 			}
+			
+			arr_data.identifier_parse = false;
+			arr_data.update = []; // To store/indicate further processing updates
 
 			arr_data.source = JSON.stringify(arr_data);
 		}
 		
 		if (arr_data.identifier_parse && arr_data.identifier_parse != identifier_parse) {
-			
+
 			var arr_source_data = JSON.parse(arr_data.source);
-			
+
 			for (var key in arr_data) {
 				
 				if (key == 'source') {
@@ -77,6 +82,39 @@ function MapData(element, obj_parent, options) {
 		
 		if (!arr_data.identifier_parse) {
 			
+			// Objects
+			
+			for (const object_id in arr_data.objects) {
+			
+				const arr_object = arr_data.objects[object_id];
+				
+				if (typeof arr_object.style === 'undefined') {
+					arr_object.style = [];
+				}
+								
+				if (typeof arr_object.style.weight !== 'undefined' && arr_object.style.weight instanceof Array) {
+					arr_object.style.weight = arr_object.style.weight.reduce(function(acc, val) { return acc + val; }, 0);
+				}
+				
+				if (arr_object.object_definitions) {
+						
+					for (const object_definition_id in arr_object.object_definitions) {
+					
+						const arr_object_definition = arr_object.object_definitions[object_definition_id];
+						
+						if (typeof arr_object_definition.style === 'undefined') {
+							arr_object_definition.style = [];
+						}
+						
+						if (typeof arr_object_definition.style.weight !== 'undefined' && arr_object_definition.style.weight instanceof Array) {
+							arr_object_definition.style.weight = arr_object_definition.style.weight.reduce(function(acc, val) { return acc + val; }, 0);
+						}
+					}
+				}
+			}
+			
+			// Sub-Objects
+			
 			if (!arr_data.range) {
 				arr_data.range = [];
 			} else {
@@ -89,7 +127,7 @@ function MapData(element, obj_parent, options) {
 			var obj_date_unknown = {start: 0, end: 0};
 			var location_geometry_unknown = '';
 			
-			var unknown_date = (typeof settings.object_subs.unknown.date != 'undefined' ? settings.object_subs.unknown.date : false);
+			var unknown_date = (typeof arr_settings.object_subs.unknown.date != 'undefined' ? arr_settings.object_subs.unknown.date : false);
 			unknown_date = (unknown_date == 'ignore' ? false : unknown_date);
 			if (unknown_date) {
 				if (unknown_date == 'span') {
@@ -105,7 +143,7 @@ function MapData(element, obj_parent, options) {
 					}
 				}
 			}
-			var unknown_location = (typeof settings.object_subs.unknown.location != 'undefined' ? settings.object_subs.unknown.location : false);
+			var unknown_location = (typeof arr_settings.object_subs.unknown.location != 'undefined' ? arr_settings.object_subs.unknown.location : false);
 			unknown_location = (unknown_location == 'ignore' ? false : unknown_location);
 			if (unknown_location) {
 				location_geometry_unknown = '{"type": "Point", "coordinates": [0, 0]}';
@@ -114,37 +152,58 @@ function MapData(element, obj_parent, options) {
 			if (!arr_data.object_subs) {
 				arr_data.object_subs = {};
 			}
-			
-			if (unknown_date) { // Force date, if applicable, before looping through all sub-objects and connecting them based on their date
-				
-				for (var object_sub_id in arr_data.object_subs) {
-					
-					var arr_object_sub = arr_data.object_subs[object_sub_id];
-					
-					arr_data.objects[arr_object_sub.object_id].has_object_subs = true;
 
-					if (!arr_object_sub.date_start) {
+			for (const object_sub_id in arr_data.object_subs) {
+				
+				const arr_object_sub = arr_data.object_subs[object_sub_id];
+				
+				arr_data.objects[arr_object_sub.object_id].has_object_subs = true;
+				
+				if (typeof arr_object_sub.style === 'undefined') {
+					arr_object_sub.style = [];
+				}
+				
+				if (typeof arr_object_sub.style.weight !== 'undefined' && arr_object_sub.style.weight instanceof Array) {
+					arr_object_sub.style.weight = arr_object_sub.style.weight.reduce(function(acc, val) { return acc + val; }, 0);
+				}
+				
+				if (arr_object_sub.object_sub_definitions) {
+					
+					for (const object_sub_definition_id in arr_object_sub.object_sub_definitions) {
 						
-						arr_object_sub.date_start = obj_date_unknown.start;
-						arr_object_sub.date_end = obj_date_unknown.end;
-						
-						if (obj_date_unknown.start == obj_date_unknown.end) {
-							arr_data.date[obj_date_unknown.start].push(object_sub_id);
-						} else {
-							arr_data.range.push(object_sub_id);
+						const arr_object_sub_definition = arr_object_sub.object_sub_definitions[object_sub_definition_id];
+
+						if (typeof arr_object_sub_definition.style === 'undefined') {
+							arr_object_sub_definition.style = [];
 						}
+							
+						if (typeof arr_object_sub_definition.style.weight !== 'undefined' && arr_object_sub_definition.style.weight instanceof Array) {
+							arr_object_sub_definition.style.weight = arr_object_sub_definition.style.weight.reduce(function(acc, val) { return acc + val; }, 0);
+						}
+					}
+				}
+				
+				if (unknown_date && !arr_object_sub.date_start) { // Force date, if applicable, before looping through all sub-objects and connecting them based on their date
+					
+					arr_object_sub.date_start = obj_date_unknown.start;
+					arr_object_sub.date_end = obj_date_unknown.end;
+					
+					if (obj_date_unknown.start == obj_date_unknown.end) {
+						arr_data.date[obj_date_unknown.start].push(object_sub_id);
+					} else {
+						arr_data.range.push(object_sub_id);
 					}
 				}
 			}
 		
-			for (var object_id in arr_data.objects) {
+			for (const object_id in arr_data.objects) {
 				
-				var arr_object = arr_data.objects[object_id];
+				const arr_object = arr_data.objects[object_id];
 				
 				if (arr_object.name == undefined) {
 					continue;
 				}
-				
+								
 				if (unknown_date && !arr_object.has_object_subs) { // Make sure every object has a sub-object to make it 'exist' for relational purposes
 					
 					var object_sub_id = 'object_'+object_id;
@@ -175,107 +234,64 @@ function MapData(element, obj_parent, options) {
 					
 					arr_object.connect_object_sub_ids = Object.values(arr_object.connect_object_sub_ids); // Force array
 					
-					var len_i = arr_object.connect_object_sub_ids.length;
+					const len_i = arr_object.connect_object_sub_ids.length;
 
-					for (var i = 0; i < len_i; i++) {
+					for (let i = 0; i < len_i; i++) {
 						
-						var object_sub_id = arr_object.connect_object_sub_ids[i];
-						var arr_object_sub = arr_data.object_subs[object_sub_id];
+						const object_sub_id = arr_object.connect_object_sub_ids[i];
+						const arr_object_sub = arr_data.object_subs[object_sub_id];
 						
 						// Link sub-objects to the scope of their objects
 						if (!arr_object_sub.connected_object_ids) {
 							arr_object_sub.connected_object_ids = [];
 						}
 						arr_object_sub.connected_object_ids.push(object_id);
-						
-						// Ordering
-						if (!arr_object_sub.connect_object_sub_ids) {
-							arr_object_sub.connect_object_sub_ids = [];
-						}
-						
+
 						// Visual settings
-						var original_object_id = (arr_object_sub.original_object_id ? arr_object_sub.original_object_id : arr_object_sub.object_id);
+						const arr_object_sub_style = arr_object_sub.style;
+						const original_object_id = (arr_object_sub.original_object_id ? arr_object_sub.original_object_id : arr_object_sub.object_id);
 						if (original_object_id != object_id) { // Sub-object is part of a (possibly collapsed) scope, check their native object for the style
 							var arr_object_style = arr_data.objects[original_object_id].style;
 						} else {
 							var arr_object_style = arr_object.style;
 						}
-						if (arr_object_style.color && !arr_object_sub.style.color) {
-							arr_object_sub.style.color = arr_object_style.color;
+						if (arr_object_style.color && !arr_object_sub_style.color) {
+							arr_object_sub_style.color = arr_object_style.color;
 						}
-						if (arr_object_style.weight != null && arr_object_sub.style.weight == null) {
-							arr_object_sub.style.weight = arr_object_style.weight;
+						if (arr_object_style.weight != null && arr_object_sub_style.weight == null) {
+							arr_object_sub_style.weight = arr_object_style.weight;
 						}
-						if (arr_object_style.geometry_color && !arr_object_sub.style.geometry_color) {
-							arr_object_sub.style.geometry_color = arr_object_style.geometry_color;
+						if (arr_object_style.geometry_color && !arr_object_sub_style.geometry_color) {
+							arr_object_sub_style.geometry_color = arr_object_style.geometry_color;
 						}
-						if (arr_object_style.geometry_opacity != null && arr_object_sub.style.geometry_opacity == null) {
-							arr_object_sub.style.geometry_opacity = arr_object_style.geometry_opacity;
+						if (arr_object_style.geometry_opacity != null && arr_object_sub_style.geometry_opacity == null) {
+							arr_object_sub_style.geometry_opacity = arr_object_style.geometry_opacity;
 						}
-						if (arr_object_style.geometry_stroke_color && !arr_object_sub.style.geometry_stroke_color) {
-							arr_object_sub.style.geometry_stroke_color = arr_object_style.geometry_stroke_color;
+						if (arr_object_style.geometry_stroke_color && !arr_object_sub_style.geometry_stroke_color) {
+							arr_object_sub_style.geometry_stroke_color = arr_object_style.geometry_stroke_color;
 						}
-						if (arr_object_style.geometry_stroke_opacity != null && arr_object_sub.style.geometry_stroke_opacity == null) {
-							arr_object_sub.style.geometry_stroke_opacity = arr_object_style.geometry_stroke_opacity;
+						if (arr_object_style.geometry_stroke_opacity != null && arr_object_sub_style.geometry_stroke_opacity == null) {
+							arr_object_sub_style.geometry_stroke_opacity = arr_object_style.geometry_stroke_opacity;
 						}
-						if (arr_object_style.icon && !arr_object_sub.style.icon) {
-							arr_object_sub.style.icon = arr_object_style.icon;
+						if (arr_object_style.icon && !arr_object_sub_style.icon) {
+							arr_object_sub_style.icon = arr_object_style.icon;
+						}
+						if (arr_object_style.conditions) {
+							
+							for (const str_identifier_condition in arr_object_style.conditions) {
+								
+								if (typeof arr_object_sub_style.conditions == 'undefined') {
+									arr_object_sub_style.conditions = {};
+								}
+								
+								arr_object_sub_style.conditions[str_identifier_condition] = str_identifier_condition;
+							}
 						}
 
 						// Force location
 						if (arr_object_sub.location_geometry === '' && unknown_location) {
 							
 							arr_object_sub.location_geometry = location_geometry_unknown;
-						}
-						
-						var use_object_sub_details_id = false;
-						var arr_potential_object_sub_ids = [];
-						var date_potential = false;
-						
-						var total_j = arr_object.connect_object_sub_ids.length;
-						for (var j = 0; j < total_j; j++) {
-							
-							var connect_object_sub_id = arr_object.connect_object_sub_ids[j];
-							
-							if (connect_object_sub_id == object_sub_id) {
-								use_object_sub_details_id = true;
-								continue;
-							}
-												
-							var arr_connect_object_sub = arr_data.object_subs[connect_object_sub_id];
-							
-							// Check whether this sub-object is a potential candidate
-							if (arr_connect_object_sub.date_start == arr_object_sub.date_start) { // If the connection candidate shares the same date, it has to be a different kind of sub-object and the first in line after the current sub-object
-								
-								if (arr_connect_object_sub.object_sub_details_id != arr_object_sub.object_sub_details_id && (!use_object_sub_details_id || use_object_sub_details_id == arr_connect_object_sub.object_sub_details_id)) {
-									
-									use_object_sub_details_id = arr_connect_object_sub.object_sub_details_id;
-									arr_object_sub.connect_object_sub_ids.push(connect_object_sub_id);
-									arr_potential_object_sub_ids = [];
-								}
-							} else if (arr_connect_object_sub.date_start < arr_object_sub.date_start) { // The connection presents itself earlier in time, or could still be going on.
-								
-								if (arr_connect_object_sub.date_end >= arr_object_sub.date_end) { // The connection is still going on. Use!
-									
-									arr_object_sub.connect_object_sub_ids.push(connect_object_sub_id);
-									arr_potential_object_sub_ids = [];
-									date_potential = arr_object_sub.date_start; // Set the potential date to its own starting date to now check for possible overlapping connection
-									
-								} else if (!date_potential || arr_connect_object_sub.date_end >= date_potential) { // The connection presents itself earlier in time
-									
-									if (arr_connect_object_sub.date_end > date_potential) { // Beter potential date
-										arr_potential_object_sub_ids = [];
-									}
-
-									arr_potential_object_sub_ids.push(connect_object_sub_id);
-									date_potential = arr_connect_object_sub.date_end;
-								}
-							}
-						}
-						
-						var total_j = arr_potential_object_sub_ids.length;
-						for (var j = 0; j < total_j; j++) {
-							arr_object_sub.connect_object_sub_ids.push(arr_potential_object_sub_ids[j]);
 						}
 					}
 				}
@@ -290,14 +306,23 @@ function MapData(element, obj_parent, options) {
 			arr_data.identifier_parse = identifier_parse;
 		}
 		
-		obj_map.setDateRange((arr_data.date_range ? arr_data.date_range : false));
-
-		arr_data_parsed = arr_data;
+		PARENT.setDateRange((arr_data.date_range ? arr_data.date_range : false));
+	};
+	
+	this.updateData = function(identifier, func_update) {
+			
+		if (arr_data.update[identifier]) {
+			return;
+		}
+		
+		func_update(arr_data);
+		
+		arr_data.update[identifier] = true;
 	};
 				
-	var getData = function() {
+	this.getData = function() {
 	
-		return arr_data_parsed;
+		return arr_data;
 	};
 	
 	this.setDataState = function(str_target, str_identifier, state) {
@@ -307,20 +332,20 @@ function MapData(element, obj_parent, options) {
 			case 'condition':
 			
 				if (str_identifier == null) {
-					obj.arr_inactive_conditions = {};
+					SELF.arr_inactive_conditions = {};
 				} else {
-					obj.arr_inactive_conditions = updateStateInactive(obj.arr_inactive_conditions, str_identifier, state);
+					SELF.arr_inactive_conditions = updateStateInactive(SELF.arr_inactive_conditions, str_identifier, state);
 				}
 				
-				obj.arr_loop_inactive_conditions = Object.keys(obj.arr_inactive_conditions);
+				SELF.arr_loop_inactive_conditions = Object.keys(SELF.arr_inactive_conditions);
 
 				break;
 			case 'object-sub-details':
 				
 				if (str_identifier == null) {
-					obj.arr_inactive_object_sub_details = {};
+					SELF.arr_inactive_object_sub_details = {};
 				} else {
-					obj.arr_inactive_object_sub_details = updateStateInactive(obj.arr_inactive_object_sub_details, str_identifier, state);
+					SELF.arr_inactive_object_sub_details = updateStateInactive(SELF.arr_inactive_object_sub_details, str_identifier, state);
 				}
 				
 				break;
@@ -328,9 +353,9 @@ function MapData(element, obj_parent, options) {
 			default:
 			
 				if (str_identifier == null) {
-					obj.arr_inactive_types = {};
+					SELF.arr_inactive_types = {};
 				} else {
-					obj.arr_inactive_types = updateStateInactive(obj.arr_inactive_types, str_identifier, state);
+					SELF.arr_inactive_types = updateStateInactive(SELF.arr_inactive_types, str_identifier, state);
 				}
 				
 				break;
@@ -350,7 +375,9 @@ function MapData(element, obj_parent, options) {
 		
 		return arr_inactive;
 	};
-						
-	this.init();
+	
+	SELF.setSettings(arr_settings_options);
+	
+	SELF.init();
 };
 

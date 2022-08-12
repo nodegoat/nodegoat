@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -18,7 +18,7 @@ class api_configuration extends api {
 	
 	protected function contentsFormConfiguration() {
 		
-		$arr_projects = cms_nodegoat_custom_projects::getProjects();
+		$arr_projects = StoreCustomProject::getProjects();
 		$arr_api_configuration = cms_nodegoat_api::getConfiguration($this->arr_api['id']);
 						
 		$return = '<div class="tabs">
@@ -31,7 +31,7 @@ class api_configuration extends api {
 				<div class="fieldsets options"><div>
 					
 					<fieldset><legend>'.getLabel('lbl_projects').'</legend><ul>
-						<li>'.Labels::parseTextVariables(cms_general::createSelectorList(arrParseRecursive(arrValuesRecursive('project', $arr_projects), 'htmlspecialchars'), 'projects', array_keys((array)$arr_api_configuration['projects']))).'</li>
+						<li>'.Labels::parseTextVariables(cms_general::createSelectorList(arrParseRecursive(arrValuesRecursive('project', $arr_projects), 'strEscapeHTML'), 'projects', array_keys((array)$arr_api_configuration['projects']))).'</li>
 					</ul></fieldset>
 					
 				</div></div>
@@ -52,7 +52,7 @@ class api_configuration extends api {
 							
 							$arr_project = $arr_projects[$project_id];
 							
-							$arr_html_tabs['links'][] = '<li><a href="#">'.htmlspecialchars(Labels::parseTextVariables($arr_project['project']['name'])).'</a></li>';
+							$arr_html_tabs['links'][] = '<li><a href="#">'.strEscapeHTML(Labels::parseTextVariables($arr_project['project']['name'])).'</a></li>';
 							
 							$return_tab = '<div>
 								<div class="fieldsets options"><div>

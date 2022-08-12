@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -14,8 +14,8 @@ function MapNetworkMetrics(element, obj_parent) {
 	elm_parent = element[0],
 	elm_container = false,
 	arr_network_data = false,
-	cur_date_range = false,
-	full_date_range = false,
+	cur_dateinta_range = false,
+	dateinta_range_full = false,
 	arr_metrics = [],
 	worker = new Worker("../../js/MapNetworkMetricsWorker.js");
 	moving = false;
@@ -32,12 +32,12 @@ function MapNetworkMetrics(element, obj_parent) {
 	};	
 
 	var metric_functions = {
-				frequency: {name: 'Frequency'}, 
-				occurrences: {name: 'Occurrences'}, 
-				cooccurrences: {name: 'Cooccurrences'}, 
-				degree_centrality: {name: 'Degree Centrality'}, 
-				weighted_degree_centrality: {name: 'Weighted Degree Centrality'}
-		};
+		frequency: {name: 'Frequency'}, 
+		occurrences: {name: 'Occurrences'}, 
+		cooccurrences: {name: 'Cooccurrences'}, 
+		degree_centrality: {name: 'Degree Centrality'}, 
+		weighted_degree_centrality: {name: 'Weighted Degree Centrality'}
+	};
 
 	this.init = function() {
 		
@@ -75,18 +75,17 @@ function MapNetworkMetrics(element, obj_parent) {
 		elm_container.addEventListener('mouseleave', function() {
 			elm_list.setAttribute('class', 'hide');
 		});
-	}
+	};
 	
-	this.update = function(date_range) {
+	this.update = function(dateinta_range) {
 
 		worker.postMessage({
-			date_range: date_range,
+			dateinta_range: dateinta_range,
 			action: 'update'
 		});
 		
-		cur_date_range = date_range;
-	
-	}
+		cur_dateinta_range = dateinta_range;
+	};
 	
 	var getNodePosition = function(node) { 
 		  
@@ -108,7 +107,7 @@ function MapNetworkMetrics(element, obj_parent) {
 		}
 		 
 		return [left, top];
-	}
+	};
 
 	var setMetricBox = function(metric) {
 
@@ -118,7 +117,7 @@ function MapNetworkMetrics(element, obj_parent) {
 			
 			worker.postMessage({
 				arr_network_data: arr_network_data,
-				date_range: full_date_range,
+				dateinta_range: dateinta_range_full,
 				action: 'init'
 			});
 			
@@ -171,7 +170,7 @@ function MapNetworkMetrics(element, obj_parent) {
 			var cur_id = parent_container.getAttribute('data-id');
 			var cur_metric = arr_metrics[cur_id].metric;
 			worker.postMessage({
-				date_range: cur_date_range,
+				dateinta_range: cur_dateinta_range,
 				id: cur_id,
 				metric: cur_metric
 			});
@@ -244,7 +243,7 @@ function MapNetworkMetrics(element, obj_parent) {
 		
 		elm_box.addEventListener('mousedown', function(e) {
 			if (this.resize) {
-				console.log('ja');
+				
 			}
 		});
 		
@@ -261,11 +260,11 @@ function MapNetworkMetrics(element, obj_parent) {
 		elm_parent.appendChild(elm_box);
 				
 		worker.postMessage({
-			date_range: cur_date_range,
+			dateinta_range: cur_dateinta_range,
 			id: id,
 			metric: metric
 		});
-	}
+	};
 	
 	var statusWorker = function(id, progress) {
 
@@ -398,10 +397,10 @@ function MapNetworkMetrics(element, obj_parent) {
 			arr_network_data.object_subs[object_sub_id] = {id: object_sub_id, date_start: arr_data_object_sub.date_start, date_end: arr_data_object_sub.date_end, object_id: arr_data_object_sub.object_id, child_links: arr_data_object_sub.child_links, child_nodes: arr_data_object_sub.child_nodes};
 		}
 		
-		full_date_range = arr_data.date_range;
+		var dateinta_range = {min: DATEPARSER.dateInt2Absolute(arr_data.date_range.min), max: DATEPARSER.dateInt2Absolute(arr_data.date_range.max)};
 		
+		dateinta_range_full = dateinta_range;
 	};
 	
 	this.init();
-
 };

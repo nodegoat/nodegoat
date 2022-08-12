@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -35,99 +35,134 @@ $(document).on('documentloaded ajaxloaded', function(e) {
 	}
 });
 
-function Marginalia(elm, arr_options) {
+function TextTags(elm, arr_options) {
 	
 	var SELf = this;
-		
+	
 	var elm = $(elm);
 	
-	if (elm[0].marginalia) {
+	if (elm[0].text_tags) {
 		return;
 	}
-	elm[0].marginalia = this;
+	elm[0].text_tags = this;
 	
-	var height_max =  0;
+	var arr_options = $.extend({
+		command_hover: ''
+	}, arr_options || {});
 	
-	var elm_marginalia = elm.next('div');
-	var elm_marginalia_width = elm_marginalia.width();
+	if (elm[0].matches('.body')) {
+		var elm_text = elm;
+	} else {
+		var elm_text = elm.find('.body');
+	}
 	
-	var elms_tag = elm[0].querySelectorAll('.tag');
+	if (!elm_text[0]) { // No tags
+		return false;
+	}
 	
-	for (var i = 0, len = elms_tag.length; i < len; i++) {
+	var elm_toolbox = getContainerToolbox(elm);	
+	var selector = '.tag, .marginalia p';
+	var elm_hover_active = false;
+	
+	var elm_tag_references = elm.find('.text-references');
+	
+	var elm_marginalia = elm.find('.marginalia');
+	var has_marginalia = (elm_marginalia[0] ? true : false);
+	
+	var elm_hover_box = $('<div id="'+arr_options.command_hover+'" class="hover hide"></div>');
+	var arr_hover_cache = [];
+		
+	var func_create_marginalia = function() {
+		
+		var arr_size = getElementContentSize(elm_marginalia);
+		
+		var height_marginalia = 0;	
+		var width_marginalia = arr_size.width;
+		var elms_tag = elm_text[0].querySelectorAll('.tag');
+		
+		for (var i = 0, len = elms_tag.length; i < len; i++) {
 
-		var elm_tag = $(elms_tag[i]);
-		var pos_tag_top = elm_tag.position().top;
-		var arr_type_object_group_ids = elm_tag.attr('data-ids').split('|');
-
-		for (var j in arr_type_object_group_ids) {
+			var elm_tag = elms_tag[i];
+			var pos_top_tag = elm_tag.offsetTop;
+			var arr_type_object_group_ids = elm_tag.dataset.ids.split('|');
 			
-			if (elm_marginalia.find('p.'+arr_type_object_group_ids[j]).length < 1) {
+			for (var j = 0, len_j = arr_type_object_group_ids.length; j < len_j; j++) {
+				
+				if (elm_marginalia.find('p.'+arr_type_object_group_ids[j]).length >= 1) { // Only add multi-tagged object once
+					continue;
+				}
 
 				var arr_type_object_group_id = arr_type_object_group_ids[j].split('_');
-				var object_link = elm_tag.closest('.tabs').find('.text-references [class^='+arr_type_object_group_id[0]+'_'+arr_type_object_group_id[1]+']').clone();
+				var elm_object_reference_source = elm_tag_references.find('[class^='+arr_type_object_group_id[0]+'_'+arr_type_object_group_id[1]+']');
+				var elm_object_reference = elm_object_reference_source.clone();
 
-				if (object_link.text()) {
-					var object_link_width = object_link.appendTo(elm_marginalia).outerWidth();
-					object_link.addClass('hide');
+				if (elm_object_reference.text()) {
 					
-					if (elm_marginalia.find('p:visible').length) {
+					elm_object_reference_source.find('input[name]').remove(); // Remove possible duplicate inputs
+					
+					elm_object_reference.appendTo(elm_marginalia);
+					var width_object_reference = elm_object_reference[0].offsetWidth;
+					elm_object_reference.addClass('hide');
+					
+					var elms_object_reference = elm_marginalia.find('p:visible');
+					
+					if (elms_object_reference.length) {
+												
+						var elm_prev = elms_object_reference.last();
+						var pos_top_prev = elm_prev[0].offsetTop;
+						var height_prev = elm_prev[0].offsetHeight;
 						
-						var prev_elm = elm_marginalia.find('p:visible').last();
-						var pos_prev_elm = {
-							top: prev_elm.position().top,
-							left: prev_elm.position().left,
-							height: prev_elm.height(),
-							outerwidth: prev_elm.outerWidth()
-						};
-						var top = pos_prev_elm.top + pos_prev_elm.height;
+						var pos_top = pos_top_prev + height_prev;
 						
-						if (pos_prev_elm.top >= pos_tag_top) {
+						if (pos_top_prev >= pos_top_tag) {
 							
-							if (((object_link_width + pos_prev_elm.outerwidth) < elm_marginalia_width) && ((pos_prev_elm.left + pos_prev_elm.outerwidth + object_link_width) < elm_marginalia_width)) {
-								pos_tag_top = pos_prev_elm.top;
-								var left = pos_prev_elm.left + pos_prev_elm.outerwidth;
-								var separator = $('<p>,</p>').insertAfter(prev_elm).css({'top': pos_tag_top, 'left' : left});
-								object_link.css('left', left + separator.outerWidth() + 3);
+							var pos_left_prev = elm_prev[0].offsetLeft;
+							var width_prev = elm_prev[0].offsetWidth;
+							
+							if (((width_object_reference + width_prev) < width_marginalia) && ((pos_left_prev + width_prev + width_object_reference) < width_marginalia)) {
+
+								var pos_left = pos_left_prev + width_prev;
+								var elm_separator = $('<p>,</p>').insertAfter(elm_prev).css({top: pos_top_tag, left: pos_left});
+								elm_object_reference.css('left', pos_left + elm_separator[0].offsetWidth + 3);
+								
+								pos_top_tag = pos_top_prev;
 							} else {
-								pos_tag_top = top;
+								
+								pos_top_tag = pos_top;
 							}
+						} else if (pos_top > pos_top_tag) {
 							
-						} else if (top > pos_tag_top) {
-							pos_tag_top = top;
+							pos_top_tag = pos_top;
 						}
 					}
 					
-					if (pos_tag_top > height_max) {
-						height_max = pos_tag_top;
+					if (pos_top_tag > height_marginalia) {
+						height_marginalia = pos_top_tag;
 					}
 					
-					object_link.css('top', pos_tag_top).removeClass('hide').attr('class', arr_type_object_group_ids[j]);
+					elm_object_reference.css('top', pos_top_tag).removeClass('hide').attr('class', arr_type_object_group_ids[j]);
 				} else {
 					
-					elm_tag.attr('title', 'Referenced object does not exist');
+					elm_tag.setAttribute('title', 'Referenced object does not exist');
 				}
 			}
 		}
+				
+		var arr_size = getElementContentSize(elm_text);
+		
+		if (arr_size.height < height_marginalia) {
+			elm_text[0].style.minHeight = height_marginalia+'px';
+		}
 	};
-	
-	if (elm.height() < height_max) {
-		
-		elm.parent().children('p').css('margin-top', (height_max - elm.height())+'px');
-	}
-}
 
-(function($) {
-	$.fn.addHover = function(options) {
+	var func_create_hover = function() {
 		
-		var options = $.extend({
-			hover_action: false
-		}, options);
+		if (!arr_options.command_hover || POSITION.isTouch()) {
+			return;
+		}
 		
-		var elm = $(this),
-		ids = elm.attr('data-ids'),
-		ids_class = ids.replace(/\D/g,''),
-		elm_toolbox = getContainerToolbox(elm),
-		pos = elm[0].getBoundingClientRect();
+		var ids = elm_hover_active.dataset.ids,
+		pos = elm_hover_active.getBoundingClientRect();
 		pos_mod = elm_toolbox[0].getBoundingClientRect();
 
 		if (pos_mod.left == 0) {
@@ -136,126 +171,231 @@ function Marginalia(elm, arr_options) {
 			pos_mod.left = 150;
 		}
 		
-		if (!elm_toolbox.find('.hover.'+ids_class).length) {
+		FEEDBACK.stop(elm_hover_box);
+				
+		elm_hover_box.appendTo(elm_toolbox)
+			.removeClass('hide')
+			.css({top : pos.top - pos_mod.top - elm_hover_box[0].offsetHeight - 5, left: pos.left - pos_mod.left + (pos.width/2) - (elm_hover_box[0].offsetWidth/2)});
+		
+		if (arr_hover_cache[ids]) {
 			
-			var elm_hover = $('<div></div>').addClass('hover hide '+ids_class).attr('id', options.hover_action+ids);
+			elm_hover_box.html(arr_hover_cache[ids]);
+		} else {
+		
+			elm_hover_box.html('');
 			
-			elm_hover.appendTo(elm_toolbox)
-				.removeClass('hide')
-				.css({top : pos.top - pos_mod.top - elm_hover[0].offsetHeight - 5, left: pos.left - pos_mod.left + (pos.width/2) - (elm_hover[0].offsetWidth/2)})
-				.delay(230).queue(function() {
-					elm_hover.quickCommand(function(html) {
-						elm_hover.html(html);
-						if (elm_hover.find('.image-header').length) {
-							elm_hover.addClass('image').css('top', pos.top - pos_mod.top - elm_hover[0].offsetHeight - 5);
-						}
-					}).data('completed', true);
-				});
+			COMMANDS.setID(elm_hover_box, ids);
+			COMMANDS.quickCommand(elm_hover_box, function(html) {
+				
+				arr_hover_cache[ids] = html;
+				elm_hover_box.html(html);
+
+				if (elm_hover_box.find('.image-header').length) {
+					elm_hover_box.addClass('image').css('top', pos.top - pos_mod.top - elm_hover_box[0].offsetHeight - 5);
+				}
+			});
+		}
+	};
+
+	var func_create = function() {
+		
+		if (elm_hover_active.matches('.tag')) {
 			
-			elm_hover.on('mouseenter', function() {
-				elm_hover.clearQueue();
-			}).on('mouseleave', function() {
-				elm_hover.addClass('hide');
-			})
+			const arr_type_object_group_ids = elm_hover_active.dataset.ids.split('|');
+		
+			for (let i = 0, len = arr_type_object_group_ids.length; i < len; i++) {
+				
+				const str_type_object_identifier = arr_type_object_group_ids[i];
+		
+				elm_text.find('span.a[id*='+str_type_object_identifier+']').addClass('tag-active');
+				if (has_marginalia) {
+					elm_marginalia.find('p.'+str_type_object_identifier).addClass('tag-active');
+				}
+			}
 			
+			func_create_hover();
 		} else {
 			
-			var elm_hover = elm_toolbox.find('.hover.'+ids_class);
+			const str_class = elm_hover_active.getAttribute('class');
 			
-			if (!elm_hover.data('completed')) {
-				elm_hover.quickCommand(function(html) {
-					elm_hover.html(html);
-					if (elm_hover.find('.image-header').length) {
-						elm_hover.addClass('image').css('top', pos.top - pos_mod.top - elm_hover[0].offsetHeight - 5);
-					}
-				}).data('completed', true);
+			elm_text.find('span.a[id*='+str_class+']').addClass('tag-active');
+			if (has_marginalia) {
+				elm_marginalia.find('p.'+str_class).addClass('tag-active');
 			}
-			elm_hover
-				.removeClass('hide')
-				.css({top : pos.top - pos_mod.top - elm_hover[0].offsetHeight - 5, left: pos.left - pos_mod.left + (pos.width/2) - (elm_hover[0].offsetWidth/2)});
+		}
+	}
+	
+	var func_clear = function() {
+		
+		if (elm_hover_active) {
+						
+			elm_text.find('.tag-active').removeClass('tag-active');
+			if (has_marginalia) {
+				elm_marginalia.find('.tag-active').removeClass('tag-active');
+			}
+			
+			if (arr_options.command_hover) {
+				elm_hover_box.addClass('hide');
+				FEEDBACK.stop(elm_hover_box);
+			}
 		}
 		
-		elm.on('mouseleave', function() {
-			elm_hover.clearQueue().delay(300).queue(function(){
-				elm_hover.addClass('hide');
-			});	
-		});
+		elm_hover_active = false;
+	};
+
+	var func_over = function(e) {
 		
+		if (POSITION.isTouch() && e.type == 'mouseover') { // Prevent touch and triggered mouse events mixup
+			return;
+		}
+				
+		var elm_hover = getElementClosestSelector(e.target, selector);
+		
+		if ((!elm_hover && !elm_hover_active) || (elm_hover && elm_hover_active === elm_hover)) {
+			return;
+		}
+		
+		func_clear();
+		
+		if (elm_hover) {
+				
+			elm_hover_active = elm_hover;
+			
+			func_create();
+			
+			elm_text[0].addEventListener('touchend', func_end, true);
+			elm_text[0].addEventListener('mouseout', func_end, true);
+			if (has_marginalia) {
+				elm_marginalia[0].addEventListener('touchend', func_end, true);
+				elm_marginalia[0].addEventListener('mouseout', func_end, true);
+			}
+		}
+	};
+	
+	var func_end = function(e) {
+				
+		func_clear();
+		
+		elm_text[0].removeEventListener('touchend', func_end, true);
+		elm_text[0].removeEventListener('mouseout', func_end, true);
+		if (has_marginalia) {
+			elm_marginalia[0].removeEventListener('touchend', func_end, true);
+			elm_marginalia[0].removeEventListener('mouseout', func_end, true);
+		}
+	};
+	
+	if (has_marginalia) {
+
+		func_create_marginalia();
 	}
-})(jQuery);
+	
+	elm_text[0].addEventListener('mouseover', func_over, true);
+	elm_text[0].addEventListener('touchstart', func_over, true);
+	if (has_marginalia) {
+		elm_marginalia[0].addEventListener('mouseover', func_over, true);
+		elm_marginalia[0].addEventListener('touchstart', func_over, true);
+	}
+}
 
 function DateParser() {
 	
 	var SELF = this;
 	
 	this.time_day = 24*60*60*1000; // hours*minutes*seconds*milliseconds
+	this.calc_day = this.time_day / 1000; // Milliseconds to seconds
 
-	var int_date_positive = 10000000000000000000;
+	var int_date_positive = Math.floor(Number.MAX_SAFE_INTEGER / 2);
+	var int_date_calendar_range = 100000000;
+	var int_date_year_positive = Math.floor(int_date_positive / int_date_calendar_range);
 		
-	this.date2Calc = function(date) {
+	this.date2Calculate = function(date) {
 				
-		var int = date.getTime();
+		var int = date.getTime() / 1000; // Milliseconds to seconds
 		
 		int = int + int_date_positive;
-					
+		
 		return int;
 	};
-
+	
+	this.calc2DateTime = function(int) {
+		
+		var int = (int - int_date_positive) * 1000; // *1000, seconds to milliseconds
+		
+		return int;
+	};
+	
 	this.calc2Date = function(int) {
 		
-		var int = int - int_date_positive;
+		var int = (int - int_date_positive) * 1000; // *1000, seconds to milliseconds
 		
 		var date = new Date(int);
 		
 		return date;
 	};
 
-	this.date2Int = function(date) {
+	this.date2Integer = function(date) {
 		
 		var month = (date.getMonth()+1);
 		var day = date.getDate();
-		var sequence = '0000';
+		var sequence = (((date.getHours() * 3600) + (date.getMinutes() * 60)) + date.getSeconds()) - 1; // Minutes the one added minimum minute
+		sequence = (sequence > 9999 ? '9999' : sequence.toString().padStart(4, '0'));
 
 		return parseInt(date.getFullYear()+(month < 10 ? '0' : '')+month+(day < 10 ? '0' : '')+day+sequence);
 	};
 	
 	this.int2Date = function(date) {
 		
-		var arr_date = SELF.int2Components(date);
+		var arr_date = SELF.dateInt2Components(date);
 		
 		return SELF.newDate(arr_date.y, arr_date.m, arr_date.d, arr_date.s);
 	};
 	
-	this.int2Components = function(date) {
+	this.dateInt2Components = function(date) {
 
 		var str_date = date.toString();
 		var arr_date = {y: parseInt(str_date.slice(0, -8)), m: parseInt(str_date.slice(-8, -6))-1, d: parseInt(str_date.slice(-6, -4)), s: parseInt(str_date.slice(-4))};
 		
 		return arr_date;
 	};
-	this.int2ComponentYear = function(date) {
+	this.dateInt2ComponentYear = function(date) {
 
 		var str_date = date.toString();
 
 		return parseInt(str_date.slice(0, -8));
 	};
-	this.int2ComponentMonth = function(date) {
+	this.dateInt2ComponentMonth = function(date) {
 
 		var str_date = date.toString();
 
 		return parseInt(str_date.slice(-8, -6))-1;
 	};
-	this.int2ComponentDay = function(date) {
+	this.dateInt2ComponentDay = function(date) {
 
 		var str_date = date.toString();
 
 		return parseInt(str_date.slice(-6, -4));
 	};
-	this.int2ComponentSequence = function(date) {
+	this.dateInt2ComponentSequence = function(date) {
 
 		var str_date = date.toString();
 
 		return parseInt(str_date.slice(-4));
+	};
+	this.dateInt2Absolute = function(dateint) {
+
+		var num_date = (Math.abs(dateint) % int_date_calendar_range);
+		var num_year = ((Math.abs(dateint) - num_date) / int_date_calendar_range) * Math.sign(dateint);
+		var dateinta = ((num_year + int_date_year_positive) * int_date_calendar_range) + num_date;
+		
+		return dateinta;
+	};
+	this.dateIntAbsolute2DateInt = function(dateinta) {
+
+		var num_date = (dateinta % int_date_calendar_range);
+		var num_year = ((dateinta - num_date) / int_date_calendar_range) - int_date_year_positive;
+		var dateint = ((Math.abs(num_year) * int_date_calendar_range) + num_date) * Math.sign(num_year);
+				
+		return dateint;
 	};
 
 	this.date2StrDate = function(date, show_ce) {
@@ -276,7 +416,7 @@ function DateParser() {
 	this.strDate2Int = function(str_date) {
 		
 		var str_date = str_date;
-		var sequence = '0000';
+		var sequence = '5000';
 		
 		if (str_date.indexOf(' ') !== -1) {
 			str_date = str_date.split(' ');
@@ -306,7 +446,7 @@ function DateParser() {
 
 		if (y >= 0 && y < 100) {
 			
-			var date = new Date(y + 100, m, d, 1);
+			var date = new Date(y + 100, m, d, 0, 0, (s ? s : 0) + 1);
 			date.setFullYear(date.getFullYear() - 100);
 		} else {
 			
@@ -317,7 +457,7 @@ function DateParser() {
 				var y = 271820;
 			}
 			
-			var date = new Date(y, m, d, 1); // Also set the hour 1 to prevent possible hopping between years when the date is 01-01 or 31-12
+			var date = new Date(y, m, d, 0, 0, (s ? s : 0) + 1); // Also set a minimum second to prevent possible hopping between years when the date is 01-01 or 31-12
 		}
 		
 		return date;
@@ -389,21 +529,21 @@ function TSchuifje(elm, options) {
 		}
 	);
 	
-	var width_elm_handler = elm_handler_left.width();
+	var width_elm_handler = elm_handler_left[0].offsetWidth;
 	var margin_elm_handler_label = parseInt(elm_handler_left_label.css('padding-left')) / 2;
-	var width_elm_day = elm_day.width();
-	var width_elm_day_label = elm_day_label.outerWidth();
+	var width_elm_day = elm_day[0].offsetWidth;
+	var width_elm_day_label = elm_day_label[0].offsetWidth;
 	var offset_elm_day_label = (width_elm_day_label - width_elm_day)/2;
 	elm_day.addClass('hide');
 	
-	var width = elm_bar.width();
+	var width = elm_bar[0].offsetWidth;
 	var calc_bounds = {min: false, max: false};
 	var cur_calc_bounds = {min: false, max: false};
 	var calc_min = false;
 	var calc_max = false;
 	var calc_time = false;
-	var calc_one_width = false;
 	var calc_one_perc = false;
+	var calc_one_width = false;
 	var calc_one_value = false;
 	
 	var play_mode = 'size';
@@ -421,12 +561,12 @@ function TSchuifje(elm, options) {
 		if (arr_update.bounds) {
 			arr_settings.bounds.min = arr_update.bounds.min;
 			arr_settings.bounds.max = arr_update.bounds.max;
-			calc_bounds.min = DATEPARSER.date2Calc(arr_settings.bounds.min);
-			calc_bounds.max = DATEPARSER.date2Calc(arr_settings.bounds.max);
-			calc_one_width = width / (calc_bounds.max - calc_bounds.min);
+			calc_bounds.min = DATEPARSER.date2Calculate(arr_settings.bounds.min);
+			calc_bounds.max = DATEPARSER.date2Calculate(arr_settings.bounds.max);
 			calc_one_perc = (calc_bounds.max - calc_bounds.min) / 100;
+			calc_one_width = width / (calc_bounds.max - calc_bounds.min);
 			calc_one_value = (calc_bounds.max - calc_bounds.min) / width;
-			var days = ((calc_bounds.max - calc_bounds.min) / 86400) / 1000;
+			var days = (calc_bounds.max - calc_bounds.min) / DATEPARSER.calc_day;
 			if (days > (365 * 10)) {
 				elm_speed_unit.val('year');
 			} else if (days > (365 * 2)) {
@@ -441,7 +581,7 @@ function TSchuifje(elm, options) {
 		}
 		if (arr_update.target) {
 			if (arr_update.target.min) {
-				var calc_target_min = DATEPARSER.date2Calc(arr_update.target.min);
+				var calc_target_min = DATEPARSER.date2Calculate(arr_update.target.min);
 				if (calc_target_min > calc_bounds.min && calc_target_min < calc_bounds.max) {
 					cur_calc_bounds.min = calc_bounds.min;
 					calc_bounds.min = calc_target_min;
@@ -449,7 +589,7 @@ function TSchuifje(elm, options) {
 				}
 			}
 			if (arr_update.target.max) {
-				var calc_target_max = DATEPARSER.date2Calc(arr_update.target.max);
+				var calc_target_max = DATEPARSER.date2Calculate(arr_update.target.max);
 				if (calc_target_max < calc_bounds.max && calc_target_max > calc_bounds.min) {
 					cur_calc_bounds.max = calc_bounds.max;
 					calc_bounds.max = calc_target_max;
@@ -466,12 +606,12 @@ function TSchuifje(elm, options) {
 	
 		if (arr_update.min) {
 			arr_settings.min = arr_update.min;
-			calc_min = DATEPARSER.date2Calc(arr_settings.min);
+			calc_min = DATEPARSER.date2Calculate(arr_settings.min);
 			changed = true;
 		}
 		if (arr_update.max) {
 			arr_settings.max = arr_update.max;
-			calc_max = DATEPARSER.date2Calc(arr_settings.max);
+			calc_max = DATEPARSER.date2Calculate(arr_settings.max);
 			changed = true;
 		}
 		
@@ -505,7 +645,7 @@ function TSchuifje(elm, options) {
 					date_new.setFullYear(value + arr_update.move.year);
 				}
 				
-				var calc_new = DATEPARSER.date2Calc(date_new);
+				var calc_new = DATEPARSER.date2Calculate(date_new);
 				var calc_difference = calc_new - calc_max;
 			}
 			
@@ -546,7 +686,7 @@ function TSchuifje(elm, options) {
 					date_new.setFullYear(value + arr_update.size.year);
 				}
 				
-				var calc_new = DATEPARSER.date2Calc(date_new);
+				var calc_new = DATEPARSER.date2Calculate(date_new);
 			}
 	
 			if (amount > 0 || mode == 'set') {
@@ -594,9 +734,9 @@ function TSchuifje(elm, options) {
 				
 				if (playing && !paused) {
 										
-					calc_time = calc_time + ((arr_update.time / 1000) * (dating_speed * DATEPARSER.time_day));
+					calc_time = calc_time + ((arr_update.time / 1000) * (dating_speed * DATEPARSER.calc_day));
 	
-					if (calc_time < calc_min || calc_time > (calc_max + DATEPARSER.time_day)) {
+					if (calc_time < calc_min || calc_time > (calc_max + DATEPARSER.calc_day)) {
 						calc_time = calc_min;
 					}
 					
@@ -608,7 +748,7 @@ function TSchuifje(elm, options) {
 		if (arr_update.dating !== undefined) {
 			
 			if (arr_update.dating.unit && arr_update.dating.unit == 'second') {
-				var days = Math.round((calc_max - calc_min) / DATEPARSER.time_day);
+				var days = Math.round((calc_max - calc_min) / DATEPARSER.calc_day);
 				arr_update.dating.amount = days / arr_update.dating.amount;
 				arr_update.dating.unit = 'day';
 			}
@@ -683,6 +823,16 @@ function TSchuifje(elm, options) {
 		
 		return arr_settings;
 	};
+	
+	var func_update_size_bar = function() {
+		
+		width = elm_bar[0].offsetWidth;
+		
+		calc_one_width = width / (calc_bounds.max - calc_bounds.min);
+		calc_one_value = (calc_bounds.max - calc_bounds.min) / width;
+		
+		func_draw();
+	};
 
 	var func_change = function() {
 		
@@ -712,7 +862,7 @@ function TSchuifje(elm, options) {
 		
 		if (play_mode == 'time') {
 			
-			arr_settings.time = calc_time - int_date_positive;
+			arr_settings.time = DATEPARSER.calc2DateTime(calc_time);
 			elm_day_label.text(DATEPARSER.date2StrDate(new Date(arr_settings.time), arr_settings.dating.show_ce));
 		}
 	};
@@ -921,9 +1071,25 @@ function TSchuifje(elm, options) {
 	
 	elm_bar_inner.on('mousedown touchstart', function(e) {
 		
-		e.preventDefault();
-							
-		var pos_mouse_xy = {x: (e.pageX != undefined ? e.pageX : e.originalEvent.touches[0].pageX), y: (e.pageY != undefined ? e.pageY : e.originalEvent.touches[0].pageY)};
+		var func_prevent_drag = false;
+		
+		if (POSITION.isTouch()) {
+		
+			if (e.type == 'mousedown') {
+				return;
+			}
+			
+			func_prevent_drag = function(e2) {
+				
+				e2.preventDefault(); // Prevent document drag
+			};
+			
+			document.addEventListener('touchmove', func_prevent_drag, {passive: false});
+		} else {
+			e.preventDefault(); // Prevent document drag
+		}
+		
+		var pos_mouse_xy = POSITION.getMouseXY(e.originalEvent);
 		if (e.target == elm_bar_inner[0]) {
 			var movement = 'move';
 		} else if (e.target == elm_day[0]) {
@@ -945,9 +1111,7 @@ function TSchuifje(elm, options) {
 	
 		$(document).on('mousemove.tschuifje touchmove.tschuifje', function(e2) {
 			
-			e2.preventDefault();
-			
-			var cur_pos_mouse_xy = {x: (e2.pageX != undefined ? e2.pageX : e2.originalEvent.touches[0].pageX), y: (e2.pageY != undefined ? e2.pageY : e2.originalEvent.touches[0].pageY)};
+			var cur_pos_mouse_xy = POSITION.getMouseXY(e2);
 			var calc_difference = calc_one_value * (cur_pos_mouse_xy.x - pos_mouse_xy.x);
 			
 			if (movement != 'time' && !has_moved && (cur_pos_mouse_xy.x != pos_mouse_xy.x || cur_pos_mouse_xy.y != pos_mouse_xy.y)) { // Check for real movement because of chrome 'always trigger move'-bug
@@ -986,7 +1150,10 @@ function TSchuifje(elm, options) {
 			if (movement == 'time') {
 				paused = cur_paused;
 			}
-	
+			
+			if (POSITION.isTouch()) {
+				document.removeEventListener('touchmove', func_prevent_drag, {passive: false});
+			}
 			$(document).off('mousemove.tschuifje touchmove.tschuifje mouseup.tschuifje touchend.tschuifje');
 		});
 	});
@@ -1062,6 +1229,11 @@ function TSchuifje(elm, options) {
 	});
 	elm_speed_reverse.on('change', function(e) {
 		obj.update({player: {reverse: elm_speed_reverse.is(':checked')}});
+	});
+	
+	new ResizeSensor(elm, function() {
+		
+		func_update_size_bar();
 	});
 }
 
@@ -1547,7 +1719,7 @@ function UISelection() {
 	
 	var func_check_height = function() {
 		
-		obj.elm_module.css('min-height', '100vh');
+		//obj.elm_module.css('min-height', '100vh');
 		obj.elm_list_container.css('min-height', '');
 		
 		var elm_selection_height = parseInt(obj.elm_list_container.height());
@@ -1892,7 +2064,7 @@ function UISelection() {
 								if (style) {
 								
 									if (style['color']) {
-										var arr_color = parseCssColor(style['color']);
+										var arr_color = parseCSSColor(style['color']);
 										var hex = '#'+(0x1000000 + (arr_color.r << 16) + (arr_color.g << 8) + arr_color.b).toString(16).slice(1);
 										content_data['color'] = hex;
 									}
@@ -2112,7 +2284,691 @@ function DeviceLocation(options) {
 	}
 	
 	var location_poller = navigator.geolocation.watchPosition(success, error, options);
-
 }
 
+function ElementPositionWorker() {
+		
+	var func_worker = function() {
+		
+		var simulate = false;
+		var arr_nodes = [];
+		var arr_links = [];
+		
+		let num_threshold_stop = 0.01;
+		let num_threshold_update = 0; // e.g. 0.55
+		
+		var func_init_labels = function() {
+			
+			for (let i = 0, len = arr_nodes.length; i < len; i += 2) {
+				
+				const arr_node_test = arr_nodes[i+1];
+				
+				arr_node_test.fx = undefined;
+				arr_node_test.fy = undefined;
+				
+				if (!arr_node_test.move) {
+					continue;
+				}
+				
+				const num_width_test = (arr_node_test.width / 2);
+				const num_height_test = (arr_node_test.height / 2);
+				
+				for (let j = 0; j < len; j += 2) {
+					
+					if (i == j) {
+						continue;
+					}
+					
+					const arr_node_2 = arr_nodes[j+1];
+					const num_width_2 = (arr_node_2.width / 2);
+					const num_height_2 = (arr_node_2.height / 2);
+					
+					if (arr_node_test.x + num_width_test < arr_node_2.x - num_width_2 || arr_node_test.x - num_width_test > arr_node_2.x + num_width_2 || arr_node_test.y + num_height_test < arr_node_2.y - num_height_2 || arr_node_test.y - num_height_test > arr_node_2.y + num_height_2) {
+						
+						const arr_node_3 = arr_nodes[j];
+						const num_width_3 = (arr_node_3.width / 2);
+						const num_height_3 = (arr_node_3.height / 2);
+						
+						if (arr_node_test.x + num_width_test < arr_node_3.x - num_width_3 || arr_node_test.x - num_width_test > arr_node_3.x + num_width_3 || arr_node_test.y + num_height_test < arr_node_3.y - num_height_3 || arr_node_test.y - num_height_test > arr_node_3.y + num_height_3) {
+						
+							continue;
+						}
+					}
+					
+					arr_node_test.fx = null
+					arr_node_test.fy = null;
+											
+					arr_links.push({
+						source: arr_nodes[i],
+						target: arr_node_test,
+						weight: ((arr_nodes[i].height / 2) + num_height_test) // Use as distance 
+					});
+					
+					break;
+				}
+			}
+			
+			// Update movable state
+			
+			for (let i = 0, len = arr_nodes.length; i < len; i++) {
+				
+				const arr_node = arr_nodes[i];
 
+				if (arr_node.fx === undefined) {
+					
+					arr_node.move = false;
+					arr_node.fx = arr_node.x;
+					arr_node.fy = arr_node.y;
+					
+					continue;
+				}
+				
+				if (arr_node.move) {
+				
+					// Update movable labels to make sure there is momentum
+					arr_node.x += 1;
+					arr_node.y += 1;
+				}
+			}
+		};
+		
+		var func_init_nodes = function() {
+			
+			// Update movable state
+			
+			for (let i = 0, len = arr_nodes.length; i < len; i++) {
+				
+				const arr_node = arr_nodes[i];
+
+				if (!arr_node.move) {
+					
+					arr_node.fx = arr_node.x;
+					arr_node.fy = arr_node.y;
+				} else {
+					
+					arr_node.fx = null;
+					arr_node.fy = null;
+				}
+			}
+		}
+		
+		function init(arr_settings, arr_nodes_init, arr_links_init, mode) {
+			
+			num_threshold_stop = (arr_settings.threshold_stop ? arr_settings.threshold_stop : num_threshold_stop);
+			num_threshold_update = (arr_settings.threshold_update ? arr_settings.threshold_update : 0);
+			
+			// Prepare
+			
+			arr_nodes = arr_nodes_init;
+			arr_links = (arr_links_init ? arr_links_init : []);
+			
+			if (mode == 'label') {
+				func_init_labels();
+			} else {
+				func_init_nodes();
+			}
+			
+			// Initiate forces
+						
+			function forceCollide() {
+				
+				let nodes;
+				
+				function force(alpha) {
+					
+					const quad = d3.quadtree(nodes, function (d) {
+						return d.x;
+					}, function (d) {
+						return d.y;
+					});
+					
+					for (let i = 0, len = nodes.length; i < len; i++) {
+						
+						const d = nodes[i];
+						
+						if (!d.move) {
+							continue;
+						}
+					
+						quad.visit(function(q, x1, y1, x2, y2) {
+							
+							let is_updated = false;
+							
+							if (q.data && q.data !== d) {
+								
+								let x = d.x - q.data.x;
+								let y = d.y - q.data.y;
+								const num_spacing_x = arr_settings.padding + (q.data.width + d.width) / 2;
+								const num_spacing_y = arr_settings.padding + (q.data.height + d.height) / 2;
+								const num_abs_x = Math.abs(x);
+								const num_abs_y = Math.abs(y);
+								
+								let l;
+								let lx;
+								let ly;
+					
+								if (num_abs_x < num_spacing_x && num_abs_y < num_spacing_y) {
+									
+									l = Math.sqrt(x * x + y * y);
+					
+									lx = (num_abs_x - num_spacing_x) / l;
+									ly = (num_abs_y - num_spacing_y) / l;
+					
+									// the one that's barely within the bounds probably triggered the collision
+									if (Math.abs(lx) > Math.abs(ly)) {
+										lx = 0;
+									} else {
+										ly = 0;
+									}
+									
+									x *= lx;
+									y *= ly;
+									
+									d.x -= x;
+									d.y -= y;
+									
+									if (q.data.move) {
+
+										q.data.x += x;
+										q.data.y += y;
+									}
+					
+									is_updated = true;
+								}
+							}
+							
+							return is_updated;
+						});
+					}
+				}
+				
+				force.initialize = function (_) {
+					return nodes = _;
+				};
+				
+				return force;
+			}
+
+			simulate = d3.forceSimulation()
+				.nodes(arr_nodes)
+				.force('charge', d3.forceManyBody()
+					.strength(function(d) {
+						return (d.move ? arr_settings.force_charge : (arr_settings.force_charge * 0.1)); // Apply serious charge only when it's move
+					})
+					.theta(arr_settings.force_theta)
+				)
+				.force("collide", forceCollide())
+				.force('link', d3.forceLink()
+					.links(arr_links)
+					.distance(function(d) {
+						return d.weight;
+					})
+				)
+				.force("x", d3.forceX(arr_settings.width / 2)
+					.strength(arr_settings.force_gravity)
+				)
+				.force("y", d3.forceY(arr_settings.height / 2)
+					.strength(arr_settings.force_gravity)
+				)
+				.velocityDecay(arr_settings.force_friction)
+			;
+			simulate.stop();
+		}
+
+		function ready(is_done) {
+			
+			self.postMessage(
+				{
+					nodes: arr_nodes,
+					done: is_done
+				}
+			);
+		}
+				
+		function run(n) {
+			
+			simulate.alpha(1);
+			
+			while (simulate.alpha() > num_threshold_stop) {
+				
+				simulate.tick();
+				
+				if (num_threshold_update && simulate.alpha() < num_threshold_update) {
+					
+					ready(false);
+					num_threshold_update = 0;
+				}
+			}
+			
+			ready(true);
+		}
+
+		var func_listener = function(e) {
+									
+			switch (e.data.action) {
+				case 'init':
+
+					init(e.data.settings, e.data.nodes, e.data.links, e.data.mode);
+					
+					run();
+					break;
+
+				default:
+			}
+		};
+
+		self.addEventListener('message', func_listener);
+	};
+
+	var worker = ASSETS.createWorker(func_worker, ['/js/support/d3-force.pack.js']);
+
+	return worker;
+};
+
+function ModelGraph(elm_overview, arr_settings) {
+	
+	var SELF = this;
+	
+	var arr_settings = $.extend({
+		positioning: true,
+		interact: true
+	}, arr_settings);
+	
+	const elm_svg = elm_overview.children('svg');
+	const elm_graph = elm_svg.children('g.graph');
+	const elm_boxes = elm_graph.children('g.boxes');
+	const elm_connect_boxes = elm_graph.children('g.connect-boxes');
+	const elm_connect_elements = elm_graph.children('g.connect-elements');
+	const elm_connect_lines = elm_graph.children('g.connect-lines');
+	const elm_footer = elm_svg.children('g.footer');
+	const elm_footer_size = elm_footer.children('path.back');
+	
+	const arr_positions = JSON.parse(elm_overview[0].dataset.positions);
+	
+	var worker_positioning = null;
+	var arr_nodes = [];
+	const arr_links = [];
+	
+	SELF.close = function() {
+		
+		if (worker_positioning) {
+		
+			worker_positioning.terminate();
+			worker_positioning = null;
+		}
+	};
+	
+	SELF.setPositioning = function(is_enabled) {
+		
+		arr_settings.positioning = is_enabled;
+	};
+	
+	var getGraphElement = function(elm_container, str_identifier) {
+		
+		for (let i = 0, len = elm_container.childNodes.length; i < len; i++) {
+			
+			const elm = elm_container.childNodes[i];
+			
+			if (elm.dataset.identifier != str_identifier) {
+				continue;
+			}
+			
+			return elm;
+		}
+	};
+	
+	SELF.render = function() {
+							
+		for (const type_id in arr_positions.boxes) {
+														
+			SELF.renderBox(type_id);
+		}
+		
+		for (const str_identifier in arr_positions.elements) {
+			
+			SELF.renderConnections(str_identifier);
+		}
+		
+		SELF.renderScene();
+	};
+	
+	SELF.renderScene = function() {
+							
+		let num_x_min = null;
+		let num_y_min = null;
+		let num_x_max = null;
+		let num_y_max = null;
+		
+		for (const type_id in arr_positions.boxes) {
+		
+			const arr_position = arr_positions.boxes[type_id];
+			
+			const num_x = arr_position.x;
+			const num_y = arr_position.y;
+									
+			if (num_x_min === null || num_x < num_x_min) {
+				num_x_min = num_x;
+			}
+			if (num_y_min === null || num_y < num_y_min) {
+				num_y_min = num_y;
+			}
+			if (num_x_max === null || (num_x + arr_position.width) > num_x_max) {
+				num_x_max = (num_x + arr_position.width);
+			}
+			if (num_y_max === null || num_y + arr_position.height > num_y_max) {
+				num_y_max = (num_y + arr_position.height);
+			}
+		}
+		
+		const num_graph_height = (num_y_max - num_y_min);
+		const num_graph_width = (num_x_max - num_x_min);
+		
+		elm_graph[0].setAttribute('transform', 'translate('+(-num_x_min + arr_positions.margin.scene)+', '+(arr_positions.size.header + arr_positions.margin.scene + -num_y_min)+')');
+		
+		const num_width = ((num_graph_width > arr_positions.width.min ? num_graph_width : arr_positions.width.min) + (arr_positions.margin.scene*2));
+		
+		elm_footer[0].setAttribute('transform', 'translate(0, '+(arr_positions.size.header + arr_positions.margin.scene + num_graph_height + (arr_positions.margin.scene*2))+')');
+		elm_footer_size[0].setAttribute('d',
+			'M0,0'
+			+' L'+num_width+',0'
+			+' L'+num_width+','+arr_positions.size.footer
+			+' L0,'+arr_positions.size.footer
+			+' L0,0'
+		);
+		
+		const num_height = (arr_positions.size.header + arr_positions.margin.scene + num_graph_height + (arr_positions.margin.scene*2) + arr_positions.size.footer);
+		
+		elm_svg[0].setAttribute('viewBox', '0 0 '+num_width+' '+num_height+'');
+		elm_svg[0].dataset.width = num_width;
+		elm_svg[0].dataset.height = num_height;
+	};
+	
+	SELF.renderBox = function(type_id) {
+	
+		const arr_position = arr_positions.boxes[type_id];
+		const elm_box = getGraphElement(elm_boxes[0], type_id);
+		
+		elm_box.setAttribute('transform', 'translate('+arr_position.x+', '+arr_position.y+')');
+		
+		const elm_connect = getGraphElement(elm_connect_boxes[0], type_id);
+		
+		elm_connect.setAttribute('transform', 'translate('+arr_position.x+', '+arr_position.y+')');
+	};
+	
+	SELF.renderConnections = function(str_identifier) {
+	
+		const arr_position = arr_positions.elements[str_identifier];
+		const arr_position_box = arr_positions.boxes[arr_position.type_id];
+		
+		const elm_connect = getGraphElement(elm_connect_elements[0], str_identifier);
+		
+		elm_connect.setAttribute('transform', 'translate('+arr_position_box.x+', '+arr_position_box.y+')');
+		
+		if (arr_position.connect_type_id === true) {
+			return;
+		}
+		
+		const arr_position_box_connect = arr_positions.boxes[arr_position.connect_type_id];
+		
+		const elm_line = getGraphElement(elm_connect_lines[0], str_identifier+'-'+arr_position['connect_type_id']);
+		
+		elm_line.setAttribute('d', 
+			'M'+(arr_position_box.x + arr_position.x)+','+(arr_position_box.y + arr_position.y)
+			+' L'+(arr_position_box_connect.x + arr_position_box_connect.connect_x)+','+(arr_position_box_connect.y + arr_position_box_connect.connect_y)
+		);
+	};
+	
+	var initPositioning = function() {
+		
+		for (const type_id in arr_positions.boxes) {
+			
+			const arr_position = arr_positions.boxes[type_id];
+									
+			const num_length = arr_nodes.push({
+				type_id: type_id,
+				move: true,
+				x: (arr_position.x + (arr_position.width/2)),
+				y: (arr_position.y + (arr_position.height/2)),
+				width: arr_position.width,
+				height: arr_position.height
+			});
+			
+			arr_position.key = num_length-1;
+		}
+		
+		for (const str_identifier in arr_positions.elements) {
+			
+			const arr_position = arr_positions.elements[str_identifier];
+			
+			if (arr_position.connect_type_id === true) {
+				continue;
+			}
+			
+			arr_links.push({
+				source: arr_nodes[arr_positions.boxes[arr_position.type_id].key],
+				target: arr_nodes[arr_positions.boxes[arr_position.connect_type_id].key],
+				weight: arr_positions.size.box + (arr_positions.margin.box*2)
+			});
+		}
+	};
+	
+	var updateNodePosition = function(type_id) {
+		
+		const arr_position = arr_positions.boxes[type_id];
+		const arr_node = arr_nodes[arr_position.key];
+		
+		arr_node.move = false;
+		arr_node.x = (arr_position.x + (arr_position.width/2));
+		arr_node.y = (arr_position.y + (arr_position.height/2));
+		
+		for (const check_type_id in arr_positions.boxes) { // Check overlap with other boxes, should they also not be movable
+			
+			if (check_type_id == type_id) {
+				continue;
+			}
+			
+			const arr_position_check = arr_positions.boxes[check_type_id];
+			const arr_node_check = arr_nodes[arr_position_check.key];
+			
+			if (arr_node_check.move) {
+				continue;
+			}
+			
+			if (arr_position.x + arr_position.width < arr_position_check.x || arr_position.x > arr_position_check.x + arr_position_check.width || arr_position.y + arr_position.height < arr_position_check.y || arr_position.y > arr_position_check.y + arr_position_check.height) {
+				continue;	
+			}
+			
+			arr_node_check.move = true;
+		}
+	};
+	
+	var runPositioning = function() {
+		
+		if (worker_positioning) {
+		
+			worker_positioning.terminate();
+			worker_positioning = null;
+		}
+			
+		worker_positioning = ElementPositionWorker();
+		
+		worker_positioning.postMessage({
+				action: 'init',
+				nodes: arr_nodes,
+				links: arr_links,
+				settings: {
+					force_friction: 0.2,
+					force_charge: -2000,
+					force_gravity: 0.06,
+					force_theta: 0.1,
+					threshold_update: 0,
+					threshold_stop: 0.001,
+					padding: arr_positions.margin.box,
+					width: 0,
+					height: 0
+				}
+			}
+		);
+		
+		worker_positioning.addEventListener('message', function(e) {
+			
+			arr_nodes = event.data.nodes;
+			
+			for (let i = 0, len = arr_nodes.length; i < len; i++) {
+				
+				const arr_node = arr_nodes[i];
+				
+				const arr_position = arr_positions.boxes[arr_node.type_id];
+				
+				const num_x = Math.floor(arr_node.x - (arr_position.width/2));
+				const num_y = Math.floor(arr_node.y - (arr_position.height/2));
+				
+				arr_position.x = num_x;
+				arr_position.y = num_y;
+			}
+			
+			if (event.data.done) {
+				
+				worker_positioning.terminate();
+				worker_positioning = null;
+			}
+			
+			SELF.render();
+		});
+	};
+	
+	var addListeners = function() {
+	
+		var has_moved = null;
+		
+		elm_boxes.on('mousedown touchstart', '.box', function(e) {
+
+			var func_prevent_drag = false;
+			
+			if (POSITION.isTouch()) {
+			
+				if (e.type == 'mousedown') {
+					return;
+				}
+				
+				func_prevent_drag = function(e2) {
+					
+					e2.preventDefault(); // Prevent document drag
+				};
+				
+				document.addEventListener('touchmove', func_prevent_drag, {passive: false});
+			} else {
+				e.preventDefault(); // Prevent document drag
+			}
+
+			const type_id = e.currentTarget.dataset.identifier;
+			const arr_position = arr_positions.boxes[type_id];
+			
+			var pos_mouse = POSITION.getMouseXY(e.originalEvent);
+			var num_scale = (elm_svg[0].dataset.height / elm_svg[0].scrollHeight);
+			
+			has_moved = false;
+			
+			$(document).on('mousemove.graph touchmove.graph', function(e2) {
+				
+				var cur_pos_mouse = POSITION.getMouseXY(e2.originalEvent);
+				
+				if (cur_pos_mouse.x != pos_mouse.x || cur_pos_mouse.y != pos_mouse.y) { // Check for real movement because of chrome 'always trigger move'-bug
+					
+					has_moved = true;
+					
+					let num_difference_x = (cur_pos_mouse.x - pos_mouse.x) * num_scale;
+					let num_difference_y = (cur_pos_mouse.y - pos_mouse.y) * num_scale;
+
+					arr_position.x += num_difference_x;
+					arr_position.y += num_difference_y;
+
+					SELF.renderBox(type_id);
+					
+					for (const str_identifier in arr_positions.elements) {
+					
+						const arr_position = arr_positions.elements[str_identifier];
+														
+						SELF.renderConnections(str_identifier);
+					}
+				}
+				
+				pos_mouse.x = cur_pos_mouse.x;
+				pos_mouse.y = cur_pos_mouse.y;
+			}).one('mouseup.graph touchend.graph', function(e2) {
+				
+				if (has_moved) {
+					
+					if (arr_settings.positioning) {
+						
+						updateNodePosition(type_id);
+						runPositioning();
+					} else {
+						
+						SELF.renderScene();
+					}
+				}
+				
+				if (POSITION.isTouch()) {
+					document.removeEventListener('touchmove', func_prevent_drag, {passive: false});
+				}
+				$(document).off('mousemove.graph touchmove.graph mouseup.graph touchend.graph');
+			});
+		}).on('click', '.box', function(e) {
+			
+			if (has_moved) {
+				return;
+			}
+			
+			const type_id = this.dataset.identifier;
+			const elms_target = elm_connect_lines.children('[data-identifier$=\"-'+type_id+'\"]');
+			
+			if (!elms_target.length) {
+				return;
+			}
+			
+			const is_highlight = (!this.classList.contains('highlight') ? true : false);
+			
+			if (is_highlight) {
+				this.classList.add('highlight');
+			} else {
+				this.classList.remove('highlight');
+			}
+			
+			for (let i = 0, len = elms_target.length; i < len; i++) {
+				
+				const elm_target = elms_target[i];
+
+				let str_identifier_connect_element = elm_target.dataset.identifier;
+				str_identifier_connect_element = str_identifier_connect_element.split('-')[0];
+				elm_connect_element = elm_connect_elements.children('[data-identifier=\"'+str_identifier_connect_element+'\"]')[0];
+				
+				if (is_highlight) {
+					elm_target.classList.add('highlight');
+					elm_connect_element.classList.add('highlight');
+				} else {
+					elm_target.classList.remove('highlight');
+					elm_connect_element.classList.remove('highlight');
+				}
+			}
+
+			if (elm_graph.find('.highlight').length) {
+				elm_graph[0].classList.add('highlighting');
+			} else {
+				elm_graph[0].classList.remove('highlighting');
+			}
+		});
+	};
+	
+	if (arr_settings.interact) {
+		
+		addListeners();
+	}
+	
+	if (arr_settings.positioning) {
+		
+		initPositioning();
+		
+		runPositioning();
+	}
+};

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -19,12 +19,14 @@ DB::setTable('DEF_NODEGOAT_TYPE_OBJECT_SEARCH_PATH', DATABASE_NODEGOAT_CONTENT.'
 
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECTS', DATABASE_NODEGOAT_CONTENT.'.data_type_objects');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS', DATABASE_NODEGOAT_CONTENT.'.data_type_object_definitions');
+DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS_REFERENCES', DATABASE_NODEGOAT_CONTENT.'.data_type_object_definitions_references');
+DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS_MODULES', DATABASE_NODEGOAT_CONTENT.'.data_type_object_definitions_modules');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS', DATABASE_NODEGOAT_CONTENT.'.data_type_object_subs');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE', DATABASE_NODEGOAT_CONTENT.'.data_type_object_sub_date');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE_CHRONOLOGY', DATABASE_NODEGOAT_CONTENT.'.data_type_object_sub_date_chronology');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_LOCATION_GEOMETRY', DATABASE_NODEGOAT_CONTENT.'.data_type_object_sub_location_geometry');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS', DATABASE_NODEGOAT_CONTENT.'.data_type_object_sub_definitions');
-DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_FILTERS', DATABASE_NODEGOAT_CONTENT.'.data_type_object_filters');
+DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS_REFERENCES', DATABASE_NODEGOAT_CONTENT.'.data_type_object_sub_definitions_references');
 
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_VERSION', DATABASE_NODEGOAT_CONTENT.'.data_type_object_version');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_VERSION', DATABASE_NODEGOAT_CONTENT.'.data_type_object_definition_version');
@@ -38,6 +40,8 @@ DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SOURCES', DATABASE_NODEGOAT_CONTENT.'.da
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_SOURCES', DATABASE_NODEGOAT_CONTENT.'.data_type_object_definition_sources');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_SOURCES', DATABASE_NODEGOAT_CONTENT.'.data_type_object_sub_sources');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_SOURCES', DATABASE_NODEGOAT_CONTENT.'.data_type_object_sub_definition_sources');
+
+DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS_MODULE_STATUS', DATABASE_NODEGOAT_CONTENT.'.data_type_object_definitions_module_status');
 
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_ANALYSES', DATABASE_NODEGOAT_CONTENT.'.data_type_object_analyses');
 DB::setTable('DATA_NODEGOAT_TYPE_OBJECT_ANALYSIS_STATUS', DATABASE_NODEGOAT_CONTENT.'.data_type_object_analysis_status');
@@ -85,7 +89,7 @@ class cms_nodegoat_definitions extends base_module {
 						.'<label>'.getLabel('lbl_data').'</label><input type="checkbox" name="options[data]" value="1"'.($options['data'] ? ' checked="checked"' :'').' />';
 				}
 			],
-			'buildTypeObjectCaching' => [
+			'buildTypeObjectCache' => [
 				'label' => 'nodegoat '.getLabel('lbl_cache_objects').' ('.getLabel('lbl_reset').')',
 				'options' => false,
 			],
@@ -107,7 +111,7 @@ class cms_nodegoat_definitions extends base_module {
 					
 					if ($options['type_ids']) {
 						
-						$arr_types = StoreType::getTypes($options['type_ids'], 'reversal');
+						$arr_types = StoreType::getTypes(false, $options['type_ids'], StoreType::TYPE_CLASS_REVERSAL);
 						
 						$arr_values = [];
 						
@@ -143,9 +147,15 @@ class cms_nodegoat_definitions extends base_module {
 				}
 			],
 			'buildInformationRetrievalIndex' => [
-				'label' => 'nodegoat '.getLabel('lbl_information_retrieval').' Index (Reset)',
+				'label' => 'nodegoat '.getLabel('lbl_information_retrieval').' Index ('.getLabel('lbl_reset').')',
 				'options' => false,
-			]
+			],
+			'runInformationRetrievalIndexing' => [
+				'label' => 'nodegoat '.getLabel('lbl_information_retrieval').' Index',
+				'options' => function($options) {
+					return '<label>'.getLabel('lbl_reset').'</label><input type="checkbox" name="options[reset]" value="1"'.($options['reset'] ? ' checked="checked"' :'').' />';
+				}
+			],
 		];
 	}
 	
@@ -190,54 +200,55 @@ class cms_nodegoat_definitions extends base_module {
 		 if ($what == 'descriptions') {
 			
 			$arr = [
-				['delete' => [DB::getTable('DEF_NODEGOAT_TYPE_DEFINITIONS'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id']],
-				['delete' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id']],
-				['delete' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DETAILS'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id']],
-				['delete' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DESCRIPTIONS'), 'object_sub_details_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DETAILS'), 'id']],
+				['delete' => [DB::getTable('DEF_NODEGOAT_TYPE_DEFINITIONS'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id'], 'clause' => 'type_id > 0'],
+				['delete' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id'], 'clause' => 'type_id > 0'],
+				['delete' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DETAILS'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id'], 'clause' => 'type_id > 0'],
+				['delete' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DESCRIPTIONS'), 'object_sub_details_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DETAILS'), 'id'], 'clause' => 'object_sub_details_id > 0'],
 				
-				['delete' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_NAME_PATH'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id']],
-				['delete' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SEARCH_PATH'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id']],
+				['delete' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_NAME_PATH'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id'], 'clause' => 'type_id > 0'],
+				['delete' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SEARCH_PATH'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id'], 'clause' => 'type_id > 0'],
 			];
 		} else if ($what == 'data') {
 			
 			$arr = [
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id']],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id'], 'clause' => 'type_id > 0'],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DISCUSSION'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_LOCK'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_VERSION'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SOURCES'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_FILTERS'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS'), 'object_description_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').'_references', 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').'_references', 'object_description_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS'), 'id']],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS'), 'object_description_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS'), 'id'], 'clause' => 'object_description_id > 0'],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS_REFERENCES'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS_REFERENCES'), 'object_description_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS'), 'id'], 'clause' => 'object_description_id > 0'],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS_MODULES'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS_MODULES'), 'object_description_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS'), 'id'], 'clause' => 'object_description_id > 0'],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_OBJECTS'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_VERSION'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_SOURCES'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'object_sub_details_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DETAILS'), 'id']],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'object_sub_details_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DETAILS'), 'id'], 'clause' => 'object_sub_details_id > 0'],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE_CHRONOLOGY'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_LOCATION_GEOMETRY'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_VERSION'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_SOURCES'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS'), 'object_sub_description_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DESCRIPTIONS'), 'id']],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS'), 'object_sub_description_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DESCRIPTIONS'), 'id'], 'clause' => 'object_sub_description_id > 0'],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').'_references', 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').'_references', 'object_sub_description_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DESCRIPTIONS'), 'id']],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').'_references', 'object_sub_description_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DESCRIPTIONS'), 'id'], 'clause' => 'object_sub_description_id > 0'],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_OBJECTS'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_VERSION'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
 				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_SOURCES'), 'object_sub_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'id']],
 				
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SOURCES'), 'ref_object_id'], 'value' => true, 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').'_references', 'ref_object_id'], 'value' => true, 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_OBJECTS'), 'ref_object_id'], 'value' => true, 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_SOURCES'), 'ref_object_id'], 'value' => true, 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_SOURCES'), 'ref_object_id'], 'value' => true, 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').'_references', 'ref_object_id'], 'value' => true, 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_OBJECTS'), 'ref_object_id'], 'value' => true, 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']],
-				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_SOURCES'), 'ref_object_id'], 'value' => true, 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id']]
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SOURCES'), 'ref_object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id'], 'clause_not_empty' => true],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').'_references', 'ref_object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id'], 'clause_not_empty' => true],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_OBJECTS'), 'ref_object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id'], 'clause_not_empty' => true],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_SOURCES'), 'ref_object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id'], 'clause_not_empty' => true],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_SOURCES'), 'ref_object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id'], 'clause_not_empty' => true],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').'_references', 'ref_object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id'], 'clause_not_empty' => true],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_OBJECTS'), 'ref_object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id'], 'clause_not_empty' => true],
+				['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_SOURCES'), 'ref_object_id'], 'test' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'id'], 'clause_not_empty' => true]
 			];
 		}
 		
@@ -248,6 +259,9 @@ class cms_nodegoat_definitions extends base_module {
 	
 	public static function runTypeObjectCaching($arr_options = []) {
 		
+		$date_start = false;
+		$date_end = false;
+		
 		if (!$arr_options['reset']) {
 			
 			$is_updated = FilterTypeObjects::getTypesUpdatedAfter($arr_options['date_executed']['previous'], [], true);
@@ -256,21 +270,20 @@ class cms_nodegoat_definitions extends base_module {
 				return;
 			}
 			
-			StoreTypeObjectsProcessing::cacheTypeObjectSubs($arr_options['date_executed']['previous'], $arr_options['date_executed']['now']);
-			
-			return;
+			$date_start = $arr_options['date_executed']['previous'];
+			$date_end = $arr_options['date_executed']['now'];
 		}
-			
-		StoreTypeObjectsProcessing::cacheTypeObjectSubs();
+		
+		StoreTypeObjectsProcessing::cacheTypesObjectSubs($date_start, $date_end);
 	}
 	
-	public static function buildTypeObjectCaching($arr_options = []) {
+	public static function buildTypeObjectCache($arr_options = []) {
 		
 		$arr_job = cms_jobs::getJob('cms_nodegoat_definitions', 'runTypeObjectCaching');
 		
 		$arr_job['reset'] = true;
 				
-		cms_jobs::runJob('cms_nodegoat_definitions', 'runTypeObjectCaching', false, $arr_job);
+		cms_jobs::runJob('cms_nodegoat_definitions', 'runTypeObjectCaching', 'reset', $arr_job);
 	}
 
 	// Reversal
@@ -284,9 +297,9 @@ class cms_nodegoat_definitions extends base_module {
 		}
 		
 		if ($arr_options['type_ids']) {
-			$arr_types = StoreType::getTypes($arr_options['type_ids'], 'reversal');
+			$arr_types = StoreType::getTypes(false, $arr_options['type_ids'], StoreType::TYPE_CLASS_REVERSAL);
 		} else {
-			$arr_types = StoreType::getTypes(false, 'reversal');
+			$arr_types = StoreType::getTypes(false, false, StoreType::TYPE_CLASS_REVERSAL);
 		}
 		
 		StoreTypeObjectsProcessing::setReversals($arr_types);
@@ -305,7 +318,7 @@ class cms_nodegoat_definitions extends base_module {
 	
 	public static function runCleanupObjects($arr_options = []) {
 		
-		StoreTypeObjects::cleanupObjects();
+		StoreTypeObjectsProcessing::cleanupTypesObjects();
 	}
 	
 	public static function runCleanupOrphans($arr_options = []) {
@@ -374,7 +387,7 @@ class cms_nodegoat_definitions extends base_module {
 							if ($arr_result['statistics']) {
 								
 								msg('Status:'.PHP_EOL
-									.'	Jobs: Total = '.nr2String($arr_result['statistics']['jobs']).' Timeouts = '.nr2String($arr_result['statistics']['timeouts']),
+									.'	Jobs: total = '.num2String($arr_result['statistics']['jobs']).' timeouts = '.num2String($arr_result['statistics']['timeouts']),
 								'GRAPH ANALYSIS'); // Provide status update and keep database connection alive
 							}
 				
@@ -456,7 +469,7 @@ class cms_nodegoat_definitions extends base_module {
 							if ($arr_result['statistics']) {
 								
 								msg('Status:'.PHP_EOL
-									.'	Jobs: Total = '.nr2String($arr_result['statistics']['jobs']),
+									.'	Jobs: Total = '.num2String($arr_result['statistics']['jobs']),
 								'INFO RETRIEVAL'); // Provide status update and keep database connection alive
 							}
 				
@@ -482,15 +495,44 @@ class cms_nodegoat_definitions extends base_module {
 		}
 	}
 	
-	public static function buildInformationRetrievalIndex($arr_options = []) {
+	public static function runInformationRetrievalIndexing($arr_options = []) {
 		
+		$date_start = false;
+		$date_end = false;
+		
+		if (!$arr_options['reset']) {
+			
+			$is_updated = FilterTypeObjects::getTypesUpdatedAfter($arr_options['date_executed']['previous'], [], true);
+			
+			if (!$is_updated) {
+				return;
+			}
+			
+			$date_start = $arr_options['date_executed']['previous'];
+			$date_end = $arr_options['date_executed']['now'];
+		}
+			
 		$str_host = self::getInformationRetrievalHost();
 
 		$ir = new IndexTypeObjectsInformationRetrieval($str_host);
+		$ir->setMode(($arr_options['reset'] ? IndexTypeObjectsInformationRetrieval::MODE_OVERWRITE : IndexTypeObjectsInformationRetrieval::MODE_UPDATE));
+		
+		if ($date_end) {
+			$ir->setObjectsByStatus($date_start, $date_end);
+		}
 		
 		$ir->build();
 	}
 	
+	public static function buildInformationRetrievalIndex($arr_options = []) {
+		
+		$arr_job = cms_jobs::getJob('cms_nodegoat_definitions', 'runInformationRetrievalIndexing');
+		
+		$arr_job['reset'] = true;
+				
+		cms_jobs::runJob('cms_nodegoat_definitions', 'runInformationRetrievalIndexing', false, $arr_job);
+	}
+		
 	public static function getInformationRetrievalHost() {
 		
 		$str_host = Settings::get('information_retrieval_service', 'host');

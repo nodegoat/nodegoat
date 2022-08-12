@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -18,20 +18,20 @@ class data_view extends base_module {
 	
 	public static function modulePreload() {
 		
-		FormatBBCode::addCode('object_open', '/\[object=([0-9_\|]+)\]/si',
-			function ($matches) {
-				return '<span class="a popup tag" id="y:data_view:view_type_object-'.$matches[1].'" data-ids="'.$matches[1].'">'; 
+		FormatTags::addCode('object_open', '/\[object=([0-9-_\|]+)\]/si',
+			function ($arr_match) {
+				return '<span class="a popup tag" id="y:data_view:view_type_object-'.$arr_match[1].'" data-ids="'.$arr_match[1].'">'; 
 			}
 		);
-		FormatBBCode::addCode('object_close', '/\[\/object\]/si',
-			function ($matches) {
+		FormatTags::addCode('object_close', '/\[\/object(?:=([0-9-_\|]+))?\]/si',
+			function ($arr_match) {
 				return '</span>'; 
 			}
 		);
 
-		/*FormatBBCode::addCode('object', '/\[object=([0-9_\|]+)\](.*?)\[\/object\]/si',
-			function ($matches) {
-				return '<span class="a popup tag" id="y:data_view:view_type_object-'.$matches[1].'" data-ids="'.$matches[1].'">'.$matches[2].'</span>'; 
+		/*FormatTags::addCode('object', '/\[object=([0-9-_\|]+)\](.*?)\[\/object\]/si',
+			function ($arr_match) {
+				return '<span class="a popup tag" id="y:data_view:view_type_object-'.$arr_match[1].'" data-ids="'.$arr_match[1].'">'.$arr_match[2].'</span>'; 
 			}
 		);*/
 	}
@@ -44,11 +44,11 @@ class data_view extends base_module {
 		
 		$project_id = $_SESSION['custom_projects']['project_id'];
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($project_id);
+		$arr_project = StoreCustomProject::getProjects($project_id);
 		$arr_types = StoreType::getTypes(array_keys($arr_project['types']));
 		
-		$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'view');
-		$arr_ref_type_ids = cms_nodegoat_custom_projects::getProjectScopeTypes($project_id);
+		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'view');
+		$arr_ref_type_ids = StoreCustomProject::getScopeTypes($project_id);
 		
 		$arr_analyses_active = data_analysis::getTypeAnalysesActive($type_id);
 		
@@ -59,7 +59,7 @@ class data_view extends base_module {
 			$arr_selection['object']['analysis'] = $arr_analyses_active;
 		}
 				
-		$filter = new FilterTypeObjects($type_id, 'all', false, $arr_type_set);			
+		$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ALL, false, $arr_type_set);			
 		$filter->setVersioning('added');
 		$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids, 'project_id' => $project_id]);
 		$filter->setSelection($arr_selection);
@@ -80,7 +80,7 @@ class data_view extends base_module {
 		$arr_filters = $filter->getDepth();
 		toolbar::setFilter([(int)$type_id => (array)$arr_filters['arr_filters']], true);
 		
-		$filter->setConditions('style_include', toolbar::getTypeConditions($type_id));
+		$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE_INCLUDE, toolbar::getTypeConditions($type_id));
 		
 		$arr_object = current($filter->init());
 		
@@ -95,7 +95,8 @@ class data_view extends base_module {
 		}
 		
 		$arr_source_types = $arr_object['object']['object_sources'];
-		$arr_type_object_references = FilterTypeObjects::getTypeObjectReferenced($object_id, $arr_ref_type_ids);
+		$arr_type_object_references = FilterTypeObjects::getTypeObjectReferenced($type_id, $object_id, $arr_ref_type_ids);
+		$str_version = '';
 		
 		if ($_SESSION['USER_ID']) {
 			
@@ -109,21 +110,21 @@ class data_view extends base_module {
 			}
 		}
 		
-		$str_object_id = GenerateTypeObjects::encodeTypeObjectId($type_id, $object_id);
+		$str_object_id = GenerateTypeObjects::encodeTypeObjectID($type_id, $object_id);
 		$str_object_name = $arr_object['object']['object_name'];
 
 		$return = '<div class="tabs view_type_object">
 			<ul>
 				<li><a href="#">'.getLabel('lbl_overview').'</a></li>
 				'.($arr_source_types ? '<li><a href="#">'.getLabel('lbl_sources').'</a></li>' : '').'
-				'.($arr_type_object_references ? '<li><a href="#"'.($arr_type_set['type']['is_classification'] ? ' class="open"' : '').'>'.getLabel('lbl_referenced').'</a></li>' : '').'
+				'.($arr_type_object_references ? '<li><a href="#"'.($arr_type_set['type']['class'] == StoreType::TYPE_CLASS_CLASSIFICATION ? ' class="open"' : '').'>'.getLabel('lbl_referenced').'</a></li>' : '').'
 				'.($_SESSION['NODEGOAT_CLEARANCE'] > NODEGOAT_CLEARANCE_DEMO && $arr_project['types'][$type_id] && $_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$project_id]['discussion_enable'] ? '<li><a href="#">'.getLabel('lbl_discussion').'</a></li>' : '').'
 			</ul>
 			<div class="overview data_viewer">
 			
 				<h1>'
 					.'<span'.($str_version ? ' title="'.$str_version.'"' : '').'>'.$str_object_name.'</span>'
-					.($_SESSION['NODEGOAT_CLEARANCE'] > NODEGOAT_CLEARANCE_INTERACT && data_model::checkClearanceType($type_id, false) && custom_projects::checkAccessType('edit', $type_id, false) ? '<input type="button" class="data edit popup" id="y:data_entry:edit_quick-'.$type_id.'_'.$object_id.'_view" value="edit" />' : '')
+					.($_SESSION['NODEGOAT_CLEARANCE'] > NODEGOAT_CLEARANCE_INTERACT && data_entry::checkClearanceType($type_id, false) && custom_projects::checkAccessType('edit', $type_id, false) ? '<input type="button" class="data edit popup" id="y:data_entry:edit_quick-'.$type_id.'_'.$object_id.'_view" value="edit" />' : '')
 					.'<small title="nodegoat ID">'.$str_object_id.'</small>'
 				.'</h1>
 				<div class="record"><dl>';
@@ -145,7 +146,7 @@ class data_view extends base_module {
 						
 						$arr_object_definition = $arr_object['object_definitions'][$object_description_id];
 						
-						if ((!$arr_object_definition['object_definition_value'] && !$arr_object_definition['object_definition_ref_object_id']) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
+						if ((!$arr_object_definition['object_definition_value'] && !$arr_object_definition['object_definition_ref_object_id']) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
 							continue;
 						}
 						
@@ -154,38 +155,43 @@ class data_view extends base_module {
 						if ($arr_object_description['object_description_ref_type_id']) {
 							
 							if ($arr_object_description['object_description_is_dynamic']) {
-								
-								$html_value = '';
+
+								$arr_html_value = [];
 								
 								foreach ($arr_object_definition['object_definition_ref_object_id'] as $ref_type_id => $arr_ref_objects) {
 								
 									foreach($arr_ref_objects as $cur_object_id => $arr_reference) {
 										
-										$html_link = self::createTypeObjectLink($ref_type_id, $cur_object_id, $arr_reference['object_definition_ref_object_name']);
+										$html_link = ($arr_object_definition_style ? '<span style="'.$arr_object_definition_style.'">'.$arr_reference['object_definition_ref_object_name'].'</span>' : $arr_reference['object_definition_ref_object_name']);
 									
-										$html_value .= ($arr_object_definition_style ? '<span style="'.$arr_object_definition_style.'">'.$html_link.'</span>' : $html_link).'<span class="icon">'.getIcon('link').'</span>';
+										$arr_html_value[] = self::createTypeObjectLink($ref_type_id, $cur_object_id, $html_link);
 									}
 								}
+																
+								$html_value = implode('<span class="separator">'.($arr_object_description['object_description_value_type_settings']['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR).'</span>', $arr_html_value);
 							} else if ($arr_object_description['object_description_has_multi']) {
 								
-								$html_value = '';
+								$arr_html_value = [];
 								
 								foreach ($arr_object_definition['object_definition_ref_object_id'] as $key => $value) {
 									
-									$html_link = self::createTypeObjectLink($arr_object_description['object_description_ref_type_id'], $value, $arr_object_definition['object_definition_value'][$key]);
+									$html_link = ($arr_object_definition_style ? '<span style="'.$arr_object_definition_style.'">'.$arr_object_definition['object_definition_value'][$key].'</span>' : $arr_object_definition['object_definition_value'][$key]);
 									
-									$html_value .= ($arr_object_definition_style ? '<span style="'.$arr_object_definition_style.'">'.$html_link.'</span>' : $html_link).'<span class="icon">'.getIcon('link').'</span>';
+									$arr_html_value[] = self::createTypeObjectLink($arr_object_description['object_description_ref_type_id'], $value, $html_link);
 								}
+								
+								$html_value = implode('<span class="separator">'.($arr_object_description['object_description_value_type_settings']['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR).'</span>', $arr_html_value);
 							} else {
 								
-								$html_value = self::createTypeObjectLink($arr_object_description['object_description_ref_type_id'], $arr_object_definition['object_definition_ref_object_id'], $arr_object_definition['object_definition_value']);
-								$html_value = ($arr_object_definition_style ? '<span style="'.$arr_object_definition_style.'">'.$html_value.'</span>' : $html_value).'<span class="icon">'.getIcon('link').'</span>';
+								$html_link = ($arr_object_definition_style ? '<span style="'.$arr_object_definition_style.'">'.$arr_object_definition['object_definition_value'].'</span>' : $arr_object_definition['object_definition_value']);
+								
+								$html_value = self::createTypeObjectLink($arr_object_description['object_description_ref_type_id'], $arr_object_definition['object_definition_ref_object_id'], $html_link);
 							}
 						} else {
 							
 							$html_value = arrParseRecursive($arr_object_definition['object_definition_value'], ['Labels', 'parseLanguage']);
 							
-							$html_value = StoreTypeObjects::formatToPresentationValue($arr_object_description['object_description_value_type'], $html_value, $arr_object_description['object_description_value_type_options'], $arr_object_definition['object_definition_ref_object_id']);
+							$html_value = StoreTypeObjects::formatToHTMLValue($arr_object_description['object_description_value_type'], $html_value, $arr_object_description['object_description_value_type_settings'], $arr_object_definition['object_definition_ref_object_id']);
 							
 							if ($arr_object_description['object_description_has_multi']) {
 								$html_value = '<div'.($arr_object_definition_style ? ' style="'.$arr_object_definition_style.'"' : '').'>'.$html_value.'</div>';
@@ -194,7 +200,7 @@ class data_view extends base_module {
 							}
 						}
 						
-						$str_name = htmlspecialchars(Labels::parseTextVariables($arr_object_description['object_description_name']));
+						$str_name = strEscapeHTML(Labels::parseTextVariables($arr_object_description['object_description_name']));
 						
 						$return .= '<li data-object_description_id="'.$object_description_id.'">
 							<dt>'.($arr_object_description['object_description_is_referenced'] ? '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.Labels::parseTextVariables($arr_types[$arr_object_description['object_description_ref_type_id']]['name']).' - '.$str_name.'</span>' : $str_name).'</dt>
@@ -206,19 +212,19 @@ class data_view extends base_module {
 				
 				if ($arr_object_subs_info) {
 					
-					$arr_object_sub_tabs = ['links' => [], 'content' => []];
+					$arr_html_object_sub_tabs = ['links' => [], 'content' => []];
 					
 					foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 						
-						if (!$arr_object_subs_info[$object_sub_details_id] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+						if (!$arr_object_subs_info[$object_sub_details_id] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 							continue;
 						}
 						
-						$arr_object_sub_tabs['links'][] = '<li><a href="#"><span>'.($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ?
+						$arr_html_object_sub_tabs['links'][] = '<li><a href="#"><span>'.($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ?
 								'<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span>'
 								.'<span>'.Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name']).'</span> '
 							: '').
-							'<span class="sub-name">'.htmlspecialchars(Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])).'</span>'
+							'<span class="sub-name">'.strEscapeHTML(Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])).'</span>'
 						.'</span></a></li>';
 						
 						$arr_columns = [];
@@ -237,7 +243,7 @@ class data_view extends base_module {
 								
 						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 							
-							if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+							if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 								continue;
 							}
 							
@@ -263,12 +269,12 @@ class data_view extends base_module {
 							</table>
 						</div>';
 						
-						$arr_object_sub_tabs['content'][] = $return_content;
+						$arr_html_object_sub_tabs['content'][] = $return_content;
 					}
 					
-					if (count($arr_object_subs_info) > 1) { // Show combined only if there are multiple subobjects to be shown
+					if (count($arr_html_object_sub_tabs['links']) > 1) { // Show combined only if there are multiple subobjects to be shown
 						
-						array_unshift($arr_object_sub_tabs['links'], '<li><a href="#">'.getLabel('lbl_object_subs').': '.getLabel('lbl_overview').'</a></li>');
+						array_unshift($arr_html_object_sub_tabs['links'], '<li><a href="#">'.getLabel('lbl_object_subs').': '.getLabel('lbl_overview').'</a></li>');
 						
 						$return_content = '<div>
 							'.cms_general::createDataTableHeading('d:data_view:data_object_sub_details-'.$type_id.'_'.$object_id.'_all_0_0_1', ['filter' => 'y:data_filter:open_filter-'.$type_id, 'pause' => true, 'search' => false, 'order' => true]).'
@@ -285,15 +291,15 @@ class data_view extends base_module {
 							</table>
 						</div>';
 
-						array_unshift($arr_object_sub_tabs['content'], $return_content);
+						array_unshift($arr_html_object_sub_tabs['content'], $return_content);
 					}
 					
 					$return .= '<div class="tabs object-subs">
 						<ul>
-							'.($arr_object_sub_tabs ? implode('', $arr_object_sub_tabs['links']) : '').'
+							'.($arr_html_object_sub_tabs ? implode('', $arr_html_object_sub_tabs['links']) : '').'
 						</ul>';
 					
-						$return .= ($arr_object_sub_tabs ? implode('', $arr_object_sub_tabs['content']) : '');
+						$return .= ($arr_html_object_sub_tabs ? implode('', $arr_html_object_sub_tabs['content']) : '');
 					
 					$return .= '</div>';
 				}
@@ -308,7 +314,7 @@ class data_view extends base_module {
 				$arr_collect_type_object_names = [];
 				foreach ((array)$arr_source_types as $ref_type_id => $arr_source_objects) {
 					
-					$arr_type_object_names = FilterTypeObjects::getTypeObjectNames($ref_type_id, arrValuesRecursive('object_source_ref_object_id', $arr_source_objects), 'style_include');
+					$arr_type_object_names = FilterTypeObjects::getTypeObjectNames($ref_type_id, arrValuesRecursive('object_source_ref_object_id', $arr_source_objects), GenerateTypeObjects::CONDITIONS_MODE_STYLE_INCLUDE);
 					
 					foreach ($arr_source_objects as $arr_source_object) {
 						
@@ -373,30 +379,37 @@ class data_view extends base_module {
 		
 		$project_id = $_SESSION['custom_projects']['project_id'];
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($project_id);
+		$arr_project = StoreCustomProject::getProjects($project_id);
 		$arr_types = StoreType::getTypes(array_keys($arr_project['types']));
 		
-		$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'view');
+		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'view');
 		
-		$object_sub_details_id = $arr_object_sub['object_sub']['object_sub_details_id'];
+		$arr_object_sub_value = $arr_object_sub['object_sub'];
+		
+		$object_sub_details_id = $arr_object_sub_value['object_sub_details_id'];
 		$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
-		$arr_type_object_subs_details = StoreType::getTypeObjectSubsDetails($arr_object_sub['object_sub']['object_sub_location_ref_type_id']);
+		$arr_type_object_subs_details = StoreType::getTypeObjectSubsDetails($arr_object_sub_value['object_sub_location_ref_type_id']);
 		
-		$arr_type_object_name = FilterTypeObjects::getTypeObjectNames($type_id, $object_id, 'style_include');
+		$arr_type_object_name = FilterTypeObjects::getTypeObjectNames($type_id, $object_id, GenerateTypeObjects::CONDITIONS_MODE_STYLE_INCLUDE);
 			
-		$return .= '<div class="view_type_object object-sub data_viewer">
+		$return = '<div class="view_type_object object-sub data_viewer">
 			<h1>'.$arr_type_object_name[$object_id].'</h1>
 			<h2>'.($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'"></span><span>'.Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name']).'</span> ' : '').'<span class="sub-name">'.Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'</span></h2>
 			<div class="record"><dl>';
 				
 				if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_date']) {
-					
-					$arr_chronology = StoreTypeObjects::formatToChronology($arr_object_sub['object_sub']['object_sub_date_chronology']);
-					$arr_date_all = $arr_object_sub['object_sub']['object_sub_date_all'];
 
-					$str_date = (StoreTypeObjects::intChronology2Date($arr_date_all[StoreType::DATE_START_START], $arr_chronology['start']['start'], StoreType::DATE_START_START) ?: '-');
-					if ($arr_date_all[StoreType::DATE_START_END]) {
-						$str_date .= ' / '.StoreTypeObjects::intChronology2Date($arr_date_all[StoreType::DATE_START_END], $arr_chronology['start']['end'], StoreType::DATE_START_END);
+					$arr_chronology = StoreTypeObjects::formatToChronology($arr_object_sub_value['object_sub_date_chronology']);
+					$arr_date_all = $arr_object_sub_value['object_sub_date_all'];
+
+					$str_date = '-';
+					
+					if ($arr_object_sub_value['object_sub_date_chronology'] || $arr_object_sub_value['object_sub_date_start']) {
+						
+						$str_date = (StoreTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_START_START], ($arr_chronology['start']['start'] ?? null), StoreType::DATE_START_START) ?: '-');
+						if ($arr_date_all[StoreType::DATE_START_END]) {
+							$str_date .= ' / '.StoreTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_START_END], ($arr_chronology['start']['end'] ?? null), StoreType::DATE_START_END);
+						}
 					}
 					
 					$return .= '<li>
@@ -406,9 +419,14 @@ class data_view extends base_module {
 					
 					if ($arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period']) {
 						
-						$str_date = (StoreTypeObjects::intChronology2Date($arr_date_all[StoreType::DATE_END_END], $arr_chronology['end']['end'], StoreType::DATE_END_END) ?: '-');
-						if ($arr_date_all[StoreType::DATE_END_START]) {
-							$str_date = StoreTypeObjects::intChronology2Date($arr_date_all[StoreType::DATE_END_START], $arr_chronology['end']['start'], StoreType::DATE_END_START).' / '.$str_date;
+						$str_date = '-';
+					
+						if ($arr_object_sub_value['object_sub_date_chronology'] || $arr_object_sub_value['object_sub_date_end']) {
+							
+							$str_date = (StoreTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_END_END], ($arr_chronology['end']['end'] ?? null), StoreType::DATE_END_END) ?: '-');
+							if ($arr_date_all[StoreType::DATE_END_START]) {
+								$str_date = StoreTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_END_START], ($arr_chronology['end']['start'] ?? null), StoreType::DATE_END_START).' / '.$str_date;
+							}
 						}
 						
 						$return  .= '<li>
@@ -419,30 +437,30 @@ class data_view extends base_module {
 					
 					$return .= '<li>
 						<dt>'.getLabel('lbl_chronology').'</dt>
-						<dd>'.($arr_object_sub['object_sub']['object_sub_date_chronology'] ? self::createTypeObjectSubChronology($type_id, $object_sub_details_id, $object_id, StoreTypeObjects::formatToCleanValue('chronology', $arr_object_sub['object_sub']['object_sub_date_chronology'])) : '-').'</dd>
+						<dd>'.($arr_object_sub_value['object_sub_date_chronology'] ? self::createTypeObjectSubChronology($type_id, $object_sub_details_id, $object_id, StoreTypeObjects::formatToCleanValue('chronology', $arr_object_sub_value['object_sub_date_chronology'])) : '-').'</dd>
 					</li>';
 				}
 				if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_location']) {
 					
-					if ($arr_object_sub['object_sub']['object_sub_location_ref_type_id']) {
+					if ($arr_object_sub_value['object_sub_location_ref_type_id']) {
 						$return .= '<li>
 							<dt>'.getLabel('lbl_location').'</dt>
 							<dd>';
-								if ($arr_object_sub['object_sub']['object_sub_location_ref_object_id']) {
-									$return .= self::createTypeObjectLink($arr_object_sub['object_sub']['object_sub_location_ref_type_id'], $arr_object_sub['object_sub']['object_sub_location_ref_object_id'], $arr_object_sub['object_sub']['object_sub_location_ref_object_name']);
+								if ($arr_object_sub_value['object_sub_location_ref_object_id']) {
+									$return .= self::createTypeObjectLink($arr_object_sub_value['object_sub_location_ref_type_id'], $arr_object_sub_value['object_sub_location_ref_object_id'], $arr_object_sub_value['object_sub_location_ref_object_name']);
 								} else {
 									$return .= '<span>-</span>';
 								}
-								$return .= '<span class="icon">'.getIcon('link').'</span><span>('.htmlspecialchars(Labels::parseTextVariables($arr_types[$arr_object_sub['object_sub']['object_sub_location_ref_type_id']]['name'])).'</span>'
+								$return .= ' <span>('.strEscapeHTML(Labels::parseTextVariables($arr_types[$arr_object_sub_value['object_sub_location_ref_type_id']]['name'])).'</span>'
 									.' '
-									.'<span class="sub-name">'.htmlspecialchars(Labels::parseTextVariables($arr_type_object_subs_details[$arr_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id']]['object_sub_details_name'])).'</span><span>)</span>';
+									.'<span class="sub-name">'.strEscapeHTML(Labels::parseTextVariables($arr_type_object_subs_details[$arr_object_sub_value['object_sub_location_ref_object_sub_details_id']]['object_sub_details_name'])).'</span><span>)</span>';
 							$return .= '</dd>
 						</li>';
 					}
 					
 					$return .= '<li>
 						<dt>'.getLabel('lbl_geometry').'</dt>
-						<dd>'.($arr_object_sub['object_sub']['object_sub_location_geometry'] ? StoreTypeObjects::formatToCleanValue('geometry', $arr_object_sub['object_sub']['object_sub_location_geometry']) : '-').'</dd>
+						<dd>'.($arr_object_sub_value['object_sub_location_geometry'] ? StoreTypeObjects::formatToCleanValue('geometry', $arr_object_sub_value['object_sub_location_geometry']) : '-').'</dd>
 					</li>';
 				}
 										
@@ -453,7 +471,7 @@ class data_view extends base_module {
 						$object_sub_description_id = $arr_object_sub_description['object_sub_description_id'];
 						$arr_object_sub_definition = $arr_object_sub['object_sub_definitions'][$object_sub_description_id];
 
-						if ((!$arr_object_sub_definition['object_sub_definition_value'] && !$arr_object_sub_definition['object_sub_definition_ref_object_id']) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) || $arr_object_sub_definition['object_sub_definition_style'] == 'hide') {
+						if ((!$arr_object_sub_definition['object_sub_definition_value'] && !$arr_object_sub_definition['object_sub_definition_ref_object_id']) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) || $arr_object_sub_definition['object_sub_definition_style'] == 'hide') {
 							continue;
 						}
 						
@@ -463,31 +481,34 @@ class data_view extends base_module {
 							
 							if ($arr_object_sub_description['object_sub_description_is_dynamic']) {
 							
-								$html_value = '';
+								$arr_html_value = [];
 								
 								foreach ($arr_object_sub_definition['object_sub_definition_ref_object_id'] as $ref_type_id => $arr_ref_objects) {
 								
 									foreach($arr_ref_objects as $cur_object_id => $arr_reference) {
 										
-										$html_link = self::createTypeObjectLink($ref_type_id, $cur_object_id, $arr_reference['object_sub_definition_ref_object_name']);
+										$html_link = ($arr_object_sub_definition_style ? '<span style="'.$arr_object_sub_definition_style.'">'.$arr_reference['object_sub_definition_ref_object_name'].'</span>' : $arr_reference['object_sub_definition_ref_object_name']);
 									
-										$html_value .= ($arr_object_sub_definition_style ? '<span style="'.$arr_object_sub_definition_style.'">'.$html_link.'</span>' : $html_link).'<span class="icon">'.getIcon('link').'</span>';
+										$arr_html_value[] = self::createTypeObjectLink($ref_type_id, $cur_object_id, $html_link);
 									}
 								}
+																
+								$html_value = implode('<span class="separator">'.($arr_object_description['object_description_value_type_settings']['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR).'</span>', $arr_html_value);
 							} else {
 							
-								$html_value = self::createTypeObjectLink($arr_object_sub_description['object_sub_description_ref_type_id'], $arr_object_sub_definition['object_sub_definition_ref_object_id'], $arr_object_sub_definition['object_sub_definition_value']);
-								$html_value = ($arr_object_sub_definition_style ? '<span style="'.$arr_object_sub_definition_style.'">'.$html_value.'</span>' : $html_value).'<span class="icon">'.getIcon('link').'</span>';
+								$html_link = ($arr_object_sub_definition_style ? '<span style="'.$arr_object_sub_definition_style.'">'.$arr_object_sub_definition['object_sub_definition_value'].'</span>' : $arr_object_sub_definition['object_sub_definition_value']);
+								
+								$html_value = self::createTypeObjectLink($arr_object_sub_description['object_sub_description_ref_type_id'], $arr_object_sub_definition['object_sub_definition_ref_object_id'], $html_link);
 							}
 						} else {
 							
 							$str_value = arrParseRecursive($arr_object_sub_definition['object_sub_definition_value'], ['Labels', 'parseLanguage']);
 							
-							$html_value = StoreTypeObjects::formatToPresentationValue($arr_object_sub_description['object_sub_description_value_type'], $str_value, $arr_object_sub_description['object_sub_description_value_type_options'], $arr_object_sub_definition['object_sub_definition_ref_object_id']);
+							$html_value = StoreTypeObjects::formatToHTMLValue($arr_object_sub_description['object_sub_description_value_type'], $str_value, $arr_object_sub_description['object_sub_description_value_type_settings'], $arr_object_sub_definition['object_sub_definition_ref_object_id']);
 							$html_value = ($arr_object_sub_definition_style ? '<span style="'.$arr_object_sub_definition_style.'">'.$html_value.'</span>' : $html_value);
 						}
 						
-						$str_name = htmlspecialchars(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']));
+						$str_name = strEscapeHTML(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']));
 						
 						$return .= '<li data-object_sub_description_id="'.$object_sub_description_id.'">
 							<dt>'.($arr_object_sub_description['object_sub_description_is_referenced'] ?
@@ -506,10 +527,10 @@ class data_view extends base_module {
 	
 	public static function createTypeObjectSubChronology($type_id, $object_sub_details_id, $object_id, $arr_date_chronology) {
 
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_types = StoreType::getTypes();
 		
-		$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
+		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
 		$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 
 		$arr_time_units = StoreType::getTimeUnits();
@@ -535,8 +556,7 @@ class data_view extends base_module {
 				$str_html .= ($str_html ? ' ' : '')
 					.'<em>'.$arr_time_directions[$arr_statement['cycle_direction']]['name'].'</em> '
 					.'of '
-					.'<em>'.self::createTypeObjectLink(StoreType::getSystemTypeID('cycle'), $arr_statement['cycle_object_id'], $arr_statement['cycle_object_name']).'</em>'
-					.'<span class="icon">'.getIcon('link').'</span>';
+					.'<em>'.self::createTypeObjectLink(StoreType::getSystemTypeID('cycle'), $arr_statement['cycle_object_id'], $arr_statement['cycle_object_name']).'</em>';
 			}
 			
 			if (!$arr_statement['date_direction'] && $int_identifier) {
@@ -567,15 +587,13 @@ class data_view extends base_module {
 				
 				$str_html .= '<ul>'
 					.'<li>'
-						.'<span>'.htmlspecialchars(Labels::parseTextVariables($arr_types[$arr_statement['date_type_id']]['name'])).'</span>'
+						.'<span>'.strEscapeHTML(Labels::parseTextVariables($arr_types[$arr_statement['date_type_id']]['name'])).'</span>'
 						.' '
-						.'<span class="sub-name">'.htmlspecialchars(Labels::parseTextVariables($arr_date_object_subs_details[$arr_statement['date_object_sub_details_id']]['object_sub_details_name'])).'</span>'
+						.'<span class="sub-name">'.strEscapeHTML(Labels::parseTextVariables($arr_date_object_subs_details[$arr_statement['date_object_sub_details_id']]['object_sub_details_name'])).'</span>'
 					.'</li><li>'
 						.self::createTypeObjectLink($arr_statement['date_type_id'], $arr_statement['date_object_id'], $arr_statement['date_object_name'])
-						.'<span class="icon">'.getIcon('link').'</span>'
 					.'</li><li>'
-					.'<strong>'.self::createTypeObjectSubLink($arr_statement['date_type_id'], $arr_statement['date_object_id'], $arr_statement['date_object_sub_details_id'], $arr_statement['date_object_sub_id'], $arr_statement['date_object_sub_name']).'</strong>'
-					.'<span class="icon">'.getIcon('link').'</span>'
+						.'<strong>'.self::createTypeObjectSubLink($arr_statement['date_type_id'], $arr_statement['date_object_id'], $arr_statement['date_object_sub_details_id'], $arr_statement['date_object_sub_id'], $arr_statement['date_object_sub_name']).'</strong>'
 					.'</li>'
 				.'</ul>';
 			} else {
@@ -598,8 +616,7 @@ class data_view extends base_module {
 			
 		if ($arr_date_chronology['span']['cycle_object_id']) {
 			
-			$str_html_cycle .= '<em>'.self::createTypeObjectLink(StoreType::getSystemTypeID('cycle'), $arr_date_chronology['span']['cycle_object_id'], $arr_date_chronology['span']['cycle_object_name']).'</em>'
-				.'<span class="icon">'.getIcon('link').'</span>';
+			$str_html_cycle .= '<em>'.self::createTypeObjectLink(StoreType::getSystemTypeID('cycle'), $arr_date_chronology['span']['cycle_object_id'], $arr_date_chronology['span']['cycle_object_name']).'</em>';
 		}
 		
 		if ($str_html_cycle || $str_html_period) {
@@ -611,7 +628,7 @@ class data_view extends base_module {
 			}
 		}
 		
-		$is_date_single = (!$is_date_period && !$arr_date_chronology['start']['end'] && !$arr_date_chronology['start']['start']['offset_amount'] && $arr_date_chronology['start']['start']['date_value'] && !$arr_date_chronology['start']['start']['date_direction']);
+		$is_date_single = (!$is_date_period && empty($arr_date_chronology['start']['end']) && empty($arr_date_chronology['start']['start']['offset_amount']) && !empty($arr_date_chronology['start']['start']['date_value']) && empty($arr_date_chronology['start']['start']['date_direction']));
 		
 		if ($is_date_single) {
 			$str_html_start_start = $func_date_statement($arr_date_chronology['start']['start'], false);
@@ -639,8 +656,8 @@ class data_view extends base_module {
 		
 		if ($is_date_period) {
 			
-			$str_html_end_start = $func_date_statement($arr_date_chronology['end']['start'], StoreType::DATE_END_START);
-			$str_html_end_end = $func_date_statement($arr_date_chronology['end']['end'], StoreType::DATE_END_END);
+			$str_html_end_start = $func_date_statement(($arr_date_chronology['end']['start'] ?? null), StoreType::DATE_END_START);
+			$str_html_end_end = $func_date_statement(($arr_date_chronology['end']['end'] ?? null), StoreType::DATE_END_END);
 
 			$str_html_date_start = getLabel('lbl_end');
 			
@@ -663,10 +680,10 @@ class data_view extends base_module {
 	
 	public static function formatToTypeObjectSubValues($type_id, $object_sub_details_id, $object_id = 0, $arr_object_sub = []) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_types = StoreType::getTypes(array_keys($arr_project['types']));
 		
-		$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'view');
+		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'view');
 		$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 		$arr_object_sub_value = $arr_object_sub['object_sub'];
 		
@@ -674,20 +691,24 @@ class data_view extends base_module {
 		
 		if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_date']) {
 			
-			$arr_chronology = StoreTypeObjects::formatToChronology($arr_object_sub_value['object_sub_date_chronology']);
-			$arr_date_all = $arr_object_sub_value['object_sub_date_all'];
-						
-			$arr['object_sub_date_start'] = (StoreTypeObjects::intChronology2Date($arr_date_all[StoreType::DATE_START_START], $arr_chronology['start']['start'], StoreType::DATE_START_START) ?: '-');
-			if ($arr_date_all[StoreType::DATE_START_END]) {
-				$arr['object_sub_date_start'] .= ' / '.StoreTypeObjects::intChronology2Date($arr_date_all[StoreType::DATE_START_END], $arr_chronology['start']['end'], StoreType::DATE_START_END);
-			}
-			if ($arr_object_sub_value['object_sub_date_start'] != $arr_object_sub_value['object_sub_date_end']) {
-				$arr['object_sub_date_end'] = StoreTypeObjects::intChronology2Date($arr_date_all[StoreType::DATE_END_END], $arr_chronology['end']['end'], StoreType::DATE_END_END);
-				if ($arr_date_all[StoreType::DATE_END_START]) {
-					$arr['object_sub_date_end'] = StoreTypeObjects::intChronology2Date($arr_date_all[StoreType::DATE_END_START], $arr_chronology['end']['start'], StoreType::DATE_END_START).' / '.$arr['object_sub_date_end'];
+			$arr['object_sub_date_start'] = '-';
+			$arr['object_sub_date_end'] = '-';
+
+			if ($arr_object_sub_value['object_sub_date_chronology'] || $arr_object_sub_value['object_sub_date_start'] || $arr_object_sub_value['object_sub_date_end']) {
+				
+				$arr_date_all = $arr_object_sub_value['object_sub_date_all'];
+				$arr_chronology = StoreTypeObjects::formatToChronology($arr_object_sub_value['object_sub_date_chronology']);
+	
+				$arr['object_sub_date_start'] = (StoreTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_START_START], ($arr_chronology['start']['start'] ?? null), StoreType::DATE_START_START) ?: '-');
+				if ($arr_date_all[StoreType::DATE_START_END]) {
+					$arr['object_sub_date_start'] .= ' / '.StoreTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_START_END], ($arr_chronology['start']['end'] ?? null), StoreType::DATE_START_END);
 				}
-			} else {
-				$arr['object_sub_date_end'] = '-';
+				if ($arr_object_sub_value['object_sub_date_start'] != $arr_object_sub_value['object_sub_date_end']) {
+					$arr['object_sub_date_end'] = (StoreTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_END_END], ($arr_chronology['end']['end'] ?? null), StoreType::DATE_END_END) ?: '-');
+					if ($arr_date_all[StoreType::DATE_END_START]) {
+						$arr['object_sub_date_end'] = StoreTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_END_START], ($arr_chronology['end']['start'] ?? null), StoreType::DATE_END_START).' / '.$arr['object_sub_date_end'];
+					}
+				}
 			}
 		} else {
 			
@@ -745,7 +766,7 @@ class data_view extends base_module {
 				
 				$str_value = arrParseRecursive($arr_object_sub_definition['object_sub_definition_value'], ['Labels', 'parseLanguage']);
 				
-				$return = StoreTypeObjects::formatToPreviewValue($arr_object_sub_description['object_sub_description_value_type'], $str_value, $arr_object_sub_description['object_sub_description_value_type_options'], $arr_object_sub_definition['object_sub_definition_ref_object_id']);
+				$return = StoreTypeObjects::formatToHTMLPreviewValue($arr_object_sub_description['object_sub_description_value_type'], $str_value, $arr_object_sub_description['object_sub_description_value_type_settings'], $arr_object_sub_definition['object_sub_definition_ref_object_id']);
 			}
 			
 			$arr['object_sub_definition_'.$object_sub_description_id] = $return;
@@ -778,189 +799,221 @@ class data_view extends base_module {
 	
 	public static function createViewTypeObjectReferenced($type_id, $object_id) {
 		
-		$arr_ref_type_ids = cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']);
-		$arr_type_object_references = FilterTypeObjects::getTypeObjectReferenced($object_id, $arr_ref_type_ids);
-
-		if ($arr_type_object_references) {
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_ref_type_ids = StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']);
+		$arr_type_object_references = FilterTypeObjects::getTypeObjectReferenced($type_id, $object_id, $arr_ref_type_ids);
+		
+		if (!$arr_type_object_references) {
+			return '';
+		}
+				
+		$return = '<div class="referenced">';
 			
-			$return .= '<div class="referenced">';
+			$arr_dynamic_tags_reference_types_object_descriptions = [];
+			
+			$arr_html_tabs = [];
+			$return_statistics = '';
+			
+			foreach ($arr_type_object_references as $reference_type_id => $arr_object_reference) {
 				
-				$arr_dynamic_tags_reference_types_object_descriptions = [];
+				$arr_reference_type_set = StoreType::getTypeSet($reference_type_id);
 				
-				foreach ($arr_type_object_references as $reference_type_id => $arr_object_reference) {
+				$return_statistics .= '<h1>'.Labels::parseTextVariables($arr_reference_type_set['type']['name']).'</h1>';
+				
+				if ($arr_object_reference['object_definitions'] || isset($arr_object_reference['object']['object_sources'])) {
 					
-					$arr_reference_type_set = StoreType::getTypeSet($reference_type_id);
+					$return_statistics .= '<div class="record"><dl>';
 					
-					$return_statistics .= '<h1>'.Labels::parseTextVariables($arr_reference_type_set['type']['name']).'</h1>';
+					if (isset($arr_object_reference['object']['object_sources'])) {
+						$return_statistics .= '<li><dt><span class="dynamic-references-name">'.getLabel('lbl_source').'</span></dt><dd>'.$arr_object_reference['object']['object_sources']['count'].'</dd></li>';
+					}
 					
-					if ($arr_object_reference['object_definitions'] || $arr_object_reference['object']['object_sources']) {
+					foreach ((array)$arr_object_reference['object_definitions'] as $object_description_id => $arr_reference) {
 						
-						$return_statistics .= '<div class="record"><dl>';
+						$arr_object_description = ($arr_reference_type_set['object_descriptions'][$object_description_id] ?? null);
 						
-						if ($arr_object_reference['object']['object_sources']) {
-							$return_statistics .= '<li><dt><span class="dynamic-references-name">'.getLabel('lbl_source').'</span></dt><dd>'.$arr_object_reference['object']['object_sources']['count'].'</dd></li>';
+						if (!$arr_object_description) {
+							continue;
 						}
 						
-						foreach ((array)$arr_object_reference['object_definitions'] as $object_description_id => $arr_reference) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_reference_type_set, $object_description_id)) {
+							continue;
+						}
+						
+						$html_name = '<span'.($arr_object_description['object_description_is_dynamic'] ? ' class="dynamic-references-name"' : '').'>'.Labels::parseTextVariables($arr_object_description['object_description_name']).'</span>';
+						
+						if (!empty($arr_reference['count'])) {
+							$return_statistics .= '<li><dt>'.$html_name.'</dt><dd>'.$arr_reference['count'].'</dd></li>';
+						}
+						if (!empty($arr_reference['object_definition_sources']['count'])) {
+							$return_statistics .= '<li><dt>'.$html_name.' <span class="dynamic-references-name">'.getLabel('lbl_source').'</span></dt><dd>'.$arr_reference['object_definition_sources']['count'].'</dd></li>';
+						}
+						if ($arr_object_description['object_description_is_dynamic'] && !$arr_object_description['object_description_ref_type_id']) {
+							$arr_dynamic_tags_reference_types_object_descriptions[$reference_type_id][$object_description_id] = $object_description_id;							
+						}
+					}
+					
+					$return_statistics .= '</dl></div>';
+				}
+				
+				if ($arr_object_reference['object_subs']) {
+					
+					$return_statistics .= '<ul>';
+					
+					foreach ($arr_object_reference['object_subs'] as $object_sub_details_id => $arr_object_sub) {
+						
+						$arr_object_sub_details = ($arr_reference_type_set['object_sub_details'][$object_sub_details_id] ?? null);
+						
+						if (!$arr_object_sub_details) {
+							continue;
+						}
+						
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_reference_type_set, false, $object_sub_details_id)) {
+							continue;
+						}
+						
+						$return_statistics .= '<li>
+							<h2><span class="sub-name">'.Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'</span></h2>
+							<div class="record"><dl>';
 							
-							$arr_object_description = $arr_reference_type_set['object_descriptions'][$object_description_id];
+							if (!empty($arr_object_sub['object_sub']['object_sub_sources']['count'])) {
+								$return_statistics .= '<li><dt><span class="dynamic-references-name">'.getLabel('lbl_source').'</span></dt><dd>'.$arr_object_sub['object_sub']['object_sub_sources']['count'].'</dd></li>';
+							}
+							if (!empty($arr_object_sub['object_sub']['object_sub_location']['count'])) {
+								$return_statistics .= '<li><dt><span class="dynamic-references-name">'.getLabel('lbl_location').'</span></dt><dd>'.$arr_object_sub['object_sub']['object_sub_location']['count'].'</dd></li>';
+							}
+							
+							foreach ((array)$arr_object_sub['object_sub_definitions'] as $object_sub_description_id => $arr_reference) {
+
+								$arr_object_sub_description = ($arr_object_sub_details['object_sub_descriptions'][$object_sub_description_id] ?? null);
+								
+								if (!$arr_object_sub_description) {
+									continue;
+								}
+								
+								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_reference_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+									continue;
+								}
+						
+								$html_name = '<span'.($arr_object_sub_description['object_sub_description_is_dynamic'] ? ' class="dynamic-references-name"' : '').'>'.Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']).'</span>';
+							
+								if (!empty($arr_reference['count'])) {
+									$return_statistics .= '<li><dt>'.$html_name.'</dt><dd>'.$arr_reference['count'].'</dd></li>';
+								}
+								if (!empty($arr_reference['object_sub_definition_sources']['count'])) {
+									$return_statistics .= '<li><dt>'.$html_name.' <span class="dynamic-references-name">'.getLabel('lbl_source').'</span></dt><dd>'.$arr_reference['object_sub_definition_sources']['count'].'</dd></li>';
+								}
+							}
+							
+							$return_statistics .= '</dl></div>
+						</li>';
+					}
+					$return_statistics .= '</ul>';
+				}
+
+				$arr_html_tabs['links'][$reference_type_id] = '<li><a'.(!$arr_html_tabs['links'] ? ' class="open"' : '').' href="#">'.Labels::parseTextVariables($arr_reference_type_set['type']['name']).'</a></li>';
+				
+				$return_tab = '<div id="tab-reference-'.$reference_type_id.'">
+					<form class="options fieldsets"><div>';
+					
+					if (isset($arr_object_reference['object']['object_sources'])) {
+						
+						$return_tab .= '<fieldset><legend><span class="dynamic-references-name">'.getLabel('lbl_source').'</span></legend><ul>
+							<li>'.Labels::parseTextVariables(cms_general::createSelectorList([['name' => '<span>'.$arr_reference_type_set['type']['name'].'</span>', 'id' => $object_id]], 'object_sources', 'all')).'</li>
+						</ul></fieldset>';
+					}
+					
+					if ($arr_object_reference['object_definitions']) {
+						
+						$arr_select = [];
+						
+						foreach ($arr_object_reference['object_definitions'] as $object_description_id => $arr_reference) {
+							
+							$arr_object_description = ($arr_reference_type_set['object_descriptions'][$object_description_id] ?? null);
 							
 							if (!$arr_object_description) {
 								continue;
 							}
 							
-							$html_name = '<span'.($arr_object_description['object_description_is_dynamic'] ? ' class="dynamic-references-name"' : '').'>'.Labels::parseTextVariables($arr_object_description['object_description_name']).'</span>';
-							
-							if ($arr_reference['count']) {
-								$return_statistics .= '<li><dt>'.$html_name.'</dt><dd>'.$arr_reference['count'].'</dd></li>';
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_reference_type_set, $object_description_id)) {
+								continue;
 							}
-							if ($arr_reference['object_definition_sources']['count']) {
-								$return_statistics .= '<li><dt>'.$html_name.' <span class="dynamic-references-name">'.getLabel('lbl_source').'</span></dt><dd>'.$arr_reference['object_definition_sources']['count'].'</dd></li>';
+
+							if (!empty($arr_reference['count'])) {
+								
+								$html_name = '<span'.($arr_object_description['object_description_is_dynamic'] ? ' class="dynamic-references-name"' : '').'>'.$arr_object_description['object_description_name'].'</span>';
+								
+								$arr_select['self'][] = ['id' => $object_description_id, 'name' => $html_name];
 							}
-							if ($arr_object_description['object_description_is_dynamic'] && !$arr_object_description['object_description_ref_type_id']) {
-								$arr_dynamic_tags_reference_types_object_descriptions[$reference_type_id][$object_description_id] = $object_description_id;							
+							if (!empty($arr_reference['object_definition_sources']['count'])) {
+								
+								$html_name = '<span>'.$arr_object_description['object_description_name'].'</span>';
+								
+								$arr_select['sources'][] = ['id' => $object_description_id, 'name' => $html_name];
 							}
 						}
 						
-						$return_statistics .= '</dl></div>';
+						if ($arr_select['self']) {
+							
+							$return_tab .= '<fieldset><legend><span>'.getLabel('lbl_description').'</span></legend><ul>
+								<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_select['self'], 'object_descriptions', 'all')).'</li>
+							</ul></fieldset>';
+						}
+						if ($arr_select['sources']) {
+							
+							$return_tab .= '<fieldset><legend><span>'.getLabel('lbl_description').'</span> <span class="dynamic-references-name">'.getLabel('lbl_source').'</span></legend><ul>
+								<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_select['sources'], 'object_description_sources', 'all')).'</li>
+							</ul></fieldset>';
+						}
 					}
-					
 					if ($arr_object_reference['object_subs']) {
 						
-						$return_statistics .= '<ul>';
+						$arr_select = [];
 						
 						foreach ($arr_object_reference['object_subs'] as $object_sub_details_id => $arr_object_sub) {
 							
-							$arr_object_sub_details = $arr_reference_type_set['object_sub_details'][$object_sub_details_id];
+							$arr_object_sub_details = ($arr_reference_type_set['object_sub_details'][$object_sub_details_id] ?? null);
 							
 							if (!$arr_object_sub_details) {
 								continue;
 							}
 							
-							$return_statistics .= '<li>
-								<h2><span class="sub-name">'.Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'</span></h2>
-								<div class="record"><dl>';
-								
-								if ($arr_object_sub['object_sub']['object_sub_sources']['count']) {
-									$return_statistics .= '<li><dt><span class="dynamic-references-name">'.getLabel('lbl_source').'</span></dt><dd>'.$arr_object_sub['object_sub']['object_sub_sources']['count'].'</dd></li>';
-								}
-								if ($arr_object_sub['object_sub']['object_sub_location']['count']) {
-									$return_statistics .= '<li><dt><span class="dynamic-references-name">'.getLabel('lbl_location').'</span></dt><dd>'.$arr_object_sub['object_sub']['object_sub_location']['count'].'</dd></li>';
-								}
-								
-								foreach ((array)$arr_object_sub['object_sub_definitions'] as $object_sub_description_id => $arr_reference) {
-
-									$arr_object_sub_description = $arr_object_sub_details['object_sub_descriptions'][$object_sub_description_id];
-									
-									if (!$arr_object_sub_description) {
-										continue;
-									}
-							
-									$html_name = '<span'.($arr_object_sub_description['object_sub_description_is_dynamic'] ? ' class="dynamic-references-name"' : '').'>'.Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']).'</span>';
-								
-									if ($arr_reference['count']) {
-										$return_statistics .= '<li><dt>'.$html_name.'</dt><dd>'.$arr_reference['count'].'</dd></li>';
-									}
-									if ($arr_reference['object_sub_definition_sources']['count']) {
-										$return_statistics .= '<li><dt>'.$html_name.' <span class="dynamic-references-name">'.getLabel('lbl_source').'</span></dt><dd>'.$arr_reference['object_sub_definition_sources']['count'].'</dd></li>';
-									}
-								}
-								
-								$return_statistics .= '</dl></div>
-							</li>';
-						}
-						$return_statistics .= '</ul>';
-					}
-
-					$arr_html_tabs['links'][$reference_type_id] = '<li><a'.(!$arr_html_tabs['links'] ? ' class="open"' : '').' href="#">'.Labels::parseTextVariables($arr_reference_type_set['type']['name']).'</a></li>';
-					
-					$return_tab = '<div id="tab-reference-'.$reference_type_id.'">
-						<form class="options fieldsets"><div>';
-						
-						if ($arr_object_reference['object']['object_sources']) {
-							
-							$return_tab .= '<fieldset><legend><span class="dynamic-references-name">'.getLabel('lbl_source').'</span></legend><ul>
-								<li>'.Labels::parseTextVariables(cms_general::createSelectorList([['name' => '<span>'.$arr_reference_type_set['type']['name'].'</span>', 'id' => $object_id]], 'object_sources', 'all')).'</li>
-							</ul></fieldset>';
-						}
-						
-						if ($arr_object_reference['object_definitions']) {
-							
-							$arr_select = [];
-							
-							foreach ($arr_object_reference['object_definitions'] as $object_description_id => $arr_reference) {
-								
-								$arr_object_description = $arr_reference_type_set['object_descriptions'][$object_description_id];
-								
-								if (!$arr_object_description) {
-									continue;
-								}
-
-								if ($arr_reference['count']) {
-									
-									$html_name = '<span'.($arr_object_description['object_description_is_dynamic'] ? ' class="dynamic-references-name"' : '').'>'.$arr_object_description['object_description_name'].'</span>';
-									
-									$arr_select['self'][] = ['id' => $object_description_id, 'name' => $html_name];
-								}
-								if ($arr_reference['object_definition_sources']['count']) {
-									
-									$html_name = '<span>'.$arr_object_description['object_description_name'].'</span>';
-									
-									$arr_select['sources'][] = ['id' => $object_description_id, 'name' => $html_name];
-								}
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_reference_type_set, false, $object_sub_details_id)) {
+								continue;
 							}
 							
-							if ($arr_select['self']) {
-								
-								$return_tab .= '<fieldset><legend><span>'.getLabel('lbl_description').'</span></legend><ul>
-									<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_select['self'], 'object_descriptions', 'all')).'</li>
-								</ul></fieldset>';
-							}
-							if ($arr_select['sources']) {
-								
-								$return_tab .= '<fieldset><legend><span>'.getLabel('lbl_description').'</span> <span class="dynamic-references-name">'.getLabel('lbl_source').'</span></legend><ul>
-									<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_select['sources'], 'object_description_sources', 'all')).'</li>
-								</ul></fieldset>';
-							}
-						}
-						if ($arr_object_reference['object_subs']) {
+							$html_name_object_sub_details = '<span class="sub-name">'.$arr_object_sub_details['object_sub_details']['object_sub_details_name'].'</span>';
 							
-							$arr_select = [];
+							if (!empty($arr_object_sub['object_sub']['object_sub_location']['count'])) {
+								
+								$arr_select['locations'][] = ['id' => $object_sub_details_id, 'name' => $html_name_object_sub_details];
+							}
+							if (!empty($arr_object_sub['object_sub']['object_sub_sources']['count'])) {
+								
+								$arr_select['sources'][] = ['id' => $object_sub_details_id, 'name' => $html_name_object_sub_details];
+							}
 							
-							foreach ($arr_object_reference['object_subs'] as $object_sub_details_id => $arr_object_sub) {
+							if ($arr_object_sub['object_sub_definitions']) {
 								
-								$arr_object_sub_details = $arr_reference_type_set['object_sub_details'][$object_sub_details_id];
-								
-								if (!$arr_object_sub_details) {
-									continue;
-								}
-								
-								$html_name_object_sub_details = '<span class="sub-name">'.$arr_object_sub_details['object_sub_details']['object_sub_details_name'].'</span>';
-								
-								if ($arr_object_sub['object_sub']['object_sub_location']['count']) {
-									
-									$arr_select['locations'][] = ['id' => $object_sub_details_id, 'name' => $html_name_object_sub_details];
-								}
-								if ($arr_object_sub['object_sub']['object_sub_sources']['count']) {
-									
-									$arr_select['sources'][] = ['id' => $object_sub_details_id, 'name' => $html_name_object_sub_details];
-								}
-								
-								foreach ((array)$arr_object_sub['object_sub_definitions'] as $object_sub_description_id => $arr_reference) {
+								foreach ($arr_object_sub['object_sub_definitions'] as $object_sub_description_id => $arr_reference) {
 									
 									$arr_object_sub_description = $arr_object_sub_details['object_sub_descriptions'][$object_sub_description_id];
 									
 									if (!$arr_object_sub_description) {
 										continue;
 									}
+									
+									if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_reference_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+										continue;
+									}
 
-									if ($arr_reference['count']) {
+									if (!empty($arr_reference['count'])) {
 										
 										$html_name = $html_name_object_sub_details.' <span'.($arr_object_sub_description['object_sub_description_is_dynamic'] ? ' class="dynamic-references-name"' : '').'>'.$arr_object_sub_description['object_sub_description_name'].'</span>';
 										
 										$arr_select['descriptions']['self'][] = ['id' => $object_sub_description_id, 'name' => '<span>'.$html_name.'</span>'];
 									}
-									if ($arr_reference['object_sub_definition_sources']['count']) {
+									if (!empty($arr_reference['object_sub_definition_sources']['count'])) {
 										
 										$html_name = $html_name_object_sub_details.' <span>'.$arr_object_sub_description['object_sub_description_name'].'</span>';
 										
@@ -968,71 +1021,73 @@ class data_view extends base_module {
 									}
 								}
 							}
-							
-							if ($arr_select['locations']) {
-								
-								$return_tab .= '<fieldset><legend><span>'.getLabel('lbl_object_sub').'</span> <span class="dynamic-references-name">'.getLabel('lbl_location').'</span></legend><ul>
-									<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_select['locations'], 'object_sub_locations', 'all')).'</li>
-								</ul></fieldset>';
-							}
-							if ($arr_select['sources']) {
-								
-								$return_tab .= '<fieldset><legend><span>'.getLabel('lbl_object_sub').'</span> <span class="dynamic-references-name">'.getLabel('lbl_source').'</span></legend><ul>
-									<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_select['sources'], 'object_sub_sources', 'all')).'</li>
-								</ul></fieldset>';
-							}
-							if ($arr_select['descriptions']['self']) {
-								
-								$return_tab .= '<fieldset><legend><span>'.getLabel('lbl_object_sub').' '.getLabel('lbl_description').'</span></legend><ul>
-									<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_select['descriptions']['self'], 'object_sub_descriptions', 'all')).'</li>
-								</ul></fieldset>';
-							}
-							if ($arr_select['descriptions']['sources']) {
-								
-								$return_tab .= '<fieldset><legend><span>'.getLabel('lbl_object_sub').' '.getLabel('lbl_description').'</span> <span class="dynamic-references-name">'.getLabel('lbl_source').'</span></legend><ul>
-									<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_select['descriptions']['sources'], 'object_sub_description_sources', 'all')).'</li>
-								</ul></fieldset>';
-							}
 						}
-						$return_tab .= '</div></form>
-						'.self::createViewTypeObjects($reference_type_id, ['referenced_type_id' => (int)$type_id, 'referenced_object_id' => (int)$object_id, 'filter' => $_SESSION['USER_ID'], 'project_filter' => true], true).'
-					</div>';
-					$arr_html_tabs['content'][$reference_type_id] = $return_tab;
-				}
-				
-				if ($arr_dynamic_tags_reference_types_object_descriptions) {
-					
-					$arr_html_dynamic_tabs = [];
-					
-					foreach ($arr_dynamic_tags_reference_types_object_descriptions as $reference_type_id => $arr_object_descriptions) {
 						
-						$arr_reference_type_set = StoreType::getTypeSet($reference_type_id);
-						
-						$arr_html_dynamic_tabs['links'][$reference_type_id] = '<li><a'.(!$arr_html_tabs['links'] ? ' class="open"' : '').' href="#">'.Labels::parseTextVariables($arr_reference_type_set['type']['name']).'</a></li>';
-						$arr_html_dynamic_tabs['content'][$reference_type_id] = '<div>'.self::createViewTypeObjects($reference_type_id, ['referenced_type_id' => (int)$type_id, 'referenced_object_id' => (int)$object_id, 'dynamic_object_descriptions' => $arr_object_descriptions, 'filter' => $_SESSION['USER_ID'], 'project_filter' => true], true).'</div>';				
+						if ($arr_select['locations']) {
+							
+							$return_tab .= '<fieldset><legend><span>'.getLabel('lbl_object_sub').'</span> <span class="dynamic-references-name">'.getLabel('lbl_location').'</span></legend><ul>
+								<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_select['locations'], 'object_sub_locations', 'all')).'</li>
+							</ul></fieldset>';
+						}
+						if ($arr_select['sources']) {
+							
+							$return_tab .= '<fieldset><legend><span>'.getLabel('lbl_object_sub').'</span> <span class="dynamic-references-name">'.getLabel('lbl_source').'</span></legend><ul>
+								<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_select['sources'], 'object_sub_sources', 'all')).'</li>
+							</ul></fieldset>';
+						}
+						if (isset($arr_select['descriptions']['self'])) {
+							
+							$return_tab .= '<fieldset><legend><span>'.getLabel('lbl_object_sub').' '.getLabel('lbl_description').'</span></legend><ul>
+								<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_select['descriptions']['self'], 'object_sub_descriptions', 'all')).'</li>
+							</ul></fieldset>';
+						}
+						if (isset($arr_select['descriptions']['sources'])) {
+							
+							$return_tab .= '<fieldset><legend><span>'.getLabel('lbl_object_sub').' '.getLabel('lbl_description').'</span> <span class="dynamic-references-name">'.getLabel('lbl_source').'</span></legend><ul>
+								<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_select['descriptions']['sources'], 'object_sub_description_sources', 'all')).'</li>
+							</ul></fieldset>';
+						}
 					}
+					$return_tab .= '</div></form>
+					'.self::createViewTypeObjects($reference_type_id, ['referenced_type_id' => (int)$type_id, 'referenced_object_id' => (int)$object_id, 'filter' => $_SESSION['USER_ID'], 'project_filter' => true], true).'
+				</div>';
+				$arr_html_tabs['content'][$reference_type_id] = $return_tab;
+			}
+			
+			$return_dynamic = '';
+			
+			if ($arr_dynamic_tags_reference_types_object_descriptions) {
+				
+				$arr_html_dynamic_tabs = [];
+				
+				foreach ($arr_dynamic_tags_reference_types_object_descriptions as $reference_type_id => $arr_object_descriptions) {
 					
-					$return_dynamic = '<div class="tabs">
-						<ul>
-							'.implode('', $arr_html_dynamic_tabs['links']).'
-						</ul>
-						'.implode('', $arr_html_dynamic_tabs['content']).'
-					</div>';
+					$arr_reference_type_set = StoreType::getTypeSet($reference_type_id);
+					
+					$arr_html_dynamic_tabs['links'][$reference_type_id] = '<li><a'.(!$arr_html_tabs['links'] ? ' class="open"' : '').' href="#">'.Labels::parseTextVariables($arr_reference_type_set['type']['name']).'</a></li>';
+					$arr_html_dynamic_tabs['content'][$reference_type_id] = '<div>'.self::createViewTypeObjects($reference_type_id, ['referenced_type_id' => (int)$type_id, 'referenced_object_id' => (int)$object_id, 'dynamic_object_descriptions' => $arr_object_descriptions, 'filter' => $_SESSION['USER_ID'], 'project_filter' => true], true).'</div>';				
 				}
 				
-				$return .= '<div class="tabs">
+				$return_dynamic = '<div class="tabs">
 					<ul>
-						<li><a href="#">'.getLabel('lbl_referenced').': '.getLabel('lbl_overview').'</a></li>
-						'.($return_dynamic ? '<li><a href="#">'.getLabel('lbl_referenced').': '.getLabel('lbl_tags').'</a></li>' : '' )
-						.implode('', $arr_html_tabs['links']).'
+						'.implode('', $arr_html_dynamic_tabs['links']).'
 					</ul>
-					<div class="statistics data_viewer">'.$return_statistics.'</div>
-					'.($return_dynamic ? '<div class="dynamic-object-descriptions">'.$return_dynamic.'</div>' : '' )
-					.implode('', $arr_html_tabs['content']).'
+					'.implode('', $arr_html_dynamic_tabs['content']).'
 				</div>';
+			}
 			
-			$return .= '</div>';
-		}
+			$return .= '<div class="tabs">
+				<ul>
+					<li><a href="#">'.getLabel('lbl_referenced').': '.getLabel('lbl_overview').'</a></li>
+					'.($return_dynamic ? '<li><a href="#">'.getLabel('lbl_referenced').': '.getLabel('lbl_tags').'</a></li>' : '' )
+					.implode('', $arr_html_tabs['links']).'
+				</ul>
+				<div class="statistics data_viewer">'.$return_statistics.'</div>
+				'.($return_dynamic ? '<div class="dynamic-object-descriptions">'.$return_dynamic.'</div>' : '' )
+				.implode('', $arr_html_tabs['content']).'
+			</div>';
+		
+		$return .= '</div>';
 
 		return $return;
 	}
@@ -1040,8 +1095,10 @@ class data_view extends base_module {
 	public static function createViewTypeObjects($type_id, $arr_options = [], $pause = false) {
 
 		// $arr_options = referenced_object_id/select/filter
-
+		
 		$option = 'load';
+		$setting = '';
+		
 		if ($arr_options['session']) {
 			$option = 'session';
 		}
@@ -1068,11 +1125,11 @@ class data_view extends base_module {
 			$filter = true;
 		}
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		
 		$filter_reset = new FilterTypeObjects($type_id);
-		$filter_reset->resetResultInfo();
+		$filter_reset->clearResultInfo();
 		
 		$return = cms_general::createDataTableHeading('d:data_view:data-'.$type_id.'_'.$option.'_'.$setting.'_'.($arr_options['project_filter'] ? '1' : '0'), ['filter' => ($filter ? 'y:data_filter:open_filter-'.$type_id : false), 'pause' => $pause, 'order' => true]).'
 			<thead><tr>';
@@ -1088,7 +1145,7 @@ class data_view extends base_module {
 					
 					foreach ($arr_options['dynamic_object_descriptions'] as $object_description_id) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
@@ -1100,7 +1157,7 @@ class data_view extends base_module {
 					
 					foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 					
-						if (!$arr_object_description['object_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+						if (!$arr_object_description['object_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
@@ -1136,12 +1193,12 @@ class data_view extends base_module {
 			$filter = true;
 		}
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 		
 		$filter_reset = new FilterTypeObjects($type_id);
-		$filter_reset->resetResultInfo();
+		$filter_reset->clearResultInfo();
 		
 		$arr_columns = [];
 		$nr_column = 0;
@@ -1163,7 +1220,7 @@ class data_view extends base_module {
 				
 		foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 			
-			if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+			if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 				continue;
 			}
 			
@@ -1205,10 +1262,10 @@ class data_view extends base_module {
 			$filter = true;
 		}
 		
-		$arr_resource = data_linked_data::getLinkedDataResources($resource_id);
-		$external = new ExternalResource($arr_resource);
+		$arr_resource = StoreResourceExternal::getResources($resource_id);
+		$external = new ResourceExternal($arr_resource);
 		
-		$arr_values = $external->getValues();
+		$arr_values = $external->getResponseValues();
 		
 		$return = cms_general::createDataTableHeading('d:data_view:data_external-'.$resource_id.'_'.$option.'_'.$setting, ['filter' => ($filter ? 'y:data_filter:open_filter_external-'.$resource_id : false), 'pause' => $pause, 'delay' => 2]).'
 			<thead><tr>
@@ -1216,7 +1273,7 @@ class data_view extends base_module {
 				<th class="max limit" data-sort="asc-0"><span>'.getLabel('lbl_name').'</span></th>
 				<th class="max limit"><span>URI</span></th>';
 				
-				foreach ($arr_values as $name => $value) {
+				foreach ($arr_values as $name => $arr_value) {
 
 					$return .= '<th class="limit"><span>'.Labels::parseTextVariables($name).'</span></th>';
 				}
@@ -1238,10 +1295,6 @@ class data_view extends base_module {
 			.view_type_object .overview h1 > span { vertical-align: middle; }
 			.view_type_object .referenced .statistics > ul { max-width: 1000px; }
 			.view_type_object .referenced .statistics > ul > li { display: inline-block; margin: 10px; }
-			.view_type_object.object-sub h2,
-			.view_type_object .referenced .statistics > ul > li > h2 { margin: 0px; padding: 4px 10px; display: inline-block; }
-			.view_type_object.object-sub .record,
-			.view_type_object .referenced .statistics > ul > li > .record { margin: 0px; padding: 8px 10px; }
 			.view_type_object .dynamic-object-descriptions td p { margin: 0; }
 		';
 		
@@ -1251,18 +1304,24 @@ class data_view extends base_module {
 	public static function js() {
 	
 		$return = "
-			SCRIPTER.dynamic('.view_type_object', function(elm_scripter) {
-			
-				elm_scripter.on('open', '.data_viewer', function(e) {
+			SCRIPTER.dynamic('view_type_object', function(elm_scripter) {
+				
+				elm_scripter.on('open', '.data_viewer', function(e) { // Inside tabs
 				
 					if (e.target != e.currentTarget) {
 						return;
 					}
 
-					elm_scripter.find('.marginalia').each(function() {
-						new Marginalia($(this).prev('.body')); 
+					runElementSelectorFunction(this, 'div.text_tags', function(elm_found) {
+						new TextTags(elm_found, {command_hover: (elm_found.dataset.command_hover ? elm_found.dataset.command_hover : '')});
 					});
-				}).on('open', '.data_viewer .tabs.object-subs > div', function(e) {
+				});
+				
+				runElementSelectorFunction(elm_scripter, 'div.text_tags', function(elm_found) {
+					new TextTags(elm_found, {command_hover: (elm_found.dataset.command_hover ? elm_found.dataset.command_hover : '')});
+				}, '.tabs > .data_viewer .text_tags'); // Negative match inside tabs
+				
+				elm_scripter.on('open', '.tabs.object-subs > div', function(e) {
 				
 					if (e.target != e.currentTarget) {
 						return;
@@ -1275,7 +1334,7 @@ class data_view extends base_module {
 					}
 					
 					COMMANDS.dataTableContinue(elm_table);
-				}).on('command', '.data_viewer [id^=y\\\:data_entry\\\:edit_quick-]', function(e) {
+				}).on('command', '[id^=y\\\:data_entry\\\:edit_quick-]', function(e) {
 					var cur = $(this);
 					cur.data('target', function(data) {
 						if (data) {
@@ -1307,38 +1366,14 @@ class data_view extends base_module {
 					
 					COMMANDS.setData(elm_target, value);
 					COMMANDS.dataTableRefresh(elm_target);
-				});
-							
-				// HANDLE MARGINALIA
-				
-				elm_scripter.on('mouseenter hovertag', '.data_viewer .tag', function() {						
-					var cur = $(this);
-					cur.addClass('hovered_tag');
-					cur.parents('.tag').removeClass('popup');
-					var elm_body = cur.parent().closest('.body');
-					var elm_marginalia = elm_body.next('div');
-					var arr_type_object_group_ids = cur.attr('data-ids').split('|');
-					for (var i in arr_type_object_group_ids) {
-						elm_body.find('span.a[id*='+arr_type_object_group_ids[i]+']').add(elm_marginalia.find('p.'+arr_type_object_group_ids[i]+' span')).addClass('active_tag');
-					}
-				}).on('mouseenter', '.data_viewer .marginalia p', function() {
-					var cur = $(this);
-					var elm_marginalia = cur.parent().closest('.marginalia');
-					var elm_body = elm_marginalia.prev('div');
-					elm_body.find('span.a[id*='+$(this).attr('class')+']').add(elm_marginalia.find('p.'+cur.attr('class')+' span')).addClass('active_tag');
-				}).on('mouseleave', '.data_viewer .tag.active_tag, .data_viewer .marginalia p span.active_tag', function() {
-					var cur = $(this);
-					$('.body span.a').addClass('popup');
-					$('.body span.active_tag, .data_viewer .marginalia p span.active_tag').removeClass('active_tag');
-					cur.removeClass('hovered_tag');
-					var elm_body = cur.parent().closest('.body');
-					elm_body.find('.hovered_tag').each(function() {
-						SCRIPTER.triggerEvent(this, 'hovertag');
-					});
-				});
+				});				
 			});
 			
+			SCRIPTER.dynamic('.view_type_object', 'view_type_object');
+			
 			SCRIPTER.dynamic('.view_type_object', 'discussion');
+			
+			SCRIPTER.dynamic('.view_type_objects', '.view_type_object');
 		";
 		
 		return $return;
@@ -1412,7 +1447,7 @@ class data_view extends base_module {
 				
 				if ($arr_html_tabs) {
 					
-					$return = '<div class="tabs">
+					$return = '<div class="tabs view_type_objects">
 						<ul>
 							'.implode('', $arr_html_tabs['links']).'
 						</ul>
@@ -1438,17 +1473,18 @@ class data_view extends base_module {
 				return;
 			}
 			
-			$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
-			$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'view');
+			$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_project_type = $arr_project['types'][$type_id];
+			$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project_type, 'view');
 			
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 				return;
 			}
 
-			$filter = new FilterTypeObjects($type_id, 'all', false, $arr_type_set); // Could be a referenced sub-object
+			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ALL, false, $arr_type_set); // Could be a referenced sub-object
 			$filter->setVersioning('added');
-			$filter->setConditions('style_include', toolbar::getTypeConditions($type_id));
-			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
+			$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE_INCLUDE, toolbar::getTypeConditions($type_id));
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
 			$filter->setSelection(['object' => true, 'object_descriptions' => []]);
 			
 			$filter->setFilter(['objects' => $object_id, 'object_subs' => $sub_object_id], true);
@@ -1529,26 +1565,27 @@ class data_view extends base_module {
 				}
 			}
 
-			$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_project_type = $arr_project['types'][$type_id];
 			$arr_type_set = StoreType::getTypeSet($type_id);
 			
 			if ($arr_option_dynamic_object_descriptions) {
 								
-				$filter = new FilterTypeObjects($type_id, 'all', true);
-				$filter->setConditions('style', toolbar::getTypeConditions($type_id));
-				$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
+				$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ALL, true);
+				$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE, toolbar::getTypeConditions($type_id));
+				$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
 			} else {
 				
-				$filter = new FilterTypeObjects($type_id, 'overview', true);
-				$filter->setConditions('style', toolbar::getTypeConditions($type_id));
-				$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
+				$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_OVERVIEW, true);
+				$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE, toolbar::getTypeConditions($type_id));
+				$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
 			}
 			
 			$arr_selection = [['object' => true, 'object_descriptions' => [], 'object_sub_details' => []]];
 			
 			foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 				
-				if ((!$arr_object_description['object_description_in_overview'] && !$arr_option_dynamic_object_descriptions) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+				if ((!$arr_object_description['object_description_in_overview'] && !$arr_option_dynamic_object_descriptions) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
 					continue;
 				}
 				
@@ -1594,7 +1631,7 @@ class data_view extends base_module {
 							}
 							
 							if ($nr_column == $count_column) {
-								$filter->setOrder([$object_description_id => $str_direction]);
+								$filter->setOrder(['object_description_'.$object_description_id => $str_direction]);
 							}
 							$count_column++;
 						}
@@ -1602,15 +1639,20 @@ class data_view extends base_module {
 				}
 			} else {
 				
-				$filter->setOrder(['date' => 'desc']); // Object dating
+				$arr_ordering = toolbar::getOrder();
+				$arr_ordering = ($arr_ordering[$type_id] ?? ['date' => 'desc']);
+				
+				$filter->setOrder($arr_ordering); // Object dating
 			}
 			
 			if (isset($_POST['nr_records_start']) && $_POST['nr_records_length'] != '-1') {
 				$filter->setLimit([$_POST['nr_records_start'], $_POST['nr_records_length']]);
 			}
 
-			$arr_set = false;
 			$arr_filter = [];
+			$has_filter_input = false;
+			
+			$arr_set_cache = false;
 			
 			if ($arr_value['use_visualise']) {
 				
@@ -1680,7 +1722,7 @@ class data_view extends base_module {
 				}
 			} else {
 				
-				if ($arr_value && $arr_project['types'][$type_id]['type_filter_id'] && $arr_value['filter_id'] == $arr_project['types'][$type_id]['type_filter_id']) {
+				if ($arr_value && $arr_project_type['type_filter_id'] && $arr_value['filter_id'] == $arr_project_type['type_filter_id']) {
 					unset($arr_value['filter_id']);
 				}
 								
@@ -1725,15 +1767,17 @@ class data_view extends base_module {
 				$filter->setFilter($arr_filter);
 				
 				$arr_filters = $filter->getDepth();
-				$arr_set = toolbar::getTypeFilterSet($type_id, $arr_filters['arr_filters']);
+				$arr_filters = ($arr_filters['arr_filters'] ?? []);
+				
+				$arr_set_cache = toolbar::getTypeFilterSet($type_id, $arr_filters);
 			
-				if ($arr_set) {
+				if ($arr_set_cache) {
 					
-					$has_set = ($arr_set['result'] !== null);
+					$has_set_cache = ($arr_set_cache['result'] !== null);
 					
-					if ($has_set) {
+					if ($has_set_cache) {
 						
-						$arr_filter_set = data_filter::parseUserFilterInput($arr_set['result']);
+						$arr_filter_set = data_filter::parseUserFilterInput($arr_set_cache['result']);
 						$arr_filter_set = ($arr_filter_set ?: ['none' => true]); // Find nothing
 						
 						$filter = $filter_set;
@@ -1757,13 +1801,13 @@ class data_view extends base_module {
 				$filter->setFilter($arr_filter_search);
 			}
 
-			if ($arr_project['types'][$type_id]['type_filter_id']) {
+			if ($arr_project_type['type_filter_id']) {
 				
 				if ($use_project_filter || $_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_UNDER_REVIEW) {
 					
 					$arr_use_project_ids = array_keys($arr_project['use_projects']);
 					
-					$arr_project_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], false, false, $arr_project['types'][$type_id]['type_filter_id'], true, $arr_use_project_ids);
+					$arr_project_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], false, false, $arr_project_type['type_filter_id'], true, $arr_use_project_ids);
 					$filter->setFilter(FilterTypeObjects::convertFilterInput($arr_project_filters['object']));
 				}
 			}
@@ -1778,26 +1822,25 @@ class data_view extends base_module {
 			
 			$arr = $filter->init();
 			
-			if ($arr_set) {
+			if ($arr_set_cache) {
 				
-				if (!$has_set && !$arr_filter_search) { // Only cache when no user-specific filters are active
+				if (!$has_set_cache && !$arr_filter_search) { // Only cache when no user-specific filters are active
 				
-					$arr_info = $filter->getResultInfo(true);
+					$arr_info = $filter->getResultInfo(['objects' => true]);
 
 					$arr_set_result = [];
 					$arr_set_result['objects'] = $arr_info['objects'];
 					unset($arr_info['objects']);
 
-					$arr_set['result'] = $arr_set_result;
+					$arr_set_cache['result'] = $arr_set_result;
 					
-					toolbar::setTypeFilterSet($type_id, $arr_set);
+					toolbar::setTypeFilterSet($type_id, $arr_set_cache);
 				}
 			}
 			
 			$arr_info = $filter->getResultInfo();
 
 			$arr_output = [
-				'echo' => intval($_POST['echo']),
 				'total_records' => $arr_info['total'],
 				'total_records_filtered' => $arr_info['total_filtered'],
 				'data' => []
@@ -1866,7 +1909,7 @@ class data_view extends base_module {
 									}
 								}
 								
-								$arr_data[] = implode(', ', $arr_html);
+								$arr_data[] = implode(($arr_object_description['object_description_value_type_settings']['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR_LIST), $arr_html);
 							} else if ($arr_object_description['object_description_has_multi']) {
 								
 								$arr_html = [];
@@ -1876,7 +1919,7 @@ class data_view extends base_module {
 									$arr_html[] = data_view::createTypeObjectLink($arr_object_description['object_description_ref_type_id'], $value, $arr_object_definition['object_definition_value'][$key]);
 								}
 								
-								$arr_data[] = implode(', ', $arr_html);
+								$arr_data[] = implode(($arr_object_description['object_description_value_type_settings']['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR_LIST), $arr_html);
 							} else {
 								
 								$arr_data[] = data_view::createTypeObjectLink($arr_object_description['object_description_ref_type_id'], $arr_object_definition['object_definition_ref_object_id'], $arr_object_definition['object_definition_value']);
@@ -1885,7 +1928,7 @@ class data_view extends base_module {
 							
 							$str_value = arrParseRecursive($arr_object_definition['object_definition_value'], ['Labels', 'parseLanguage']);
 							
-							$arr_data[] = StoreTypeObjects::formatToPreviewValue($arr_object_description['object_description_value_type'], $str_value, $arr_object_description['object_description_value_type_options']);
+							$arr_data[] = StoreTypeObjects::formatToHTMLPreviewValue($arr_object_description['object_description_value_type'], $str_value, $arr_object_description['object_description_value_type_settings']);
 						}
 					}
 					
@@ -1911,21 +1954,23 @@ class data_view extends base_module {
 				return;
 			}
 			
-			$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 			$arr_use_project_ids = array_keys($arr_project['use_projects']);
 			
 			$arr_types = StoreType::getTypes(array_keys($arr_project['types']));
 			
-			$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'view');
+			$arr_project_type = $arr_project['types'][$type_id];
+			
+			$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project_type, 'view');
 			$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 			
-			if ($object_sub_details_id != 'all' && ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id))) {
+			if ($object_sub_details_id != 'all' && ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id))) {
 				return;
 			}
 			
-			$filter = new FilterTypeObjects($type_id, 'all', true, $arr_type_set);
-			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
-			$filter->setConditions('style', toolbar::getTypeConditions($type_id));
+			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ALL, true, $arr_type_set);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
+			$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE, toolbar::getTypeConditions($type_id));
 			
 			$arr_selection = ['object' => [], 'object_descriptions' => [], 'object_sub_details' => [$object_sub_details_id => ['object_sub_details' => true, 'object_sub_descriptions' => []]]];
 			$arr_filter_object_sub_details_ids = [];
@@ -1934,7 +1979,7 @@ class data_view extends base_module {
 		
 				foreach ($arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 					
-					if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+					if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 						continue;
 					}
 					
@@ -1962,13 +2007,15 @@ class data_view extends base_module {
 						}
 					}
 				}
+				
+				$filter->setFilter(['objects' => $object_id]);
 			} else {
 				
 				$filter->setSelection($arr_selection);
 				
 				foreach ($arr_type_set['object_sub_details'] as $cur_object_sub_details_id => $arr_cur_object_sub_details) {
 					
-					if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_cur_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $cur_object_sub_details_id)) {
+					if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_cur_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $cur_object_sub_details_id)) {
 						continue;
 					}
 					
@@ -1980,7 +2027,7 @@ class data_view extends base_module {
 				
 							if ($use_project_filter || $_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_UNDER_REVIEW) {
 								
-								$arr_project_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], false, false, $arr_project['types'][$cur_type_id]['type_filter_id'],true, $arr_use_project_ids);
+								$arr_project_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], false, false, $arr_project['types'][$cur_type_id]['type_filter_id'], true, $arr_use_project_ids);
 								$arr_filter_form = FilterTypeObjects::convertFilterInput($arr_project_filters['object']);
 								
 								$arr_filter_referenced_object_sub_details = [];
@@ -1994,15 +2041,15 @@ class data_view extends base_module {
 					
 					$arr_filter_object_sub_details_ids[] = $cur_object_sub_details_id;
 				}
-			}
-
-			if ($arr_filter_object_sub_details_ids) {
+				
+				if (!$arr_filter_object_sub_details_ids) {
+					return;
+				}
+				
 				$filter->setFilter(['objects' => $object_id, 'object_sub_details' => $arr_filter_object_sub_details_ids], true);
-			} else {
-				$filter->setFilter(['objects' => $object_id]);
 			}
 			
-			if ($value && $arr_project['types'][$type_id]['type_filter_id'] && $value['filter_id'] == $arr_project['types'][$type_id]['type_filter_id']) {
+			if ($value && $arr_project_type['type_filter_id'] && $value['filter_id'] == $arr_project_type['type_filter_id']) {
 				unset($value['filter_id']);
 			}
 						
@@ -2011,49 +2058,55 @@ class data_view extends base_module {
 			if ($_POST['search']) {
 				$arr_filter['search'][] = $_POST['search'];
 			}
-			if (!$arr_filter['object_versioning'] || $arr_filter['object_versioning']['version']) {
-				$filter->setVersioning(($arr_filter['object_versioning']['version'] ? 'full' : 'added'));
+			if (!$arr_filter['object_versioning'] || !empty($arr_filter['object_versioning']['version'])) {
+				$filter->setVersioning((!empty($arr_filter['object_versioning']['version']) ? 'full' : 'added'));
 			}
 			if ($arr_filter) {
 				$filter->setFilter($arr_filter, true);
 			}
 			if ($_POST['arr_order_column']) {
 				
-				foreach ($_POST['arr_order_column'] as $nr_order => list($nr_column, $str_direction)) {
+				foreach ($_POST['arr_order_column'] as $nr_order => list($num_column, $str_direction)) {
 					
 					if ($setting == 'select') {
-						$nr_column--;
+						$num_column--;
 					}
 					
 					if ($object_sub_details_id == 'all') { // Object sub details combined
 					
-						$sort_id = ($nr_column == 0 ? 'object_sub_details_name' : ($nr_column == 1 ? 'object_sub_date_start' : ($nr_column == 2 ? 'object_sub_date_end' : '')));
+						$sort_id = ($num_column == 0 ? 'object_sub_details_name' : ($num_column == 1 ? 'object_sub_date_start' : ($num_column == 2 ? 'object_sub_date_end' : '')));
 						$filter->setOrderObjectSubs($object_sub_details_id, [$sort_id => $str_direction]);
 					} else {
 						
 						if (!$arr_object_sub_details['object_sub_details']['object_sub_details_has_date']) {
-							$nr_column += 2;
-						}
-						if (!$arr_object_sub_details['object_sub_details']['object_sub_details_has_location']) {
-							$nr_column += 2;
+							
+							$num_column += 2;
+						} else if ($num_column <= 1) {
+							
+							$sort_id = ($num_column == 0 ? 'object_sub_date_start' : ($num_column == 1 ? 'object_sub_date_end' : ''));
+							$filter->setOrderObjectSubs($object_sub_details_id, [$sort_id => $str_direction]);
+							
+							continue;
 						}
 						
-						if ($nr_column <= 1) {
-							$sort_id = ($nr_column == 0 ? 'object_sub_date_start' : ($nr_column == 1 ? 'object_sub_date_end' : ''));
-							$filter->setOrderObjectSubs($object_sub_details_id, [$sort_id => $str_direction]);
-						} else {
-							$count_column = 4;
-							foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_sub_object_description) {
-								
-								if (!$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]) {
-									continue;
-								}
-															
-								if ($nr_column == $count_column) {
-									$filter->setOrderObjectSubs($object_sub_details_id, [$object_sub_description_id => $str_direction]);
-								}
-								$count_column++;
+						if (!$arr_object_sub_details['object_sub_details']['object_sub_details_has_location']) {
+							$num_column += 2;
+						}
+													
+						$count_column = 4;
+						
+						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_sub_object_description) {
+							
+							if (!$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]) {
+								continue;
 							}
+							
+							if ($num_column == $count_column) {
+								
+								$filter->setOrderObjectSubs($object_sub_details_id, ['object_sub_description_'.$object_sub_description_id => $str_direction]);
+								break;
+							}
+							$count_column++;
 						}
 					}
 				}
@@ -2062,12 +2115,12 @@ class data_view extends base_module {
 				$filter->setLimitObjectSubs($object_sub_details_id, [$_POST['nr_records_start'], $_POST['nr_records_length']]);
 			}
 			
-			if ($arr_project['types'][$type_id]['type_filter_id']) {
+			if ($arr_project_type['type_filter_id']) {
 				
 				if ($use_project_filter || $_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_UNDER_REVIEW) {
 					
-					$arr_project_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], false, false, $arr_project['types'][$type_id]['type_filter_id'], true, $arr_use_project_ids);
-					$filter->setFilter(FilterTypeObjects::convertFilterInput($arr_project_filters['object']), $arr_project['types'][$type_id]['type_filter_object_subs']);
+					$arr_project_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], false, false, $arr_project_type['type_filter_id'], true, $arr_use_project_ids);
+					$filter->setFilter(FilterTypeObjects::convertFilterInput($arr_project_filters['object']), $arr_project_type['type_filter_object_subs']);
 				}
 			}
 
@@ -2075,7 +2128,6 @@ class data_view extends base_module {
 			$arr_info = $filter->getResultInfoObjectSubs($object_id, $object_sub_details_id);
 
 			$arr_output = [
-				'echo' => intval($_POST['echo']),
 				'total_records' => $arr_info['total'],
 				'total_records_filtered' => $arr_info['total_filtered'],
 				'data' => []
@@ -2162,10 +2214,11 @@ class data_view extends base_module {
 				return;
 			}
 			
-			$arr_resource = data_linked_data::getLinkedDataResources($resource_id);
-			$external = new ExternalResource($arr_resource);
-			$arr_values = $external->getValues();
+			$arr_resource = StoreResourceExternal::getResources($resource_id);
+			$external = new ResourceExternal($arr_resource);
+			$arr_values = $external->getResponseValues();
 			
+			$arr_filter = false;
 			if ($arr_value['form']) {
 				$arr_filter = $arr_value['form'];
 			}
@@ -2186,7 +2239,7 @@ class data_view extends base_module {
 
 					$count_column = 1;
 					
-					foreach ($arr_values as $name => $value) {
+					foreach ($arr_values as $name => $arr_value) {
 							
 						if ($nr_column == $count_column) {
 							$external->setOrder([$name => $_POST['sorting_direction_0']]);
@@ -2200,31 +2253,46 @@ class data_view extends base_module {
 			}
 			
 			$external->setFilter($arr_filter);
-			$arr = $external->request();
-			$arr = $arr['values'];
+			$external->request();
+			
+			try {
+				
+				$arr_results = $external->getResultValues();
+			} catch (RealTroubleThrown $e) {
+				
+				$arr_code = Trouble::parseCode($e);
+					
+				if ($arr_code['suppress'] != LOG_SYSTEM) {
+					
+					Labels::setVariable('name', $arr_resource['name']);
+
+					error(getLabel('msg_external_resource_error_parse').' '.$e->getMessage(), TROUBLE_ERROR, LOG_CLIENT, false, $e); // Make notice
+				}
+				
+				throw($e);
+			}
 
 			$arr_output = [
-				'echo' => intval($_POST['echo']),
 				'total_records' => 10000,
 				'total_records_filtered' => 10000,
 				'data' => []
 			];
 			
-			foreach ($arr as $arr_result) {
+			foreach ($arr_results as $arr_result) {
 				
 				$arr_data = [];
 				//$arr_data["id"] = "x:data_view:type_object_id-".$type_id."_".$arr_object["object"]["object_id"]."";
 				//$arr_data["class"] = 'popup';
 				//$arr_data["attr"]['data-method'] = 'view_type_object';
 				if ($setting == 'select') {
-					$arr_data[] = '<input name="uri" value="'.htmlspecialchars($arr_result['uri']).'" type="radio" />';
+					$arr_data[] = '<input name="uri" value="'.strEscapeHTML($arr_result['uri']).'" type="radio" />';
 				}
-				$arr_data[] = $arr_result['label'];
-				$arr_data[] = FormatBBCode::formatUrls($arr_result['uri']);
+				$arr_data[] = (FormatHTML::test($arr_result['label']) ? $arr_result['label'] : strEscapeHTML($arr_result['label']));
+				$arr_data[] = FormatTags::formatUrls($arr_result['uri']);
 				
 				foreach ($arr_values as $name => $value) {
 					
-					$arr_data[] = FormatBBCode::formatUrls($arr_result[$name]);
+					$arr_data[] = FormatTags::formatUrls($arr_result[$name]);
 				}
 				
 				$arr_output['data'][] = $arr_data;

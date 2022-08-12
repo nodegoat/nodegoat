@@ -40,6 +40,10 @@ Import additional SQL to their respective databases:
 * [nodegoat_home.various.sql](/setup/nodegoat_home.various.sql) to the nodegoat_home database.
 * [nodegoat_content.sql](/setup/nodegoat_content.sql) to the nodegoat_content database.
 
+## Software
+
+nodegoat requires the `ogr2ogr` executable installed from the GDAL library (e.g. Debian & Ubuntu: gdal-bin).
+
 ## Programs
 
 The following services make use of the 1100CC Programs environment. Make sure you have setup Programs when configuring 1100CC.

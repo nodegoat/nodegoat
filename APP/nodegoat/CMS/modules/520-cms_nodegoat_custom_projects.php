@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -51,626 +51,12 @@ class cms_nodegoat_custom_projects extends base_module {
 			]
 		];
 	}
-		
-	public static function handleProject($project_id, $arr) {
-				
-		if (!$project_id) {
-			
-			$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')."
-				(name, full_scope_enable, source_referencing_enable, discussion_enable, date_cycle_enable, visual_settings_id)
-					VALUES
-				(
-					'".DBFunctions::strEscape($arr['name'])."',
-					".DBFunctions::escapeAs($arr['full_scope_enable'], DBFunctions::TYPE_BOOLEAN).",
-					".DBFunctions::escapeAs($arr['source_referencing_enable'], DBFunctions::TYPE_BOOLEAN).",
-					".DBFunctions::escapeAs($arr['discussion_enable'], DBFunctions::TYPE_BOOLEAN).",
-					".DBFunctions::escapeAs($arr['date_cycle_enable'], DBFunctions::TYPE_BOOLEAN).",
-					".(int)$arr['visual_settings_id']."
-				)
-			");
-			
-			$project_id = DB::lastInsertID();
-		} else {
-						
-			$res = DB::query("UPDATE ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." SET
-					name = '".DBFunctions::strEscape($arr['name'])."',
-					full_scope_enable = ".DBFunctions::escapeAs($arr['full_scope_enable'], DBFunctions::TYPE_BOOLEAN).",
-					source_referencing_enable = ".DBFunctions::escapeAs($arr['source_referencing_enable'], DBFunctions::TYPE_BOOLEAN).",
-					discussion_enable = ".DBFunctions::escapeAs($arr['discussion_enable'], DBFunctions::TYPE_BOOLEAN).",
-					date_cycle_enable = ".DBFunctions::escapeAs($arr['date_cycle_enable'], DBFunctions::TYPE_BOOLEAN).",
-					visual_settings_id = ".(int)$arr['visual_settings_id']."
-				WHERE id = ".(int)$project_id."
-			");
-		}
-													
-		$arr_sql_keys = [];
-
-		if ($arr['types']) {
-			
-			$arr_sql_insert = [];
-			
-			foreach ($arr['types'] as $type_id) {
-				
-				$arr_sql_insert[] = "(".(int)$project_id.", ".(int)$type_id.")";
-				$arr_sql_keys['types'][] = (int)$type_id;
-			}
-			
-			$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPES')."
-				(project_id, type_id)
-					VALUES
-				".implode(",", $arr_sql_insert)."
-				".DBFunctions::onConflict('project_id, type_id', ['project_id'])."
-			");
-
-			$i = 0;
-			
-			$arr_types = StoreType::getTypes();
-			$arr_ref_type_ids = array_keys($arr_types);
-
-			foreach ((array)$arr['types_organise'] as $str_type_id => $arr_definition) {
-				
-				$type_id = explode('-', $str_type_id);
-				$type_id = (int)$type_id[1];
-				
-				$arr_type_set = StoreType::getTypeSet($type_id);
-				
-				$has_configuration = ($arr_definition['configuration']['object_descriptions'] || $arr_definition['configuration']['object_sub_details']);
-				
-				$str_information = null;
-				if ($arr_definition['type_information'] !== null) {
-					$str_information = trim($arr_definition['type_information']);
-					$str_information = ($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL');					
-				}
-				
-				$has_information = ($str_information !== null);
-				
-				$res = DB::query("UPDATE ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPES')." SET
-						color = '".str2Color($arr_definition['color'])."',
-						".($has_information ? "type_information = ".$str_information."," : "")."
-						type_filter_id = ".(int)$arr_definition['type_filter_id'].",
-						type_filter_object_subs = ".(int)$arr_definition['type_filter_object_subs'].",
-						type_context_id = ".(int)$arr_definition['type_context_id'].",
-						type_frame_id = ".(int)$arr_definition['type_frame_id'].",
-						type_condition_id = ".(int)$arr_definition['type_condition_id'].",
-						type_edit = ".DBFunctions::escapeAs($arr_definition['type_edit'], DBFunctions::TYPE_BOOLEAN).",
-						configuration_exclude = ".DBFunctions::escapeAs(($has_configuration && $arr_definition['configuration_exclude']), DBFunctions::TYPE_BOOLEAN).",
-						sort = ".$i."
-					WHERE project_id = ".(int)$project_id." AND type_id = ".(int)$type_id."
-				");
-				
-				$i++;
-
-				// Type - configuration
-					
-				$arr_sql_insert = [];
-					
-				foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
-					
-					$arr_configuration_object_description = (array)$arr_definition['configuration']['object_descriptions'][$object_description_id];
-					
-					if ($arr_definition['configuration_exclude']) {
-						$view = ($arr_configuration_object_description['view'] ? true : false);
-						$edit = ($view || $arr_configuration_object_description['edit'] ? true : false);
-					} else {
-						$edit = ($arr_configuration_object_description['edit'] ? true : false);
-						$view = ($edit || $arr_configuration_object_description['view'] ? true : false);
-					}
-					
-					$str_information = null;
-					if ($has_information) {
-						$str_information = trim($arr_configuration_object_description['information']);
-					}
-					
-					$has_data = ($edit || $view || $str_information);
-					
-					if ($has_data || !$has_information) { // When 'information' is not part of the data, there could still be valid data in the database
-						
-						$arr_sql_insert[] = "(
-							".(int)$project_id.", ".(int)$type_id.",
-							".(int)$object_description_id.", 0, 0,
-							".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN)."".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
-						)";
-
-						$arr_sql_keys['configuration'][] = "(
-							type_id = ".(int)$type_id."
-							AND object_description_id = ".(int)$object_description_id." AND object_sub_details_id = 0 AND object_sub_description_id = 0
-							".(!$has_information ? " AND information != NULL" : "")."
-						)";
-					}
-				}
-				
-				foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
-					
-					$arr_configuration_object_sub_details = (array)$arr_definition['configuration']['object_sub_details'][$object_sub_details_id]['object_sub_details'];
-					
-					if ($arr_configuration_object_sub_details) {
-						
-						if ($arr_definition['configuration_exclude']) {
-							$view = ($arr_configuration_object_sub_details['view'] ? true : false);
-							$edit = ($view || $arr_configuration_object_sub_details['edit'] ? true : false);
-						} else {
-							$edit = ($arr_configuration_object_sub_details['edit'] ? true : false);
-							$view = ($edit || $arr_configuration_object_sub_details['view'] ? true : false);
-						}
-						
-						$str_information = null;
-						if ($has_information) {
-							$str_information = trim($arr_configuration_object_sub_details['information']);
-						}
-						
-						$has_data = ($edit || $view || $str_information);
-						
-						if ($has_data || !$has_information) { // When 'information' is not part of the data, there could still be valid data in the database
-							
-							$arr_sql_insert[] = "(
-								".(int)$project_id.", ".(int)$type_id.",
-								0, ".(int)$object_sub_details_id.", 0,
-								".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN)."".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
-							)";
-
-							$arr_sql_keys['configuration'][] = "(
-								type_id = ".(int)$type_id."
-								AND object_description_id = 0 AND object_sub_details_id = ".(int)$object_sub_details_id." AND object_sub_description_id = 0
-								".(!$has_information ? " AND information != NULL" : "")."
-							)";
-						}
-					}
-					
-					foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
-						
-						$arr_configuration_object_sub_description = (array)$arr_definition['configuration']['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
-						
-						if ($arr_definition['configuration_exclude']) {
-							$view = ($arr_configuration_object_sub_description['view'] ? true : false);
-							$edit = ($view || $arr_configuration_object_sub_description['edit'] ? true : false);
-						} else {
-							$edit = ($arr_configuration_object_sub_description['edit'] ? true : false);
-							$view = ($edit || $arr_configuration_object_sub_description['view'] ? true : false);
-						}
-						
-						$str_information = null;
-						if ($has_information) {
-							$str_information = trim($arr_configuration_object_sub_description['information']);
-						}
-						
-						$has_data = ($edit || $view || $str_information);
-						
-						if ($has_data || !$has_information) { // When 'information' is not part of the data, there could still be valid data in the database
-							
-							$arr_sql_insert[] = "(
-								".(int)$project_id.", ".(int)$type_id.",
-								0, ".(int)$object_sub_details_id.", ".(int)$object_sub_description_id.",
-								".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN)."".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
-							)";
-
-							$arr_sql_keys['configuration'][] = "(
-								type_id = ".(int)$type_id."
-								AND object_description_id = 0 AND object_sub_details_id = ".(int)$object_sub_details_id." AND object_sub_description_id = ".(int)$object_sub_description_id."
-								".(!$has_information ? " AND information != NULL" : "")."
-							)";
-						}
-					}
-				}
-				
-				if ($arr_sql_insert) {
-					
-					if ($has_information) {
-						$arr_sql_update = ['edit', 'view', 'information'];
-					} else {
-						$arr_sql_update = ['edit', 'view'];
-					}
-	
-					$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONFIGURATION')."
-						(project_id, type_id, object_description_id, object_sub_details_id, object_sub_description_id, ".implode(',', $arr_sql_update).")
-							VALUES
-						".implode(",", $arr_sql_insert)."
-						".DBFunctions::onConflict('project_id, type_id, object_description_id, object_sub_details_id, object_sub_description_id', $arr_sql_update)."
-					");
-				}
-				
-				// Type - include referenced types
-				
-				$arr_types_referenced = FilterTypeObjects::getTypesReferenced($type_id, $arr_ref_type_ids, ['dynamic' => false, 'object_sub_locations' => false]);
-				
-				foreach ($arr_types_referenced as $ref_type_id => $arr_type_referenced) {
-					
-					$arr_sql_insert = [];
-				
-					foreach ((array)$arr_type_referenced['object_descriptions'] as $object_description_id => $arr_object_description) {
-						
-						$arr_referenced_object_description = (array)$arr_definition['include_referenced_types'][$ref_type_id]['object_descriptions'][$object_description_id];
-						
-						$edit = ($arr_referenced_object_description['edit'] ? true : false);
-						$view = ($arr_referenced_object_description['view'] ? true : false);
-						
-						$str_information = null;
-						if ($has_information) {
-							$str_information = trim($arr_referenced_object_description['information']);
-						}
-						
-						$has_data = ($edit || $view || $str_information);
-						
-						if ($has_data || !$has_information) { // When 'information' is not part of the data, there could still be valid data in the database
-							
-							$arr_sql_insert[] = "(
-								".(int)$project_id.", ".(int)$type_id.", ".(int)$ref_type_id.",
-								".(int)$object_description_id.", 0, 0,
-								".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN)."".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
-							)";
-
-							$arr_sql_keys['include_referenced'][] = "(
-								type_id = ".(int)$type_id." AND referenced_type_id = ".(int)$ref_type_id."
-								AND object_description_id = ".(int)$object_description_id." AND object_sub_details_id = 0 AND object_sub_description_id = 0
-								".(!$has_information ? " AND information != NULL" : "")."
-							)";
-						}
-					}
-					
-					foreach ((array)$arr_type_referenced['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
-						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
-							
-							$arr_referenced_object_sub_description = (array)$arr_definition['include_referenced_types'][$ref_type_id]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
-							
-							$edit = ($arr_referenced_object_sub_description['edit'] ? true : false);
-							$view = ($arr_referenced_object_sub_description['view'] ? true : false);
-							
-							$str_information = null;
-							if ($has_information) {
-								$str_information = trim($arr_referenced_object_sub_description['information']);
-							}
-							
-							$has_data = ($edit || $view || $str_information);
-							
-							if ($has_data || !$has_information) { // When 'information' is not part of the data, there could still be valid data in the database
-									
-								$arr_sql_insert[] = "(
-									".(int)$project_id.", ".(int)$type_id.", ".(int)$ref_type_id.", 
-									0, ".(int)$object_sub_details_id.", ".(int)$object_sub_description_id.",
-									".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN)."".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
-								)";
-
-								$arr_sql_keys['include_referenced'][] = "(
-									type_id = ".(int)$type_id." AND referenced_type_id = ".(int)$ref_type_id."
-									AND object_description_id = 0 AND object_sub_details_id = ".(int)$object_sub_details_id." AND object_sub_description_id = ".(int)$object_sub_description_id."
-									".(!$has_information ? " AND information != NULL" : "")."
-								)";
-							}
-						}
-					}
-					
-					if ($arr_sql_insert) {
-							
-						if ($has_information) {
-							$arr_sql_update = ['edit', 'view', 'information'];
-						} else {
-							$arr_sql_update = ['edit', 'view'];
-						}
-						
-						$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_INCLUDE_REFERENCED_TYPES')."
-							(project_id, type_id, referenced_type_id, object_description_id, object_sub_details_id, object_sub_description_id, ".implode(',', $arr_sql_update).")
-								VALUES
-							".implode(",", $arr_sql_insert)."
-							".DBFunctions::onConflict('project_id, type_id, referenced_type_id, object_description_id, object_sub_details_id, object_sub_description_id', $arr_sql_update)."
-						");
-					}
-				}
-			}
-		}
-		
-		$func_sql_link_types = function($arr, $sql_table_name) use ($project_id) {
-			
-			if (!$arr) {
-				return;
-			}
-			
-			$arr_sql_insert = [];
-			
-			foreach ($arr as $value) {
-				
-				$arr_sql_insert[] = "(".(int)$project_id.", ".(int)$value.")";
-				$arr_sql_keys[] = (int)$value;
-			}
-			
-			$res = DB::query("INSERT INTO ".$sql_table_name."
-				(project_id, type_id)
-					VALUES
-				".implode(",", $arr_sql_insert)."
-				".DBFunctions::onConflict('project_id, type_id', ['project_id'])."
-			");
-			
-			return $arr_sql_keys;
-		};
-		
-		$arr_sql_keys['date_types'] = $func_sql_link_types($arr['date_types'], DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_DATE_TYPES'));
-		$arr_sql_keys['location_types'] = $func_sql_link_types($arr['location_types'], DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_LOCATION_TYPES'));
-		$arr_sql_keys['source_types'] = $func_sql_link_types($arr['source_types'], DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_SOURCE_TYPES'));
-				
-		if ($arr['use_projects']) {
-			
-			$arr_sql_insert = [];
-			
-			foreach ($arr['use_projects'] as $value) {
-				
-				$arr_sql_insert[] = "(".(int)$project_id.", ".(int)$value.")";
-				$arr_sql_keys['use_projects'][] = (int)$value;
-			}
-			
-			$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_USE_PROJECTS')." (project_id, use_project_id)
-					VALUES
-				".implode(",", $arr_sql_insert)."
-				".DBFunctions::onConflict('project_id, use_project_id', ['project_id'])."
-			");
-		}
-		
-		// Cleanup
-		
-		$res = DB::queryMulti("
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPES')."
-				WHERE project_id = ".(int)$project_id."
-					".($arr_sql_keys['types'] ? "AND type_id NOT IN (".implode(",", $arr_sql_keys['types']).")" : "")."
-			;
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONFIGURATION')."
-				WHERE project_id = ".(int)$project_id."
-					".($arr_sql_keys['configuration'] ? "AND NOT ".implode(" AND NOT ", $arr_sql_keys['configuration']) : "")."
-			;
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_INCLUDE_REFERENCED_TYPES')."
-				WHERE project_id = ".(int)$project_id."
-					".($arr_sql_keys['include_referenced'] ? "AND NOT ".implode(" AND NOT ", $arr_sql_keys['include_referenced']) : "")."
-			;
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_DATE_TYPES')."
-				WHERE project_id = ".(int)$project_id."
-					".($arr_sql_keys['date_types'] ? "AND type_id NOT IN (".implode(",", $arr_sql_keys['date_types']).")" : "")."
-			;
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_LOCATION_TYPES')."
-				WHERE project_id = ".(int)$project_id."
-					".($arr_sql_keys['location_types'] ? "AND type_id NOT IN (".implode(",", $arr_sql_keys['location_types']).")" : "")."
-			;
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_SOURCE_TYPES')."
-				WHERE project_id = ".(int)$project_id."
-					".($arr_sql_keys['source_types'] ? "AND type_id NOT IN (".implode(",", $arr_sql_keys['source_types']).")" : "")."
-			;
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_USE_PROJECTS')."
-				WHERE project_id = ".(int)$project_id."
-					".($arr_sql_keys['use_projects'] ? "AND use_project_id NOT IN (".implode(",", $arr_sql_keys['use_projects']).")" : "")."
-			;
-		");
-		
-		return $project_id;
-	}
-	
-	public static function addProjectTypes($project_id, $arr_type_ids) {
-		
-		if (!is_array($arr_type_ids)) {
-			$arr_type_ids = [$arr_type_ids];
-		}
-		
-		$arr_sql_insert = [];
-		
-		foreach ($arr_type_ids as $type_id) {
-			
-			$arr_sql_insert[] = "(".(int)$project_id.", ".(int)$type_id.")";
-		}
-		
-		$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPES')."
-			(project_id, type_id)
-				VALUES
-			".implode(",", $arr_sql_insert)."
-		");
-	}
-	
-	public static function delProject($project_id) {
-		
-		$res = DB::queryMulti("
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." WHERE id = ".(int)$project_id.";
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPES')." WHERE project_id = ".(int)$project_id.";
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONFIGURATION')." WHERE project_id = ".(int)$project_id.";
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_INCLUDE_REFERENCED_TYPES')." WHERE project_id = ".(int)$project_id.";
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_DATE_TYPES')." WHERE project_id = ".(int)$project_id.";
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_LOCATION_TYPES')." WHERE project_id = ".(int)$project_id.";
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_SOURCE_TYPES')." WHERE project_id = ".(int)$project_id.";
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_FILTERS')." WHERE project_id = ".(int)$project_id.";
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_SCENARIOS')." WHERE project_id = ".(int)$project_id.";
-			DELETE FROM ".DB::getTable('DATA_NODEGOAT_CUSTOM_PROJECT_TYPE_SCENARIO_CACHE')." WHERE project_id = ".(int)$project_id.";
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONDITIONS')." WHERE project_id = ".(int)$project_id.";
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_FRAMES')." WHERE project_id = ".(int)$project_id.";
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_SCOPES')." WHERE project_id = ".(int)$project_id.";
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_USE_PROJECTS')." WHERE project_id = ".(int)$project_id.";
-		");
-	}
-	
-	public static function getProjects($project_id = 0) {
-		
-		$str_identifier = (int)$project_id;
-		
-		$cache = self::getCache($str_identifier);
-		if ($cache) {
-			return $cache;
-		}
-	
-		$arr = [];
-
-		$arr_res = DB::queryMulti("
-			SELECT p.*,
-				pt.type_id, pt.color, pt.type_information, pt.type_filter_id, pt.type_filter_object_subs, pt.type_context_id, pt.type_frame_id, pt.type_condition_id, pt.type_edit, pt.configuration_exclude,
-				ptc.object_description_id AS configuration_object_description_id, ptc.object_sub_details_id AS configuration_object_sub_details_id, ptc.object_sub_description_id AS configuration_object_sub_description_id, ptc.edit AS configuration_edit, ptc.view AS configuration_view, ptc.information AS configuration_information
-					FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
-					LEFT JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPES')." pt ON (pt.project_id = p.id)
-					LEFT JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONFIGURATION')." ptc ON (ptc.project_id = p.id AND ptc.type_id = pt.type_id)
-				WHERE TRUE
-				".($project_id ? "AND p.id = ".(int)$project_id."" : "")."
-				ORDER BY ".(!$project_id ? "p.name, " : "")."pt.sort;
-				
-			SELECT p.id,
-				pt.type_id,
-				ptrt.referenced_type_id, ptrt.object_description_id AS referenced_object_description_id, ptrt.object_sub_details_id AS referenced_object_sub_details_id, ptrt.object_sub_description_id AS referenced_object_sub_description_id, ptrt.edit AS referenced_edit, ptrt.view AS referenced_view, ptrt.information AS referenced_information
-					FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
-					JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPES')." pt ON (pt.project_id = p.id)
-					LEFT JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_INCLUDE_REFERENCED_TYPES')." ptrt ON (ptrt.project_id = p.id AND ptrt.type_id = pt.type_id)
-				WHERE TRUE
-				".($project_id ? "AND p.id = ".(int)$project_id."" : "").";
-			
-			SELECT p.id,
-				pdt.type_id AS date_type_id
-					FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
-					JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_DATE_TYPES')." pdt ON (pdt.project_id = p.id)
-				WHERE TRUE
-				".($project_id ? "AND p.id = ".(int)$project_id."" : "").";
-				
-			SELECT p.id,
-				plt.type_id AS location_type_id
-					FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
-					JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_LOCATION_TYPES')." plt ON (plt.project_id = p.id)
-				WHERE TRUE
-				".($project_id ? "AND p.id = ".(int)$project_id."" : "").";
-			
-			SELECT p.id,
-				pst.type_id AS source_type_id
-					FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
-					JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_SOURCE_TYPES')." pst ON (pst.project_id = p.id)
-				WHERE TRUE
-				".($project_id ? "AND p.id = ".(int)$project_id."" : "").";
-				
-			SELECT p.id,
-				pup.use_project_id
-					FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
-					JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_USE_PROJECTS')." pup ON (pup.project_id = p.id)
-				WHERE TRUE
-				".($project_id ? "AND p.id = ".(int)$project_id."" : "").";
-		");
-
-		while ($arr_row = $arr_res[0]->fetchAssoc()) {
-			
-			if (!$arr[$arr_row['id']]) {
-				
-				$arr[$arr_row['id']] = ['project' => $arr_row, 'types' => [], 'date_types' => [], 'location_types' => [], 'source_types' => [], 'use_projects' => []];
-			}
-			
-			if ($arr_row['type_id']) {
-				
-				$s_arr =& $arr[$arr_row['id']]['types'][$arr_row['type_id']];
-				
-				if (!$s_arr) {
-					
-					$arr_row['type_edit'] = DBFunctions::unescapeAs($arr_row['type_edit'], DBFunctions::TYPE_BOOLEAN);
-					$s_arr = $arr_row;
-				}
-				
-				if ($arr_row['configuration_edit'] || $arr_row['configuration_view'] || $arr_row['configuration_information']) {
-					
-					$s_arr =& $s_arr['configuration'];
-					
-					if ($arr_row['configuration_object_description_id']) {
-						$s_arr['object_descriptions'][$arr_row['configuration_object_description_id']] = ['edit' => DBFunctions::unescapeAs($arr_row['configuration_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['configuration_view'], DBFunctions::TYPE_BOOLEAN), 'information' => $arr_row['configuration_information']];
-					} else if ($arr_row['configuration_object_sub_description_id']) {
-						$s_arr['object_sub_details'][$arr_row['configuration_object_sub_details_id']]['object_sub_descriptions'][$arr_row['configuration_object_sub_description_id']] = ['edit' => DBFunctions::unescapeAs($arr_row['configuration_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['configuration_view'], DBFunctions::TYPE_BOOLEAN), 'information' => $arr_row['configuration_information']];
-					} else if ($arr_row['configuration_object_sub_details_id']) {
-						$s_arr['object_sub_details'][$arr_row['configuration_object_sub_details_id']]['object_sub_details'] = ['edit' => DBFunctions::unescapeAs($arr_row['configuration_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['configuration_view'], DBFunctions::TYPE_BOOLEAN), 'information' => $arr_row['configuration_information']];
-					}
-				}
-			}
-		}
-		
-		while ($arr_row = $arr_res[1]->fetchAssoc()) {
-			
-			$s_arr =& $arr[$arr_row['id']]['types'][$arr_row['type_id']]['include_referenced_types'][$arr_row['referenced_type_id']];
-			
-			if ($arr_row['referenced_object_description_id']) {
-				$s_arr['object_descriptions'][$arr_row['referenced_object_description_id']] = ['edit' => DBFunctions::unescapeAs($arr_row['referenced_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['referenced_view'], DBFunctions::TYPE_BOOLEAN), 'information' => $arr_row['referenced_information']];
-			} else if ($arr_row['referenced_object_sub_description_id']) {
-				$s_arr['object_sub_details'][$arr_row['referenced_object_sub_details_id']]['object_sub_descriptions'][$arr_row['referenced_object_sub_description_id']] = ['edit' => DBFunctions::unescapeAs($arr_row['referenced_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['referenced_view'], DBFunctions::TYPE_BOOLEAN), 'information' => $arr_row['referenced_information']];
-			}
-		}
-		while ($arr_row = $arr_res[2]->fetchAssoc()) {
-			
-			$arr[$arr_row['id']]['date_types'][$arr_row['date_type_id']] = $arr_row;
-		}
-		while ($arr_row = $arr_res[3]->fetchAssoc()) {
-			
-			$arr[$arr_row['id']]['location_types'][$arr_row['location_type_id']] = $arr_row;
-		}
-		while ($arr_row = $arr_res[4]->fetchAssoc()) {
-			
-			$arr[$arr_row['id']]['source_types'][$arr_row['source_type_id']] = $arr_row;
-		}
-		while ($arr_row = $arr_res[5]->fetchAssoc()) {
-			
-			$arr[$arr_row['id']]['use_projects'][$arr_row['use_project_id']] = $arr_row;
-		}
-		unset($s_arr);
-		
-		foreach ($arr as &$arr_project) {
-
-			if ($arr_project['project']['date_cycle_enable']) {
-				
-				$type_id = StoreType::getSystemTypeID('cycle');
-				$arr_project['types'][$type_id] = ['type_id' => $type_id];
-			}
-		}
-		unset($arr_project);
-				
-		$arr = ((int)$project_id ? current($arr) : $arr);
-		
-		self::setCache($str_identifier, $arr);
-		
-		return $arr;
-	}
-	
-	public static function getTypeSetReferenced($type_id, $arr_project_type, $purpose = 'view') {
-		
-		$arr_type_set = StoreType::getTypeSet($type_id);
-		
-		foreach ((array)$arr_project_type['include_referenced_types'] as $referenced_type_id => $arr_referenced_type) {
-			
-			$arr_referenced_type_set = StoreType::getTypeSet($referenced_type_id);
-			
-			foreach ((array)$arr_referenced_type['object_descriptions'] as $object_description_id => $arr_options) {
-				
-				if (!$arr_options[$purpose]) {
-					continue;
-				}
-				
-				$use_object_description_id = $object_description_id.'is0referenced';
-				
-				$arr_type_set['type']['include_referenced']['object_descriptions'][$use_object_description_id] = $use_object_description_id;
-				
-				$arr_type_set['object_descriptions'][$use_object_description_id] = $arr_referenced_type_set['object_descriptions'][$object_description_id];
-				
-				$s_arr =& $arr_type_set['object_descriptions'][$use_object_description_id];
-				$s_arr['object_description_is_referenced'] = true;
-				$s_arr['object_description_ref_type_id'] = $referenced_type_id;
-				$s_arr['object_description_has_multi'] = true;
-			}
-			
-			foreach ((array)$arr_referenced_type['object_sub_details'] as $object_sub_details_id => $arr_referenced_object_sub_details) {
-				
-				foreach ($arr_referenced_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_options) {
-				
-					if (!$arr_options[$purpose]) {
-						continue;
-					}
-					
-					$use_object_sub_details_id = $object_sub_details_id.'is0referenced'.$object_sub_description_id;
-					
-					$arr_type_set['type']['include_referenced']['object_sub_details'][$use_object_sub_details_id][$object_sub_description_id] = $object_sub_description_id;
-						
-					$arr_type_set['object_sub_details'][$use_object_sub_details_id] = $arr_referenced_type_set['object_sub_details'][$object_sub_details_id];
-					$arr_type_set['object_sub_details'][$use_object_sub_details_id]['object_sub_details']['object_sub_details_type_id'] = $referenced_type_id;
-
-					$s_arr =& $arr_type_set['object_sub_details'][$use_object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
-					$s_arr['object_sub_description_is_referenced'] = true;
-					$s_arr['object_sub_description_ref_type_id'] = $referenced_type_id;
-				}
-			}
-		}
-		
-		return $arr_type_set;
-	}
 	
 	// Project Type Filters
 	
 	public static function handleProjectTypeFilter($project_id, $user_id, $filter_id, $type_id, $arr, $arr_type_filter, $is_domain = false) {
 		
-		$str_object = json_encode($arr_type_filter);
+		$str_object = value2JSON($arr_type_filter);
 		
 		if ($is_domain) {
 			$project_id = 0;
@@ -678,8 +64,10 @@ class cms_nodegoat_custom_projects extends base_module {
 		}
 		
 		if ($filter_id) {
+		
 			$arr_cur = self::getProjectTypeFilters($project_id, false, false, $filter_id, $is_domain);
-			if ($arr_cur['name'] != $arr['name'] || $arr_cur['user_id'] != $user_id) {
+			
+			if (!$arr_cur || $arr_cur['user_id'] != $user_id) { // Create new when not found (i.e. changed user scope)
 				$filter_id = false;
 			}
 			if (!$arr_cur['project_id'] && !$is_domain) {
@@ -687,10 +75,11 @@ class cms_nodegoat_custom_projects extends base_module {
 			}
 		}
 		
+		
 		$sql_new_id = "JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_FILTERS')." pf ON (pf.project_id = 0 OR pf.project_id = p.id)";
-	
+		
 		$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_FILTERS')."
-			(project_id, user_id, id, name, type_id, description, object)
+			(project_id".", user_id, id, name, type_id, description, object)
 				VALUES 
 			(
 				".(int)$project_id.",
@@ -705,9 +94,9 @@ class cms_nodegoat_custom_projects extends base_module {
 				'".DBFunctions::strEscape($arr['description'])."',
 				'".DBFunctions::strEscape($str_object)."'
 			)
-			".DBFunctions::onConflict('project_id, id', ['user_id', 'name', 'type_id', 'description', 'object'])."
+			".DBFunctions::onConflict('project_id'.', id', ['user_id', 'name', 'type_id', 'description', 'object'])."
 		");
-		
+						
 		if (!$filter_id) {
 			
 			$arr_cur = self::getProjectTypeFilters($project_id, $user_id, $type_id, false, $is_domain);
@@ -745,7 +134,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				LEFT JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p ON (p.id = pf.project_id)
 			WHERE (
 					".($project_id ? "pf.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, 'int')).")" : "= ".(int)$project_id) : "")."
-					".($is_domain ? ($project_id ? "OR " : "")."pf.project_id = 0" : "")."
+					".($is_domain ? ($project_id ? "OR " : "")."pf.project_id = 0" : '')."
 				)
 				AND (p.id != 0 OR pf.project_id = 0)
 				".($filter_id && !is_array($filter_id) ? "AND pf.id = ".(int)$filter_id : "")."
@@ -773,9 +162,9 @@ class cms_nodegoat_custom_projects extends base_module {
 				$arr_row['label'] = ($arr_row['user_id'] ? '• ' : '').$arr_row['name'];
 				if ($project_id) { // Do grouping
 					if ($is_domain && !$arr_row['project_id']) {
-						$arr_row['label'] = getLabel('lbl_clearance_admin').' | '.$arr_row['label'];
+						$arr_row['label'] = getLabel('lbl_clearance_admin').cms_general::OPTION_GROUP_SEPARATOR.$arr_row['label'];
 					} else if ($project_id != $arr_row['project_id']) {
-						$arr_row['label'] = $arr_row['project_name'].' | '.$arr_row['label'];
+						$arr_row['label'] = $arr_row['project_name'].cms_general::OPTION_GROUP_SEPARATOR.$arr_row['label'];
 					}
 				}
 				
@@ -791,15 +180,15 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	public static function handleProjectTypeScope($project_id, $user_id, $scope_id, $type_id, $arr, $arr_scope) {
 
-		$str_object = json_encode($arr_scope);
-		
-		if ($project_id && $user_id && $scope_id === 0) {
-			$is_user_default = true;
-		}
+		$str_object = value2JSON($arr_scope);
+
+		$is_user_default = ($project_id && $user_id && $scope_id === 0);
 		
 		if ($scope_id) {
+			
 			$arr_cur = self::getProjectTypeScopes($project_id, false, false, $scope_id);
-			if ($arr_cur['name'] != $arr['name'] || $arr_cur['user_id'] != $user_id) {
+			
+			if (!$arr_cur || $arr_cur['user_id'] != $user_id) { // Create new when not found (i.e. changed user scope)
 				$scope_id = false;
 			}
 		}
@@ -825,6 +214,11 @@ class cms_nodegoat_custom_projects extends base_module {
 			".DBFunctions::onConflict('project_id, user_id, id, type_id', ['name', 'description', 'object'])."
 		");
 		
+		if ($is_user_default) {
+			
+			return $res->getAffectedRowCount();
+		}
+		
 		if (!$scope_id && !$is_user_default) {
 			
 			$arr_cur = self::getProjectTypeScopes($project_id, $user_id, $type_id, false);
@@ -849,9 +243,9 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	public static function getProjectTypeScopes($project_id, $user_id = false, $type_id = false, $scope_id = false, $arr_use_project_ids = []) {
 		
-		if ($project_id && $user_id && $scope_id === 0) {
-			$is_user_default = true;
-		}
+		// $scope_id = false (all stored features) / 0 (default user only) / array (any)
+		
+		$is_user_default = ($project_id && $user_id && $scope_id === 0);
 
 		$arr = [];
 
@@ -881,13 +275,13 @@ class cms_nodegoat_custom_projects extends base_module {
 		
 			while($arr_row = $res->fetchAssoc()) {
 				
-				if ($arr_row['id'] == 0 && !$scope_id) { // Do not show the default user settings in lists
+				if ($arr_row['id'] == 0 && ($scope_id === false || $scope_id === 0)) { // Do not show the default user settings in lists
 					continue;
 				}
 				
 				$arr_row['label'] = ($arr_row['user_id'] ? '• ' : '').$arr_row['name'];
 				if ($project_id != $arr_row['project_id']) {
-					$arr_row['label'] = $arr_row['project_name'].' | '.$arr_row['label'];
+					$arr_row['label'] = $arr_row['project_name'].cms_general::OPTION_GROUP_SEPARATOR.$arr_row['label'];
 				}
 				
 				$arr_row['object'] = json_decode($arr_row['object'], true);
@@ -902,15 +296,15 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	public static function handleProjectTypeContext($project_id, $user_id, $context_id, $type_id, $arr, $arr_context) {
 		
-		$str_object = json_encode($arr_context);
+		$str_object = value2JSON($arr_context);
 		
-		if ($project_id && $user_id && $context_id === 0) {
-			$is_user_default = true;
-		}
+		$is_user_default = ($project_id && $user_id && $context_id === 0);
 		
 		if ($context_id) {
+			
 			$arr_cur = self::getProjectTypeContexts($project_id, false, false, $context_id);
-			if ($arr_cur['name'] != $arr['name'] || $arr_cur['user_id'] != $user_id) {
+			
+			if (!$arr_cur || $arr_cur['user_id'] != $user_id) { // Create new when not found (i.e. changed user scope)
 				$context_id = false;
 			}
 		}
@@ -936,6 +330,11 @@ class cms_nodegoat_custom_projects extends base_module {
 			".DBFunctions::onConflict('project_id, user_id, id, type_id', ['name', 'description', 'object'])."
 		");
 		
+		if ($is_user_default) {
+			
+			return $res->getAffectedRowCount();
+		}
+		
 		if (!$context_id && !$is_user_default) {
 			
 			$arr_cur = self::getProjectTypeContexts($project_id, $user_id, $type_id, false);
@@ -960,9 +359,9 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	public static function getProjectTypeContexts($project_id, $user_id = false, $type_id = false, $context_id = false, $arr_use_project_ids = []) {
 		
-		if ($project_id && $user_id && $context_id === 0) {
-			$is_user_default = true;
-		}
+		// $context_id = false (all stored features) / 0 (default user only) / array (any)
+		
+		$is_user_default = ($project_id && $user_id && $context_id === 0);
 
 		$arr = [];
 
@@ -991,13 +390,13 @@ class cms_nodegoat_custom_projects extends base_module {
 		
 			while($arr_row = $res->fetchAssoc()) {
 				
-				if ($arr_row['id'] == 0 && !$context_id) { // Do not show the default user settings in lists
+				if ($arr_row['id'] == 0 && ($context_id === false || $context_id === 0)) { // Do not show the default user settings in lists
 					continue;
 				}
 				
 				$arr_row['label'] = ($arr_row['user_id'] ? '• ' : '').$arr_row['name'];
 				if ($project_id != $arr_row['project_id']) {
-					$arr_row['label'] = $arr_row['project_name'].' | '.$arr_row['label'];
+					$arr_row['label'] = $arr_row['project_name'].cms_general::OPTION_GROUP_SEPARATOR.$arr_row['label'];
 				}
 				
 				$arr_row['object'] = json_decode($arr_row['object'], true);
@@ -1012,20 +411,20 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	public static function handleProjectTypeFrame($project_id, $user_id, $frame_id, $type_id, $arr, $arr_frame) {
 		
-		if ($project_id && $user_id && $frame_id === 0) {
-			$is_user_default = true;
-		}
+		$is_user_default = ($project_id && $user_id && $frame_id === 0);
 		
 		if ($frame_id) {
+			
 			$arr_cur = self::getProjectTypeFrames($project_id, false, false, $frame_id);
-			if ($arr_cur['name'] != $arr['name'] || $arr_cur['user_id'] != $user_id) {
+			
+			if (!$arr_cur || $arr_cur['user_id'] != $user_id) { // Create new when not found (i.e. changed user scope)
 				$frame_id = false;
 			}
 		}
 				
 		$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_FRAMES')."
 			(project_id, user_id, id, type_id, name, description,
-				area_geo_latitude, area_geo_longitude, area_geo_scale, area_social_object_id, area_social_zoom, time_bounds_date_start, time_bounds_date_end, time_selection_date_start, time_selection_date_end, object_subs_unknown_date, object_subs_unknown_location
+				area_geo_latitude, area_geo_longitude, area_geo_zoom_scale, area_geo_zoom_min, area_geo_zoom_max, area_social_object_id, area_social_zoom_level, area_social_zoom_min, area_social_zoom_max, time_bounds_date_start, time_bounds_date_end, time_selection_date_start, time_selection_date_end, object_subs_unknown_date, object_subs_unknown_location
 			)
 				VALUES 
 			(
@@ -1043,9 +442,13 @@ class cms_nodegoat_custom_projects extends base_module {
 				'".DBFunctions::strEscape($arr['description'])."',
 				".((string)$arr_frame['area']['geo']['latitude'] !== '' ? (float)$arr_frame['area']['geo']['latitude'] : 'NULL').",
 				".((string)$arr_frame['area']['geo']['longitude'] !== '' ? (float)$arr_frame['area']['geo']['longitude'] : 'NULL').",
-				".(float)$arr_frame['area']['geo']['scale'].",
+				".(float)$arr_frame['area']['geo']['zoom']['scale'].",
+				".(int)$arr_frame['area']['geo']['zoom']['min'].",
+				".(int)$arr_frame['area']['geo']['zoom']['max'].",
 				".(int)$arr_frame['area']['social']['object_id'].",
-				".(float)$arr_frame['area']['social']['zoom'].",
+				".(float)$arr_frame['area']['social']['zoom']['level'].",
+				".(int)$arr_frame['area']['social']['zoom']['min'].",
+				".(int)$arr_frame['area']['social']['zoom']['max'].",
 				".(int)StoreTypeObjects::formatToSQLValue('date', $arr_frame['time']['bounds']['date_start']).",
 				".(int)StoreTypeObjects::formatToSQLValue('date', $arr_frame['time']['bounds']['date_end']).",
 				".(int)StoreTypeObjects::formatToSQLValue('date', $arr_frame['time']['selection']['date_start']).",
@@ -1054,9 +457,14 @@ class cms_nodegoat_custom_projects extends base_module {
 				".($arr_frame['object_subs']['unknown']['location'] && $arr_frame['object_subs']['unknown']['location'] != 'ignore' ? "'".DBFunctions::strEscape($arr_frame['object_subs']['unknown']['location'])."'" : 'NULL')."
 			)
 			".DBFunctions::onConflict('project_id, user_id, id, type_id', ['name', 'description',
-				'area_geo_latitude', 'area_geo_longitude', 'area_geo_scale', 'area_social_object_id', 'area_social_zoom', 'time_bounds_date_start', 'time_bounds_date_end', 'time_selection_date_start', 'time_selection_date_end', 'object_subs_unknown_date', 'object_subs_unknown_location'
+				'area_geo_latitude', 'area_geo_longitude', 'area_geo_zoom_scale', 'area_geo_zoom_min', 'area_geo_zoom_max', 'area_social_object_id', 'area_social_zoom_level', 'area_social_zoom_min', 'area_social_zoom_max', 'time_bounds_date_start', 'time_bounds_date_end', 'time_selection_date_start', 'time_selection_date_end', 'object_subs_unknown_date', 'object_subs_unknown_location'
 			])."
 		");
+		
+		if ($is_user_default) {
+			
+			return $res->getAffectedRowCount();
+		}
 		
 		if (!$frame_id && !$is_user_default) {
 			
@@ -1082,9 +490,9 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	public static function getProjectTypeFrames($project_id, $user_id = false, $type_id = false, $frame_id = false, $arr_use_project_ids = []) {
 		
-		if ($project_id && $user_id && $frame_id === 0) {
-			$is_user_default = true;
-		}
+		// $frame_id = false (all stored features) / 0 (default user only) / array (any)
+		
+		$is_user_default = ($project_id && $user_id && $frame_id === 0);
 
 		$arr = [];
 
@@ -1106,6 +514,11 @@ class cms_nodegoat_custom_projects extends base_module {
 				
 				$arr_row = $res->fetchAssoc();
 				
+				$arr_row['time_bounds_date_start'] = (int)$arr_row['time_bounds_date_start'];
+				$arr_row['time_bounds_date_end'] = (int)$arr_row['time_bounds_date_end'];
+				$arr_row['time_selection_date_start'] = (int)$arr_row['time_selection_date_start'];
+				$arr_row['time_selection_date_end'] = (int)$arr_row['time_selection_date_end'];
+				
 				$arr_settings = array_slice($arr_row, 5, -1, true);
 				array_splice($arr_row, 6, -1);
 				$arr_row['settings'] = $arr_settings;
@@ -1120,9 +533,14 @@ class cms_nodegoat_custom_projects extends base_module {
 		
 			while($arr_row = $res->fetchAssoc()) {
 				
-				if ($arr_row['id'] == 0 && !$frame_id) { // Do not show the default user settings in lists
+				if ($arr_row['id'] == 0 && ($frame_id === false || $frame_id === 0)) { // Do not show the default user settings in lists
 					continue;
 				}
+				
+				$arr_row['time_bounds_date_start'] = (int)$arr_row['time_bounds_date_start'];
+				$arr_row['time_bounds_date_end'] = (int)$arr_row['time_bounds_date_end'];
+				$arr_row['time_selection_date_start'] = (int)$arr_row['time_selection_date_start'];
+				$arr_row['time_selection_date_end'] = (int)$arr_row['time_selection_date_end'];
 				
 				$arr_settings = array_slice($arr_row, 5, -1, true);
 				array_splice($arr_row, 6, -1);
@@ -1130,7 +548,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				
 				$arr_row['label'] = ($arr_row['user_id'] ? '• ' : '').$arr_row['name'];
 				if ($project_id != $arr_row['project_id']) {
-					$arr_row['label'] = $arr_row['project_name'].' | '.$arr_row['label'];
+					$arr_row['label'] = $arr_row['project_name'].cms_general::OPTION_GROUP_SEPARATOR.$arr_row['label'];
 				}
 				
 				$arr[$arr_row['type_id']][$arr_row['id']] = $arr_row;
@@ -1153,9 +571,13 @@ class cms_nodegoat_custom_projects extends base_module {
 			$arr_settings = [
 				'area_geo_latitude' => $arr_settings_use['area']['geo']['latitude'],
 				'area_geo_longitude' => $arr_settings_use['area']['geo']['longitude'],
-				'area_geo_scale' => $arr_settings_use['area']['geo']['scale'],
+				'area_geo_zoom_scale' => $arr_settings_use['area']['geo']['zoom']['scale'],
+				'area_geo_zoom_min' => $arr_settings_use['area']['geo']['zoom']['min'],
+				'area_geo_zoom_max' => $arr_settings_use['area']['geo']['zoom']['max'],
 				'area_social_object_id' => $arr_settings_use['area']['social']['object_id'],
-				'area_social_zoom' => $arr_settings_use['area']['social']['zoom'],
+				'area_social_zoom_level' => $arr_settings_use['area']['social']['zoom']['level'],
+				'area_social_zoom_min' => $arr_settings_use['area']['social']['zoom']['min'],
+				'area_social_zoom_max' => $arr_settings_use['area']['social']['zoom']['max'],
 				'time_bounds_date_start' => $arr_settings_use['time']['bounds']['date_start'],
 				'time_bounds_date_end' => $arr_settings_use['time']['bounds']['date_end'],
 				'time_selection_date_start' => $arr_settings_use['time']['selection']['date_start'],
@@ -1170,11 +592,19 @@ class cms_nodegoat_custom_projects extends base_module {
 				'geo' => [
 					'latitude' => ((string)$arr_settings['area_geo_latitude'] !== '' ? (float)$arr_settings['area_geo_latitude'] : ''),
 					'longitude' => ((string)$arr_settings['area_geo_longitude'] !== '' ? (float)$arr_settings['area_geo_longitude'] : ''),
-					'scale' => ($arr_settings['area_geo_scale'] ? (float)$arr_settings['area_geo_scale'] : '')
+					'zoom' => [
+						'scale' => ($arr_settings['area_geo_zoom_scale'] ? (float)$arr_settings['area_geo_zoom_scale'] : ''),
+						'min' => ($arr_settings['area_geo_zoom_min'] ? (int)$arr_settings['area_geo_zoom_min'] : ''),
+						'max' => ($arr_settings['area_geo_zoom_max'] ? (int)$arr_settings['area_geo_zoom_max'] : '')
+					]
 				],
 				'social' => [
 					'object_id' => ($arr_settings['area_social_object_id'] ? (int)$arr_settings['area_social_object_id'] : ''),
-					'zoom' => ($arr_settings['area_social_zoom'] ? (float)$arr_settings['area_social_zoom'] : '')
+					'zoom' => [
+						'level' => ($arr_settings['area_social_zoom_level'] ? (float)$arr_settings['area_social_zoom_level'] : ''),
+						'min' => ($arr_settings['area_social_zoom_min'] ? (int)$arr_settings['area_social_zoom_min'] : ''),
+						'max' => ($arr_settings['area_social_zoom_max'] ? (int)$arr_settings['area_social_zoom_max'] : '')
+					]
 				]
 			],
 			'time' => [
@@ -1200,13 +630,13 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	public static function handleProjectVisualSettings($project_id, $user_id, $visual_settings_id, $arr, $arr_visual_settings) {
 		
-		if ($project_id && $user_id && $visual_settings_id === 0) {
-			$is_user_default = true;
-		}
+		$is_user_default = ($project_id && $user_id && $visual_settings_id === 0);
 		
 		if ($visual_settings_id) {
+			
 			$arr_cur = self::getProjectVisualSettings($project_id, false, $visual_settings_id);
-			if ($arr_cur['name'] != $arr['name'] || $arr_cur['user_id'] != $user_id) {
+			
+			if (!$arr_cur || $arr_cur['user_id'] != $user_id) { // Create new when not found (i.e. changed user scope)
 				$visual_settings_id = false;
 			}
 		}
@@ -1215,7 +645,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				
 		$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_VISUAL_SETTINGS')."
 			(project_id, user_id, id, name, description,
-				dot_show, dot_color, dot_opacity, dot_color_condition, dot_size_min, dot_size_max, dot_size_start, dot_size_stop, dot_stroke_color, dot_stroke_opacity, dot_stroke_width, location_show, location_color, location_size, location_threshold, location_condition, line_show, line_color, line_opacity, line_width_min, line_width_max, line_offset, visual_hints_show, visual_hints_color, visual_hints_opacity, visual_hints_size, visual_hints_stroke_color, visual_hints_stroke_opacity, visual_hints_stroke_width, visual_hints_duration, visual_hints_delay, geometry_show, geometry_color, geometry_opacity, geometry_stroke_color, geometry_stroke_opacity, geometry_stroke_width, map_url, map_attribution, geo_info_show, geo_background_color, geo_mode, geo_display, geo_advanced, social_dot_color, social_dot_size_min, social_dot_size_max, social_dot_size_start, social_dot_size_stop, social_dot_stroke_color, social_dot_stroke_width, social_line_show, social_line_arrowhead_show, social_disconnected_dot_show, social_include_location_references, social_background_color, social_display, social_static_layout, social_static_layout_interval, social_advanced, time_conditions_relative, time_conditions_cumulative
+				capture_enable, capture_settings, dot_show, dot_color, dot_opacity, dot_color_condition, dot_size_min, dot_size_max, dot_size_start, dot_size_stop, dot_stroke_color, dot_stroke_opacity, dot_stroke_width, location_show, location_color, location_opacity, location_size, location_threshold, location_offset, location_position, location_condition, line_show, line_color, line_opacity, line_width_min, line_width_max, line_offset, visual_hints_show, visual_hints_color, visual_hints_opacity, visual_hints_size, visual_hints_stroke_color, visual_hints_stroke_opacity, visual_hints_stroke_width, visual_hints_duration, visual_hints_delay, geometry_show, geometry_color, geometry_opacity, geometry_stroke_color, geometry_stroke_opacity, geometry_stroke_width, map_show, map_url, map_attribution, geo_info_show, geo_background_color, geo_mode, geo_display, geo_advanced, social_dot_color, social_dot_size_min, social_dot_size_max, social_dot_size_start, social_dot_size_stop, social_dot_stroke_color, social_dot_stroke_width, social_line_show, social_line_arrowhead_show, social_force, social_forceatlas2, social_disconnected_dot_show, social_include_location_references, social_background_color, social_display, social_static_layout, social_static_layout_interval, social_advanced, time_bar_color, time_bar_opacity, time_background_color, time_relative_graph, time_cumulative_graph
 			)
 				VALUES 
 			(
@@ -1230,6 +660,8 @@ class cms_nodegoat_custom_projects extends base_module {
 				)").",
 				'".DBFunctions::strEscape($arr['name'])."',
 				'".DBFunctions::strEscape($arr['description'])."',
+					".((string)$arr_visual_settings['capture']['enable'] !== '' && (int)$arr_visual_settings['capture']['enable'] != $arr_default['capture']['enable'] ? (int)$arr_visual_settings['capture']['enable'] : 'NULL').",
+					'".($arr_visual_settings['capture']['settings'] && $arr_visual_settings['capture']['settings'] !== $arr_default['capture']['settings'] ? DBFunctions::strEscape(value2JSON($arr_visual_settings['capture']['settings'])) : '')."',
 					".((string)$arr_visual_settings['dot']['show'] !== '' && (int)$arr_visual_settings['dot']['show'] != $arr_default['dot']['show'] ? (int)$arr_visual_settings['dot']['show'] : 'NULL').",
 					'".(str2Color($arr_visual_settings['dot']['color']) != $arr_default['dot']['color'] ? str2Color($arr_visual_settings['dot']['color']) : '')."',
 					".((string)$arr_visual_settings['dot']['opacity'] !== '' && (float)$arr_visual_settings['dot']['opacity'] != $arr_default['dot']['opacity'] ? (float)$arr_visual_settings['dot']['opacity'] : 'NULL').",
@@ -1243,15 +675,18 @@ class cms_nodegoat_custom_projects extends base_module {
 					".((string)$arr_visual_settings['dot']['stroke_width'] !== '' && (float)$arr_visual_settings['dot']['stroke_width'] != $arr_default['dot']['stroke_width'] ? (float)$arr_visual_settings['dot']['stroke_width'] : 'NULL').",
 					".((string)$arr_visual_settings['location']['show'] !== '' && (int)$arr_visual_settings['location']['show'] != $arr_default['location']['show'] ? (int)$arr_visual_settings['location']['show'] : 'NULL').",
 					'".(str2Color($arr_visual_settings['location']['color']) != $arr_default['location']['color'] ? str2Color($arr_visual_settings['location']['color']) : '')."',
+					".(float)((float)$arr_visual_settings['location']['opacity'] != $arr_default['location']['opacity'] ? $arr_visual_settings['location']['opacity'] : '').",
 					".(float)((float)$arr_visual_settings['location']['size'] != $arr_default['location']['size'] ? $arr_visual_settings['location']['size'] : '').",
 					".(int)((int)$arr_visual_settings['location']['threshold'] != $arr_default['location']['threshold'] ? $arr_visual_settings['location']['threshold'] : '').",
+					".((string)$arr_visual_settings['location']['offset'] !== '' && (int)$arr_visual_settings['location']['offset'] != $arr_default['location']['offset'] ? (int)$arr_visual_settings['location']['offset'] : 'NULL').",
+					'".($arr_visual_settings['location']['position'] && $arr_visual_settings['location']['position'] !== $arr_default['location']['position'] ? DBFunctions::strEscape(value2JSON($arr_visual_settings['location']['position'])) : '')."',
 					'".($arr_visual_settings['location']['condition'] != $arr_default['location']['condition'] ? DBFunctions::strEscape($arr_visual_settings['location']['condition']) : '')."',
 					".((string)$arr_visual_settings['line']['show'] !== '' && (int)$arr_visual_settings['line']['show'] != $arr_default['line']['show'] ? (int)$arr_visual_settings['line']['show'] : 'NULL').",
 					'".(str2Color($arr_visual_settings['line']['color']) != $arr_default['line']['color'] ? str2Color($arr_visual_settings['line']['color']) : '')."',
 					".(float)((float)$arr_visual_settings['line']['opacity'] != $arr_default['line']['opacity'] ? $arr_visual_settings['line']['opacity'] : '').",
 					".(float)((float)$arr_visual_settings['line']['width']['min'] != $arr_default['line']['width']['min'] ? $arr_visual_settings['line']['width']['min'] : '').",
 					".(float)((float)$arr_visual_settings['line']['width']['max'] != $arr_default['line']['width']['max'] ? $arr_visual_settings['line']['width']['max'] : '').",
-					".((string)$arr_visual_settings['line']['offset'] !== '' && (float)$arr_visual_settings['line']['offset'] != $arr_default['line']['offset'] ? (int)$arr_visual_settings['line']['offset'] : 'NULL').",
+					".((string)$arr_visual_settings['line']['offset'] !== '' && (int)$arr_visual_settings['line']['offset'] != $arr_default['line']['offset'] ? (int)$arr_visual_settings['line']['offset'] : 'NULL').",
 					".((string)$arr_visual_settings['hint']['show'] !== '' && (int)$arr_visual_settings['hint']['show'] != $arr_default['hint']['show'] ? (int)$arr_visual_settings['hint']['show'] : 'NULL').",
 					'".(str2Color($arr_visual_settings['hint']['color']) != $arr_default['hint']['color'] ? str2Color($arr_visual_settings['hint']['color']) : '')."',
 					".((string)$arr_visual_settings['hint']['opacity'] !== '' && (float)$arr_visual_settings['hint']['opacity'] != $arr_default['hint']['opacity'] ? (float)$arr_visual_settings['hint']['opacity'] : 'NULL').",
@@ -1267,13 +702,14 @@ class cms_nodegoat_custom_projects extends base_module {
 					'".(str2Color($arr_visual_settings['geometry']['stroke_color']) != $arr_default['geometry']['stroke_color'] ? str2Color($arr_visual_settings['geometry']['stroke_color']) : '')."',
 					".(float)((float)$arr_visual_settings['geometry']['stroke_opacity'] != $arr_default['geometry']['stroke_opacity'] ? $arr_visual_settings['geometry']['stroke_opacity'] : '').",
 					".((string)$arr_visual_settings['geometry']['stroke_width'] !== '' && (float)$arr_visual_settings['geometry']['stroke_width'] != $arr_default['geometry']['stroke_width'] ? (float)$arr_visual_settings['geometry']['stroke_width'] : 'NULL').",
+					".((string)$arr_visual_settings['settings']['map_show'] !== '' && (int)$arr_visual_settings['settings']['map_show'] != $arr_default['settings']['map_show'] ? (int)$arr_visual_settings['settings']['map_show'] : 'NULL').",
 					'".($arr_visual_settings['settings']['map_url'] != $arr_default['settings']['map_url'] ? DBFunctions::strEscape($arr_visual_settings['settings']['map_url']) : '')."',
 					'".($arr_visual_settings['settings']['map_attribution'] != $arr_default['settings']['map_attribution'] ? DBFunctions::strEscape($arr_visual_settings['settings']['map_attribution']) : '')."',
 					".((string)$arr_visual_settings['settings']['geo_info_show'] !== '' && (int)$arr_visual_settings['settings']['geo_info_show'] != $arr_default['settings']['geo_info_show'] ? (int)$arr_visual_settings['settings']['geo_info_show'] : 'NULL').",
 					'".(str2Color($arr_visual_settings['settings']['geo_background_color']) != $arr_default['settings']['geo_background_color'] ? str2Color($arr_visual_settings['settings']['geo_background_color']) : '')."',
 					".((string)$arr_visual_settings['settings']['geo_mode'] !== '' && (int)$arr_visual_settings['settings']['geo_mode'] != $arr_default['settings']['geo_mode'] ? (int)$arr_visual_settings['settings']['geo_mode'] : 'NULL').",
 					".((string)$arr_visual_settings['settings']['geo_display'] !== '' && (int)$arr_visual_settings['settings']['geo_display'] != $arr_default['settings']['geo_display'] ? (int)$arr_visual_settings['settings']['geo_display'] : 'NULL').",
-					'".($arr_visual_settings['settings']['geo_advanced'] && $arr_visual_settings['settings']['geo_advanced'] !== $arr_default['settings']['geo_advanced'] ? DBFunctions::strEscape(json_encode($arr_visual_settings['settings']['geo_advanced'])) : '')."',
+					'".($arr_visual_settings['settings']['geo_advanced'] && $arr_visual_settings['settings']['geo_advanced'] !== $arr_default['settings']['geo_advanced'] ? DBFunctions::strEscape(value2JSON($arr_visual_settings['settings']['geo_advanced'])) : '')."',
 					'".(str2Color($arr_visual_settings['social']['dot']['color']) != $arr_default['social']['dot']['color'] ? str2Color($arr_visual_settings['social']['dot']['color']) : '')."',
 					".(float)((float)$arr_visual_settings['social']['dot']['size']['min'] != $arr_default['social']['dot']['size']['min'] ? $arr_visual_settings['social']['dot']['size']['min'] : '').",
 					".(float)((float)$arr_visual_settings['social']['dot']['size']['max'] != $arr_default['social']['dot']['size']['max'] ? $arr_visual_settings['social']['dot']['size']['max'] : '').",
@@ -1283,20 +719,30 @@ class cms_nodegoat_custom_projects extends base_module {
 					".((string)$arr_visual_settings['social']['dot']['stroke_width'] !== '' && (float)$arr_visual_settings['social']['dot']['stroke_width'] != $arr_default['social']['dot']['stroke_width'] ? (float)$arr_visual_settings['social']['dot']['stroke_width'] : 'NULL').",
 					".((string)$arr_visual_settings['social']['line']['show'] !== '' && (int)$arr_visual_settings['social']['line']['show'] != $arr_default['social']['line']['show'] ? (int)$arr_visual_settings['social']['line']['show'] : 'NULL').",
 					".((string)$arr_visual_settings['social']['line']['arrowhead_show'] !== '' && (int)$arr_visual_settings['social']['line']['arrowhead_show'] != $arr_default['social']['line']['arrowhead_show'] ? (int)$arr_visual_settings['social']['line']['arrowhead_show'] : 'NULL').",
+					'".($arr_visual_settings['social']['force'] && $arr_visual_settings['social']['force'] !== $arr_default['social']['force'] ? DBFunctions::strEscape(value2JSON($arr_visual_settings['social']['force'])) : '')."',
+					'".($arr_visual_settings['social']['forceatlas2'] && $arr_visual_settings['social']['forceatlas2'] !== $arr_default['social']['forceatlas2'] ? DBFunctions::strEscape(value2JSON($arr_visual_settings['social']['forceatlas2'])) : '')."',
 					".((string)$arr_visual_settings['social']['settings']['disconnected_dot_show'] !== '' && (int)$arr_visual_settings['social']['settings']['disconnected_dot_show'] != $arr_default['social']['settings']['disconnected_dot_show'] ? (int)$arr_visual_settings['social']['settings']['disconnected_dot_show'] : 'NULL').",
 					".((string)$arr_visual_settings['social']['settings']['include_location_references'] !== '' && (int)$arr_visual_settings['social']['settings']['include_location_references'] != $arr_default['social']['settings']['include_location_references'] ? (int)$arr_visual_settings['social']['settings']['include_location_references'] : 'NULL').",
 					'".(str2Color($arr_visual_settings['social']['settings']['background_color']) != $arr_default['social']['settings']['background_color'] ? str2Color($arr_visual_settings['social']['settings']['background_color']) : '')."',
 					".((string)$arr_visual_settings['social']['settings']['display'] !== '' && (int)$arr_visual_settings['social']['settings']['display'] != $arr_default['social']['settings']['display'] ? (int)$arr_visual_settings['social']['settings']['display'] : 'NULL').",
 					".((string)$arr_visual_settings['social']['settings']['static_layout'] !== '' && (int)$arr_visual_settings['social']['settings']['static_layout'] != $arr_default['social']['settings']['static_layout'] ? (int)$arr_visual_settings['social']['settings']['static_layout'] : 'NULL').",
 					".((string)$arr_visual_settings['social']['settings']['static_layout_interval'] !== '' && (float)$arr_visual_settings['social']['settings']['static_layout_interval'] != $arr_default['social']['settings']['static_layout_interval'] ? (float)$arr_visual_settings['social']['settings']['static_layout_interval'] : 'NULL').",
-					'".($arr_visual_settings['social']['settings']['social_advanced'] && $arr_visual_settings['social']['settings']['social_advanced'] !== $arr_default['social']['settings']['social_advanced'] ? DBFunctions::strEscape(json_encode($arr_visual_settings['social']['settings']['social_advanced'])) : '')."',
-					".((string)$arr_visual_settings['time']['settings']['conditions_relative'] !== '' && (int)$arr_visual_settings['time']['settings']['conditions_relative'] != $arr_default['time']['settings']['conditions_relative'] ? (int)$arr_visual_settings['time']['settings']['conditions_relative'] : 'NULL').",
-					".((string)$arr_visual_settings['time']['settings']['conditions_cumulative'] !== '' && (int)$arr_visual_settings['time']['settings']['conditions_cumulative'] != $arr_default['time']['settings']['conditions_cumulative'] ? (int)$arr_visual_settings['time']['settings']['conditions_cumulative'] : 'NULL')."
+					'".($arr_visual_settings['social']['settings']['social_advanced'] && $arr_visual_settings['social']['settings']['social_advanced'] !== $arr_default['social']['settings']['social_advanced'] ? DBFunctions::strEscape(value2JSON($arr_visual_settings['social']['settings']['social_advanced'])) : '')."',
+					'".(str2Color($arr_visual_settings['time']['bar']['color']) != $arr_default['time']['bar']['color'] ? str2Color($arr_visual_settings['time']['bar']['color']) : '')."',
+					".(float)((float)$arr_visual_settings['time']['bar']['opacity'] != $arr_default['time']['bar']['opacity'] ? $arr_visual_settings['time']['bar']['opacity'] : '').",
+					'".(str2Color($arr_visual_settings['time']['settings']['background_color']) != $arr_default['time']['settings']['background_color'] ? str2Color($arr_visual_settings['time']['settings']['background_color']) : '')."',
+					".((string)$arr_visual_settings['time']['settings']['relative_graph'] !== '' && (int)$arr_visual_settings['time']['settings']['relative_graph'] != $arr_default['time']['settings']['relative_graph'] ? (int)$arr_visual_settings['time']['settings']['relative_graph'] : 'NULL').",
+					".((string)$arr_visual_settings['time']['settings']['cumulative_graph'] !== '' && (int)$arr_visual_settings['time']['settings']['cumulative_graph'] != $arr_default['time']['settings']['cumulative_graph'] ? (int)$arr_visual_settings['time']['settings']['cumulative_graph'] : 'NULL')."
 			)
 			".DBFunctions::onConflict('project_id, user_id, id', ['name', 'description',
-				'dot_show', 'dot_color', 'dot_opacity', 'dot_color_condition', 'dot_size_min', 'dot_size_max', 'dot_size_start', 'dot_size_stop', 'dot_stroke_color', 'dot_stroke_opacity', 'dot_stroke_width', 'location_show', 'location_color', 'location_size', 'location_threshold', 'location_condition', 'line_show', 'line_color', 'line_opacity', 'line_width_min', 'line_width_max', 'line_offset', 'visual_hints_show', 'visual_hints_color', 'visual_hints_opacity', 'visual_hints_size', 'visual_hints_stroke_color', 'visual_hints_stroke_opacity', 'visual_hints_stroke_width', 'visual_hints_duration', 'visual_hints_delay', 'geometry_show', 'geometry_color', 'geometry_opacity', 'geometry_stroke_color', 'geometry_stroke_opacity', 'geometry_stroke_width', 'map_url', 'map_attribution', 'geo_info_show', 'geo_background_color', 'geo_mode', 'geo_display', 'geo_advanced', 'social_dot_color', 'social_dot_size_min', 'social_dot_size_max', 'social_dot_size_start', 'social_dot_size_stop', 'social_dot_stroke_color', 'social_dot_stroke_width', 'social_line_show', 'social_line_arrowhead_show', 'social_disconnected_dot_show', 'social_include_location_references', 'social_background_color', 'social_display', 'social_static_layout', 'social_static_layout_interval', 'social_advanced', 'time_conditions_relative', 'time_conditions_cumulative'
+				'capture_enable', 'capture_settings', 'dot_show', 'dot_color', 'dot_opacity', 'dot_color_condition', 'dot_size_min', 'dot_size_max', 'dot_size_start', 'dot_size_stop', 'dot_stroke_color', 'dot_stroke_opacity', 'dot_stroke_width', 'location_show', 'location_color', 'location_opacity', 'location_size', 'location_threshold', 'location_offset', 'location_position', 'location_condition', 'line_show', 'line_color', 'line_opacity', 'line_width_min', 'line_width_max', 'line_offset', 'visual_hints_show', 'visual_hints_color', 'visual_hints_opacity', 'visual_hints_size', 'visual_hints_stroke_color', 'visual_hints_stroke_opacity', 'visual_hints_stroke_width', 'visual_hints_duration', 'visual_hints_delay', 'geometry_show', 'geometry_color', 'geometry_opacity', 'geometry_stroke_color', 'geometry_stroke_opacity', 'geometry_stroke_width', 'map_show', 'map_url', 'map_attribution', 'geo_info_show', 'geo_background_color', 'geo_mode', 'geo_display', 'geo_advanced', 'social_dot_color', 'social_dot_size_min', 'social_dot_size_max', 'social_dot_size_start', 'social_dot_size_stop', 'social_dot_stroke_color', 'social_dot_stroke_width', 'social_line_show', 'social_line_arrowhead_show', 'social_force', 'social_forceatlas2', 'social_disconnected_dot_show', 'social_include_location_references', 'social_background_color', 'social_display', 'social_static_layout', 'social_static_layout_interval', 'social_advanced', 'time_bar_color', 'time_bar_opacity', 'time_background_color', 'time_relative_graph', 'time_cumulative_graph'
 			])."
 		");
+		
+		if ($is_user_default) {
+			
+			return $res->getAffectedRowCount();
+		}
 		
 		if (!$visual_settings_id && !$is_user_default) {
 			
@@ -1321,6 +767,8 @@ class cms_nodegoat_custom_projects extends base_module {
 			$arr_settings_use = $arr_settings;
 			
 			$arr_settings = [
+				'capture_enable' => $arr_settings_use['capture']['enable'],
+				'capture_settings' => $arr_settings_use['capture']['settings'],
 				'dot_show' => $arr_settings_use['dot']['show'],
 				'dot_color' => $arr_settings_use['dot']['color'],
 				'dot_opacity' => $arr_settings_use['dot']['opacity'],
@@ -1334,8 +782,11 @@ class cms_nodegoat_custom_projects extends base_module {
 				'dot_stroke_width' => $arr_settings_use['dot']['stroke_width'],
 				'location_show' => $arr_settings_use['location']['show'],
 				'location_color' => $arr_settings_use['location']['color'],
+				'location_opacity' => $arr_settings_use['location']['opacity'],
 				'location_size' => $arr_settings_use['location']['size'],
 				'location_threshold' => $arr_settings_use['location']['threshold'],
+				'location_offset' => $arr_settings_use['location']['offset'],
+				'location_position' => $arr_settings_use['location']['position'],
 				'location_condition' => $arr_settings_use['location']['condition'],
 				'line_show' => $arr_settings_use['line']['show'],
 				'line_color' => $arr_settings_use['line']['color'],
@@ -1358,6 +809,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				'geometry_stroke_color' => $arr_settings_use['geometry']['stroke_color'],
 				'geometry_stroke_opacity' => $arr_settings_use['geometry']['stroke_opacity'],
 				'geometry_stroke_width' => $arr_settings_use['geometry']['stroke_width'],
+				'map_show' => $arr_settings_use['settings']['map_show'],
 				'map_url' => $arr_settings_use['settings']['map_url'],
 				'map_attribution' => $arr_settings_use['settings']['map_attribution'],
 				'geo_info_show' => $arr_settings_use['settings']['geo_info_show'],
@@ -1374,6 +826,8 @@ class cms_nodegoat_custom_projects extends base_module {
 				'social_dot_stroke_width' => $arr_settings_use['social']['dot']['stroke_width'],
 				'social_line_show' => $arr_settings_use['social']['line']['show'],
 				'social_line_arrowhead_show' => $arr_settings_use['social']['line']['arrowhead_show'],
+				'social_force' => $arr_settings_use['social']['force'],
+				'social_forceatlas2' => $arr_settings_use['social']['forceatlas2'],
 				'social_disconnected_dot_show' => $arr_settings_use['social']['settings']['disconnected_dot_show'],
 				'social_include_location_references' => $arr_settings_use['social']['settings']['include_location_references'],
 				'social_background_color' => $arr_settings_use['social']['settings']['background_color'],
@@ -1381,16 +835,33 @@ class cms_nodegoat_custom_projects extends base_module {
 				'social_static_layout' => $arr_settings_use['social']['settings']['static_layout'],
 				'social_static_layout_interval' => $arr_settings_use['social']['settings']['static_layout_interval'],
 				'social_advanced' => $arr_settings_use['social']['settings']['social_advanced'],
-				'time_conditions_relative' => $arr_settings_use['time']['settings']['conditions_relative'],
-				'time_conditions_cumulative' => $arr_settings_use['time']['settings']['conditions_cumulative']
+				'time_bar_color' => $arr_settings_use['time']['bar']['color'],
+				'time_bar_opacity' => $arr_settings_use['time']['bar']['opacity'],
+				'time_background_color' => $arr_settings_use['time']['settings']['background_color'],
+				'time_relative_graph' => $arr_settings_use['time']['settings']['relative_graph'],
+				'time_cumulative_graph' => $arr_settings_use['time']['settings']['cumulative_graph']
 			];
 		}
 		
-		return [
+		$arr_settings['capture_settings'] = ($arr_settings['capture_settings'] ? (!is_array($arr_settings['capture_settings']) ? (array)json_decode($arr_settings['capture_settings'], true) : $arr_settings['capture_settings']) : []);
+		$arr_settings['location_position'] = ($arr_settings['location_position'] ? (!is_array($arr_settings['location_position']) ? (array)json_decode($arr_settings['location_position'], true) : $arr_settings['location_position']) : []);
+		$arr_settings['geo_advanced'] = ($arr_settings['geo_advanced'] ? (!is_array($arr_settings['geo_advanced']) ? (array)json_decode($arr_settings['geo_advanced'], true) : $arr_settings['geo_advanced']) : []);
+		$arr_settings['social_force'] = ($arr_settings['social_force'] ? (!is_array($arr_settings['social_force']) ? (array)json_decode($arr_settings['social_force'], true) : $arr_settings['social_force']) : []);
+		$arr_settings['social_forceatlas2'] = ($arr_settings['social_forceatlas2'] ? (!is_array($arr_settings['social_forceatlas2']) ? (array)json_decode($arr_settings['social_forceatlas2'], true) : $arr_settings['social_forceatlas2']) : []);
+		$arr_settings['social_advanced'] = ($arr_settings['social_advanced'] ? (!is_array($arr_settings['social_advanced']) ? (array)json_decode($arr_settings['social_advanced'], true) : $arr_settings['social_advanced']) : []);
+		
+		$arr = [
+			'capture' => [
+				'enable' => (int)((string)$arr_settings['capture_enable'] !== '' ? (bool)$arr_settings['capture_enable'] : false),
+				'settings' => [
+					'size' => ['width' => (float)($arr_settings['capture_settings']['size']['width'] ?? null ?: 30), 'height' => (float)($arr_settings['capture_settings']['size']['height'] ?? null ?: 20)],
+					'resolution' => (int)((string)($arr_settings['capture_settings']['resolution'] ?? '') !== '' ? $arr_settings['capture_settings']['resolution'] : 300)
+				]
+			],
 			'dot' => [
 				'show' => (int)((string)$arr_settings['dot_show'] !== '' ? (bool)$arr_settings['dot_show'] : true),
 				'color' => ($arr_settings['dot_color'] ?: ''),
-				'opacity' => ((string)$arr_settings['dot_opacity'] !== '' ? (float)$arr_settings['dot_opacity'] : 1),
+				'opacity' => (float)((string)$arr_settings['dot_opacity'] !== '' ? $arr_settings['dot_opacity'] : 1),
 				'color_condition' => ($arr_settings['dot_color_condition'] ?: ''),
 				'size' => ['min' => (float)($arr_settings['dot_size_min'] ?: 8), 'max' => (float)($arr_settings['dot_size_max'] ?: 20), 'start' => ((int)$arr_settings['dot_size_start'] ?: ''), 'stop' => ((int)$arr_settings['dot_size_stop'] ?: '')],
 				'stroke_color' => ($arr_settings['dot_stroke_color'] ?: '#f0f0f0'),
@@ -1400,8 +871,11 @@ class cms_nodegoat_custom_projects extends base_module {
 			'location' => [
 				'show' => (int)((string)$arr_settings['location_show'] !== '' ? (bool)$arr_settings['location_show'] : false),
 				'color' => ($arr_settings['location_color'] ?: '#000000'),
+				'opacity' => (float)($arr_settings['location_opacity'] ?: 1),
 				'size' => (float)($arr_settings['location_size'] ?: 8),
-				'threshold' => ((int)$arr_settings['location_threshold'] ?: 1),
+				'threshold' => (int)($arr_settings['location_threshold'] ?: 1),
+				'offset' => ((string)$arr_settings['location_offset'] !== '' ? (int)$arr_settings['location_offset'] : -5),
+				'position' => ['mode' => (int)($arr_settings['location_position']['mode'] ?: 0), 'manual' => (bool)$arr_settings['location_position']['manual']],
 				'condition' => ($arr_settings['location_condition'] ?: '')
 			],
 			'line' => [
@@ -1409,64 +883,135 @@ class cms_nodegoat_custom_projects extends base_module {
 				'color' => ($arr_settings['line_color'] ?: ''),
 				'opacity' => (float)($arr_settings['line_opacity'] ?: 1),
 				'width' =>  ['min' => (float)($arr_settings['line_width_min'] ?: 2), 'max' => (float)($arr_settings['line_width_max'] ?: 10)],
-				'offset' => ((string)$arr_settings['line_offset'] !== '' ? (int)$arr_settings['line_offset'] : 6)
+				'offset' => (int)((string)$arr_settings['line_offset'] !== '' ? $arr_settings['line_offset'] : 6)
 			],
 			'hint' => [
 				'show' => (int)((string)$arr_settings['visual_hints_show'] !== '' ? (bool)$arr_settings['visual_hints_show'] : true),
 				'color' => ($arr_settings['visual_hints_color'] ?: '#0092d9'),
-				'opacity' => ((string)$arr_settings['visual_hints_opacity'] !== '' ? (float)$arr_settings['visual_hints_opacity'] : 1),
+				'opacity' => (float)((string)$arr_settings['visual_hints_opacity'] !== '' ? $arr_settings['visual_hints_opacity'] : 1),
 				'size' => (float)($arr_settings['visual_hints_size'] ?: 20),
 				'stroke_color' => ($arr_settings['visual_hints_stroke_color'] ?: '#ffffff'),
 				'stroke_opacity' => (float)($arr_settings['visual_hints_stroke_opacity'] ?: 1),
-				'stroke_width' => ((string)$arr_settings['visual_hints_stroke_width'] !== '' ? (float)$arr_settings['visual_hints_stroke_width'] : 2),
+				'stroke_width' => (float)((string)$arr_settings['visual_hints_stroke_width'] !== '' ? $arr_settings['visual_hints_stroke_width'] : 2),
 				'duration' => (float)($arr_settings['visual_hints_duration'] ?: 0.5),
 				'delay' => (float)($arr_settings['visual_hints_delay'] ?: 0)
 			],
 			'geometry' => [
 				'show' => (int)((string)$arr_settings['geometry_show'] !== '' ? (bool)$arr_settings['geometry_show'] : true),
 				'color' => ($arr_settings['geometry_color'] ?: '#666666'),
-				'opacity' => ((string)$arr_settings['geometry_opacity'] !== '' ? (float)$arr_settings['geometry_opacity'] : 0.4),
+				'opacity' => (float)((string)$arr_settings['geometry_opacity'] !== '' ? $arr_settings['geometry_opacity'] : 0.4),
 				'stroke_color' => ($arr_settings['geometry_stroke_color'] ?: '#444444'),
 				'stroke_opacity' => (float)($arr_settings['geometry_stroke_opacity'] ?: 0.6),
-				'stroke_width' => ((string)$arr_settings['geometry_stroke_width'] !== '' ? (float)$arr_settings['geometry_stroke_width'] : 1)
+				'stroke_width' => (float)((string)$arr_settings['geometry_stroke_width'] !== '' ? $arr_settings['geometry_stroke_width'] : 1)
 			],
 			'settings' => [
+				'map_show' => (int)((string)$arr_settings['map_show'] !== '' ? (bool)$arr_settings['map_show'] : true),
 				'map_url' => ($arr_settings['map_url'] ?: '//mt{s}.googleapis.com/vt?pb=!1m4!1m3!1i{z}!2i{x}!3i{y}!2m3!1e0!2sm!3i278000000!3m14!2sen-US!3sUS!5e18!12m1!1e47!12m3!1e37!2m1!1ssmartmaps!12m4!1e26!2m2!1sstyles!2zcy50OjE3fHAudjpvZmYscy50OjE4fHAudjpvZmYscy50OjIwfHMuZTpsfHAudjpvZmYscy50OjgxfHAudjpvZmYscy50OjJ8cC52Om9mZixzLnQ6NDl8cC52Om9mZixzLnQ6NTB8cy5lOmx8cC52Om9mZixzLnQ6NHxwLnY6b2ZmLHMudDo2fHMuZTpsfHAudjpvZmY!4e0!20m1!1b1'), // //mt{s}.googleapis.com/vt?lyrs=m@205000000&src=apiv3&hl=en-US&x={x}&y={y}&z={z}&s=Galil&apistyle=p.v%3Aoff%2Cs.t%3A6%7Cp.v%3Aon%7Cp.c%3A%23ffc7d7e4%2Cs.t%3A82%7Cp.v%3Aon%2Cs.t%3A19%7Cp.v%3Aon&style=api%7Csmartmaps
 				'map_attribution' => ($arr_settings['map_attribution'] ?: 'Map data ©'.date('Y').' Google'),
 				'geo_info_show' => (int)((string)$arr_settings['geo_info_show'] !== '' ? (bool)$arr_settings['geo_info_show'] : false),
 				'geo_background_color' => ($arr_settings['geo_background_color'] ?: ''),
-				'geo_mode' => ((string)$arr_settings['geo_mode'] !== '' ? (int)$arr_settings['geo_mode'] : 1),
-				'geo_display' => ((string)$arr_settings['geo_display'] !== '' ? (int)$arr_settings['geo_display'] : 1),
-				'geo_advanced' => ($arr_settings['geo_advanced'] ? (!is_array($arr_settings['geo_advanced']) ? (array)json_decode($arr_settings['geo_advanced'], true) : $arr_settings['geo_advanced']) : [])
+				'geo_mode' => (int)((string)$arr_settings['geo_mode'] !== '' ? $arr_settings['geo_mode'] : 1),
+				'geo_display' => (int)((string)$arr_settings['geo_display'] !== '' ? $arr_settings['geo_display'] : 1),
+				'geo_advanced' => $arr_settings['geo_advanced']
 			],
 			'social' => [
 				'dot' => [
 					'color' => ($arr_settings['social_dot_color'] ?: '#ffffff'),
 					'size' => ['min' => (float)($arr_settings['social_dot_size_min'] ?: 3), 'max' => (float)($arr_settings['social_dot_size_max'] ?: 20), 'start' => ((int)$arr_settings['social_dot_size_start'] ?: ''), 'stop' => ((int)$arr_settings['social_dot_size_stop'] ?: '')],
 					'stroke_color' => ($arr_settings['social_dot_stroke_color'] ?: '#aaaaaa'),
-					'stroke_width' => ((string)$arr_settings['social_dot_stroke_width'] !== '' ? (float)$arr_settings['social_dot_stroke_width'] : 1)
+					'stroke_width' => (float)((string)$arr_settings['social_dot_stroke_width'] !== '' ? $arr_settings['social_dot_stroke_width'] : 1)
 				],
 				'line' => [
 					'show' => (int)((string)$arr_settings['social_line_show'] !== '' ? (bool)$arr_settings['social_line_show'] : true),
 					'arrowhead_show' => (int)((string)$arr_settings['social_line_arrowhead_show'] !== '' ? (bool)$arr_settings['social_line_arrowhead_show'] : false)
 				],
+				'force' => [
+					'charge' => (int)((string)$arr_settings['social_force']['charge'] !== '' ? $arr_settings['social_force']['charge'] : -40),
+					'theta' => (float)((string)$arr_settings['social_force']['theta'] !== '' ? $arr_settings['social_force']['theta'] : 0.8),
+					'friction' => (float)((string)$arr_settings['social_force']['friction'] !== '' ? $arr_settings['social_force']['friction'] : 0.2),
+					'gravity' => (float)((string)$arr_settings['social_force']['gravity'] !== '' ? $arr_settings['social_force']['gravity'] : 0.08)
+				],
+				'forceatlas2' => [
+					'lin_log_mode' => (bool)(isset($arr_settings['social_forceatlas2']['lin_log_mode']) ? $arr_settings['social_forceatlas2']['lin_log_mode'] : false),
+					'outbound_attraction_distribution' => (bool)(isset($arr_settings['social_forceatlas2']['outbound_attraction_distribution']) ? $arr_settings['social_forceatlas2']['outbound_attraction_distribution'] : true),
+					'adjust_sizes' => (bool)(isset($arr_settings['social_forceatlas2']['adjust_sizes']) ? $arr_settings['social_forceatlas2']['adjust_sizes'] : false),
+					'edge_weight_influence' => (float)((string)$arr_settings['social_forceatlas2']['edge_weight_influence'] !== '' ? $arr_settings['social_forceatlas2']['edge_weight_influence'] : 0),
+					'scaling_ratio' => (float)($arr_settings['social_forceatlas2']['scaling_ratio'] ?: 1),
+					'strong_gravity_mode' => (bool)(isset($arr_settings['social_forceatlas2']['strong_gravity_mode']) ? $arr_settings['social_forceatlas2']['strong_gravity_mode'] : false),
+					'gravity' => (float)((string)$arr_settings['social_forceatlas2']['gravity'] !== '' ? $arr_settings['social_forceatlas2']['gravity'] : 1),
+					'slow_down' => (float)((string)$arr_settings['social_forceatlas2']['slow_down'] !== '' ? $arr_settings['social_forceatlas2']['slow_down'] : 1),
+					'optimize_theta' => (float)((string)$arr_settings['social_forceatlas2']['optimize_theta'] !== '' ? $arr_settings['social_forceatlas2']['optimize_theta'] : 0.5)
+				],
 				'settings' => [
 					'disconnected_dot_show' => (int)((string)$arr_settings['social_disconnected_dot_show'] !== '' ? (bool)$arr_settings['social_disconnected_dot_show'] : true),
 					'include_location_references' => (int)((string)$arr_settings['social_include_location_references'] !== '' ? (bool)$arr_settings['social_include_location_references'] : false),
 					'background_color' => ($arr_settings['social_background_color'] ?: ''),
-					'display' => ((string)$arr_settings['social_display'] !== '' ? (int)$arr_settings['social_display'] : 1),
+					'display' => (int)((string)$arr_settings['social_display'] !== '' ? $arr_settings['social_display'] : 1),
 					'static_layout' => (int)((string)$arr_settings['social_static_layout'] !== '' ? (bool)$arr_settings['social_static_layout'] : false),
 					'static_layout_interval' => ((string)$arr_settings['social_static_layout_interval'] !== '' ? (float)$arr_settings['social_static_layout_interval'] : ''),
-					'social_advanced' => ($arr_settings['social_advanced'] ? (!is_array($arr_settings['social_advanced']) ? (array)json_decode($arr_settings['social_advanced'], true) : $arr_settings['social_advanced']) : [])
+					'social_advanced' => $arr_settings['social_advanced']
 				]
 			],
 			'time' => [
+				'bar' => [
+					'color' => ($arr_settings['time_bar_color'] ?: ''),
+					'opacity' => (float)($arr_settings['time_bar_opacity'] ?: 0.5)
+				],
 				'settings' => [
-					'conditions_relative' => (int)((string)$arr_settings['time_conditions_relative'] !== '' ? (bool)$arr_settings['time_conditions_relative'] : false),
-					'conditions_cumulative' => (int)((string)$arr_settings['time_conditions_cumulative'] !== '' ? (bool)$arr_settings['time_conditions_cumulative'] : false)
+					'background_color' => ($arr_settings['time_background_color'] ?: ''),
+					'relative_graph' => (int)((string)$arr_settings['time_relative_graph'] !== '' ? (bool)$arr_settings['time_relative_graph'] : false),
+					'cumulative_graph' => (int)((string)$arr_settings['time_cumulative_graph'] !== '' ? (bool)$arr_settings['time_cumulative_graph'] : false)
 				]
 			]
 		];
+		
+		$arr['dot']['size']['min'] = min($arr['dot']['size']['min'], $arr['dot']['size']['max']);
+		$arr['dot']['size']['start'] = min($arr['dot']['size']['start'], $arr['dot']['size']['stop']);
+		$arr['line']['width']['min'] = min($arr['line']['width']['min'], $arr['line']['width']['max']);
+		$arr['social']['dot']['size']['min'] = min($arr['social']['dot']['size']['min'], $arr['social']['dot']['size']['max']);
+		$arr['social']['dot']['size']['start'] = min($arr['social']['dot']['size']['start'], $arr['social']['dot']['size']['stop']);
+		
+		return $arr;
+	}
+	
+	public static function parseVisualSettingsInputAdvanced($value) {
+		
+		$arr = [];
+		
+		if (!$value) {
+			return $arr;
+		}
+		
+		$arr_settings = explode(PHP_EOL, $value);
+			
+		foreach ($arr_settings as $value) {
+			
+			$num_pos = strpos($value, ':');
+			
+			if (!$num_pos) {
+				continue;
+			}
+			
+			$key_setting = trim(substr($value, 0, $num_pos));
+			$value_setting = trim(substr($value, $num_pos + 1));
+			
+			if ($key_setting && $value_setting != '') {
+				$arr[$key_setting] = $value_setting;
+			}
+		}
+		
+		return $arr;
+	}
+	
+	public static function parseVisualSettingsOutputAdvanced($arr) {
+		
+		$str = '';
+		
+		foreach ($arr as $key => $value) {
+			$str .= $key.':'.$value.PHP_EOL;
+		}
+		
+		return $str;
 	}
 	
 	public static function delProjectVisualSettings($project_id, $visual_settings_id) {
@@ -1481,9 +1026,7 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	public static function getProjectVisualSettings($project_id, $user_id = false, $visual_settings_id = false, $arr_use_project_ids = []) {
 		
-		if ($project_id && $user_id && $visual_settings_id === 0) {
-			$is_user_default = true;
-		}
+		$is_user_default = ($project_id && $user_id && $visual_settings_id === 0);
 	
 		$arr = [];
 
@@ -1528,7 +1071,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				
 				$row['label'] = ($row['user_id'] ? '• ' : '').$row['name'];
 				if ($project_id != $row['project_id']) {
-					$row['label'] = $row['project_name'].' | '.$row['label'];
+					$row['label'] = $row['project_name'].cms_general::OPTION_GROUP_SEPARATOR.$row['label'];
 				}
 				
 				$arr[$row['id']] = $row;
@@ -1542,22 +1085,20 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	public static function handleProjectTypeCondition($project_id, $user_id, $condition_id, $type_id, $arr, $arr_condition, $arr_model_conditions, $is_domain = false) {
 		
-		$str_object = ($arr_condition ? json_encode($arr_condition) : '');
-		$str_model_object = ($arr_model_conditions ? json_encode($arr_model_conditions) : '');
+		$str_object = ($arr_condition ? value2JSON($arr_condition) : '');
+		$str_model_object = ($arr_model_conditions ? value2JSON($arr_model_conditions) : '');
 		
 		if ($is_domain) {
 			$project_id = 0;
 			$user_id = 0;
 		}
-		if ($project_id && $user_id && $condition_id === 0) {
-			$is_user_default = true;
-		}		
+		$is_user_default = ($project_id && $user_id && $condition_id === 0);
 		
 		if ($condition_id) {
 			
 			$arr_cur = self::getProjectTypeConditions($project_id, false, false, $condition_id, $is_domain);
 			
-			if ($arr_cur['name'] != $arr['name'] || $arr_cur['user_id'] != $user_id) {
+			if (!$arr_cur || $arr_cur['user_id'] != $user_id) { // Create new when not found (i.e. changed user scope)
 				$condition_id = false;
 			}
 			if (!$arr_cur['project_id'] && !$is_domain) {
@@ -1565,10 +1106,11 @@ class cms_nodegoat_custom_projects extends base_module {
 			}
 		}
 		
-		$sql_new_id = "JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONDITIONS')." pc ON (pc.project_id = 0 OR pc.project_id = p.id)";				
+		
+		$sql_new_id = "JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONDITIONS')." pc ON (pc.project_id = 0 OR pc.project_id = p.id)";
 		
 		$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONDITIONS')."
-			(project_id, user_id, id, type_id, name, description, object, model_object)
+			(project_id".", user_id, id, type_id, name, description, object, model_object)
 				VALUES 
 			(
 				".(int)$project_id.",
@@ -1584,8 +1126,13 @@ class cms_nodegoat_custom_projects extends base_module {
 				'".DBFunctions::strEscape($str_object)."',
 				'".DBFunctions::strEscape($str_model_object)."'
 			)
-			".DBFunctions::onConflict('project_id, user_id, id, type_id', ['name', 'description', 'object', 'model_object'])."
+			".DBFunctions::onConflict('project_id'.', user_id, id, type_id', ['name', 'description', 'object', 'model_object'])."
 		");
+		
+		if ($is_user_default) {
+			
+			return $res->getAffectedRowCount();
+		}
 		
 		if (!$condition_id && !$is_user_default) {
 			
@@ -1609,7 +1156,7 @@ class cms_nodegoat_custom_projects extends base_module {
 		$res = DB::query("DELETE FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONDITIONS')."
 			WHERE (
 					".($project_id ? "project_id = ".(int)$project_id : "")."
-					".($is_domain ? ($project_id ? "OR " : "")."project_id = 0" : "")."
+					".($is_domain ? ($project_id ? "OR " : "")."project_id = 0" : '')."
 				)
 				AND id = ".(int)$condition_id."
 				".($user_id ? "AND user_id = ".(int)$user_id : "")."
@@ -1617,12 +1164,17 @@ class cms_nodegoat_custom_projects extends base_module {
 	}
 	
 	public static function getProjectTypeConditions($project_id, $user_id = false, $type_id = false, $condition_id = false, $is_domain = false, $arr_use_project_ids = []) {
-
-		if ($project_id && $user_id && $condition_id === 0) {
-			$is_user_default = true;
-		}	
+		
+		// $condition_id = false (all stored features) / 0 (default user only) / array (any)
+		
+		$is_user_default = ($project_id && $user_id && $condition_id === 0);
 	
 		$arr = [];
+		
+		$sql_condition_id = '';
+		$sql_use_project_id = '';
+		$sql_user_id = '';
+		$sql_type_id = '';
 		
 		if (($condition_id || $is_user_default) && !is_array($condition_id)) {
 			$sql_condition_id = "AND pc.id = ".(int)$condition_id;
@@ -1646,7 +1198,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				LEFT JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p ON (p.id = pc.project_id)
 			WHERE (
 					".($project_id ? "pc.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, 'int')).")" : "= ".(int)$project_id) : "")."
-					".($is_domain ? ($project_id ? "OR " : "")."pc.project_id = 0" : "")."
+					".($is_domain ? ($project_id ? "OR " : "")."pc.project_id = 0" : '')."
 				)
 				AND (p.id != 0 OR pc.project_id = 0)
 				".$sql_condition_id."
@@ -1669,18 +1221,18 @@ class cms_nodegoat_custom_projects extends base_module {
 			return $arr;
 		} else {
 		
-			while($arr_row = $res->fetchAssoc()) {
+			while ($arr_row = $res->fetchAssoc()) {
 				
-				if ($arr_row['id'] == 0 && !$condition_id) { // Do not show the default user settings in lists
+				if ($arr_row['id'] == 0 && ($condition_id === false || $condition_id === 0)) { // Do not show the default user settings in lists
 					continue;
 				}
 				
 				$arr_row['label'] = ($arr_row['user_id'] ? '• ' : '').$arr_row['name'];
 				if ($project_id) { // Do grouping
 					if ($is_domain && !$arr_row['project_id']) {
-						$arr_row['label'] = getLabel('lbl_clearance_admin').' | '.$arr_row['label'];
+						$arr_row['label'] = getLabel('lbl_clearance_admin').cms_general::OPTION_GROUP_SEPARATOR.$arr_row['label'];
 					} else if ($project_id != $arr_row['project_id']) {
-						$arr_row['label'] = $arr_row['project_name'].' | '.$arr_row['label'];
+						$arr_row['label'] = $arr_row['project_name'].cms_general::OPTION_GROUP_SEPARATOR.$arr_row['label'];
 					}
 				}
 				
@@ -1699,8 +1251,8 @@ class cms_nodegoat_custom_projects extends base_module {
 		
 		$table_name = 'DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_ANALYSES';
 		
-		$str_object = ($arr_analysis['settings'] ? json_encode($arr_analysis['settings']) : '');
-		$str_scope_object = ($arr_analysis['scope'] ? json_encode($arr_analysis['scope']) : '');
+		$str_object = ($arr_analysis['settings'] ? value2JSON($arr_analysis['settings']) : '');
+		$str_scope_object = ($arr_analysis['scope'] ? value2JSON($arr_analysis['scope']) : '');
 		
 		$arr_sql_store = [
 			'algorithm' => "'".DBFunctions::strEscape($arr_analysis['algorithm'])."'",
@@ -1737,7 +1289,7 @@ class cms_nodegoat_custom_projects extends base_module {
 		
 		$table_name = 'DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_ANALYSES_CONTEXTS';
 		
-		$str_object = json_encode($arr_analysis_context);
+		$str_object = value2JSON($arr_analysis_context);
 		
 		$arr_sql_store = [
 			'object' => "'".DBFunctions::strEscape($str_object)."'"
@@ -1771,8 +1323,8 @@ class cms_nodegoat_custom_projects extends base_module {
 		
 		$table_name = 'DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_EXPORT_SETTINGS';
 		
-		$str_format_object = ($arr_export_settings['format']['settings'] ? json_encode($arr_export_settings['format']['settings']) : '');
-		$str_scope_object = ($arr_export_settings['scope'] ? json_encode($arr_export_settings['scope']) : '');
+		$str_format_object = ($arr_export_settings['format']['settings'] ? value2JSON($arr_export_settings['format']['settings']) : '');
+		$str_scope_object = ($arr_export_settings['scope'] ? value2JSON($arr_export_settings['scope']) : '');
 		
 		$arr_sql_store = [
 			'format_type' => "'".DBFunctions::strEscape($arr_export_settings['format']['type'])."'",
@@ -1808,15 +1360,13 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	protected static function handleProjectTypeFeature($table_name, $project_id, $user_id, $feature_id, $type_id, $arr, $arr_sql_store) {
 				
-		if ($project_id && $user_id && $feature_id === 0) {
-			$is_user_default = true;
-		}
+		$is_user_default = ($project_id && $user_id && $feature_id === 0);
 		
 		if ($feature_id) {
 			
 			$arr_cur = self::getProjectTypeFeatures($table_name, false, $project_id, false, false, $feature_id);
 			
-			if ($arr_cur['name'] != $arr['name'] || $arr_cur['user_id'] != $user_id) {
+			if (!$arr_cur || $arr_cur['user_id'] != $user_id) { // Create new when not found (i.e. changed user scope)
 				$feature_id = false;
 			}
 		}
@@ -1847,6 +1397,11 @@ class cms_nodegoat_custom_projects extends base_module {
 			".DBFunctions::onConflict('project_id, user_id, id, type_id', $arr_columns_conflict)."
 		");
 		
+		if ($is_user_default) {
+			
+			return $res->getAffectedRowCount();
+		}
+		
 		if (!$feature_id && !$is_user_default) {
 			
 			$arr_cur = self::getProjectTypeFeatures($table_name, false, $project_id, $user_id, $type_id, false);
@@ -1871,9 +1426,9 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	public static function getProjectTypeFeatures($table_name, $func_parse, $project_id, $user_id = false, $type_id = false, $feature_id = false, $arr_use_project_ids = []) {
 		
-		if ($project_id && $user_id && $feature_id === 0) {
-			$is_user_default = true;
-		}
+		// $feature_id = false (all stored features) / 0 (default user only) / array (any)
+		
+		$is_user_default = ($project_id && $user_id && $feature_id === 0);
 
 		$arr = [];
 
@@ -1907,14 +1462,14 @@ class cms_nodegoat_custom_projects extends base_module {
 		
 			while ($arr_row = $res->fetchAssoc()) {
 				
-				if ($arr_row['id'] == 0 && !$feature_id) { // Do not show the default user settings in lists
+				if ($arr_row['id'] == 0 && ($feature_id === false || $feature_id === 0)) { // Do not show the default user settings in lists
 					continue;
 				}
 				
 				$arr_row['label'] = ($arr_row['user_id'] ? '• ' : '').$arr_row['name'];
 				if ($project_id) { // Do grouping
 					if ($project_id != $arr_row['project_id']) {
-						$arr_row['label'] = $arr_row['project_name'].' | '.$arr_row['label'];
+						$arr_row['label'] = $arr_row['project_name'].cms_general::OPTION_GROUP_SEPARATOR.$arr_row['label'];
 					}
 				}
 				
@@ -1937,7 +1492,7 @@ class cms_nodegoat_custom_projects extends base_module {
 			
 			$arr_cur = self::getProjectTypeScenarios($project_id, false, false, $scenario_id);
 			
-			if ($arr_cur['name'] != $arr['name'] || $arr_cur['user_id'] != $user_id) {
+			if (!$arr_cur || $arr_cur['user_id'] != $user_id) { // Create new when not found (i.e. changed user scope)
 				$scenario_id = false;
 			}
 		}
@@ -1993,57 +1548,7 @@ class cms_nodegoat_custom_projects extends base_module {
 		
 		return $scenario_id;
 	}
-	
-	public static function getProjectTypeScenarioHash($project_id, $scenario_id, $use_project_id = false) {
 		
-		if ($use_project_id == $project_id) {
-			$use_project_id = false;
-		}
-				
-		$res = DB::query("SELECT *
-				FROM ".DB::getTable('DATA_NODEGOAT_CUSTOM_PROJECT_TYPE_SCENARIO_CACHE')." pscc
-			WHERE pscc.project_id = ".(int)$project_id."
-				AND pscc.scenario_id = ".(int)$scenario_id."
-				AND pscc.use_project_id = ".(int)$use_project_id."
-		");
-		
-		$arr = $res->fetchAssoc();
-		
-		return $arr;
-	}
-	
-	public static function updateProjectTypeScenarioHash($project_id, $scenario_id, $hash, $hash_date, $use_project_id = false) {
-		
-		if ($use_project_id == $project_id) {
-			$use_project_id = false;
-		}
-		
-		$hash_date = DBFunctions::str2Date($hash_date);
-		
-		$res = DB::query("INSERT INTO ".DB::getTable('DATA_NODEGOAT_CUSTOM_PROJECT_TYPE_SCENARIO_CACHE')."
-			(project_id, scenario_id, use_project_id, hash, hash_date)
-				VALUES
-			(".(int)$project_id.", ".(int)$scenario_id.", ".(int)$use_project_id.", '".DBFunctions::strEscape($hash)."', '".$hash_date."')
-			".DBFunctions::onConflict('project_id, scenario_id, use_project_id', ['hash', 'hash_date'])."
-		");
-		
-		return ($res->getAffectedRowCount() ? true : false);
-	}
-	
-	public static function delProjectTypeScenarioHash($project_id, $scenario_id, $use_project_id = false) {
-		
-		if ($use_project_id == $project_id) {
-			$use_project_id = false;
-		}
-		
-		$res = DB::query("DELETE
-				FROM ".DB::getTable('DATA_NODEGOAT_CUSTOM_PROJECT_TYPE_SCENARIO_CACHE')."
-			WHERE project_id = ".(int)$project_id."
-				AND scenario_id = ".(int)$scenario_id."
-				AND use_project_id = ".(int)$use_project_id."
-		");
-	}
-	
 	public static function delProjectTypeScenario($project_id, $scenario_id) {
 		
 		$arr_cur = self::getProjectTypeScenarios($project_id, false, false, $scenario_id);
@@ -2103,7 +1608,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				
 				$row['label'] = ($row['user_id'] ? '• ' : '').$row['name'];
 				if ($project_id != $row['project_id']) {
-					$row['label'] = $row['project_name'].' | '.$row['label'];
+					$row['label'] = $row['project_name'].cms_general::OPTION_GROUP_SEPARATOR.$row['label'];
 				}
 				
 				$arr[$row['type_id']][$row['id']] = $row;
@@ -2144,6 +1649,7 @@ class cms_nodegoat_custom_projects extends base_module {
 	public static function updateUserProjectTypeFilters($user_id, $arr_project_type_filters) {
 
 		$arr_sql = [];
+		
 		foreach ((array)$arr_project_type_filters as $project_id => $arr_type_filters) {
 			foreach ($arr_type_filters as $arr_type_filter) {
 				
@@ -2170,73 +1676,7 @@ class cms_nodegoat_custom_projects extends base_module {
 			");
 		}
 	}
-	
-	public static function getTypeRelatedProjectTypes($arr_type_ids) {
-		
-		$sql_type_ids = (is_array($arr_type_ids) ? implode(',', arrParseRecursive($arr_type_ids, 'int')) : (int)$arr_type_ids);
-		$arr = [];
-		
-		$res = DB::query("SELECT prt.type_id
-				FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPES')." pt
-				JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPES')." prt ON (prt.project_id = pt.project_id)
-			WHERE pt.type_id IN (".$sql_type_ids.")
-			GROUP BY prt.type_id
-		");
-						
-		while($row = $res->fetchAssoc()) {
-			
-			$arr[$row['type_id']] = $row;
-		}
-		
-		return $arr;
-	}
-	
-	public static function getProjectScopeTypes($project_id) {
-		
-		$arr_project = self::getProjects($project_id);
-	
-		if ($arr_project['project']['full_scope_enable']) {
-			
-			$arr_types = StoreType::getTypes();
-			$arr_type_ids = array_keys($arr_types);
-		} else {
-			
-			$arr_type_ids = array_keys($arr_project['types']);
-		}
 
-		return $arr_type_ids;
-	}
-	
-	public static function checkProjectTypeAccess($type, $project_id, $type_id) {
-		
-		$arr_project = self::getProjects($project_id);
-		
-		$found = ($arr_project['types'][$type_id] ? 'project' : false);
-		
-		if ($type == 'edit') {
-			
-			if ($found) {
-				
-				if (!$arr_project['types'][$type_id]['type_edit']) {
-					$found = false;
-				}
-			}
-		} else {
-			
-			if (!$found) {
-				
-				$arr_types = StoreType::getTypes();
-				
-				if ($arr_types[$type_id]) {
-					
-					$found = ($arr_project['project']['full_scope_enable'] ? 'scope' : 'domain');
-				}
-			}
-		}
-		
-		return $found;
-	}
-	
 	public static function runUserProjectTypeFilterUpdates($arr_options = []) {
 		
 		$arr_filter_object_date = ['start' => $arr_options['date_executed']['previous'], 'end' => $arr_options['date_executed']['now']];
@@ -2252,7 +1692,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				continue;
 			}
 			
-			$filter_version = new FilterTypeObjects($type_id, 'id');
+			$filter_version = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ID);
 			$filter_version->setFilter([
 				'object_dating' => ['date' => $arr_filter_object_date]
 			]);
@@ -2266,7 +1706,7 @@ class cms_nodegoat_custom_projects extends base_module {
 			
 			foreach ($arr_user_project_type_filtering as $project_id => $arr_project_type_filtering) {
 				
-				$arr_project = self::getProjects($project_id);
+				$arr_project = StoreCustomProject::getProjects($project_id);
 				$arr_type_filter_default = ($arr_project['types'][$type_id]['type_filter_id'] ? self::getProjectTypeFilters($project_id, false, false, $arr_project['types'][$type_id]['type_filter_id'], true) : false);
 				
 				$arr_project_type_filters = self::getProjectTypeFilters($project_id, false, $type_id, array_unique(array_keys($arr_project_type_filtering)));
@@ -2292,8 +1732,8 @@ class cms_nodegoat_custom_projects extends base_module {
 							
 							foreach ($arr_user_ids as $user_id) {
 								
-								$filter = new FilterTypeObjects($type_id, 'id');
-								$filter->setScope(['users' => $user_id, 'types' => self::getProjectScopeTypes($project_id), 'project_id' => $project_id]);
+								$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ID);
+								$filter->setScope(['users' => $user_id, 'types' => StoreCustomProject::getScopeTypes($project_id), 'project_id' => $project_id]);
 								if ($arr_type_filter_default) {
 									$filter->setFilter(FilterTypeObjects::convertFilterInput($arr_type_filter_default['object']), $arr_project['types'][$type_id]['type_filter_object_subs']);
 								}
@@ -2329,7 +1769,7 @@ class cms_nodegoat_custom_projects extends base_module {
 						}
 					} catch (Exception $e) {
 						
-						error('cms_nodegoat_custom_projects::runUserProjectTypeFilterUpdates ERROR:'.PHP_EOL
+						error(__METHOD__.' ERROR:'.PHP_EOL
 							.'	Type = '.$type_id.' Custom Project = '.$project_id.' Filter = '.$filter_id
 						, TROUBLE_NOTICE, LOG_BOTH, false, $e); // Make notice
 					}
@@ -2360,7 +1800,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				}
 			}
 			
-			msg('cms_nodegoat_custom_projects::runUserProjectTypeFilterUpdates SUCCESS:'.PHP_EOL.
+			msg(__METHOD__.' SUCCESS:'.PHP_EOL.
 					'Types = '.$count_types.' Custom Projects = '.$count_projects.' Filters = '.$count_filters.' Users = '.$count_users
 			);
 		}

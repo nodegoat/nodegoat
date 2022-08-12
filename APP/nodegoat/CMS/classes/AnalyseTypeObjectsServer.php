@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -53,7 +53,7 @@ class AnalyseTypeObjectsServer extends AnalyseTypeObjects {
 	protected function doAnalysis($name, $arr) {
 		
 		$arr['data'] = stream_get_contents($this->resource);
-		$str_data = json_encode($arr);
+		$str_data = value2JSON($arr);
 		
 		$arr = null;
 		$this->closeInputResource();

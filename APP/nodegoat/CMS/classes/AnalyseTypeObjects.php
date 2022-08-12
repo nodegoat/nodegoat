@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -41,7 +41,7 @@ class AnalyseTypeObjects {
     
 	protected function openInputResource() {
 		
-		$this->resource = fopen('php://temp/maxmemory:'.(100 * 1024 * 1024), 'w'); // Keep resource in memory until it reaches 100MB, otherwise create a temporary file
+		$this->resource = fopen('php://temp/maxmemory:'.(100 * BYTE_MULTIPLIER * BYTE_MULTIPLIER), 'w'); // Keep resource in memory until it reaches 100MB, otherwise create a temporary file
 	}
 	
 	protected function closeInputResource() {
@@ -64,7 +64,7 @@ class AnalyseTypeObjects {
 
 		while ($collect->init($arr_filters)) {
 			
-			$arr_objects = $collect->getPathObjects(0);
+			$arr_objects = $collect->getPathObjects('0');
 			
 			Mediator::checkState();
 		
@@ -108,8 +108,8 @@ class AnalyseTypeObjects {
 		}
 		
 		status('<strong>Statistics Data</strong>'.PHP_EOL
-			.'<strong>'.nr2String($this->num_nodes).'</strong> nodes'.PHP_EOL
-			.'<strong>'.nr2String($this->num_edges).'</strong> edges',
+			.'<strong>'.num2String($this->num_nodes).'</strong> nodes'.PHP_EOL
+			.'<strong>'.num2String($this->num_edges).'</strong> edges',
 		'ANALYSIS', false, ['persist' => true]);
 		
 		return $this->resource;
@@ -131,8 +131,8 @@ class AnalyseTypeObjects {
 		}
 		
 		status('<strong>Statistics Graph</strong>'.PHP_EOL
-			.'<strong>'.nr2String($arr['nodes']).'</strong> nodes connected'.PHP_EOL
-			.'<strong>'.nr2String($arr['edges']).'</strong> edges resolved'.PHP_EOL
+			.'<strong>'.num2String($arr['nodes']).'</strong> nodes connected'.PHP_EOL
+			.'<strong>'.num2String($arr['edges']).'</strong> edges resolved'.PHP_EOL
 			.($arr['weighted']['mode'] != 'unweighted' ?
 				'<strong>'.$arr['weighted']['min'].' - '.$arr['weighted']['max'].'</strong> '.($arr['weighted']['mode'] == 'closeness' ? getLabel('lbl_analysis_weighted_closeness') : getLabel('lbl_analysis_weighted_distance'))
 					:
@@ -160,7 +160,7 @@ class AnalyseTypeObjects {
 			return false;
 		}
 		
-		status('Storing <strong>'.nr2String(count($this->arr_store)).'</strong> results.', 'ANALYSIS', false, ['persist' => true]);
+		status('Storing <strong>'.num2String(count($this->arr_store)).'</strong> results.', 'ANALYSIS', false, ['persist' => true]);
 		
 		foreach ($this->arr_store as $object_id => $arr_value) {
 			
@@ -268,7 +268,7 @@ class AnalyseTypeObjects {
 		
 		$arr_filter = FilterTypeObjects::convertFilterInput($this->arr_analyse['settings']['filter_start']);
 
-		$filter = new FilterTypeObjects($this->type_id, 'id');
+		$filter = new FilterTypeObjects($this->type_id, GenerateTypeObjects::VIEW_ID);
 		$filter->setScope($this->arr_scope);
 		$filter->setFilter($arr_filter);
 		
@@ -293,7 +293,7 @@ class AnalyseTypeObjects {
 			
 			$arr_filter = FilterTypeObjects::convertFilterInput($this->arr_analyse['settings']['filter_end']);
 
-			$filter = new FilterTypeObjects($this->type_id, 'id');
+			$filter = new FilterTypeObjects($this->type_id, GenerateTypeObjects::VIEW_ID);
 			$filter->setScope($this->arr_scope);
 			$filter->setFilter($arr_filter);
 			
@@ -348,12 +348,12 @@ class AnalyseTypeObjects {
 					
 					$arr_html = [
 						getLabel('lbl_from') => '<div>'
-							.'<input type="hidden" name="'.$form_name.'[filter_start]" value="'.htmlspecialchars(json_encode($arr_options['filter_start'])).'" />'
+							.'<input type="hidden" name="'.$form_name.'[filter_start]" value="'.strEscapeHTML(value2JSON($arr_options['filter_start'])).'" />'
 							.'<button type="button" id="y:data_filter:configure_application_filter-'.$type_id.'" value="filter" title="'.getLabel('inf_application_filter').'" class="data edit popup"><span>filter</span></button>'
 							.'<label>'.getLabel('lbl_required').'</label>'
 						.'</div>',
 						getLabel('lbl_target') => '<div>'
-							.'<input type="hidden" name="'.$form_name.'[filter_end]" value="'.htmlspecialchars(json_encode($arr_options['filter_end'])).'" />'
+							.'<input type="hidden" name="'.$form_name.'[filter_end]" value="'.strEscapeHTML(value2JSON($arr_options['filter_end'])).'" />'
 							.'<button type="button" id="y:data_filter:configure_application_filter-'.$type_id.'" value="filter" title="'.getLabel('inf_application_filter').'" class="data edit popup"><span>filter</span></button>'
 							.'<label>'.getLabel('lbl_optional').'</label>'
 						.'</div>',

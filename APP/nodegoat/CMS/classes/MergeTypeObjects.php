@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -55,7 +55,7 @@ class MergeTypeObjects extends StoreTypeObjects {
     	
 	public function merge() {
 		
-		$filter = new FilterTypeObjects($this->type_id, 'storage');
+		$filter = new FilterTypeObjects($this->type_id, GenerateTypeObjects::VIEW_STORAGE);
 		$filter->setFilter(['objects' => $this->arr_merge_object_ids]);
 		$filter->setOrder(['date' => 'asc']); // Store last version last
 		
@@ -72,7 +72,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 		// If master, use this set to track changes
 		if ($this->is_master) {
 			
-			$filter = new FilterTypeObjects($this->type_id, 'storage');
+			$filter = new FilterTypeObjects($this->type_id, GenerateTypeObjects::VIEW_STORAGE);
 			$filter->setVersioning();
 			$filter->setFilter(['objects' => $this->object_id]);
 
@@ -161,7 +161,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 			$this->addObjectUpdate();
 			$this->commit(true);
 			
-			$hash = self::hash('');
+			$hash = value2Hash('');
 			$arr_collect_versions = [$hash => 1];
 			$cur_version = 1;
 		} else {
@@ -176,7 +176,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 				
 				$value = $arr_version['object_name_plain'];
 				
-				$hash = self::hash($value);
+				$hash = value2Hash($value);
 
 				$version = $arr_version['object_version'];
 					
@@ -193,7 +193,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 				
 				$value = $arr_version['object_name_plain'];
 				
-				$hash = self::hash($value);
+				$hash = value2Hash($value);
 				
 				if (!$arr_collect_versions[$hash]) {
 					
@@ -207,7 +207,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 				
 				foreach ((array)$arr_version_users[$arr_version['object_version']] as $arr_version_user) {
 					
-					$this->addTypeObjectVersionUser($arr_collect_versions[$hash], $arr_version_user['id'], $arr_version_user['date']);
+					$this->addTypeObjectVersionUser($arr_collect_versions[$hash], $arr_version_user['id'], $arr_version_user['date'], $arr_version_user['system_object_id']);
 				}
 			}
 		}
@@ -231,7 +231,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 						continue;
 					}
 					
-					$hash = self::hash($value);
+					$hash = value2Hash($value);
 
 					$version = $arr_version['object_definition_version'];
 						
@@ -256,7 +256,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 						continue;
 					}
 					
-					$hash = self::hash($value);
+					$hash = value2Hash($value);
 					
 					if (!$arr_collect_versions[$hash]) {
 						
@@ -270,7 +270,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 					
 					foreach ((array)$arr_version_users[$arr_version['object_definition_version']] as $arr_version_user) {
 						
-						$this->addTypeObjectDescriptionVersionUser($object_description_id, $arr_collect_versions[$hash], $arr_version_user['id'], $arr_version_user['date']);
+						$this->addTypeObjectDescriptionVersionUser($object_description_id, $arr_collect_versions[$hash], $arr_version_user['id'], $arr_version_user['date'], $arr_version_user['system_object_id']);
 					}
 				}
 			}
@@ -298,7 +298,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 					foreach ($this->getTypeObjectSubVersions($object_sub_id) as $arr_version) {
 						
 						// Prepare values that need processing when storing internal values
-						$arr_version['object_sub_date_chronology'] = self::formatToSQLValue('chronology', $arr_version['object_sub_date_chronology']);
+						$arr_version['object_sub_date_chronology'] = static::formatToSQLValue('chronology', $arr_version['object_sub_date_chronology']);
 						
 						$arr_value = [
 							'object_sub_date_chronology' => $arr_version['object_sub_date_chronology'],
@@ -308,7 +308,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 							'object_sub_location_ref_object_sub_details_id' => $arr_version['object_sub_location_ref_object_sub_details_id']
 						];
 						
-						$hash = self::hash($arr_value);
+						$hash = value2Hash($arr_value);
 
 						$version = $arr_version['object_sub_version'];
 							
@@ -319,7 +319,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 							
 							$version_sub_date = $arr_version['object_sub_date_version'];
 							
-							$hash_chronology = self::hash($arr_version['object_sub_date_chronology']);
+							$hash_chronology = value2Hash($arr_version['object_sub_date_chronology']);
 
 							$arr_collect_versions_sub_date[$hash_chronology] = $version_sub_date;
 							$cur_version_sub_date = ($version_sub_date > $cur_version_sub_date ? $version_sub_date : $cur_version_sub_date);
@@ -329,7 +329,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 							
 							$version_sub_location_geometry = $arr_version['object_sub_location_geometry_version'];
 							
-							$hash_geometry = self::hash($arr_version['object_sub_location_geometry']);
+							$hash_geometry = value2Hash($arr_version['object_sub_location_geometry']);
 
 							$arr_collect_versions_sub_location_geometry[$hash_geometry] = $version_sub_location_geometry;
 							$cur_version_sub_location_geometry = ($version_sub_location_geometry > $cur_version_sub_location_geometry ? $version_sub_location_geometry : $cur_version_sub_location_geometry);
@@ -356,7 +356,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 								continue;
 							}
 							
-							$hash = self::hash($value);
+							$hash = value2Hash($value);
 
 							$version = $arr_version['object_sub_definition_version'];
 
@@ -398,7 +398,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 					foreach (array_reverse($storage->getTypeObjectSubVersions($cur_object_sub_id), true) as $arr_version) {
 						
 						// Prepare values that need processing when storing internal values
-						$arr_version['object_sub_date_chronology'] = self::formatToSQLValue('chronology', $arr_version['object_sub_date_chronology']);
+						$arr_version['object_sub_date_chronology'] = static::formatToSQLValue('chronology', $arr_version['object_sub_date_chronology']);
 						
 						$arr_value = [
 							'object_sub_date_chronology' => $arr_version['object_sub_date_chronology'],
@@ -408,7 +408,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 							'object_sub_location_ref_object_sub_details_id' => $arr_version['object_sub_location_ref_object_sub_details_id']
 						];
 						
-						$hash = self::hash($arr_value);
+						$hash = value2Hash($arr_value);
 						
 						if (!$arr_collect_versions_sub[$hash]) {
 							
@@ -417,7 +417,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 							
 							if ($arr_version['object_sub_date_version']) {
 								
-								$hash_chronology = self::hash($arr_version['object_sub_date_chronology']);
+								$hash_chronology = value2Hash($arr_version['object_sub_date_chronology']);
 								
 								if ($arr_collect_versions_sub_date[$hash_chronology]) {
 									
@@ -433,7 +433,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 														
 							if ($arr_version['object_sub_location_geometry_version']) {
 								
-								$hash_geometry = self::hash($arr_version['object_sub_location_geometry']);
+								$hash_geometry = value2Hash($arr_version['object_sub_location_geometry']);
 								
 								if ($arr_collect_versions_sub_location_geometry[$hash_geometry]) {
 									
@@ -464,7 +464,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 						
 						foreach ((array)$arr_version_users[$arr_version['object_sub_version']] as $arr_version_user) {
 							
-							$this->addTypeObjectSubVersionUser($object_sub_id, $arr_collect_versions_sub[$hash], $arr_version_user['id'], $arr_version_user['date']);
+							$this->addTypeObjectSubVersionUser($object_sub_id, $arr_collect_versions_sub[$hash], $arr_version_user['id'], $arr_version_user['date'], $arr_version_user['system_object_id']);
 						}
 					}
 					
@@ -488,7 +488,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 								continue;
 							}
 							
-							$hash = self::hash($value);
+							$hash = value2Hash($value);
 							
 							if (!$arr_collect_versions_sub_descriptions[$object_sub_description_id][$hash]) {
 								
@@ -502,7 +502,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 							
 							foreach ((array)$arr_version_users[$arr_version['object_definition_version']] as $arr_version_user) {
 								
-								$this->addTypeObjectSubDescriptionVersionUser($object_sub_id, $object_sub_description_id, $arr_collect_versions_sub_descriptions[$object_sub_description_id][$hash], $arr_version_user['id'], $arr_version_user['date']);
+								$this->addTypeObjectSubDescriptionVersionUser($object_sub_id, $object_sub_description_id, $arr_collect_versions_sub_descriptions[$object_sub_description_id][$hash], $arr_version_user['id'], $arr_version_user['date'], $arr_version_user['system_object_id']);
 							}
 						}
 					}
@@ -612,13 +612,14 @@ class MergeTypeObjects extends StoreTypeObjects {
 		foreach ($arr_type_object_values as $type_id => $arr_object_values) {
 			
 			$arr_type_set = StoreType::getTypeSet($type_id);
+			
 			$storage = new StoreTypeObjects($type_id, false, $this->user_id);
-			$storage->setMode(null, false); // Do not check Objects, only update them
+			$storage->setMode(StoreTypeObjects::MODE_UPDATE, false); // Do not check Objects, only update them
 			$stored = false;
 			
 			foreach ($arr_object_values as $object_id => $arr_values) {
 				
-				$filter = new FilterTypeObjects($type_id, 'storage');
+				$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_STORAGE);
 				$filter->setFilter(['objects' => $object_id, 'object_subs' => ($arr_values['object_subs'] ? array_keys($arr_values['object_subs']) : false)], true);
 				$filter->setSelection([
 						'object' => $arr_type_object_select[$object_id]['object'],
@@ -751,6 +752,8 @@ class MergeTypeObjects extends StoreTypeObjects {
 					
 					if ($arr_object_sub['object_sub_location']) {
 						
+						$arr_object_store['object_subs'][$object_sub_id]['object_sub']['object_sub_location_ref_type_id'] = $arr_object['object_subs'][$object_sub_id]['object_sub']['object_sub_location_ref_type_id'];
+						$arr_object_store['object_subs'][$object_sub_id]['object_sub']['object_sub_location_ref_object_sub_details_id'] = $arr_object['object_subs'][$object_sub_id]['object_sub']['object_sub_location_ref_object_sub_details_id'];
 						$arr_object_store['object_subs'][$object_sub_id]['object_sub']['object_sub_location_ref_object_id'] = $this->object_id;
 					}
 					
@@ -895,6 +898,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 						JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = nodegoat_to_def.object_id AND ".$version_select_to.")
 					WHERE nodegoat_to_def.ref_object_id IN (".$sql_merge_object_ids.")
 						AND ".$version_select_to_def."
+				".DBFunctions::onConflict($sql_primary_key, ['id'])."
 			;
 			
 			INSERT INTO ".$this->table_name_referenced_objects."
@@ -1036,12 +1040,5 @@ class MergeTypeObjects extends StoreTypeObjects {
 						
 			$storage->delTypeObject($accept);
 		}
-	}
-	
-	private function hash($value) {
-		
-		$hash = hash('md5', serialize($value));
-		
-		return $hash;
 	}
 }

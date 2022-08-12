@@ -1,5 +1,5 @@
 nodegoat - web-based data management, network analysis & visualisation environment.
-Copyright (C) 2019 LAB1100.
+Copyright (C) 2020 LAB1100.
 
 See http://nodegoat.net/release for the latest version of nodegoat and its license.
 

@@ -1,26 +1,25 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
-function MapGeoUtilities() {
+function MapGeoUtilities(obj_map) {
 
 	var obj = this;
 	
 	var arr_assets_colors_parsed = {};
-	
-	this.geometryToPackage = function (arr_geometry, arr_geometry_package) {
+		
+	this.geometryToPackage = function(arr_geometry, arr_geometry_package) {
 		
 		var arr_geometry = (arr_geometry.type === 'Feature' ? arr_geometry.geometry : arr_geometry);
 		var arr_geometry_package = (arr_geometry_package === undefined ? [] : arr_geometry_package);
 		
 		var arr_coordinates = arr_geometry.coordinates;
-		var arr_layers = [];
 
 		switch (arr_geometry.type) {
 			case 'Point':
@@ -44,28 +43,28 @@ function MapGeoUtilities() {
 			
 				arr_geometry_package.push('LineString');
 				
-				obj.coordinatesToPacking(arr_geometry_package, arr_coordinates);
+				obj.coordinatesToPackingLinePackage(arr_geometry_package, arr_coordinates);
 				
 				break;
 			case 'Polygon':
 			
 				arr_geometry_package.push('Polygon');
 				
-				obj.coordinatesToPacking(arr_geometry_package, arr_coordinates, 1);
+				obj.coordinatesToPackingPolygon(arr_geometry_package, arr_coordinates, 1);
 				
 				break;
 			case 'MultiLineString':
 			
 				arr_geometry_package.push('MultiLineString');
 				
-				obj.coordinatesToPacking(arr_geometry_package, arr_coordinates, 1);
+				obj.coordinatesToPackingLine(arr_geometry_package, arr_coordinates, 1);
 				
 				break;
 			case "MultiPolygon":
 			
 				arr_geometry_package.push('MultiPolygon');
 				
-				obj.coordinatesToPacking(arr_geometry_package, arr_coordinates, 2);
+				obj.coordinatesToPackingPolygon(arr_geometry_package, arr_coordinates, 2);
 				
 				break;
 			case "GeometryCollection":
@@ -85,32 +84,161 @@ function MapGeoUtilities() {
 		return arr_geometry_package;
 	};
 
-	this.coordinatesToPackage = function (arr_geometry_package, arr_coordinates) {
+	this.coordinatesToPackage = function(arr_geometry_package, arr_coordinates) {
 		
-		arr_coordinates[0] = parseFloat(arr_coordinates[0]);
-		arr_coordinates[1] = parseFloat(arr_coordinates[1]);
+		arr_coordinates[0] = obj_map.parseLongitude(arr_coordinates[0]);
+		arr_coordinates[1] = obj_map.parseLatitude(arr_coordinates[1]);
 		
 		arr_geometry_package.push(arr_coordinates);
 	};
 
-	this.coordinatesToPacking = function (arr_geometry_package, arr_coordinates, nr_level_deep) {
+	this.coordinatesToPackingLine = function(arr_geometry_package, arr_coordinates, nr_level_deep) {
 		
-		for (var i = 0, len = arr_coordinates.length; i < len; i++) {
-			
-			if (nr_level_deep) {
+		if (nr_level_deep > 1) {
 				
+			for (let i = 0, len = arr_coordinates.length; i < len; i++) {
+
 				var arr_level = [];
 				arr_geometry_package.push(arr_level);
-			
-				obj.coordinatesToPacking(arr_level, arr_coordinates[i], nr_level_deep - 1);
-			} else {
 				
-				obj.coordinatesToPackage(arr_geometry_package, arr_coordinates[i]);
+				obj.coordinatesToPackingLine(arr_level, arr_coordinates[i], nr_level_deep - 1);
+			}
+		} else {
+			
+			for (let i = 0, len = arr_coordinates.length; i < len; i++) {
+
+				var arr_level = [];
+				arr_geometry_package.push(arr_level);
+				
+				obj.coordinatesToPackingLinePackage(arr_level, arr_coordinates[i]);
 			}
 		}
 	};
 	
-	this.geometryPackageToCenter = function (arr_geometry_package) {
+	this.coordinatesToPackingLinePackage = function(arr_geometry_package, arr_coordinates) {
+			
+		var prev_longitude = obj_map.parseLongitude(arr_coordinates[0][0]);
+		var prev_latitude = obj_map.parseLatitude(arr_coordinates[0][1]);
+		var prev_abs_longitude = Math.abs(prev_longitude);
+		
+		for (let i = 0, len = arr_coordinates.length; i < len; i++) {
+			
+			const longitude = obj_map.parseLongitude(arr_coordinates[i][0]);
+			const latitude = obj_map.parseLatitude(arr_coordinates[i][1]);
+			const abs_longitude = Math.abs(longitude) 
+			
+			if (Math.sign(longitude) !== Math.sign(prev_longitude) && abs_longitude + prev_abs_longitude > 180 && abs_longitude !== prev_abs_longitude) {
+			
+				if (prev_longitude < 0) {
+					arr_geometry_package.push([(-180 - (180 - longitude)), latitude], null, [(180 + (180 + prev_longitude)), prev_latitude]); // Add new point to previous segment, map border separator, add previous point to new segment
+				} else {
+					arr_geometry_package.push([(180 + (180 + longitude)), latitude], null, [(-180 - (180 - prev_longitude)), prev_latitude]); // Add new point to previous segment, map border separator, add previous point to new segment
+				}
+			}
+
+			arr_geometry_package.push([longitude, latitude]);
+			
+			prev_longitude = longitude;
+			prev_latitude = latitude;
+			prev_abs_longitude = abs_longitude;
+		}
+	}
+	
+	this.coordinatesToPackingPolygon = function(arr_geometry_package, arr_coordinates, nr_level_deep) {
+		
+		var len = arr_coordinates.length;
+		
+		if (nr_level_deep > 1) {
+			
+			for (let i = 0; i < len; i++) {
+
+				var arr_level = [];
+				arr_geometry_package.push(arr_level);
+			
+				obj.coordinatesToPackingPolygon(arr_level, arr_coordinates[i], nr_level_deep - 1);
+			}
+		} else {
+			
+			var arr_level_first = false;
+			
+			for (let i = 0; i < len; i++) {
+
+				var arr_level = [];
+				
+				if (len > 1 && i == 0) {
+					arr_level_reference = arr_level;
+				}
+			
+				obj.coordinatesToPackingPolygonPackage(arr_level, arr_coordinates[i]);
+				
+				if (i > 0 && arr_level_reference.length > 1) {
+					
+					const xy_check = arr_level[0][1]; // Check the second coordinate, less intersection trouble
+					
+					if (pointIsInside(xy_check, arr_level_reference[1])) {
+						
+						if (arr_level.length > 1) { // Switch
+							arr_level = [arr_level[1], arr_level[0]];
+						} else { // Move
+							arr_level = [null, arr_level[0]];
+						}
+					}
+				}
+				
+				arr_geometry_package.push(arr_level);
+			}
+		}
+	};
+
+	this.coordinatesToPackingPolygonPackage = function(arr_geometry_package, arr_coordinates) {
+			
+		arr_geometry_package[0] = [];
+		
+		const arr_position = obj_map.getPosition();
+		const abs_longitude_origin = Math.abs(arr_position.origin.longitude);
+
+		var prev_longitude = obj_map.parseLongitude(arr_coordinates[0][0]);
+		var prev_latitude = obj_map.parseLatitude(arr_coordinates[0][1]);
+		var prev_abs_longitude = Math.abs(prev_longitude);
+		var in_halve = false;
+		
+		for (let i = 0, len = arr_coordinates.length; i < len; i++) {
+								
+			const longitude = obj_map.parseLongitude(arr_coordinates[i][0]);
+			const latitude = obj_map.parseLatitude(arr_coordinates[i][1]);
+			const abs_longitude = Math.abs(longitude) 
+			
+			var is_edge = false;
+			
+			if (Math.sign(longitude) !== Math.sign(prev_longitude) && (abs_longitude + prev_abs_longitude) > 180 && abs_longitude !== prev_abs_longitude) {
+				
+				if (arr_geometry_package[1] === undefined) {
+					arr_geometry_package[1] = [];
+				}
+
+				if (prev_longitude < 0) {
+					arr_geometry_package[(in_halve ? 1 : 0)].push([(-180 - (180 - longitude)), latitude, false]); // Add new point to previous segment
+					arr_geometry_package[(in_halve ? 0 : 1)].push([(180 + (180 + prev_longitude)), prev_latitude, false]); // Add previous point to new segment
+				} else {
+					arr_geometry_package[(in_halve ? 1 : 0)].push([(180 + (180 + longitude)), latitude, false]); // Add new point to previous segment
+					arr_geometry_package[(in_halve ? 0 : 1)].push([(-180 - (180 - prev_longitude)), prev_latitude, false]); // Add previous point to new segment
+				}
+				
+				in_halve = (in_halve ? false : true);
+			} else if (abs_longitude_origin !== 0 && (abs_longitude + abs_longitude_origin) == 180 && (prev_abs_longitude + abs_longitude_origin) == 180) { // If longitude origin has an offset, check if polygon is on the -180/180 edge
+				
+				is_edge = true;
+			}
+			
+			arr_geometry_package[(in_halve ? 1 : 0)].push([longitude, latitude, is_edge]);
+			
+			prev_longitude = longitude;
+			prev_latitude = latitude;
+			prev_abs_longitude = abs_longitude;
+		}
+	};
+	
+	this.geometryPackageToPath = function(arr_geometry_package) {
 
 		var len = arr_geometry_package.length;
 		
@@ -119,24 +247,42 @@ function MapGeoUtilities() {
 			return arr_geometry_package[1];
 		} else {
 			
+			var is_path = true; // True when geometry does not have polygons
+			var has_point = false; // True if last geometry is a point
+
+			const len_i_geo = arr_geometry_package.length;
+			
+			for (let i_geo = 0; i_geo < len_i_geo; i_geo++) {
+				
+				const cur_value = arr_geometry_package[i_geo];
+				
+				if (cur_value === 'Polygon' || cur_value === 'MultiPolygon') {
+					
+					is_path = false;
+					break;
+				}				
+			}
+			
 			var arr = [];
 			var i_geo = 0;
-			var len_i_geo = arr_geometry_package.length;
 			
 			while (i_geo < len_i_geo) {
 				
-				var cur_value = arr_geometry_package[i_geo];
+				const cur_value = arr_geometry_package[i_geo];
 				
 				if (typeof cur_value === 'string') {
 					
 					switch (cur_value) {
 						case 'Point':
+							
+							has_point = true;
+							
 						case 'MultiPoint':
 						case 'LineString':
 						
 							i_geo++;
 							
-							while (typeof arr_geometry_package[i_geo] === 'object') {
+							while (typeof arr_geometry_package[i_geo] === 'object' || arr_geometry_package[i_geo] === null) {
 								
 								arr.push(arr_geometry_package[i_geo]);
 								
@@ -151,8 +297,11 @@ function MapGeoUtilities() {
 							while (typeof arr_geometry_package[i_geo] === 'object') {
 									
 								var arr_level_points = arr_geometry_package[i_geo];
+								
+								for (var i = 0, len = arr_level_points.length; i < len; i++) {									
 									
-								arr.push(obj.pointsToCenter(arr_level_points));
+									arr.push(arr_level_points[i]);
+								}						
 								
 								i_geo++;
 							}
@@ -164,7 +313,7 @@ function MapGeoUtilities() {
 							
 							// Only need the first set for boundary calculation in case of a polygon with holes
 							
-							var arr_level_points = arr_geometry_package[i_geo];
+							var arr_level_points = arr_geometry_package[i_geo][0];
 							
 							arr.push(obj.pointsToCenter(arr_level_points));
 							
@@ -179,7 +328,7 @@ function MapGeoUtilities() {
 							
 								// Only need the first set for boundary calculation in case of a polygon with holes
 								 
-								var arr_level_points = arr_geometry_package[i_geo][0];
+								var arr_level_points = arr_geometry_package[i_geo][0][0];
 								
 								arr.push(obj.pointsToCenter(arr_level_points));
 								
@@ -200,16 +349,36 @@ function MapGeoUtilities() {
 			}
 				
 			var len = arr.length;
-			var x = 0;
-			var y = 0;
+			var longitude = 0;
+			var latitude = 0;
+			
+			if (is_path || has_point) {
 				
-			for (var i = 0; i < len; i++) {
+				// Use last point as main/center point
+				longitude = arr[len-1][0];
+				latitude = arr[len-1][1];
+				
+				if (len == 1) {
+					arr = null;
+				}
+			} else {
 					
-				x += arr[i][0];
-				y += arr[i][1];
-			}
+				for (var i = 0; i < len; i++) {
+					
+					if (arr[i] === null) { // A map border separator
+						continue;
+					}
+						
+					longitude += arr[i][0];
+					latitude += arr[i][1];
+				}
 				
-			return [x / len, y / len];
+				longitude = longitude / len;
+				latitude = latitude / len;
+				arr = null;
+			}
+
+			return [longitude, latitude, arr];
 		}
 	}
 	
@@ -225,8 +394,8 @@ function MapGeoUtilities() {
 			return [(arr[0][0] + arr[1][0]) / 2, (arr[0][1] + arr[1][1]) / 2];
 		} else {
 				
-			var x = function (i) { return arr[i % len][0] }; // Longitude
-			var y = function (i) { return arr[i % len][1] }; // Latitude
+			var x = function(i) { return arr[i % len][0] }; // Longitude
+			var y = function(i) { return arr[i % len][1] }; // Latitude
 			
 			var twoTimesSignedArea = 0;
 			var cxTimes6SignedArea = 0;
@@ -263,12 +432,12 @@ function MapGeoUtilities() {
 		}
 	};
 	
-	this.calcPointOffset = function(p1, p2, offset, perc) {
+	this.calcPointOffset = function(x1, y1, x2, y2, offset, perc) {
 	
 		//Place p3 in between (percentage) p1 and p2
-		var p3 = {x: p1.x+(p2.x - p1.x)*perc, y: p1.y+(p2.y - p1.y)*perc};
+		var p3 = {x: x1+(x2 - x1)*perc, y: y1+(y2 - y1)*perc};
 		
-		var vec = {x: p2.x-p1.x, y: p2.y-p1.y}; // vector
+		var vec = {x: x2-x1, y: y2-y1}; // vector
 		var l = Math.sqrt(vec.x*vec.x+vec.y*vec.y); // vector length, Pythagoras
 		var a = {x: vec.y, y: -vec.x}; // shift angle 90 deg
 		
@@ -279,14 +448,59 @@ function MapGeoUtilities() {
 		
 		return p3;
 	};
+
+	this.isNearLine = function(x1, y1, x2, y2, xp, yp, offset) {
+		
+		if (xp <= (Math.min(x1, x2) - offset) || xp >= (Math.max(x1, x2) + offset) || yp <= (Math.min(y1, y2) - offset) || yp >= (Math.max(y1, y2) + offset)) { // Check bounding box
+			return false;
+		}
+		
+		var xd1 = x1 + (x2 - x1);
+		var yd1 = y1 + (y2 - y1);
+		var xd2 = x2 + (x1 - x2);
+		var yd2 = y2 + (y1 - y2);
+		
+		var xx = xd2 - xd1;
+		var yy = yd2 - yd1; 
+		var length_short = ((xx * (xp - xd1)) + (yy * (yp - yd1))) / ((xx * xx) + (yy * yy));
+		var x_offset = xd1 + xx * length_short; 
+		var y_offset = yd1 + yy * length_short;
+		
+		return (Math.abs(x_offset-xp) < offset && Math.abs(y_offset-yp) < offset);
+	};
 	
+	this.isNearLineRounded = function(x1, y1, x2, y2, xp, yp, offset) {
+		
+		var vec = (((x2 - x1) * (x2 - x1)) + ((y2 - y1) * (y2 - y1)));
+		
+		if (vec == 0) {
+			return false;
+		}
+		
+		var r = (((xp - x1) * (x2 - x1)) + ((yp - y1) * (y2 - y1))) / vec;
+
+		// Assume line thickness is circular
+		if (r < 0) { // Outside line1
+			
+			return (Math.sqrt(((x1 - xp) * (x1 - xp)) + ((y1 - yp) * (y1 - yp))) <= offset);
+		} else if ((0 <= r) && (r <= 1)) { // On the line segment
+			
+			var s = (((y1 - yp) * (x2 - x1)) - ((x1 - xp) * (y2 - y1))) / vec;
+			
+			return (Math.abs(s) * Math.sqrt(vec) <= offset);
+		} else { // Outside line2
+			
+			return (Math.sqrt(((x2 - xp) * (x2 - xp)) + ((y2 - yp) * (y2 - yp) )) <= offset);
+		}
+	};
+
 	this.colorToBrightColor = function(str, percent) {
 
 		var arr_color = arr_assets_colors_parsed['b_'+str];
 		
-		if (!arr_color) {
+		if (arr_color == null) {
 			
-			var arr_color = parseCssColor(str);
+			var arr_color = parseCSSColor(str);
 			
 			arr_color.r = Math.floor(arr_color.r + (256 - arr_color.r) * percent / 100);
 			arr_color.g = Math.floor(arr_color.g + (256 - arr_color.g) * percent / 100);
@@ -302,31 +516,56 @@ function MapGeoUtilities() {
 		
 		var hex = arr_assets_colors_parsed['h_'+str];
 		
-		if (!hex) {
+		if (hex == null) {
 			
-			var hex = parseCssColorToHex(str);
+			var hex = parseCSSColorToHex(str);
 			arr_assets_colors_parsed['h_'+str] = hex;
 		}
 		
 		return hex;
 	};
 	
+	var pointIsInside = function(xy, arr) {
+		
+		// ray-casting algorithm based on
+		// http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
+
+		var x = xy[0], y = xy[1];
+
+		var inside = false;
+		
+		for (var i = 0, len = arr.length, j = len - 1; i < len; j = i++) {
+			
+			var xi = arr[i][0], yi = arr[i][1];
+			var xj = arr[j][0], yj = arr[j][1];
+
+			var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+			if (intersect) {
+				inside = !inside;
+			}
+		}
+
+		return inside;
+	};
+	
 	// Cohen-Sutherland line clippign algorithm, adapted to efficiently
 	// handle polylines rather than just segments
 
-	this.lineclip = function(points, bbox, result) {
+	this.lineclip = function(arr, bbox, result) {
 
-		var len = points.length,
-			codeA = bitCode(points[0], bbox),
+		var len = arr.length,
+			codeA = bitCode(arr[0], bbox),
 			part = [],
 			i, a, b, codeB, lastCode;
 
-		if (!result) result = [];
+		if (!result) {
+			var result = [];
+		}
 
 		for (i = 1; i < len; i++) {
 			
-			a = points[i - 1];
-			b = points[i];
+			a = arr[i - 1];
+			b = arr[i];
 			codeB = lastCode = bitCode(b, bbox);
 
 			while (true) {
@@ -362,25 +601,27 @@ function MapGeoUtilities() {
 			codeA = lastCode;
 		}
 
-		if (part.length) result.push(part);
+		if (part.length) {
+			result.push(part);
+		}
 
 		return result;
 	};
 
 	// Sutherland-Hodgeman polygon clipping algorithm
 
-	this.clipPolygon = function(points, bbox) {
+	this.clipPolygon = function(arr, bbox) {
 
 		var result, edge, prev, prevInside, i, p, inside;
 
 		// clip against each side of the clip rectangle
 		for (edge = 1; edge <= 8; edge *= 2) {
 			result = [];
-			prev = points[points.length - 1];
+			prev = arr[arr.length - 1];
 			prevInside = !(bitCode(prev, bbox) & edge);
 
-			for (i = 0; i < points.length; i++) {
-				p = points[i];
+			for (i = 0; i < arr.length; i++) {
+				p = arr[i];
 				inside = !(bitCode(p, bbox) & edge);
 
 				// if segment goes through the clip window, add an intersection
@@ -392,9 +633,9 @@ function MapGeoUtilities() {
 				prevInside = inside;
 			}
 
-			points = result;
+			var arr = result;
 
-			if (!points.length) break;
+			if (!arr.length) break;
 		}
 
 		return result;

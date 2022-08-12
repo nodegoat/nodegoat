@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -20,10 +20,12 @@ class data_entry extends base_module {
 		'data_view' => [],
 		'custom_projects' => [],
 		'data_model' => [],
-		'data_filter' => []
+		'data_filter' => [],
+		'data_ingest' => [],
+		'data_pattern_pairs' => [],
+		'ingest_source' => ['*' => ['module' => 'data_ingest']]
 	];
 	
-	public static $arr_date_options = ['point' => ['id' => 'point', 'name' => 'Point'], 'chronology' => ['id' => 'chronology', 'name' => 'Chronology']];
 	public static $arr_date_chronology_options = ['point' => ['id' => 'point', 'name' => 'Point'], 'statement' => ['id' => 'statement', 'name' => 'Statement'], 'statement_between' => ['id' => 'statement_between', 'name' => 'Between Statements']];
 	public static $arr_date_value_options = ['value' => ['id' => 'value', 'name' => 'Date'], 'object_sub' => ['id' => 'object_sub', 'name' => 'Reference'], 'path' => ['id' => 'path', 'name' => 'Path']];
 	public static $arr_location_options = ['reference' => ['id' => 'reference', 'name' => 'Reference'], 'geometry' => ['id' => 'geometry', 'name' => 'Geometry'], 'point' => ['id' => 'point', 'name' => 'Point']];
@@ -43,15 +45,17 @@ class data_entry extends base_module {
 		// Reset filter
 		toolbar::checkFilter();
 
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_types = ($arr_project['types'] ? StoreType::getTypes(array_keys($arr_project['types'])) : []);
 		
 		if (!$arr_types) {
 
 			return '<section class="info attention">
-				'.getLabel('msg_no_types_custom_project').'
+				'.getLabel('msg_no_custom_project_types').'
 			</section>';
 		}
+		
+		$arr_project_filters = [];
 		
 		if ($this->arr_query['filter']) {
 			
@@ -59,25 +63,59 @@ class data_entry extends base_module {
 			
 			$arr_project_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], false, false, $this->arr_query['filter'][0], ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN ? true : false), $arr_use_project_ids);
 		}
-		$type_id = (int)($arr_project_filters['type_id'] ?: ($this->arr_query['type'][0] ?: ($arr_project['types'] ? key($arr_project['types']) : 0)));
+		
+		$type_id = (int)($arr_project_filters['type_id'] ?? ($this->arr_query['type'][0] ?? ($arr_project['types'] ? key($arr_project['types']) : 0)));
 		
 		if ($type_id && !custom_projects::checkAccessType('view', $type_id)) {
 			$type_id = ($arr_project['types'] ? key($arr_project['types']) : 0);
 		}
 		
-		$arr_types_classifications = ['types' => [], 'classifications' => [], 'reversals' => [], 'system' => []];
+		$arr_types_classifications = ['types' => [], 'classifications' => [], 'processes' => []];
+		$arr_types_classifications_system = ['types' => [], 'classifications' => [], 'processes' => []];
+		
 		foreach ((array)$arr_types as $cur_type_id => $value) {
-			$arr_types_classifications[StoreType::getTypeGroup($value)][$cur_type_id] = '<input type="button" data-select_id="'.$value['id'].'" value="'.htmlspecialchars(Labels::parseTextVariables($value['name'])).'"'.($value['id'] == $type_id ? ' class="selected"' : '').' />';
+			
+			if ($value['class'] == StoreType::TYPE_CLASS_SYSTEM) {
+				
+				$str_type_group = ($cur_type_id == StoreType::getSystemTypeID('cycle') ? 'classifications' : 'processes');
+				
+				$html_button = '<button type="button" data-select_id="'.$value['id'].'" value="'.$value['id'].'"'.($value['id'] == $type_id ? ' class="selected"' : '').'><span>'
+					.'<span class="icon">'.getIcon('module').'</span>'
+					.'<span>'.strEscapeHTML(Labels::parseTextVariables($value['name'])).'</span>'
+				.'</span></button>';
+				
+				$arr_types_classifications_system[$str_type_group][$cur_type_id] = $html_button;
+			} else {
+				
+				switch ($value['class']) {
+					case StoreType::TYPE_CLASS_TYPE:
+						$str_type_group = 'types';
+						break;
+					case StoreType::TYPE_CLASS_CLASSIFICATION:
+						$str_type_group = 'classifications';
+						break;
+					case StoreType::TYPE_CLASS_REVERSAL:
+						$str_type_group = 'processes';
+						break;
+				}
+				
+				$html_button = '<button type="button" data-select_id="'.$value['id'].'" value="'.$value['id'].'"'.($value['id'] == $type_id ? ' class="selected"' : '').'><span>'
+					.strEscapeHTML(Labels::parseTextVariables($value['name']))
+				.'</span></button>';
+
+				$arr_types_classifications[$str_type_group][$cur_type_id] = $html_button;
+			}
 		}
 		
-		//$arr_types_classifications['system'][StoreType::getSystemTypeID('cycle')] = '<input type="button" data-select_id="'.StoreType::getSystemTypeID('cycle').'" value="Cycle" />';
-		
-		$return .= '<div class="tabs" id="y:data_entry:view-0">
+		if ($arr_types_classifications_system) { // Put system-related types at the end
+			$arr_types_classifications = array_merge_recursive($arr_types_classifications, $arr_types_classifications_system);
+		}
+			
+		$return = '<div class="tabs" id="y:data_entry:view-0">
 			<ul>
-				'.($arr_types_classifications['types'] ? '<li><a href="#">'.getLabel('lbl_types').'</a></li>' : '').'
-				'.($arr_types_classifications['classifications'] ? '<li><a href="#"'.($arr_types_classifications['classifications'][$type_id] ? ' class="open"' : '').'>'.getLabel('lbl_classifications').'</a></li>' : '').'
-				'.($arr_types_classifications['reversals'] ? '<li><a href="#"'.($arr_types_classifications['reversals'][$type_id] ? ' class="open"' : '').'>'.getLabel('lbl_reversals').'</a></li>' : '').'
-				'.($arr_types_classifications['system'] ? '<li><a href="#"'.($arr_types_classifications['system'][$type_id] ? ' class="open"' : '').'>'.getLabel('lbl_system').'</a></li>' : '').'
+				'.($arr_types_classifications['types'] ? '<li><a href="#">'.getLabel('lbl_objects').'</a></li>' : '').'
+				'.($arr_types_classifications['classifications'] ? '<li><a href="#"'.($arr_types_classifications['classifications'][$type_id] ? ' class="open"' : '').'>'.getLabel('lbl_categories').'</a></li>' : '').'
+				'.($arr_types_classifications['processes'] ? '<li><a href="#"'.($arr_types_classifications['processes'][$type_id] ? ' class="open"' : '').'>'.getLabel('lbl_processes').'</a></li>' : '').'
 			</ul>
 			'.($arr_types_classifications['types'] ? '<div>
 				<menu class="select options"><div>'.implode('', $arr_types_classifications['types']).'</div></menu>
@@ -85,30 +123,30 @@ class data_entry extends base_module {
 			'.($arr_types_classifications['classifications'] ? '<div>
 				<menu class="select options"><div>'.implode('', $arr_types_classifications['classifications']).'</div></menu>
 			</div>' : '').'
-			'.($arr_types_classifications['reversals'] ? '<div>
-				<menu class="select options"><div>'.implode('', $arr_types_classifications['reversals']).'</div></menu>
-			</div>' : '').'
-			'.($arr_types_classifications['system'] ? '<div>
-				<menu class="select options"><div>'.implode('', $arr_types_classifications['system']).'</div></menu>
+			'.($arr_types_classifications['processes'] ? '<div>
+				<menu class="select options"><div>'.implode('', $arr_types_classifications['processes']).'</div></menu>
 			</div>' : '').'
 		</div>';
 		
 		$return .= '<div class="dynamic">'.($type_id ? $this->createTypeOverview($type_id) : '').'</div>';
-				
+		
 		return $return;
 	}
 	
 	private function createTypeOverview($type_id) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		
 		$filter = new FilterTypeObjects($type_id);
-		$filter->resetResultInfo('data_entry');
 		
-		if ($this->arr_query['mode'][0] == 'add' || $this->arr_query['mode'][0] == 'edit') {
+		// Clear result cache
+		$filter->clearResultInfo('data_entry');
+		toolbar::clearTypeFilterSet();
+		
+		if (!empty($this->arr_query['mode'][0]) && ($this->arr_query['mode'][0] == 'add' || $this->arr_query['mode'][0] == 'edit')) {
 
-			$object_id = (int)$this->arr_query['object'][0];
+			$object_id = (int)($this->arr_query['object'][0] ?? 0);
 			
 			if ($object_id) {
 				$storage = new StoreTypeObjects($type_id, $object_id, $_SESSION['USER_ID']);
@@ -123,9 +161,9 @@ class data_entry extends base_module {
 		toolbar::setFilter([(int)$type_id => []]);
 		
 		$arr_filter_settings = [];
-		if ($this->arr_query['filter'][0]) {
+		if (!empty($this->arr_query['filter'][0])) {
 			$arr_filter_settings['filter'] = '{"filter_id": '.(int)$this->arr_query['filter'][0].'}';
-		} else if ($this->arr_query['object'][0]) {
+		} else if (!empty($this->arr_query['object'][0])) {
 			$arr_filter_settings['search'] = 'object:'.$this->arr_query['object'][0];
 		}
 		
@@ -133,7 +171,7 @@ class data_entry extends base_module {
 			SiteEndVars::setModVariables($this->mod_id, [], true); // Clear the settings in the url
 		}
 				
-		$return .= cms_general::createDataTableHeading('d:data_entry:data-'.$type_id, ['filter' => 'y:data_filter:open_filter-'.$type_id, 'filter_settings' => $arr_filter_settings['filter'], 'filter_search' => $arr_filter_settings['search'], 'order' => true]).'
+		$return .= cms_general::createDataTableHeading('d:data_entry:data-'.$type_id, ['filter' => 'y:data_filter:open_filter-'.$type_id, 'filter_settings' => $arr_filter_settings['filter'], 'search_settings' => $arr_filter_settings['search'], 'order' => true]).'
 			<thead><tr>';
 			
 				$nr_column = 0;
@@ -146,11 +184,11 @@ class data_entry extends base_module {
 			
 				foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 				
-					if (!$arr_object_description['object_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+					if (!$arr_object_description['object_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
 						continue;
 					}
 					
-					$return .= '<th class="limit'.($nr_column == 0 ? ' max' : '').'"><span>'.htmlspecialchars(Labels::parseTextVariables($arr_object_description['object_description_name'])).'</span></th>';
+					$return .= '<th class="limit'.($nr_column == 0 ? ' max' : '').'"><span>'.strEscapeHTML(Labels::parseTextVariables($arr_object_description['object_description_name'])).'</span></th>';
 					$nr_column++;
 				}
 				
@@ -163,13 +201,13 @@ class data_entry extends base_module {
 					$nr_column++;
 				}
 				
-				$can_edit = ($_SESSION['NODEGOAT_CLEARANCE'] > NODEGOAT_CLEARANCE_INTERACT && data_model::checkClearanceType($type_id, false) && custom_projects::checkAccessType('edit', $type_id, false));
+				$can_edit = ($_SESSION['NODEGOAT_CLEARANCE'] > NODEGOAT_CLEARANCE_INTERACT && static::checkClearanceType($type_id, false) && custom_projects::checkAccessType('edit', $type_id, false));
 				
 				$return .= ($can_edit ? '<th title="'.getLabel('lbl_version').'" data-sort="desc-0" data-identifier="version"><span>V</span></th>' : '').'
 				'.($can_edit ? '<th class="disable-sort menu" id="x:data_entry:type_id-'.$type_id.'" title="'.getLabel('lbl_multi_select').'">'
 					.'<div class="hide-edit hide">'
-						.(!$arr_type_set['type']['is_reversal'] ? '<input type="button" class="data edit popup popup_find_change" value="c" title="'.getLabel('lbl_change').'" />' : '')
-						.(!$arr_type_set['type']['is_reversal'] ? '<input type="button" class="data edit popup popup_merge" value="m" title="'.getLabel('lbl_merge').'" />' : '')
+						.'<input type="button" class="data edit popup popup_find_change" value="c" title="'.getLabel('lbl_change').'" />'
+						.'<input type="button" class="data edit popup popup_merge" value="m" title="'.getLabel('lbl_merge').'" />'
 						.'<input type="button" class="data msg del" value="d" title="'.getLabel('lbl_delete').'" />'
 					.'</div>'
 					.'<input type="button" class="data neutral" value="multi" />'
@@ -188,13 +226,13 @@ class data_entry extends base_module {
 	
 	private function createAddTypeObject($type_id, $name) {
 				
-		if ($_SESSION['NODEGOAT_CLEARANCE'] <= NODEGOAT_CLEARANCE_INTERACT || !data_model::checkClearanceType($type_id, false) || !custom_projects::checkAccessType('edit', $type_id, false)) {
+		if ($_SESSION['NODEGOAT_CLEARANCE'] <= NODEGOAT_CLEARANCE_INTERACT || !static::checkClearanceType($type_id, false) || !custom_projects::checkAccessType('edit', $type_id, false)) {
 			return;
 		}
 	
-		$return .= '<form id="f:data_entry:add-'.$type_id.'" class="options">
+		$return = '<form id="f:data_entry:add-'.$type_id.'" class="options">
 			<menu>
-				<input type="submit" value="'.getLabel('lbl_add').' '.htmlspecialchars(Labels::parseTextVariables($name)).'" />
+				<input type="submit" value="'.getLabel('lbl_add').' '.strEscapeHTML(Labels::parseTextVariables($name)).'" />
 			</menu>
 		</form>';
 		
@@ -203,7 +241,7 @@ class data_entry extends base_module {
 	
 	private function createAddEditTypeObject($type_id, $object_id = 0, $arr_options = []) {
 				
-		if ($_SESSION['NODEGOAT_CLEARANCE'] <= NODEGOAT_CLEARANCE_INTERACT || !data_model::checkClearanceType($type_id, false) || !custom_projects::checkAccessType('edit', $type_id, false)) {
+		if ($_SESSION['NODEGOAT_CLEARANCE'] <= NODEGOAT_CLEARANCE_INTERACT || !static::checkClearanceType($type_id, false) || !custom_projects::checkAccessType('edit', $type_id, false)) {
 			return;
 		}
 		
@@ -212,10 +250,10 @@ class data_entry extends base_module {
 		$arr_project = $_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']];
 		$arr_options += ['source_referencing' => $arr_project['source_referencing_enable'], 'discussion' => $arr_project['discussion_enable']];
 	
-		$return .= '<form id="f:data_entry:'.($object_id ? 'update' : 'insert').'-'.$type_id.'_'.(int)$object_id.'" data-lock="1">
+		$return = '<form id="f:data_entry:'.($object_id ? 'update' : 'insert').'-'.$type_id.'_'.(int)$object_id.'" data-lock="1">
 			'.$this->createTypeObject($type_id, $object_id, $arr_options).'
 			<menu class="options">
-				<input type="submit" value="'.getLabel('lbl_save').' '.htmlspecialchars(Labels::parseTextVariables($arr_type_set['type']['name'])).'" /><input type="submit" name="discard" value="'.getLabel('lbl_cancel').'" />
+				<input type="submit" value="'.getLabel('lbl_save').' '.strEscapeHTML(Labels::parseTextVariables($arr_type_set['type']['name'])).'" /><input type="submit" name="discard" value="'.getLabel('lbl_cancel').'" />
 			</menu>
 		</form>';
 		
@@ -225,61 +263,29 @@ class data_entry extends base_module {
 	private function createTypeObject($type_id, $object_id = 0, $arr_options = ['source_referencing' => false, 'discussion' => true]) {
 		
 		$project_id = $_SESSION['custom_projects']['project_id'];
+		$arr_project = StoreCustomProject::getProjects($project_id);
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($project_id);
-		
-		$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
-		$arr_types = StoreType::getTypes();
+		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
 
-		if ((int)$object_id) {
-			
-			$arr_object_set = self::getTypeObjectSet($type_id, $object_id, false, $arr_type_set);
-			
-			if ($arr_type_set['type']['is_reversal']) {
-				$arr_object_set_changes = $arr_object_set;
-			} else {
-				$arr_object_set_changes = self::getTypeObjectSet($type_id, $object_id, true, $arr_type_set);
-			}
-			
-			$storage = new StoreTypeObjects($type_id, $object_id, $_SESSION['USER_ID']);
-			$arr_version_user = $storage->getTypeObjectVersionsUsers();
-			
-			if ($arr_version_user[-1]) {
-				Labels::setVariable('name', '['.$arr_version_user[-1]['name'].']');
-				Labels::setVariable('date', date('d-m-Y', strtotime($arr_version_user[-1]['date'])));
-				$str_version = getLabel('inf_added_by_on');
-			}
-			
-			$str_object_id = GenerateTypeObjects::encodeTypeObjectId($type_id, $object_id);
-			$str_object_name = $arr_object_set_changes['object']['object_name'];
-		}
-
-		$str_information = $this->createTypeObjectFieldInformation($arr_project['types'][$type_id]['type_information']);
+		$arr_html = $this->createTypeObjectFields($type_id, $object_id, $arr_options);
 		
-		if ($arr_type_set['type']['is_reversal']) {
-			$arr_html = $this->createTypeObjectReversalFields($type_id, $object_id, $arr_options);
-		} else {
-			$arr_html = $this->createTypeObjectFields($type_id, $object_id, $arr_options);
+		$str_what = 'lbl_object';
+		if ($arr_type_set['type']['class'] == StoreType::TYPE_CLASS_CLASSIFICATION || ($arr_type_set['type']['class'] == StoreType::TYPE_CLASS_SYSTEM && $type_id == StoreType::getSystemTypeID('cycle'))) {
+			$str_what = 'lbl_category';
+		} else if ($arr_type_set['type']['class'] == StoreType::TYPE_CLASS_REVERSAL || $arr_type_set['type']['class'] == StoreType::TYPE_CLASS_SYSTEM) {
+			$str_what = 'lbl_process';
 		}
 		
 		$return = '<div class="tabs entry">
 			<ul>
-				<li><a href="#">'.getLabel(($arr_type_set['type']['is_reversal'] ? 'lbl_category' : ($arr_type_set['type']['is_classification'] ? 'lbl_category' : 'lbl_object'))).'</a></li>
-				'.(!$arr_type_set['type']['is_reversal'] && $arr_options['source_referencing'] ? '<li><a href="#">'.getLabel('lbl_sources').'</a></li>' : '').'
-				'.(!$arr_type_set['type']['is_reversal'] && $arr_options['discussion'] && $object_id ? '<li><a href="#">'.getLabel('lbl_discuss').'</a></li>' : '').'
+				<li><a href="#">'.getLabel($str_what).'</a></li>
+				'.($arr_options['source_referencing'] ? '<li><a href="#">'.getLabel('lbl_sources').'</a></li>' : '').'
+				'.($arr_options['discussion'] && $object_id ? '<li><a href="#">'.getLabel('lbl_discuss').'</a></li>' : '').'
 			</ul>
 				
 			<div class="object">
 				
-				'.($object_id ? 
-					'<h1>'
-						.'<span'.($str_version ? ' title="'.$str_version.'"' : '').'>'.htmlspecialchars(Labels::parseTextVariables($arr_type_set['type']['name'])).': '.$str_object_name.'</span>'
-						.$str_information
-						.'<small title="nodegoat ID">'.$str_object_id.'</small>'
-					.'</h1>'
-					:
-					'<h1><span>'.htmlspecialchars(Labels::parseTextVariables($arr_type_set['type']['name'])).'</span>'.$str_information.'</h1>'
-				).'
+				'.$this->createTypeObjectHeader($type_id, $object_id).'
 				
 				<div class="options">
 									
@@ -326,24 +332,61 @@ class data_entry extends base_module {
 		return $return;
 	}
 	
+	protected function createTypeObjectHeader($type_id, $object_id = false) {
+		
+		$project_id = $_SESSION['custom_projects']['project_id'];
+		$arr_project = StoreCustomProject::getProjects($project_id);
+		
+		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
+
+		if ($object_id) {
+			
+			$arr_object_set = self::getTypeObjectSet($type_id, $object_id, false, $arr_type_set);
+			$arr_object_set_changes = self::getTypeObjectSet($type_id, $object_id, true, $arr_type_set);
+
+			$storage = new StoreTypeObjects($type_id, $object_id, $_SESSION['USER_ID']);
+			$arr_version_user = $storage->getTypeObjectVersionsUsers();
+			
+			if ($arr_version_user[-1]) {
+				Labels::setVariable('name', '['.$arr_version_user[-1]['name'].']');
+				Labels::setVariable('date', date('d-m-Y', strtotime($arr_version_user[-1]['date'])));
+				$str_version = getLabel('inf_added_by_on');
+			}
+			
+			$str_object_id = GenerateTypeObjects::encodeTypeObjectID($type_id, $object_id);
+			$str_object_name = $arr_object_set_changes['object']['object_name'];
+		}
+
+		$str_information = $this->createTypeObjectFieldInformation($arr_project['types'][$type_id]['type_information']);
+				
+		if ($object_id) {
+			
+			$html = '<h1>'
+				.'<span'.($str_version ? ' title="'.$str_version.'"' : '').'>'.strEscapeHTML(Labels::parseTextVariables($arr_type_set['type']['name'])).': '.$str_object_name.'</span>'
+				.$str_information
+				.'<small title="nodegoat ID">'.$str_object_id.'</small>'
+			.'</h1>';
+		} else {
+			
+			$html = '<h1><span>'.strEscapeHTML(Labels::parseTextVariables($arr_type_set['type']['name'])).'</span>'.$str_information.'</h1>';
+		}
+		
+		return $html;
+	}
+		
 	private function createTypeObjectFields($type_id, $object_id, $arr_options) {
 		
 		$project_id = $_SESSION['custom_projects']['project_id'];
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($project_id);
+		$arr_project = StoreCustomProject::getProjects($project_id);
 		
-		$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
+		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
 		$arr_types = StoreType::getTypes();
 
-		if ((int)$object_id) {
+		if ($object_id) {
 			
 			$arr_object_set = self::getTypeObjectSet($type_id, $object_id, false, $arr_type_set);
-			
-			if ($arr_type_set['type']['is_reversal']) {
-				$arr_object_set_changes = $arr_object_set;
-			} else {
-				$arr_object_set_changes = self::getTypeObjectSet($type_id, $object_id, true, $arr_type_set);
-			}
+			$arr_object_set_changes = self::getTypeObjectSet($type_id, $object_id, true, $arr_type_set);
 		}
 		
 		$arr_html = [];
@@ -355,7 +398,7 @@ class data_entry extends base_module {
 			
 			$html_object .= '<li>
 				<label>'.getLabel('lbl_name').'</label>
-				<div><input type="text" name="object_name_plain" class="default" value="'.htmlspecialchars(($arr_object_set_changes ? $arr_object_set_changes['object']['object_name_plain'] : $arr_object_set['object']['object_name_plain'])).'" />'.($object_id ? '<button type="button" id="y:data_entry:select_version-'.$type_id.'_'.$object_id.'" class="data '.($is_changed ? 'edit' : 'neutral').' popup" value="version"><span>'.getLabel('lbl_version_abbr').'</span></button>' : '').'</div>
+				<div><input type="text" name="object_name_plain" class="default" value="'.strEscapeHTML(($arr_object_set_changes ? $arr_object_set_changes['object']['object_name_plain'] : $arr_object_set['object']['object_name_plain'])).'" />'.($object_id ? '<button type="button" id="y:data_entry:select_version-'.$type_id.'_'.$object_id.'" class="data '.($is_changed ? 'edit' : 'neutral').' popup" value="version"><span>'.getLabel('lbl_version_abbr').'</span></button>' : '').'</div>
 			</li>';
 			
 			$this->validate['object_name_plain'] = 'required';
@@ -363,147 +406,165 @@ class data_entry extends base_module {
 		
 		foreach ((array)$arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 			
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
 				continue;
 			}
 			
-			$is_reversal = ($arr_object_description['object_description_ref_type_id'] && $arr_types[$arr_object_description['object_description_ref_type_id']]['is_reversal'] ? true : false);
-			$has_clearance_edit = ($_SESSION['NODEGOAT_CLEARANCE'] >= $arr_object_description['object_description_clearance_edit'] && custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, $object_description_id));
+			$is_reversal = ($arr_object_description['object_description_ref_type_id'] && $arr_types[$arr_object_description['object_description_ref_type_id']]['class'] == StoreType::TYPE_CLASS_REVERSAL ? true : false);
+			$has_clearance_edit = ($_SESSION['NODEGOAT_CLEARANCE'] >= $arr_object_description['object_description_clearance_edit'] && custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, $object_description_id));
 			
-			$str_name = htmlspecialchars(Labels::parseTextVariables($arr_object_description['object_description_name']));
+			$str_object_description_name = strEscapeHTML(Labels::parseTextVariables($arr_object_description['object_description_name']));
 			
 			if ($arr_object_description['object_description_is_referenced']) {
 				
 				$use_type_id = $arr_object_description['object_description_ref_type_id'];
 				$use_object_description_id = $arr_object_description['object_description_id'];
 				
-				$str_name = '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.htmlspecialchars(Labels::parseTextVariables($arr_types[$use_type_id]['name'])).' - '.$str_name.'</span>';
+				$str_object_description_name = '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.strEscapeHTML(Labels::parseTextVariables($arr_types[$use_type_id]['name'])).' - '.$str_object_description_name.'</span>';
 				$arr_configuration = $arr_project['types'][$type_id]['include_referenced_types'][$use_type_id]['object_descriptions'][$use_object_description_id];
 			} else {
 				
 				$arr_configuration = $arr_project['types'][$type_id]['configuration']['object_descriptions'][$object_description_id];
 			}
 			
-			$html_object .= '<li data-object_description_id="'.$object_description_id.'">'
-				.'<label>'
-					.$str_name
-					.$this->createTypeObjectFieldInformation($arr_configuration['information'])
-					.($has_clearance_edit && !$is_reversal ? '<input type="hidden" name="object_definition['.$object_description_id.'][object_description_id]" value="'.$object_description_id.'" />' : '')
-				.'</label>
-				<div class="definition">';
+			$html_definition = '';
+			$str_classes = 'definition';
 				
-					$definition_type = ($arr_object_description['object_description_ref_type_id'] ? 'object_definition_ref_object_id' : 'object_definition_value');
-					$is_changed = ($arr_object_set_changes && $arr_object_set_changes['object']['object_version'] != 'added' && $arr_object_set_changes['object_definitions'][$object_description_id][$definition_type] != $arr_object_set['object_definitions'][$object_description_id][$definition_type]);
-					$arr_object_definition = ($arr_object_set_changes ? $arr_object_set_changes['object_definitions'][$object_description_id] : $arr_object_set['object_definitions'][$object_description_id]);
-					$has_multi = $arr_object_description['object_description_has_multi'];
+			$definition_type = ($arr_object_description['object_description_ref_type_id'] ? 'object_definition_ref_object_id' : 'object_definition_value');
+			$is_changed = ($arr_object_set_changes && $arr_object_set_changes['object']['object_version'] != 'added' && $arr_object_set_changes['object_definitions'][$object_description_id][$definition_type] != $arr_object_set['object_definitions'][$object_description_id][$definition_type]);
+			$arr_object_definition = ($arr_object_set_changes ? $arr_object_set_changes['object_definitions'][$object_description_id] : $arr_object_set['object_definitions'][$object_description_id]);
+			$has_multi = $arr_object_description['object_description_has_multi'];
+			$is_module = StoreType::isValueTypeModule($arr_object_description['object_description_value_type']);
+			
+			if ($is_reversal) {
+				
+				continue; // Do not show
+				//$html_definition .= '<div class="show">'.$arr_types[$arr_object_description['object_description_ref_type_id']]['name'].'</div>';
+			} else {
+				
+				$arr_object_definition_value = ($arr_object_definition ?: []);
+				
+				$html_definition_version = '';
+			
+				if (!$arr_object_description['object_description_is_referenced'] && ($object_id || $_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable'])) {
 					
-					if ($is_reversal) {
+					$str_sources = ($arr_object_definition['object_definition_sources'] ? strEscapeHTML(value2JSON($arr_object_definition['object_definition_sources'])) : '');
+					
+					$html_definition_version = '<input type="hidden" value="'.$str_sources.'"'.($has_clearance_edit ? ' name="object_definition['.$object_description_id.'][object_definition_sources]"' : '').' />'
+						.'<button type="button" id="y:data_entry:select_version-'.$type_id.'_'.$object_id.'_'.$object_description_id.'" class="data popup '.($is_changed ? 'edit' : 'neutral').'" value="version"><span>'.getLabel('lbl_version_abbr').'</span></button>';
+				}
+
+				if ($arr_object_description['object_description_ref_type_id']) {
+																	
+					if (!$object_id) {
 						
-						$html_object .= '<div class="show">'.$arr_types[$arr_object_description['object_description_ref_type_id']]['name'].'</div>';
+						$value_default = $arr_object_description['object_description_value_type_settings']['default']['value'];
+						
+						if ($value_default && !$arr_object_definition_value['object_definition_ref_object_id']) {
+							
+							$arr_object_definition_value = FilterTypeObjects::getTypeObjectNames($arr_object_description['object_description_ref_type_id'], $value_default);
+							
+							if (!$has_multi) {
+								$arr_object_definition_value = ['object_definition_ref_object_id' => key($arr_object_definition_value), 'object_definition_value' => current($arr_object_definition_value)];
+							}
+						}
+					} else {
+	
+						if ($has_multi) {
+							
+							if ($arr_object_definition_value['object_definition_ref_object_id']) {
+								$arr_object_definition_value = array_combine($arr_object_definition_value['object_definition_ref_object_id'], $arr_object_definition_value['object_definition_value']);
+							} else {
+								$arr_object_definition_value = [];
+							}
+						}
+					}												
+				} else {
+					
+					if (!$object_id && !$arr_object_definition_value['object_definition_value']) {
+						$arr_object_definition_value['object_definition_value'] = $arr_object_description['object_description_value_type_settings']['default']['value'];
+					}
+
+					if ($has_multi) {
+						
+						if (!is_array($arr_object_definition_value['object_definition_value'])) {
+							$arr_object_definition_value['object_definition_value'] = ($arr_object_definition_value['object_definition_value'] ? (array)$arr_object_definition_value['object_definition_value'] : []);
+						}
+					}
+				}
+				
+				if (!$has_clearance_edit) {
+					
+					$html_definition .= '<div class="show">';
+					
+					if (!$arr_object_definition_value || (array_key_exists('object_definition_value', $arr_object_definition_value) && !$arr_object_definition_value['object_definition_value'])) {
+						
+						$html_definition .= getLabel('lbl_none');
+					} else if ($arr_object_description['object_description_ref_type_id']) {
+						
+						if ($has_multi) {
+							
+							$html_definition .= implode(($arr_object_description['object_description_value_type_settings']['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR_LIST), $arr_object_definition_value);
+						} else {
+							
+							$html_definition .= $arr_object_definition_value['object_definition_value'];
+						}
 					} else {
 						
-						$arr_object_definition_value = ($arr_object_definition ?: []);
-						
-						if ($arr_object_description['object_description_ref_type_id']) {
-																			
-							if (!$object_id) {
-								
-								$value_default = $arr_object_description['object_description_value_type_options']['default']['value'];
-								
-								if ($value_default && !$arr_object_definition_value['object_definition_ref_object_id']) {
-									
-									$arr_object_definition_value = FilterTypeObjects::getTypeObjectNames($arr_object_description['object_description_ref_type_id'], $value_default);
-									
-									if (!$has_multi) {
-										$arr_object_definition_value = ['object_definition_ref_object_id' => key($arr_object_definition_value), 'object_definition_value' => current($arr_object_definition_value)];
-									}
-								}
-							} else {
-	
-								if ($has_multi) {
-									
-									if ($arr_object_definition_value['object_definition_ref_object_id']) {
-										$arr_object_definition_value = array_combine($arr_object_definition_value['object_definition_ref_object_id'], $arr_object_definition_value['object_definition_value']);
-									} else {
-										$arr_object_definition_value = [];
-									}
-								}
-							}												
-						} else {
-							
-							if (!$object_id && !$arr_object_definition_value['object_definition_value']) {
-								$arr_object_definition_value['object_definition_value'] = $arr_object_description['object_description_value_type_options']['default']['value'];
-							}
-
-							if ($has_multi) {
-								
-								if (!is_array($arr_object_definition_value['object_definition_value'])) {
-									$arr_object_definition_value['object_definition_value'] = ($arr_object_definition_value['object_definition_value'] ? (array)$arr_object_definition_value['object_definition_value'] : []);
-								}
-							}
-						}
-						
-						if (!$has_clearance_edit) {
-							
-							$html_object .= '<div class="show">';
-
-							if ($arr_object_description['object_description_ref_type_id']) {
-								
-								if ($has_multi) {
-									
-									if (!$arr_object_definition_value) {
-										$html_object .= getLabel('lbl_none');
-									} else {
-										$html_object .= implode(', ', $arr_object_definition_value);
-									}
-								} else {
-									
-									if (!$arr_object_definition_value['object_definition_value']) {
-										$html_object .= getLabel('lbl_none');
-									} else {
-										$html_object .= $arr_object_definition_value['object_definition_value'];
-									}
-								}
-							} else {
-								
-								$html_object .= StoreTypeObjects::formatToPresentationValue($arr_object_description['object_description_value_type'], StoreTypeObjects::formatToCleanValue($arr_object_description['object_description_value_type'], $arr_object_definition_value['object_definition_value'], $arr_object_description['object_description_value_type_options']), $arr_object_description['object_description_value_type_options'], $arr_object_definition_value['object_definition_ref_object_id']);
-							}
-							$html_object .= '</div>';
-						} else if ($arr_object_description['object_description_ref_type_id']) {
-							
-							$str_name = 'object_definition['.$object_description_id.'][object_definition_ref_object_id]';
-
-							if ($has_multi) {
-								
-								$html_object .= cms_general::createMultiSelect($str_name, 'y:data_filter:lookup_type_object-'.$arr_object_description['object_description_ref_type_id'], $arr_object_definition_value, 'y:data_filter:lookup_type_object_pick-'.$arr_object_description['object_description_ref_type_id'], ['list' => false, 'order' => true]);
-							} else {
-								
-								$html_object .= '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$arr_object_description['object_description_ref_type_id'].'" name="'.$str_name.'" value="'.$arr_object_definition_value['object_definition_ref_object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$arr_object_description['object_description_ref_type_id'].'" class="autocomplete" value="'.$arr_object_definition_value['object_definition_value'].'" />';
-							}
-
-							if ($arr_object_description['object_description_is_required']) {
-								$this->validate[$str_name] = ($has_multi ? 'required_autocomplete' : 'required');
-							}
-						} else {
-							
-							$str_name = 'object_definition['.$object_description_id.'][object_definition_value]';
-
-							$html_object .= StoreTypeObjects::formatToFormValue($arr_object_description['object_description_value_type'], $arr_object_definition_value['object_definition_value'], $str_name, $arr_object_description['object_description_value_type_options'], $arr_object_definition_value['object_definition_ref_object_id']);
-							
-							if ($arr_object_description['object_description_is_required']) {
-								$this->validate[$str_name] = 'required';
-							}
-						}
+						$html_definition .= StoreTypeObjects::formatToHTMLValue($arr_object_description['object_description_value_type'], StoreTypeObjects::formatToCleanValue($arr_object_description['object_description_value_type'], $arr_object_definition_value['object_definition_value'], $arr_object_description['object_description_value_type_settings']), $arr_object_description['object_description_value_type_settings'], $arr_object_definition_value['object_definition_ref_object_id']);
 					}
 					
-					if (!$is_reversal && !$arr_object_description['object_description_is_referenced'] && ($object_id || $_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable'])) {
+					$html_definition .= '</div>';
+					
+					if ($object_id) {
 						
-						$str_sources = ($arr_object_definition['object_definition_sources'] ? htmlspecialchars(json_encode($arr_object_definition['object_definition_sources'])) : '');
-						
-						$html_object .= '<input type="hidden" value="'.$str_sources.'"'.($has_clearance_edit ? ' name="object_definition['.$object_description_id.'][object_definition_sources]"' : '').' />'
-							.'<button type="button" id="y:data_entry:select_version-'.$type_id.'_'.$object_id.'_'.$object_description_id.'" class="data popup '.($is_changed ? 'edit' : 'neutral').'" value="version"><span>'.getLabel('lbl_version_abbr').'</span></button>';
+						$html_definition .= $html_definition_version;
 					}
-				$html_object .= '</div>
+				} else if ($arr_object_description['object_description_ref_type_id']) {
+					
+					$str_name = 'object_definition['.$object_description_id.'][object_definition_ref_object_id]';
+
+					if ($has_multi) {
+						
+						$html_definition .= cms_general::createMultiSelect($str_name, 'y:data_filter:lookup_type_object-'.$arr_object_description['object_description_ref_type_id'], $arr_object_definition_value, 'y:data_filter:lookup_type_object_pick-'.$arr_object_description['object_description_ref_type_id'], ['list' => false, 'order' => true]);
+					} else {
+						
+						$html_definition .= '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$arr_object_description['object_description_ref_type_id'].'" name="'.$str_name.'" value="'.$arr_object_definition_value['object_definition_ref_object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$arr_object_description['object_description_ref_type_id'].'" class="autocomplete" value="'.$arr_object_definition_value['object_definition_value'].'" />';
+					}
+					
+					$html_definition .= $html_definition_version;
+
+					if ($arr_object_description['object_description_is_required']) {
+						$this->validate[$str_name] = ($has_multi ? 'required_autocomplete' : 'required');
+					}
+				} else {
+					
+					$str_name = 'object_definition['.$object_description_id.'][object_definition_value]';
+					
+					if ($is_module) {
+						
+						$html_definition .= $this->createTypeObjectFieldModule($type_id, $object_id, $object_description_id, $str_name, $arr_object_definition_value);
+						$html_definition .= '<menu>'.$html_definition_version.'</menu>';
+						
+						$str_classes .= ' options nested';
+					} else {
+						
+						$html_definition .= StoreTypeObjects::formatToFormValue($arr_object_description['object_description_value_type'], $arr_object_definition_value['object_definition_value'], $str_name, $arr_object_description['object_description_value_type_settings'], $arr_object_definition_value['object_definition_ref_object_id'], ['menu' => $html_definition_version]);
+					}
+					
+					if ($arr_object_description['object_description_is_required']) {
+						$this->validate[$str_name] = 'required';
+					}
+				}
+			}
+						
+			$html_object .= '<li data-object_description_id="'.$object_description_id.'">'
+				.'<label>'
+					.$str_object_description_name
+					.$this->createTypeObjectFieldInformation($arr_configuration['information'])
+					.($has_clearance_edit && !$is_reversal ? '<input type="hidden" name="object_definition['.$object_description_id.'][object_description_id]" value="'.$object_description_id.'" />' : '')
+				.'</label>'
+				.'<div class="'.$str_classes.'">'.$html_definition.'</div>
 			</li>';
 		}
 		
@@ -528,7 +589,7 @@ class data_entry extends base_module {
 					
 						foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 							
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 								continue;
 							}
 							
@@ -540,9 +601,9 @@ class data_entry extends base_module {
 							$html_content .= '<li><span>'
 									.($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ?
 										'<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span>'
-										.'<span>'.htmlspecialchars(Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name'])).'</span> '
+										.'<span>'.strEscapeHTML(Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name'])).'</span> '
 									: '')
-									.'<span class="sub-name">'.htmlspecialchars(Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])).'</span>'
+									.'<span class="sub-name">'.strEscapeHTML(Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])).'</span>'
 								.'</span>'
 								.'<span class="handler'.($arr_classes ? ' '.implode(' ', $arr_classes) : '').'" id="y:data_entry:add_object_sub-'.$type_id.'_'.(int)$object_id.'_'.$object_sub_details_id.'">'.$html_handler.'</span>'
 								.(!$arr_object_sub_details['object_sub_details']['object_sub_details_is_single'] ? '<span class="handler'.($arr_classes ? ' '.implode(' ', $arr_classes) : '').'" id="y:data_entry:add_object_sub_multi-'.$type_id.'_'.(int)$object_id.'_'.$object_sub_details_id.'">'.$html_handler_multi.'</span>' : '')
@@ -587,14 +648,16 @@ class data_entry extends base_module {
 			</div>';
 			
 			if ($object_id) {
+				
+				$arr_html_object_sub_tabs = ['links' => [], 'content' => []];
 			
 				foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 					
-					if (!$arr_collect_object_sub_details[$object_sub_details_id] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+					if (!$arr_collect_object_sub_details[$object_sub_details_id] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 						continue;
 					}
 					
-					$arr_html_object_sub_tabs['links'][] = '<li><a href="#"'.(!$has_direct_show && count($arr_collect_object_sub_details) == 2 ? ' class="open"' : '').'><span>'.($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name']).'</span> ' : '').'<span class="sub-name">'.htmlspecialchars(Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])).'</span></span></a></li>';
+					$arr_html_object_sub_tabs['links'][] = '<li><a href="#"'.(!$has_direct_show && count($arr_collect_object_sub_details) == 2 ? ' class="open"' : '').'><span>'.($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name']).'</span> ' : '').'<span class="sub-name">'.strEscapeHTML(Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])).'</span></span></a></li>';
 					
 					$arr_columns = [];
 					$nr_column = 0;
@@ -612,11 +675,11 @@ class data_entry extends base_module {
 					
 					foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 						
-						if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+						if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 							continue;
 						}
 						
-						$str_name = htmlspecialchars(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']));
+						$str_name = strEscapeHTML(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']));
 						
 						$arr_columns[] = '<th class="limit'.($nr_column == 0 ? ' max' : '').($arr_object_sub_description['object_sub_description_value_type'] == 'date' ? ' date' : '').'">'.($arr_object_sub_description['object_sub_description_is_referenced'] ? '<span><span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.$str_name.'</span></span>' : '</span>'.$str_name.'</span>').'</th>';
 						$nr_column++;
@@ -642,7 +705,7 @@ class data_entry extends base_module {
 					$arr_html_object_sub_tabs['content'][] = $return_content;
 				}
 				
-				if ($arr_html_object_sub_tabs && count($arr_collect_object_sub_details) > 2) { // Show combined only if there are multiple subobjects to be shown
+				if (count($arr_html_object_sub_tabs['links']) > 2) { // Show combined only if there are multiple subobjects to be shown
 					
 					array_unshift($arr_html_object_sub_tabs['links'], '<li><a href="#"'.(!$has_direct_show ? ' class="open"' : '').'>'.getLabel('lbl_object_subs').': '.getLabel('lbl_overview').'</a></li>');
 					
@@ -692,107 +755,93 @@ class data_entry extends base_module {
 		return $arr_html;
 	}
 	
-	private function createTypeObjectReversalFields($type_id, $object_id, $arr_options) {
+	private function createTypeObjectFieldModule($type_id, $object_id, $object_description_id, $str_name, $arr_object_definition) {
 		
-		$project_id = $_SESSION['custom_projects']['project_id'];
+		$arr_type_set = StoreType::getTypeSet($type_id);
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($project_id);
+		$arr_object_description = $arr_type_set['object_descriptions'][$object_description_id];
 		
-		$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
-
-		if ((int)$object_id) {
+		$arr_object_definition_value = ($arr_object_definition['object_definition_value'] ? json_decode($arr_object_definition['object_definition_value'], true) : []);
+		
+		if (StoreType::getValueTypeProperty($arr_object_description['object_description_value_type'], 'module_class', 'entry')) {
 			
-			$arr_object_set = self::getTypeObjectSet($type_id, $object_id, false, $arr_type_set);
-		}
-		
-		$arr_html = [];
+			$class_module = StoreType::getValueTypeProperty($arr_object_description['object_description_value_type'], 'module_class', 'entry');
+			
+			$data_module = new $class_module();
+			$data_module->form_name = $str_name;
 				
-		$html_object = '<li>
-			<label>'.getLabel('lbl_name').'</label>
-			<div><input type="text" name="object_name_plain" class="default" value="'.htmlspecialchars($arr_object_set['object']['object_name_plain']).'" /></div>
-		</li>';
-		
-		$this->validate['object_name_plain'] = 'required';
-		
-		$arr_object_description = $arr_type_set['object_descriptions'][$arr_type_set['object_description_ids']['rc_ref_type_id']];
-		
-		if ($arr_type_set['type']['mode'] == 0 && $arr_object_description['object_description_ref_type_id']) {
-			
-			$html_object .= '<li>
-				<label>'.htmlspecialchars(Labels::parseTextVariables($arr_object_description['object_description_name'])).'</label>
-				<div class="definition">
-					<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$arr_object_description['object_description_ref_type_id'].'" name="object_definition['.$arr_object_description['object_description_id'].'][object_definition_ref_object_id]" value="'.$arr_object_set['object_definitions'][$arr_object_description['object_description_id']]['object_definition_ref_object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$arr_object_description['object_description_ref_type_id'].'" class="autocomplete" value="'.$arr_object_set['object_definitions'][$arr_object_description['object_description_id']]['object_definition_value'].'" />
-				</div>
-			</li>';
-		}
-		
-		$arr_ref_type_ids = cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']);
-		$arr_type_referenced = FilterTypeObjects::getTypesReferenced($type_id, $arr_ref_type_ids, ['dynamic' => false]);
-		
-		$arr_html_tabs = [];
-		
-		foreach ($arr_type_referenced as $ref_type_id => $arr_ref_type) {
-			
-			$arr_reference_type_set = StoreType::getTypeSet($ref_type_id);
-			
-			$arr_html_tabs['links'][] = '<li><a href="#">'.Labels::parseTextVariables(htmlspecialchars($arr_reference_type_set['type']['name'])).'</a></li>';
-			
-			$create_filter = new data_filter();
-			$create_filter->form_name = 'filter['.$ref_type_id.']';
-			$html_filter = $create_filter->createFilter($ref_type_id, $arr_object_set['object_filters'][$ref_type_id]['object_filter_object']);
-			
-			if ($arr_type_set['type']['mode'] == 1) { // Summary mode
+			$html = $data_module->createTemplate($arr_object_definition_value);
 				
-				$html_type_network = data_model::createTypeNetwork($ref_type_id, false, false, ['references' => 'both', 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_object_set['object_filters'][$ref_type_id]['object_filter_scope_object'], 'name' => 'scope['.$ref_type_id.']', 'descriptions' => false, 'functions' => ['collapse' => false]]);
+			$this->validate += $data_module->validate;
+		} else if ($arr_object_description['object_description_value_type'] == 'reversal_module') {
 			
-				$html_tab_content = '<div class="tabs">
-					<ul>
-						<li><a href="#">'.getLabel('lbl_filter').'</a></li>
-						<li><a href="#">'.getLabel('lbl_scope').'</a></li>
-					</ul>
-					<div>'.$html_filter.'</div>
-					<div>
-						<div class="options">'.$html_type_network.'</div>
-					</div>
-				</div>';
-			} else { // Classification mode
+			$arr_ref_type_ids = StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']);
+			$arr_type_referenced = FilterTypeObjects::getTypesReferenced($type_id, $arr_ref_type_ids, ['dynamic' => false]);
+			
+			$arr_html_tabs = [];
+			
+			foreach ($arr_type_referenced as $ref_type_id => $arr_ref_type) {
 				
-				$html_tab_content = $html_filter;
+				$arr_reference_type_set = StoreType::getTypeSet($ref_type_id);
+				
+				$arr_html_tabs['links'][] = '<li><a href="#">'.Labels::parseTextVariables(strEscapeHTML($arr_reference_type_set['type']['name'])).'</a></li>';
+				
+				$create_filter = new data_filter();
+				$create_filter->form_name = $str_name.'['.$ref_type_id.'][filter]';
+				$html_filter = $create_filter->createFilter($ref_type_id, $arr_object_definition_value[$ref_type_id]['filter']);
+				
+				if ($arr_type_set['type']['mode'] & StoreType::TYPE_MODE_REVERSAL_COLLECTION) {
+					
+					$html_type_network = data_model::createTypeNetwork($ref_type_id, false, false, ['references' => 'both', 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_object_definition_value[$ref_type_id]['scope'], 'name' => $str_name.'['.$ref_type_id.'][scope]', 'descriptions' => false, 'functions' => ['collapse' => false]]);
+				
+					$html_tab_content = '<div class="tabs">
+						<ul>
+							<li><a href="#">'.getLabel('lbl_filter').'</a></li>
+							<li><a href="#">'.getLabel('lbl_scope').'</a></li>
+						</ul>
+						<div>'.$html_filter.'</div>
+						<div>
+							<div class="options">'.$html_type_network.'</div>
+						</div>
+					</div>';
+				} else { // Classification mode
+					
+					$html_tab_content = $html_filter;
+				}
+				
+				$arr_html_tabs['content'][] = '<div>'.$html_tab_content.'</div>';					
 			}
 			
-			$arr_html_tabs['content'][] = '<div>'.$html_tab_content.'</div>';					
-		}
-		
-		if ($arr_html_tabs) {
-			
-			$html_object .= '<div class="tabs">
-				<ul>
-					'.implode('', $arr_html_tabs['links']).'
-				</ul>';
+			if ($arr_html_tabs) {
 				
-				$html_object .= implode('', $arr_html_tabs['content']);
+				$html = '<div class="tabs">
+					<ul>
+						'.implode('', $arr_html_tabs['links']).'
+					</ul>';
 					
-			$html_object .= '</div>';
+					$html .= implode('', $arr_html_tabs['content']);
+						
+				$html .= '</div>';
+			}
+		} else {
+			
+			$module = EnucleateValueTypeModule::init($arr_object_description['object_description_value_type_settings']['type']);
+			$module->setValue($arr_object_definition_value);
+				
+			$html = $module->createTemplate($str_name);
+				
+			$this->validate += $module->getTemplateValidate();
 		}
-		
-		$arr_html['object'] = $html_object;
-		
-		return $arr_html;
+				
+		return $html;
 	}
-		
+			
 	private function createTypeObjectSub($type_id, $object_sub_details_id, $object_id = 0, $arr_object_subs = [], $arr_object_subs_changes = [], $arr_options = []) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_types = StoreType::getTypes();
-		$arr_project_location_types = [];
 		
-		foreach ($arr_types as $cur_type_id => $value) {
-			if ($arr_project['location_types'][$cur_type_id] || (!$arr_project['location_types'] && !$value['is_classification'])) {
-				$arr_project_location_types[$cur_type_id] = $value;
-			}
-		}
-		
-		$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
+		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
 		$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 		
 		$is_multi = ($arr_object_subs && !arrIsAssociative($arr_object_subs));
@@ -808,8 +857,8 @@ class data_entry extends base_module {
 			$arr_sorter = [];
 	
 			$return = '<fieldset class="full"><legend>
-					'.($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.htmlspecialchars(Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name'])).'</span> ' : '')
-					.'<span class="sub-name">'.htmlspecialchars(Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])).'</span>'
+					'.($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.strEscapeHTML(Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name'])).'</span> ' : '')
+					.'<span class="sub-name">'.strEscapeHTML(Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])).'</span>'
 					.$this->createTypeObjectFieldInformation($arr_project['types'][$type_id]['configuration']['object_sub_details'][$object_sub_details_id]['object_sub_details']['information'])
 				.'</legend>';
 		}
@@ -827,55 +876,69 @@ class data_entry extends base_module {
 			
 			$is_changed = ($arr_object_sub_changes && (($arr_object_sub_changes['object_sub']['object_sub_version'] != 'added' && $arr_object_sub_changes['object_sub'] !== $arr_object_sub['object_sub']) || $arr_object_sub_changes['object_sub']['object_sub_version'] == 'deleted'));
 			$arr_object_sub_value = ($arr_object_sub_changes ? $arr_object_sub_changes['object_sub'] : $arr_object_sub['object_sub']);
-			$str_sources = ($arr_object_sub_value['object_sub_sources'] ? htmlspecialchars(json_encode($arr_object_sub_value['object_sub_sources'])) : '');
+			$str_sources = ($arr_object_sub_value['object_sub_sources'] ? strEscapeHTML(value2JSON($arr_object_sub_value['object_sub_sources'])) : '');
+			$str_identifier = ($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? $arr_object_sub_details['object_sub_details']['object_sub_details_type_id'].'_'.(int)$arr_object_sub_value['object_sub_object_id'] : $type_id.'_'.$object_id).'_'.$object_sub_details_id.'_'.(int)$arr_object_sub_value['object_sub_id'];
 			
 			$arr_html_fields = [
-				'buttons' => (!($arr_object_sub_details['object_sub_details']['object_sub_details_is_required'] && $arr_object_sub_details['object_sub_details']['object_sub_details_is_single']) && keyIsUncontested('button_delete', $arr_options) ? '<input type="button" class="data del" value="del" />' : '')
-					.($arr_object_sub_value['object_sub_id'] || $_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable'] ?
+				'buttons' => [
+					($arr_object_sub_value['object_sub_id'] || $_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable'] ?
 						'<input type="hidden" value="'.$str_sources.'" name="'.$form_name.'[object_sub_sources]" />'
-						.'<button type="button" id="y:data_entry:select_version-'.($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? $arr_object_sub_details['object_sub_details']['object_sub_details_type_id'].'_'.(int)$arr_object_sub_value['object_sub_object_id'] : $type_id.'_'.$object_id).'_'.$object_sub_details_id.'_'.(int)$arr_object_sub_value['object_sub_id'].'" class="data popup '.($is_changed ? 'edit' : 'neutral').'" value="version">'
+						.'<button type="button" id="y:data_entry:select_version-'.$str_identifier.'" class="data popup '.($is_changed ? 'edit' : 'neutral').'" value="version">'
 							.'<span>'.getLabel('lbl_version_abbr').'</span>'
 						.'</button>'
 					: ''),
+					(!$arr_object_sub_details['object_sub_details']['object_sub_details_is_single'] && keyIsUncontested('button_copy', $arr_options) ? '<input type="button" id="y:data_entry:copy_object_sub-'.($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? $arr_object_sub_details['object_sub_details']['object_sub_details_type_id'].'_'.(int)$arr_object_sub_value['object_sub_object_id'] : $type_id.'_'.$object_id).'_'.$object_sub_details_id.'" class="data popup neutral" value="copy" />' : ''),
+					(!($arr_object_sub_details['object_sub_details']['object_sub_details_is_required'] && $arr_object_sub_details['object_sub_details']['object_sub_details_is_single']) && keyIsUncontested('button_delete', $arr_options) ? '<input type="button" class="data del" value="del" />' : '')
+				],
 				'hidden' => ($arr_object_sub_value['object_sub_id'] ? '<input type="hidden" name="'.$form_name.'[object_sub_id]" value="'.$arr_object_sub_value['object_sub_id'].'" /><input type="hidden" name="'.$form_name.'[object_sub_version]" value="'.$arr_object_sub_value['object_sub_version'].'" />' : '')
 					.'<input type="hidden" name="'.$form_name.'[object_sub_details_id]" value="'.$object_sub_details_id.'" />'
 					.'<input type="hidden" name="'.$form_name.'[object_sub_self]" value="1" />',
 			];
 
-			$arr_html_fields += $this->createTypeObjectSubFields($type_id, $object_sub_details_id, $object_id, $arr_object_sub_value, ['date' => true, 'location_geometry' => true, 'location_reference' => true]);
+			$arr_html_fields += $this->createTypeObjectSubFields($type_id, $object_sub_details_id, $object_id, $arr_object_sub_value, ['date_value' => true, 'date_chronology' => true, 'location_geometry' => true, 'location_reference' => true]);
 			
 			$form_name = ($cur_form_name ?: 'object_sub['.$unique_sub.']').'[object_sub_definitions]';
 			$this->form_name = $form_name;
 						
 			foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 				
-				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 					continue;
 				}
 				
 				if ($arr_object_sub_description['object_sub_description_value_type'] == 'object_description') {
 					
-					$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = '<span>'.htmlspecialchars(($arr_object_sub_description['object_sub_description_use_object_description_id'] ? Labels::parseTextVariables($arr_type_set['object_descriptions'][$arr_object_sub_description['object_sub_description_use_object_description_id']]['object_description_name']) : getLabel('lbl_none'))).'</span>';
+					$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = '<span>'.strEscapeHTML(($arr_object_sub_description['object_sub_description_use_object_description_id'] ? Labels::parseTextVariables($arr_type_set['object_descriptions'][$arr_object_sub_description['object_sub_description_use_object_description_id']]['object_description_name']) : getLabel('lbl_none'))).'</span>';
 				} else {
 					
-					$is_reversal = ($arr_object_sub_description['object_sub_description_ref_type_id'] && $arr_types[$arr_object_sub_description['object_sub_description_ref_type_id']]['is_reversal'] ? true : false);
-					$has_clearance_edit = ($_SESSION['NODEGOAT_CLEARANCE'] >= $arr_object_sub_description['object_sub_description_clearance_edit'] && custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id));
+					$is_reversal = ($arr_object_sub_description['object_sub_description_ref_type_id'] && $arr_types[$arr_object_sub_description['object_sub_description_ref_type_id']]['class'] == StoreType::TYPE_CLASS_REVERSAL ? true : false);
+					$has_clearance_edit = ($_SESSION['NODEGOAT_CLEARANCE'] >= $arr_object_sub_description['object_sub_description_clearance_edit'] && custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id));
 					$definition_type = ($arr_object_sub_description['object_sub_description_ref_type_id'] ? 'object_sub_definition_ref_object_id' : 'object_sub_definition_value');
 					$is_changed = ($arr_object_sub_changes && $arr_object_sub_changes['object_sub']['object_sub_version'] != 'added' && $arr_object_sub_changes['object_sub_definitions'][$object_sub_description_id][$definition_type] != $arr_object_sub['object_sub_definitions'][$object_sub_description_id][$definition_type]);
 					$arr_object_sub_definition = ($arr_object_sub_changes ? $arr_object_sub_changes['object_sub_definitions'][$object_sub_description_id] : $arr_object_sub['object_sub_definitions'][$object_sub_description_id]);
-					
+						
 					if ($is_reversal) {
 						
-						$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = '<div class="show">'.htmlspecialchars(Labels::parseTextVariables($arr_types[$arr_object_sub_description['object_sub_description_ref_type_id']]['name'])).'</div>';
+						$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = '<div class="show">'.strEscapeHTML(Labels::parseTextVariables($arr_types[$arr_object_sub_description['object_sub_description_ref_type_id']]['name'])).'</div>';
 					} else {
 						
 						$arr_object_sub_definition_value = ($arr_object_sub_definition ?: []);
+						
+						$html_definition_version = '';
+						
+						if ($arr_object_sub_value['object_sub_id'] || $_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable']) {
+						
+							$str_sources = ($arr_object_sub_definition['object_sub_definition_sources'] ? strEscapeHTML(value2JSON($arr_object_sub_definition['object_sub_definition_sources'])) : '');
+							
+							$html_definition_version = '<input type="hidden" value="'.$str_sources.'"'.($has_clearance_edit ? ' name="'.$form_name.'['.$object_sub_description_id.'][object_sub_definition_sources]"' : '').' />'
+								.'<button type="button" id="y:data_entry:select_version-'.($arr_object_sub_description['object_sub_description_is_referenced'] ? $arr_object_sub_description['object_sub_description_ref_type_id'].'_'.$arr_object_sub_definition['object_sub_definition_ref_object_id'] : $type_id.'_'.$object_id).'_'.$object_sub_details_id.'_'.(int)$arr_object_sub_value['object_sub_id'].'_'.$object_sub_description_id.'" class="data popup '.($is_changed ? 'edit' : 'neutral').'" value="version"><span>'.getLabel('lbl_version_abbr').'</span></button>';
+						}
 						
 						if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
 							
 							if (!$arr_object_sub_value['object_sub_id'] && !$arr_object_sub_definition_value['object_sub_definition_ref_object_id']) {
 								
-								$value_default = $arr_object_sub_description['object_sub_description_value_type_options']['default']['value'];
+								$value_default = $arr_object_sub_description['object_sub_description_value_type_settings']['default']['value'];
 								
 								if ($value_default) {
 									
@@ -886,7 +949,7 @@ class data_entry extends base_module {
 						} else {
 							
 							if (!$arr_object_sub_value['object_sub_id'] && !$arr_object_sub_definition_value['object_sub_definition_value']) {
-								$arr_object_sub_definition_value['object_sub_definition_value'] = $arr_object_sub_description['object_sub_description_value_type_options']['default']['value'];
+								$arr_object_sub_definition_value['object_sub_definition_value'] = $arr_object_sub_description['object_sub_description_value_type_settings']['default']['value'];
 							}
 							
 							if ($arr_object_sub_description['object_sub_description_has_multi']) {
@@ -899,29 +962,36 @@ class data_entry extends base_module {
 						
 						if (!$has_clearance_edit) {
 
-							$html = '<div class="show">';
+							$html_definition = '<div class="show">';
 							
 							if (!$arr_object_sub_definition_value['object_sub_definition_value']) {
-								$html .= getLabel('lbl_none');
-							}
-
-							if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
 								
-								$html .= $arr_object_sub_definition_value['object_sub_definition_value'];
+								$html_definition .= getLabel('lbl_none');
+							} else if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
+								
+								$html_definition .= $arr_object_sub_definition_value['object_sub_definition_value'];
 							} else {
 								
-								$html .= StoreTypeObjects::formatToPresentationValue($arr_object_sub_description['object_sub_description_value_type'], StoreTypeObjects::formatToCleanValue($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition_value['object_sub_definition_value'], $arr_object_sub_description['object_sub_description_value_type_options']), $arr_object_sub_description['object_sub_description_value_type_options'], $arr_object_sub_definition_value['object_sub_definition_ref_object_id']);
+								$html_definition .= StoreTypeObjects::formatToHTMLValue($arr_object_sub_description['object_sub_description_value_type'], StoreTypeObjects::formatToCleanValue($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition_value['object_sub_definition_value'], $arr_object_sub_description['object_sub_description_value_type_settings']), $arr_object_sub_description['object_sub_description_value_type_settings'], $arr_object_sub_definition_value['object_sub_definition_ref_object_id']);
 							}
 							
-							$html .= '</div>';
-							$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = $html;
+							$html_definition .= '</div>';
+							
+							$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = $html_definition;
+							
+							if ($arr_object_sub_value['object_sub_id']) {
+								
+								$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] .= $html_definition_version;
+							}
 						} else if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
 							
 							$str_name = $form_name.'['.$object_sub_description_id.'][object_sub_definition_ref_object_id]';
 
 							$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$arr_object_sub_description['object_sub_description_ref_type_id'].'" name="'.$str_name.'" value="'.$arr_object_sub_definition_value['object_sub_definition_ref_object_id'].'" />'
 								.'<input type="search" id="y:data_filter:lookup_type_object-'.$arr_object_sub_description['object_sub_description_ref_type_id'].'" class="autocomplete" value="'.$arr_object_sub_definition_value['object_sub_definition_value'].'" />';
-						
+							
+							$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] .= $html_definition_version;
+							
 							if ($arr_object_sub_description['object_sub_description_is_required']) {
 								$this->validate[$str_name] = 'required';
 							}
@@ -929,20 +999,12 @@ class data_entry extends base_module {
 							
 							$str_name = $form_name.'['.$object_sub_description_id.'][object_sub_definition_value]';
 				
-							$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = StoreTypeObjects::formatToFormValue($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition_value['object_sub_definition_value'], $str_name, $arr_object_sub_description['object_sub_description_value_type_options'], $arr_object_sub_definition_value['object_sub_definition_ref_object_id']);
+							$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = StoreTypeObjects::formatToFormValue($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition_value['object_sub_definition_value'], $str_name, $arr_object_sub_description['object_sub_description_value_type_settings'], $arr_object_sub_definition_value['object_sub_definition_ref_object_id'], ['menu' => $html_definition_version]);
 						
 							if ($arr_object_sub_description['object_sub_description_is_required']) {
 								$this->validate[$str_name] = 'required';
 							}
 						}
-					}
-					
-					if (!$is_reversal && ($arr_object_sub_value['object_sub_id'] || $_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable'])) {
-						
-						$str_sources = ($arr_object_sub_definition['object_sub_definition_sources'] ? htmlspecialchars(json_encode($arr_object_sub_definition['object_sub_definition_sources'])) : '');
-						
-						$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] .= '<input type="hidden" value="'.$str_sources.'"'.($has_clearance_edit ? ' name="'.$form_name.'['.$object_sub_description_id.'][object_sub_definition_sources]"' : '').' />'
-							.'<button type="button" id="y:data_entry:select_version-'.($arr_object_sub_description['object_sub_description_is_referenced'] ? $arr_object_sub_description['object_sub_description_ref_type_id'].'_'.$arr_object_sub_definition['object_sub_definition_ref_object_id'] : $type_id.'_'.$object_id).'_'.$object_sub_details_id.'_'.(int)$arr_object_sub_value['object_sub_id'].'_'.$object_sub_description_id.'" class="data popup '.($is_changed ? 'edit' : 'neutral').'" value="version"><span>'.getLabel('lbl_version_abbr').'</span></button>';
 					}
 				}
 			}
@@ -950,7 +1012,7 @@ class data_entry extends base_module {
 			if ($is_multi) {
 			
 				$arr_html = [
-					'<span class="hide">'.$arr_html_fields['hidden'].'</span>'.$arr_html_fields['buttons']
+					'<span class="hide">'.$arr_html_fields['hidden'].'</span>'.implode('', array_reverse($arr_html_fields['buttons']))
 				];
 				
 				if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_date']) {
@@ -960,6 +1022,9 @@ class data_entry extends base_module {
 						.'<span>'.$arr_html_fields['date_type'].'</span>'
 						.'<span>'.$arr_html_fields['date_start'].'</span>'
 						.($arr_html_fields['date_end'] ? '<span>'.$arr_html_fields['date_end'].'</span>' : '')
+						.'<span>'.$arr_html_fields['date_reference'].'</span>'
+						.'<span>'.$arr_html_fields['date_object'].'</span>'
+						.'<span>'.$arr_html_fields['date_object_sub'].'</span>'
 						.'<span>'.$arr_html_fields['date_chronology'].$arr_html_fields['date_chronology_create'].'</span>'
 					.'</div>';
 				}
@@ -972,7 +1037,8 @@ class data_entry extends base_module {
 							.'<span>'.$arr_html_fields['location_latitude'].$arr_html_fields['location_longitude'].$arr_html_fields['location_map'].'</span>'
 							.'<span>'.$arr_html_fields['location_geometry'].$arr_html_fields['location_create'].'</span>'
 						: '')
-						.'<span>'.$arr_html_fields['location_ref_type'].$arr_html_fields['location_ref_object_sub_details'].$arr_html_fields['location_object'].'</span>'
+						.$arr_html_fields['location_ref_type'].$arr_html_fields['location_ref_object_sub_details']
+						.'<span>'.$arr_html_fields['location_object'].'</span>'
 					.'</div>';
 				}
 					
@@ -980,11 +1046,11 @@ class data_entry extends base_module {
 					
 					foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 							continue;
 						}
 						
-						$arr_html[] = '<div class="definition" title="'.htmlspecialchars(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name'])).'" data-object_sub_description_id="'.$object_sub_description_id.'">'
+						$arr_html[] = '<div class="definition" title="'.strEscapeHTML(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name'])).'" data-object_sub_description_id="'.$object_sub_description_id.'">'
 							.$arr_html_fields['object_sub_descriptions'][$object_sub_description_id]
 						.'</div>';
 					}
@@ -1014,10 +1080,10 @@ class data_entry extends base_module {
 				
 				$return = '<fieldset'.($arr_object_sub_value['object_sub_version'] ? ' class="'.$arr_object_sub_value['object_sub_version'].'"' : '').'><legend>'
 						.'<span'.($str_version ? ' title="'.$str_version.'"' : '').'>'
-						.($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.htmlspecialchars(Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name'])).'</span> ' : '')
+						.($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.strEscapeHTML(Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name'])).'</span> ' : '')
 						.'<span class="sub-name">'.Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'</span></span>'
 						.$this->createTypeObjectFieldInformation($arr_project['types'][$type_id]['configuration']['object_sub_details'][$object_sub_details_id]['object_sub_details']['information'])
-						.$arr_html_fields['buttons'].'
+						.implode('', $arr_html_fields['buttons']).'
 					</legend>
 					'.$arr_html_fields['hidden'].'
 					<ul>';
@@ -1050,6 +1116,18 @@ class data_entry extends base_module {
 								}
 								
 								$return .= '<li class="date-section">
+									<label></label>
+									<div>'.$arr_html_fields['date_reference'].'</div>
+								</li>
+								<li class="date-section">
+									<label></label>
+									<div>'.$arr_html_fields['date_object'].'</div>
+								</li>
+								<li class="date-section">
+									<label></label>
+									<div>'.$arr_html_fields['date_object_sub'].'</div>
+								</li>
+								<li class="date-section">
 									<label></label>
 									<div>'.$arr_html_fields['date_chronology'].'</div>
 								</li>
@@ -1101,18 +1179,18 @@ class data_entry extends base_module {
 						
 						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 							
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 								continue;
 							}
 							
-							$str_name = htmlspecialchars(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']));
+							$str_name = strEscapeHTML(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']));
 							
 							if ($arr_object_sub_description['object_sub_description_is_referenced']) {
 								
 								$use_type_id = $arr_object_sub_details['object_sub_details']['object_sub_details_type_id'];
 								$use_object_sub_details_id = $arr_object_sub_details['object_sub_details']['object_sub_details_id'];
 								
-								$str_name = '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.htmlspecialchars(Labels::parseTextVariables($arr_types[$use_type_id]['name'])).' - '.$str_name.'</span>';
+								$str_name = '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.strEscapeHTML(Labels::parseTextVariables($arr_types[$use_type_id]['name'])).' - '.$str_name.'</span>';
 								$arr_configuration = $arr_project['types'][$type_id]['include_referenced_types'][$use_type_id]['object_sub_details'][$use_object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
 							} else {
 								
@@ -1144,28 +1222,19 @@ class data_entry extends base_module {
 		return $return;
 	}
 		
-	private function createTypeObjectSubFields($type_id, $object_sub_details_id, $object_id, $arr_object_sub = [], $arr_options = ['date' => false, 'location_geometry' => false, 'location_reference' => false]) {
+	private function createTypeObjectSubFields($type_id, $object_sub_details_id, $object_id, $arr_object_sub = [], $arr_options = ['date_value' => false, 'date_chronology' => false, 'location_geometry' => false, 'location_reference' => false]) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_types = StoreType::getTypes();
-		
-		$arr_project_location_types = [];
-		
-		foreach ($arr_types as $cur_type_id => $arr_type) {
-			
-			if ($arr_project['location_types'][$cur_type_id] || (!$arr_project['location_types'] && !$arr_type['is_classification'])) {
-				$arr_project_location_types[$cur_type_id] = $arr_type;
-			}
-		}
-		
-		$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
+				
+		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
 		$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 		
 		$arr_html_fields = [];
 		
 		$form_name = $this->form_name;
 		
-		if ($arr_options['date'] && $arr_object_sub_details['object_sub_details']['object_sub_details_has_date']) {
+		if (($arr_options['date_chronology'] || $arr_options['date_value']) && $arr_object_sub_details['object_sub_details']['object_sub_details_has_date']) {
 				
 			if ($arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_sub_details_id'] || $arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_sub_description_id'] || $arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_description_id']) {
 				
@@ -1181,9 +1250,10 @@ class data_entry extends base_module {
 				}
 			} else {
 				
+				$str_date_type = $arr_object_sub['object_sub_date_type'];
 				$arr_date_chronology = [];
 				
-				if ($arr_object_sub['object_sub_date_start']) { // Sub-object date_start/date_end could have a value when multi-adding new sub-objects
+				if ($arr_object_sub['object_sub_date_start'] || $arr_object_sub['object_sub_date_end']) { // Sub-object date_start/date_end could have a value when multi-adding new sub-objects
 					$arr_object_sub['object_sub_date_start'] = StoreTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub_date_start']);
 					$arr_object_sub['object_sub_date_end'] = StoreTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub_date_end']);
 				} else {
@@ -1191,53 +1261,134 @@ class data_entry extends base_module {
 					$arr_object_sub['object_sub_date_end'] = false;
 				}
 				
+				$arr_date_reference_statement = [];
+				$date_object_sub_id_start = false;
+				$date_object_sub_id_end = false;
+				
 				if ($arr_object_sub['object_sub_date_chronology']) {
 
 					$arr_date_chronology = StoreTypeObjects::formatToChronology($arr_object_sub['object_sub_date_chronology']);
 					$arr_date_chronology = arrFilterRecursive($arr_date_chronology);
 					
-					$arr_date_chronology_point = StoreTypeObjects::formatToChronologyPointOnly($arr_date_chronology);
-					
-					$str_date_type = 'chronology';
-					
-					if ($arr_date_chronology == $arr_date_chronology_point) {
+					if (!$str_date_type || $str_date_type == 'chronology') {
 						
-						$arr_object_sub['object_sub_date_start'] = $arr_date_chronology['start']['start']['date_value'];
-						$arr_object_sub['object_sub_date_end'] = $arr_date_chronology['end']['end']['date_value'];
+						$arr_date_chronology_point = StoreTypeObjects::formatToChronologyPointOnly($arr_date_chronology);
 						
-						$str_date_type = 'point';
+						$str_date_type = 'chronology';
+						
+						if ($arr_date_chronology == $arr_date_chronology_point) {
+							
+							$arr_object_sub['object_sub_date_start'] = $arr_date_chronology['start']['start']['date_value'];
+							$arr_object_sub['object_sub_date_end'] = $arr_date_chronology['end']['end']['date_value'];
+							
+							$str_date_type = 'point';
+						} else {
+							
+							$arr_date_chronology_reference = StoreTypeObjects::formatToChronologyReferenceOnly($arr_date_chronology);
+							
+							if ($arr_date_chronology == $arr_date_chronology_reference) {
+								
+								$arr_date_chronology_details = StoreTypeObjects::formatToChronologyDetails($arr_date_chronology);
+								$arr_date_reference_statement = $arr_date_chronology_details['start']['start'];
+
+								$str_date_type = 'object_sub';
+							}
+						}
 					}
 				}
-								
-				$arr_html_fields['date_type'] = '<select name="'.$form_name.'[object_sub_date_type]">'.cms_general::createDropdown(static::$arr_date_options, $str_date_type).'</select>';
-			
-				$arr_html_fields['date_start'] = '<input type="text" class="date" name="'.$form_name.'[object_sub_date_start]" value="'.$arr_object_sub['object_sub_date_start'].'" />';
 				
-				if ($arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period']) {
-					
-					$arr_html_fields['date_start'] .= '<input type="checkbox" title="'.getLabel('inf_date_start_infinite').'" name="'.$form_name.'[object_sub_date_start_infinite]" value="1"'.($arr_object_sub['object_sub_date_start'] == '-∞' ? ' checked="checked"' : '').' />';
-									
-					$arr_html_fields['date_end'] = '<input type="text" class="date" name="'.$form_name.'[object_sub_date_end]" value="'.$arr_object_sub['object_sub_date_end'].'" />';
-					$arr_html_fields['date_end'] .= '<input type="checkbox" title="'.getLabel('inf_date_end_infinite').'" name="'.$form_name.'[object_sub_date_end_infinite]" value="1"'.($arr_object_sub['object_sub_date_end'] == '∞' ? ' checked="checked"' : '').' />';
+				$arr_date_options = StoreType::getDateOptions();
+				$arr_date_options_select = [];
+				foreach ($arr_date_options as $arr_option) {
+					$arr_date_options_select[$arr_option['id']] = $arr_option;
 				}
 				
-				$arr_html_fields['date_chronology'] = '<textarea name="'.$form_name.'[object_sub_date_chronology]" placeholder="ChronoJSON">'.($arr_date_chronology ? json_encode($arr_date_chronology, JSON_PRETTY_PRINT) : '').'</textarea>';
-				$arr_html_fields['date_chronology_create'] = '<input type="button" class="data add popup" id="y:data_entry:select_chronology-'.$type_id.'_'.$object_sub_details_id.'_'.$object_id.'" value="create" />';
+				if ($arr_options['date_value']) {
+				
+					$arr_html_fields['date_start'] = '<input type="text" class="date" name="'.$form_name.'[object_sub_date_start]" value="'.$arr_object_sub['object_sub_date_start'].'" />';
+					
+					if ($arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period']) {
+						
+						$arr_html_fields['date_start'] .= '<input type="checkbox" title="'.getLabel('inf_date_start_infinite').'" name="'.$form_name.'[object_sub_date_start_infinite]" value="1"'.($arr_object_sub['object_sub_date_start'] == '-∞' ? ' checked="checked"' : '').' />';
+										
+						$arr_html_fields['date_end'] = '<input type="text" class="date" name="'.$form_name.'[object_sub_date_end]" value="'.$arr_object_sub['object_sub_date_end'].'" />';
+						$arr_html_fields['date_end'] .= '<input type="checkbox" title="'.getLabel('inf_date_end_infinite').'" name="'.$form_name.'[object_sub_date_end_infinite]" value="1"'.($arr_object_sub['object_sub_date_end'] == '∞' ? ' checked="checked"' : '').' />';
+					}
+				} else {
+					unset($arr_date_options_select['point']);
+				}
+				
+				if ($arr_options['date_chronology']) {
+					
+					$arr_project_date_types = [];
+			
+					foreach ($arr_types as $cur_type_id => $arr_type) {
+						
+						if ($arr_project['date_types'][$cur_type_id] || (!$arr_project['date_types'] && $arr_type['class'] != StoreType::TYPE_CLASS_CLASSIFICATION)) {
+							$arr_project_date_types[$cur_type_id] = $arr_type;
+						}
+					}
+					
+					$date_type_id = ($arr_date_reference_statement['date_type_id'] ?: $arr_object_sub['object_sub_date_type_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_date_setting_type_id']);
+					$arr_date_object_subs_details = StoreType::getTypeObjectSubsDetails((($date_type_id ?: key($arr_project_date_types))));
+					$date_object_sub_details_id = ($arr_date_reference_statement['date_object_sub_details_id'] ?: $arr_object_sub['object_sub_date_object_sub_details_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_date_setting_object_sub_details_id']);
+
+					$date_object_id = ($arr_date_reference_statement['date_object_id'] ?: $arr_object_sub['object_sub_date_object_id']);
+					$date_object_sub_id = ($arr_date_reference_statement['date_object_sub_id'] ?: $arr_object_sub['object_sub_date_object_sub_id']);
+					$str_date_object_name = ($arr_date_reference_statement['date_object_name'] ?: $arr_object_sub['date_object_name']);
+					$str_date_object_sub_name = ($arr_date_reference_statement['date_object_sub_name'] ?: $arr_object_sub['object_sub_date_object_sub_name']);
+					
+					if ($date_object_id && !$str_date_object_name) {
+						$str_date_object_name = FilterTypeObjects::getTypeObjectNames($date_type_id, $date_object_id);
+						$str_date_object_name = $str_date_object_name[$date_object_id];
+					}
+					if ($date_object_sub_id && !$str_date_object_sub_name) {
+						$str_date_object_sub_name = FilterTypeObjects::getTypeObjectSubsNames($date_type_id, $date_object_id, $date_object_sub_id);
+						$str_date_object_sub_name = $str_date_object_sub_name[$date_object_sub_id];
+					}
+					
+					$arr_html_fields['date_reference'] = '<select name="'.$form_name.'[object_sub_date_type_id]" id="y:data_filter:selector_object_sub_details-0" class="update_object_type">'.Labels::parseTextVariables(cms_general::createDropdown($arr_project_date_types, $date_type_id)).'</select>'
+						.'<select name="'.$form_name.'[object_sub_date_object_sub_details_id]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_date_object_subs_details, $date_object_sub_details_id, false, 'object_sub_details_name', 'object_sub_details_id')).'</select>';
+					$arr_html_fields['date_object'] = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-0" name="'.$form_name.'[object_sub_date_object_id]" value="'.$date_object_id.'" />'
+						.'<input type="search" id="y:data_filter:lookup_type_object-0" class="autocomplete" value="'.$str_date_object_name.'" />';
+					$arr_html_fields['date_object_sub'] = '<input type="hidden" id="y:data_filter:lookup_type_object_sub_pick-0" name="'.$form_name.'[object_sub_date_object_sub_id]" value="'.$date_object_sub_id.'" />'
+						.'<input type="search" class="select" id="y:data_filter:select_type_object_sub-0" value="'.$str_date_object_sub_name.'" readonly="readonly" />';
+					
+					$arr_html_fields['date_chronology'] = '<textarea name="'.$form_name.'[object_sub_date_chronology]" placeholder="ChronoJSON">'.($arr_date_chronology ? value2JSON($arr_date_chronology, JSON_PRETTY_PRINT) : '').'</textarea>';
+					$arr_html_fields['date_chronology_create'] = '<input type="button" class="data add popup" id="y:data_entry:select_chronology-'.$type_id.'_'.$object_sub_details_id.'_'.$object_id.'" value="create" />';
+				} else {
+					unset($arr_date_options_select['object_sub'], $arr_date_options_select['chronology']);
+				}
+				
+				if (count($arr_date_options_select) > 1) {
+					
+					$object_sub_details_date_setting = ($arr_date_options[$arr_object_sub_details['object_sub_details']['object_sub_details_date_setting']]['id'] ?? 'point');
+					
+					$arr_html_fields['date_type'] = '<select name="'.$form_name.'[object_sub_date_type]" class="keep-state">'.cms_general::createDropdown($arr_date_options_select, ($str_date_type ?: $object_sub_details_date_setting)).'</select>';
+				}
 			}
 		}
 		
-		if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_location']) {
+		if (($arr_options['location_geometry'] || $arr_options['location_reference']) && $arr_object_sub_details['object_sub_details']['object_sub_details_has_location']) {
 			
-			if ($arr_options['location_geometry'] && !$arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_only']) {
+			$arr_location_options = StoreType::getLocationOptions();
+			$arr_location_options_select = [];
+			foreach ($arr_location_options as $arr_option) {
+				$arr_location_options_select[$arr_option['id']] = $arr_option;
+			}
+			unset($arr_location_options_select['reference_lock']);
+			
+			if ($arr_options['location_geometry'] && $arr_object_sub_details['object_sub_details']['object_sub_details_location_setting'] != StoreType::VALUE_TYPE_LOCATION_REFERENCE_LOCK) { // Not reference only
 				
+				$str_location_type = $arr_object_sub['object_sub_location_type'];
 				$arr_location_geometry = [];
 				$arr_location_geometry_point = [];
 				
-				if ($arr_object_sub['object_sub_location_type'] && $arr_object_sub['object_sub_location_type'] == 'geometry') {
+				if ($str_location_type && $str_location_type == 'geometry') {
 					
 					if (!$arr_object_sub['object_sub_location_geometry']) {
 						
-						$arr_object_sub['object_sub_location_type'] = 'reference';
+						$str_location_type = 'reference';
 					} else {
 						
 						$arr_location_geometry = StoreTypeObjects::formatToGeometry($arr_object_sub['object_sub_location_geometry']);
@@ -1245,41 +1396,45 @@ class data_entry extends base_module {
 						$arr_location_geometry_point = StoreTypeObjects::formatToGeometryPoint($arr_location_geometry);
 						
 						if ($arr_location_geometry_point) {
-							$arr_object_sub['object_sub_location_type'] = 'point';
+							$str_location_type = 'point';
 						}
 					}
 				}
 				
-				$arr_html_fields['location_geometry'] = '<textarea name="'.$form_name.'[object_sub_location_geometry]" placeholder="GeoJSON">'.($arr_location_geometry ? json_encode($arr_location_geometry, JSON_PRETTY_PRINT) : '').'</textarea>';
+				$arr_html_fields['location_geometry'] = '<textarea name="'.$form_name.'[object_sub_location_geometry]" placeholder="GeoJSON">'.($arr_location_geometry ? value2JSON($arr_location_geometry, JSON_PRETTY_PRINT) : '').'</textarea>';
 				$arr_html_fields['location_create'] = '<input type="button" class="data add select_geometry" value="create" />';
 				
 				$arr_html_fields['location_latitude'] = '<input type="text" name="'.$form_name.'[object_sub_location_latitude]" value="'.$arr_location_geometry_point[1].'" placeholder="'.getLabel('lbl_latitude').'" /><label title="'.getLabel('lbl_latitude').'">λ</label>';
 				$arr_html_fields['location_longitude'] = '<input type="text" name="'.$form_name.'[object_sub_location_longitude]" value="'.$arr_location_geometry_point[0].'" placeholder="'.getLabel('lbl_longitude').'" /><label title="'.getLabel('lbl_longitude').'">φ</label>';
 				$arr_html_fields['location_map'] = '<input type="button" class="data add" id="y:data_filter:select_geometry-0" value="map" />';
-				
-				$arr_location_options = static::$arr_location_options;
-				
-				if (!$arr_options['location_reference']) {
-					unset($arr_location_options['reference']);				
-				}
-				
-				$arr_html_fields['location_type'] = '<select name="'.$form_name.'[object_sub_location_type]">'.cms_general::createDropdown($arr_location_options, $arr_object_sub['object_sub_location_type']).'</select>';
+			} else {
+				unset($arr_location_options_select['point'], $arr_location_options_select['geometry']);
 			}
 			
 			if ($arr_options['location_reference']) {
+								
+				$arr_project_location_types = [];
+				
+				foreach ($arr_types as $cur_type_id => $arr_type) {
 					
+					if ($arr_project['location_types'][$cur_type_id] || $cur_type_id == $arr_object_sub['object_sub_location_ref_type_id'] || $cur_type_id == $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id'] || (!$arr_project['location_types'] && ($arr_type['class'] == StoreType::TYPE_CLASS_TYPE || $arr_type['class'] == StoreType::TYPE_CLASS_REVERSAL))) {
+						$arr_project_location_types[$cur_type_id] = $arr_type;
+					}
+				}
+				
 				if ($arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id_locked']) {
-					$ref_type_id = $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id'];
-					$arr_html_fields['location_ref_type'] = '<span data-type="reference">'.Labels::parseTextVariables($arr_types[$ref_type_id]['name']).'</span>';
+					$location_ref_type_id = $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id'];
+					$arr_html_fields['location_ref_type'] = '<span data-type="reference">'.Labels::parseTextVariables($arr_types[$location_ref_type_id]['name']).'</span>';
 				} else {
-					$arr_html_fields['location_ref_type'] = '<select name="'.$form_name.'[object_sub_location_ref_type_id]" id="y:data_filter:selector_object_sub_details-0" class="update_object_type">'.Labels::parseTextVariables(cms_general::createDropdown($arr_project_location_types, ($arr_object_sub['object_sub_location_ref_type_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id']))).'</select>';
+					$location_ref_type_id = ($arr_object_sub['object_sub_location_ref_type_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id']);
+					$arr_html_fields['location_ref_type'] = '<select name="'.$form_name.'[object_sub_location_ref_type_id]" id="y:data_filter:selector_object_sub_details-0" class="keep-state update_object_type">'.Labels::parseTextVariables(cms_general::createDropdown($arr_project_location_types, $location_ref_type_id)).'</select>';
 				}
 				if ($arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_object_sub_details_id_locked']) {
-					$arr_location_object_sub_details = StoreType::getTypeObjectSubsDetails($arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id']);
+					$arr_location_object_sub_details = StoreType::getTypeObjectSubsDetails($location_ref_type_id);
 					$arr_html_fields['location_ref_object_sub_details'] = '<span data-type="reference" class="sub-name">'.Labels::parseTextVariables($arr_location_object_sub_details[$arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_object_sub_details_id']]['object_sub_details_name']).'</span>';
 				} else {
-					$arr_location_object_sub_details = StoreType::getTypeObjectSubsDetails(((($arr_object_sub['object_sub_location_ref_type_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id']) ?: key($arr_project_location_types))));
-					$arr_html_fields['location_ref_object_sub_details'] = '<select name="'.$form_name.'[object_sub_location_ref_object_sub_details_id]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_location_object_sub_details, ($arr_object_sub['object_sub_location_ref_object_sub_details_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_object_sub_details_id']), false, 'object_sub_details_name', 'object_sub_details_id')).'</select>';
+					$arr_location_object_sub_details = StoreType::getTypeObjectSubsDetails((($location_ref_type_id ?: key($arr_project_location_types))));
+					$arr_html_fields['location_ref_object_sub_details'] = '<select name="'.$form_name.'[object_sub_location_ref_object_sub_details_id]" class="keep-state">'.Labels::parseTextVariables(cms_general::createDropdown($arr_location_object_sub_details, ($arr_object_sub['object_sub_location_ref_object_sub_details_id'] ?: $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_object_sub_details_id']), false, 'object_sub_details_name', 'object_sub_details_id')).'</select>';
 				}
 				
 				if ($arr_object_sub_details['object_sub_details']['object_sub_details_location_use_object_sub_details_id']) {
@@ -1291,10 +1446,29 @@ class data_entry extends base_module {
 				} else if ($arr_object_sub_details['object_sub_details']['object_sub_details_location_use_object_id']) {
 					$arr_html_fields['location_object'] = '<span data-type="reference">'.getLabel('lbl_object_self').'</span>';
 				} else {
-					$ref_type_id = ($arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id_locked'] ? $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id'] : 0);
-					$arr_html_fields['location_object'] = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$ref_type_id.'" name="'.$form_name.'[object_sub_location_ref_object_id]" value="'.$arr_object_sub['object_sub_location_ref_object_id'].'" />'
-						.'<input type="search" id="y:data_filter:lookup_type_object-'.$ref_type_id.'" class="autocomplete" value="'.$arr_object_sub['object_sub_location_ref_object_name'].'" />';
+					
+					$location_ref_type_id_locked = ($arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id_locked'] ? $arr_object_sub_details['object_sub_details']['object_sub_details_location_ref_type_id'] : 0);
+					
+					$location_ref_object_id = $arr_object_sub['object_sub_location_ref_object_id'];
+					$str_location_ref_object_name = $arr_object_sub['object_sub_location_ref_object_name'];
+					
+					if ($location_ref_object_id && !$str_location_ref_object_name) {
+						$str_location_ref_object_name = FilterTypeObjects::getTypeObjectNames($location_ref_type_id, $location_ref_object_id);
+						$str_location_ref_object_name = $str_location_ref_object_name[$location_ref_object_id];
+					}
+					
+					$arr_html_fields['location_object'] = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$location_ref_type_id_locked.'" name="'.$form_name.'[object_sub_location_ref_object_id]" value="'.$location_ref_object_id.'" />'
+						.'<input type="search" id="y:data_filter:lookup_type_object-'.$location_ref_type_id_locked.'" class="autocomplete" value="'.$str_location_ref_object_name.'" />';
 				}
+			} else {
+				unset($arr_location_options_select['reference']);
+			}
+			
+			if (count($arr_location_options_select) > 1) {
+				
+				$object_sub_details_location_setting = ($arr_location_options[$arr_object_sub_details['object_sub_details']['object_sub_details_location_setting']]['id'] ?? 'reference');
+				
+				$arr_html_fields['location_type'] = '<select name="'.$form_name.'[object_sub_location_type]" class="keep-state">'.cms_general::createDropdown($arr_location_options_select, ($str_location_type ?: $object_sub_details_location_setting)).'</select>';
 			}
 		}
 		
@@ -1400,14 +1574,14 @@ class data_entry extends base_module {
 	
 	public function createTypeObjectSubChronologyFields($type_id, $object_sub_details_id, $object_id, $arr_date_chronology, $arr_options) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_types = StoreType::getTypes();
 		
 		$arr_project_date_types = [];
 		
 		foreach ($arr_types as $cur_type_id => $arr_type) {
 			
-			if ($arr_project['date_types'][$cur_type_id] || (!$arr_project['date_types'] && !$arr_type['is_classification'])) {
+			if ($arr_project['date_types'][$cur_type_id] || (!$arr_project['date_types'] && $arr_type['class'] != StoreType::TYPE_CLASS_CLASSIFICATION)) {
 				$arr_project_date_types[$cur_type_id] = $arr_type;
 			}
 		}
@@ -1420,7 +1594,7 @@ class data_entry extends base_module {
 		
 		if ($object_sub_details_id) { // Data entry
 			
-			$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
+			$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
 			$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 		}
 		
@@ -1465,12 +1639,30 @@ class data_entry extends base_module {
 		
 		$arr_html_fields['date_start'] = '<input type="text" class="date" name="'.$form_name.'[date][start]" value="'.$arr_date_chronology['start']['start']['date_value'].'" />';
 		
-		$func_date_statement = function($form_name, $arr_statement) use ($type_id, $arr_project_date_types, $arr_date_value_options, $arr_options) {
+		$arr_time_directions_internal = StoreType::getTimeDirectionsInternal(true);
+		
+		$func_date_statement = function($form_name, $arr_statement, $int_identifier) use ($type_id, $arr_project_date_types, $arr_date_value_options, $arr_options, $arr_time_directions_internal) {
 			
 			$arr_date_object_subs_details = StoreType::getTypeObjectSubsDetails((($arr_statement['date_type_id'] ?: key($arr_project_date_types))));
 			
 			$str_date_value_type = ($arr_statement['date_path'] ? 'path' : ($arr_statement['date_object_sub_id'] ? 'object_sub' : 'value'));
-								
+			
+			$str_date_direction = $arr_statement['date_direction'];
+			
+			if (!$str_date_direction) {
+
+				switch ($int_identifier) {
+					case StoreType::DATE_START_START:
+					case StoreType::DATE_END_START:
+						$str_date_direction = $arr_time_directions_internal[StoreType::TIME_AFTER_BEGIN];
+						break;
+					case StoreType::DATE_START_END:
+					case StoreType::DATE_END_END:
+						$str_date_direction = $arr_time_directions_internal[StoreType::TIME_BEFORE_END];
+						break;
+				}
+			}
+			
 			$arr_html = [
 				'offset' =>
 					'<input type="number" name="'.$form_name.'[offset_amount]" value="'.$arr_statement['offset_amount'].'" />'
@@ -1480,7 +1672,7 @@ class data_entry extends base_module {
 					.'<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.StoreType::getSystemTypeID('cycle').'" name="'.$form_name.'[cycle_object_id]" value="'.$arr_statement['cycle_object_id'].'" />'
 					.'<input type="search" id="y:data_filter:lookup_type_object-'.StoreType::getSystemTypeID('cycle').'" class="autocomplete" value="'.$arr_statement['cycle_object_name'].'" placeholder="'.getLabel('lbl_date_cycle').'" />',
 				'date' =>
-					'<select name="'.$form_name.'[date_direction]">'.cms_general::createDropdown(StoreType::getTimeDirections(), $arr_statement['date_direction']).'</select>'
+					'<select name="'.$form_name.'[date_direction]">'.cms_general::createDropdown(StoreType::getTimeDirections(), $str_date_direction).'</select>'
 					.'<select name="'.$form_name.'[date_value_type]">'.cms_general::createDropdown($arr_date_value_options, $str_date_value_type).'</select>',
 				'date_value' =>
 					'<input type="text" class="date" name="'.$form_name.'[date_value]" value="'.$arr_statement['date_value'].'" />',
@@ -1499,8 +1691,8 @@ class data_entry extends base_module {
 				
 				Labels::setVariable('application', 'statement');
 				
-				$arr_html['date_path'] = '<input type="hidden" name="'.$form_name.'[date_path]" value="'.htmlspecialchars(json_encode($arr_statement['date_path'])).'" />'
-					.'<button type="button" id="y:data_filter:configure_application_path-'.$type_id.'" data-options="'.htmlspecialchars(json_encode(['descriptions' => 'date'])).'" title="'.getLabel('inf_application_path').'" class="data edit popup"><span>path</span></button>';
+				$arr_html['date_path'] = '<input type="hidden" name="'.$form_name.'[date_path]" value="'.strEscapeHTML(value2JSON($arr_statement['date_path'])).'" />'
+					.'<button type="button" id="y:data_filter:configure_application_path-'.$type_id.'" data-options="'.strEscapeHTML(value2JSON(['descriptions' => 'date'])).'" title="'.getLabel('inf_application_path').'" class="data edit popup"><span>path</span></button>';
 			}
 			
 			if (!$arr_statement['cycle_object_id']) {
@@ -1510,8 +1702,8 @@ class data_entry extends base_module {
 			return $arr_html;
 		};
 		
-		$arr_html_fields['date_start_start_statement'] = $func_date_statement($form_name.'[start][start]', $arr_date_chronology['start']['start']);
-		$arr_html_fields['date_start_end_statement'] = $func_date_statement($form_name.'[start][end]', $arr_date_chronology['start']['end']);
+		$arr_html_fields['date_start_start_statement'] = $func_date_statement($form_name.'[start][start]', $arr_date_chronology['start']['start'], StoreType::DATE_START_START);
+		$arr_html_fields['date_start_end_statement'] = $func_date_statement($form_name.'[start][end]', $arr_date_chronology['start']['end'], StoreType::DATE_START_END);
 		
 		$arr_html_fields['date_start_start_statement']['date_value'] .= '<input type="checkbox" title="'.getLabel('inf_date_start_infinite').'" name="'.$form_name.'[start][start][date_infinite]" value="1"'.($arr_date_chronology['start']['start']['date_value'] == '-∞' ? ' checked="checked"' : '').' />';
 		
@@ -1524,8 +1716,8 @@ class data_entry extends base_module {
 			$arr_html_fields['date_end'] = '<input type="text" class="date" name="'.$form_name.'[date][end]" value="'.$arr_date_chronology['end']['end']['date_value'].'" />';
 			$arr_html_fields['date_end'] .= '<input type="checkbox" title="'.getLabel('inf_date_end_infinite').'" name="'.$form_name.'[date][end_infinite]" value="1"'.($arr_date_chronology['end']['end']['date_value'] == '∞' ? ' checked="checked"' : '').' />';
 		
-			$arr_html_fields['date_end_start_statement'] = $func_date_statement($form_name.'[end][start]', $arr_date_chronology['end']['start']);
-			$arr_html_fields['date_end_end_statement'] = $func_date_statement($form_name.'[end][end]', $arr_date_chronology['end']['end']);
+			$arr_html_fields['date_end_start_statement'] = $func_date_statement($form_name.'[end][start]', $arr_date_chronology['end']['start'], StoreType::DATE_END_START);
+			$arr_html_fields['date_end_end_statement'] = $func_date_statement($form_name.'[end][end]', $arr_date_chronology['end']['end'], StoreType::DATE_END_END);
 
 			$arr_html_fields['date_end_end_statement']['date_value'] .= '<input type="checkbox" title="'.getLabel('inf_date_end_infinite').'" name="'.$form_name.'[end][end][date_infinite]" value="1"'.($arr_date_chronology['end']['end']['date_value'] == '∞' ? ' checked="checked"' : '').' />';
 		
@@ -1560,7 +1752,7 @@ class data_entry extends base_module {
 			return '';
 		}
 		
-		$str = parseBody($str, ['function' => 'htmlspecialchars']);
+		$str = parseBody($str, ['function' => 'strEscapeHTML']);
 		$str = '<span title="'.$str.'" class="icon a">'.getIcon('info-point').'</span>';
 		
 		return $str;
@@ -1584,10 +1776,10 @@ class data_entry extends base_module {
 		
 			$return .= '<menu class="options">'
 				.'<input type="button" class="quick" id="y:data_entry:edit_discussion-'.$type_id.'_'.(int)$object_id.'" value="'.getLabel('lbl_edit').' '.getLabel('lbl_discussion').'" />'
-				.'<input type="hidden" value="'.($arr_discussion ? $arr_discussion['object_discussion_date_edited'] : '').'" id="y:data_entry:poll_discussion-'.$type_id.'_'.(int)$object_id.'" />'
+				.'<input type="hidden" value="'.($arr_discussion['object_discussion_date_edited'] ?? '').'" id="y:data_entry:poll_discussion-'.$type_id.'_'.(int)$object_id.'" />'
 			.'</menu>';
 				
-			if ($arr_discussion['object_discussion_body']) {
+			if (!empty($arr_discussion['object_discussion_body'])) {
 				
 				$return .= '<div class="body">
 					'.parseBody($arr_discussion['object_discussion_body']).'
@@ -1607,14 +1799,14 @@ class data_entry extends base_module {
 		$storage = new StoreTypeObjects($type_id, $object_id, $_SESSION['USER_ID']);
 		$arr_discussion = $storage->getDiscussion();
 		
-		$return = '<div class="options">'.cms_general::editBody($arr_discussion['object_discussion_body'], 'object_discussion_body').'</div>';
+		$return = '<div class="options">'.cms_general::editBody(($arr_discussion['object_discussion_body'] ?? ''), 'object_discussion_body').'</div>';
 	
 		return $return;
 	}
 		
 	private function createSelectSources($type, $type_id, $object_id, $arr_options = []) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_types = StoreType::getTypes();
 		$arr_project_source_types = [];
 		foreach ($arr_types as $cur_type_id => $value) {
@@ -1656,7 +1848,7 @@ class data_entry extends base_module {
 						$arr_sorter_select[] = ['value' => 
 							'<input type="hidden" id="y:data_filter:lookup_type_object_pick-0" name="'.$type.'_sources['.$unique.'][objects]['.$unique_object.']['.$type.'_source_ref_object_id]" value="'.$arr_source_object[$type.'_source_ref_object_id'].'" />'
 							.'<input type="search" id="y:data_filter:lookup_type_object-0" class="autocomplete" value="'.$arr_type_object_names[$arr_source_object[$type.'_source_ref_object_id']].'" />'
-							.'<input type="text" name="'.$type.'_sources['.$unique.'][objects]['.$unique_object.']['.$type.'_source_link]" value="'.htmlspecialchars($arr_source_object[$type.'_source_link']).'" />'
+							.'<input type="text" name="'.$type.'_sources['.$unique.'][objects]['.$unique_object.']['.$type.'_source_link]" value="'.strEscapeHTML($arr_source_object[$type.'_source_link']).'" />'
 						];
 					}
 					
@@ -1737,7 +1929,7 @@ class data_entry extends base_module {
 						foreach ($storage->getTypeObjectDescriptionVersions($arr_options['object_description_id'], true) as $version => $value) {
 							
 							$str_users = ($arr_version_users[$version] ? implode(', ', arrValuesRecursive('name', $arr_version_users[$version])) : '');
-							$str = ($arr_type_set['object_descriptions'][$arr_options['object_description_id']]['object_description_has_multi'] ? implode(', ', $value['object_definition_value']) : StoreTypeObjects::formatToCleanValue($arr_type_set['object_descriptions'][$arr_options['object_description_id']]['object_description_value_type'], $value['object_definition_value'], $arr_type_set['object_descriptions'][$arr_options['object_description_id']]['object_description_value_type_options']));
+							$str = ($arr_type_set['object_descriptions'][$arr_options['object_description_id']]['object_description_has_multi'] ? implode(', ', $value['object_definition_value']) : StoreTypeObjects::formatToCleanValue($arr_type_set['object_descriptions'][$arr_options['object_description_id']]['object_description_value_type'], $value['object_definition_value'], $arr_type_set['object_descriptions'][$arr_options['object_description_id']]['object_description_value_type_settings']));
 							$str = ($str ?: getLabel('lbl_none'));
 							
 							$str = '<span>'.$str.'</span>'
@@ -1783,7 +1975,7 @@ class data_entry extends base_module {
 						foreach ($storage->getTypeObjectSubDescriptionVersions($arr_options['object_sub_details_id'], $arr_options['object_sub_id'], $arr_options['object_sub_description_id'], true) as $version => $value) {
 							
 							$str_users = ($arr_version_users[$version] ? implode(', ', arrValuesRecursive('name', $arr_version_users[$version])) : '');
-							$str = StoreTypeObjects::formatToCleanValue($arr_type_set['object_sub_details'][$arr_options['object_sub_details_id']]['object_sub_descriptions'][$arr_options['object_sub_description_id']]['object_sub_description_value_type'], $value['object_sub_definition_value'], $arr_type_set['object_sub_details'][$arr_options['object_sub_details_id']]['object_sub_descriptions'][$arr_options['object_sub_description_id']]['object_sub_description_value_type_options']);
+							$str = StoreTypeObjects::formatToCleanValue($arr_type_set['object_sub_details'][$arr_options['object_sub_details_id']]['object_sub_descriptions'][$arr_options['object_sub_description_id']]['object_sub_description_value_type'], $value['object_sub_definition_value'], $arr_type_set['object_sub_details'][$arr_options['object_sub_details_id']]['object_sub_descriptions'][$arr_options['object_sub_description_id']]['object_sub_description_value_type_settings']);
 							$str = ($str ?: getLabel('lbl_none'));
 							
 							$str = '<span>'.$str.'</span>'
@@ -1838,6 +2030,10 @@ class data_entry extends base_module {
 		
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		
+		$return_locked = '';
+		$return_version = '';
+		$return_dating = '';
+		
 		if ($arr_object_changes['object']['object_locked']) {
 			
 			$return_locked = '<h1>'.Response::addParsePost(getLabel('lbl_locked'), ['case' => 'upper']).'</h1>';
@@ -1852,9 +2048,11 @@ class data_entry extends base_module {
 			
 			$return_version = '<li>'.getLabel('lbl_'.$arr_object_changes['object']['object_version']).'</li>';
 		} else {
-				
+			
+			$return_changes = '';
+			
 			if ($arr_object['object']['object_name_plain'] != $arr_object_changes['object']['object_name_plain']) {
-				$return_changes .= '<li><dt>'.getLabel('lbl_name').'</dt><dd>'.htmlspecialchars($arr_object_changes['object']['object_name_plain']).'</dd></li>';
+				$return_changes .= '<li><dt>'.getLabel('lbl_name').'</dt><dd>'.strEscapeHTML($arr_object_changes['object']['object_name_plain']).'</dd></li>';
 			}
 			
 			if ($arr_object['object']['object_changes']) {
@@ -1885,7 +2083,7 @@ class data_entry extends base_module {
 			$return = ['title' => $return_locked.$return_dating, 'html' => '<span class="icon">'.getIcon('locked').'</span>'];
 		} else if ($return_version) {
 			$return = '<dl>'.$return_version.'</dl>'.$return_dating;
-			$return = htmlspecialchars($return);
+			$return = strEscapeHTML($return);
 			$return = ['html' => '<input type="button" class="data add quick accept_version" value=" " title="<h1>'.Response::addParsePost(getLabel('lbl_accept'), ['case' => 'upper']).' '.getLabel('lbl_version').':</h1>'.$return.'" /><input type="button" class="data del quick discard_version" value=" " title="<h1>'.Response::addParsePost(getLabel('lbl_discard'), ['case' => 'upper']).' '.getLabel('lbl_version').':</h1>'.$return.'" />'];
 		} else {
 			$return = ['title' => $return_dating];
@@ -1893,7 +2091,41 @@ class data_entry extends base_module {
 		
 		return $return;
 	}
-	
+
+	private function createRunModuleTypeObject($type_id, $object_id) {
+
+		$class_module = StoreType::getSystemTypeModuleClassEntry($type_id);
+		
+		$data_module = new $class_module();
+		
+		$arr_template = $class_module::getTemplate($object_id);
+		
+		$html = $data_module->createRunTemplate($arr_template);
+				
+		$html_header = '<div class="entry object">'.$this->createTypeObjectHeader($type_id, $object_id).'</div>';
+
+		$html = $html_header.$html;
+
+		return $html;
+	}
+
+	private function createProcessModuleTypeObject($type_id, $object_id, $resource, $arr_feedback) {
+				
+		$class_module = StoreType::getSystemTypeModuleClassEntry($type_id);
+		
+		$data_module = new $class_module();
+		
+		$arr_template = $class_module::getTemplate($object_id);
+		
+		$arr_result = $data_module->createProcessTemplate($arr_template, $resource, $arr_feedback);
+				
+		$html_header = '<div class="entry object">'.$this->createTypeObjectHeader($type_id, $object_id).'</div>';
+		
+		$arr_result['html'] = $html_header.$arr_result['html'];
+
+		return $arr_result;
+	}
+
 	public function createMergeTypeObjects($type_id, $arr_filter) {
 		
 		$arr_type_set = StoreType::getTypeSet($type_id);
@@ -1969,7 +2201,7 @@ class data_entry extends base_module {
 	
 	public function createFindChangeTypeObjectValues($type_id, $arr_filter) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		$arr_type_set_flat = StoreType::getTypeSetFlat($type_id, ['purpose' => 'select']);
 		
@@ -1992,12 +2224,13 @@ class data_entry extends base_module {
 						<label>'.getLabel('lbl_change').'</label>
 						<div><menu class="sorter"><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></menu></div>
 					</li>
-					<li><label></label>
+					<li>
+						<label></label>
 						<div>';
 							
 							foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 								
-								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, $object_description_id)) {
 									
 									$str_id = 'object_description_'.$object_description_id;
 									unset($arr_type_set_flat[$str_id]);
@@ -2006,7 +2239,7 @@ class data_entry extends base_module {
 									
 							foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 								
-								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 									
 									$str_id = 'object_sub_details_'.$object_sub_details_id.'_';
 									
@@ -2019,7 +2252,7 @@ class data_entry extends base_module {
 								
 								foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 									
-									if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+									if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 										
 										$str_id = 'object_sub_description_'.$object_sub_description_id;
 										unset($arr_type_set_flat[$str_id]);
@@ -2045,10 +2278,11 @@ class data_entry extends base_module {
 								$arr_sorter[] = ['value' => [
 										'<select id="y:data_entry:select_find_change_id-'.$type_id.'" name="find_change[selection]['.$unique.'][id]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_type_set_flat, $arr_selected['id'], true)).'</select>'
 										.'<input type="hidden" name="find_change[selection]['.$unique.'][values]" value="" />'
-										.'<input type="radio" name="find_change[selection]['.$unique.'][action]" value="change" title="'.getLabel('lbl_change').'"'.(($arr_selected['action'] == 'change' || !$arr_selected['action']) ? ' checked="checked"' : '').(!$arr_find_change_value['change'] ? ' class="hide"' : '').' />'
-										.'<input type="radio" name="find_change[selection]['.$unique.'][action]" value="append" title="'.getLabel('lbl_append').'"'.($arr_selected['action'] == 'append' ? ' checked="checked"' : '').(!$arr_find_change_value['append'] ? ' class="hide"' : '').' />'
-										.'<input type="radio" name="find_change[selection]['.$unique.'][action]" value="add" title="'.getLabel('lbl_add').'"'.($arr_selected['action'] == 'add' ? ' checked="checked"' : '').(!$arr_find_change_value['add'] ? ' class="hide"' : '').' />'
-										.'<input type="radio" name="find_change[selection]['.$unique.'][action]" value="remove" title="'.getLabel('lbl_remove').'"'.($arr_selected['action'] == 'remove' ? ' checked="checked"' : '').' />',
+										.'<label'.(!$arr_find_change_value['change'] ? ' class="hide"' : '').'><input type="radio" name="find_change[selection]['.$unique.'][action]" value="change"'.(($arr_selected['action'] == 'change' || !$arr_selected['action']) ? ' checked="checked"' : '').' /><span>'.getLabel('lbl_change').'</span></label>'
+										.'<label'.(!$arr_find_change_value['append'] ? ' class="hide"' : '').'><input type="radio" name="find_change[selection]['.$unique.'][action]" value="append"'.($arr_selected['action'] == 'append' ? ' checked="checked"' : '').' /><span>'.getLabel('lbl_append').'</span></label>'
+										.'<label'.(!$arr_find_change_value['replace'] ? ' class="hide"' : '').'><input type="radio" name="find_change[selection]['.$unique.'][action]" value="replace"'.($arr_selected['action'] == 'replace' ? ' checked="checked"' : '').' /><span>'.getLabel('lbl_replace').'</span></label>'
+										.'<label'.(!$arr_find_change_value['add'] ? ' class="hide"' : '').'><input type="radio" name="find_change[selection]['.$unique.'][action]" value="add"'.($arr_selected['action'] == 'add' ? ' checked="checked"' : '').' /><span>'.getLabel('lbl_add').'</span></label>'
+										.'<label'.(!$arr_find_change_value['remove'] ? ' class="hide"' : '').'><input type="radio" name="find_change[selection]['.$unique.'][action]" value="remove"'.($arr_selected['action'] == 'remove' ? ' checked="checked"' : '').' /><span>'.getLabel('lbl_remove').'</span></label>',
 										'<fieldset>'.$arr_find_change_value['html'].'</fieldset>'
 									]
 								];
@@ -2070,61 +2304,77 @@ class data_entry extends base_module {
 	
 	private function createTypeObjectValue($type_id, $id, $arr_values, $arr_options = []) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		
 		$unique = uniqid('array_');
 		$this->form_name = ($arr_options['name'] ? $arr_options['name'] : 'find_change['.$unique.']');
 		$form_name = $this->form_name;
 		
-		$change = true;
+		$html_return = '';
+		$has_replace = false;
+		$has_change = ($id ? true : false);
+		$has_append = false;
+		$has_add = false;
 		
 		foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 			
 			$str_id = 'object_description_'.$object_description_id;
 			
-			if ($str_id == $id && $_SESSION['NODEGOAT_CLEARANCE'] >= $arr_object_description['object_description_clearance_view'] && custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+			if ($str_id == $id && $_SESSION['NODEGOAT_CLEARANCE'] >= $arr_object_description['object_description_clearance_view'] && custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
 				
-				$str_name = htmlspecialchars(Labels::parseTextVariables($arr_object_description['object_description_name']));
+				$str_name = strEscapeHTML(Labels::parseTextVariables($arr_object_description['object_description_name']));
+				
+				if ($_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable']) {
+					
+					$html_definition_version = '<input type="hidden" value="'.($arr_values['object_definition_sources'] ? strEscapeHTML(value2JSON($arr_values['object_definition_sources'])) : '').'" name="'.$form_name.'[object_definition_sources]" />'
+						.'<button type="button" id="y:data_entry:select_version-'.$type_id.'_0_'.$object_description_id.'" class="data popup neutral" value="version"><span>'.getLabel('lbl_version_abbr').'</span></button>';
+				}
 				
 				if ($arr_object_description['object_description_ref_type_id']) {
 					
 					$arr_type_object_names = ($arr_values['object_definition_ref_object_id'] ? FilterTypeObjects::getTypeObjectNames($arr_object_description['object_description_ref_type_id'], $arr_values['object_definition_ref_object_id']) : []);
 					
 					if ($arr_object_description['object_description_has_multi']) {
-						$return_value = '<div class="input">'.cms_general::createMultiSelect($form_name.'[object_definition_ref_object_id]', 'y:data_filter:lookup_type_object-'.$arr_object_description['object_description_ref_type_id'], $arr_type_object_names, false, ['list' => true, 'order' => true]).'</div>';
-						$append = true;
+						$html_return_value = '<div class="input">'.cms_general::createMultiSelect($form_name.'[object_definition_ref_object_id]', 'y:data_filter:lookup_type_object-'.$arr_object_description['object_description_ref_type_id'], $arr_type_object_names, false, ['list' => true, 'order' => true]).'</div>';
+						$has_append = true;
 					} else {
-						$return_value = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$arr_object_description['object_description_ref_type_id'].'" name="'.$form_name.'[object_definition_ref_object_id]" value="'.$arr_values['object_definition_ref_object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$arr_object_description['object_description_ref_type_id'].'" class="autocomplete" value="'.$arr_type_object_names[$arr_values['object_definition_ref_object_id']].'" />';
+						$html_return_value = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$arr_object_description['object_description_ref_type_id'].'" name="'.$form_name.'[object_definition_ref_object_id]" value="'.$arr_values['object_definition_ref_object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$arr_object_description['object_description_ref_type_id'].'" class="autocomplete" value="'.$arr_type_object_names[$arr_values['object_definition_ref_object_id']].'" />';
 					}
+					
+					$html_return_value .= $html_definition_version;
 				} else {
 					
 					if ($arr_object_description['object_description_value_type'] == 'text' || $arr_object_description['object_description_value_type'] == 'text_layout' || $arr_object_description['object_description_value_type'] == 'text_tags') {
 						$arr_object_description['object_description_value_type'] = false;
-						$append = true;
+						$has_append = true;
+					}
+					
+					if ($arr_object_description['object_description_value_type'] != 'date' && $arr_object_description['object_description_value_type'] != 'boolean') { // Replace only 'plain' values
+						$has_replace = true;
 					}
 					
 					if ($arr_object_description['object_description_has_multi']) {
 						$arr_values['object_definition_value'] = ($arr_values['object_definition_value'] ?: []);
-						$append = true;
+						$has_append = true;
 					}
 					
-					$return_value = StoreTypeObjects::formatToFormValue($arr_object_description['object_description_value_type'], StoreTypeObjects::formatToSQLValue($arr_object_description['object_description_value_type'], $arr_values['object_definition_value']), $form_name.'[object_definition_value]', $arr_object_description['object_description_value_type_options']);
+					$html_return_value = StoreTypeObjects::formatToFormValue($arr_object_description['object_description_value_type'], StoreTypeObjects::formatToSQLValue($arr_object_description['object_description_value_type'], $arr_values['object_definition_value']), $form_name.'[object_definition_value]', $arr_object_description['object_description_value_type_settings'], false, ['menu' => $html_definition_version]);
 				}
-				
-				if ($_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable']) {
-					
-					$return_value .= '<input type="hidden" value="'.($arr_values['object_definition_sources'] ? htmlspecialchars(json_encode($arr_values['object_definition_sources'])) : '').'" name="'.$form_name.'[object_definition_sources]" />'
-						.'<button type="button" id="y:data_entry:select_version-'.$type_id.'_0_'.$object_description_id.'" class="data popup neutral" value="version"><span>'.getLabel('lbl_version_abbr').'</span></button>';
-				}
-													
-				$return = '<div class="entry object-various">
+																	
+				$html_return = '<div class="entry object-various">
 					<fieldset><ul>
 						<li>
-							<label><span>'.$str_name.'</label>
-							<div>'.$return_value.'</div>
+							<label><span>'.$str_name.'</span></label>
+							<div>'.$html_return_value.'</div>
 						</li>
-					</ul></fieldset>
+					</ul></fieldset>'
+					.($has_replace ? '<fieldset><ul>
+						<li>
+							<label><span>'.$str_name.'</span></label>
+							'.cms_general::createRegularExpressionEditor($arr_values['regex'], $form_name.'[regex]', true).'
+						</li>
+					</ul></fieldset>' : '').'
 				</div>';
 				
 				break;
@@ -2133,7 +2383,7 @@ class data_entry extends base_module {
 		
 		foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 			
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 				continue;
 			}
 			
@@ -2151,38 +2401,112 @@ class data_entry extends base_module {
 						$arr_object_sub =  ['object_sub' => []];
 					}
 
-					$return = '<div class="entry object-subs">'.$this->createTypeObjectSub($type_id, $object_sub_details_id, 0, $arr_object_sub, $arr_object_sub, ['button_delete' => false]).'</div>';
+					$html_return = '<div class="entry object-subs">'.$this->createTypeObjectSub($type_id, $object_sub_details_id, 0, $arr_object_sub, $arr_object_sub, ['button_delete' => false, 'button_copy' => false]).'</div>';
 					
-					$change = false;
-					$add = true;
+					$has_change = false;
+					$has_add = true;
 				}
 				
+				$func_create_date_fieldset = function($arr_values, $str_label, $int_identifier = false) use ($type_id, $object_sub_details_id) {
+					
+					$arr_html_fields = $this->createTypeObjectSubFields($type_id, $object_sub_details_id, 0, $arr_values, ['date_value' => true, 'date_chronology' => true]);
+					
+					$html = '<div class="entry object-various"><fieldset>
+						<ul>';
+							$html .= '<li class="date-section start">
+								<label>'.$str_label.'</label>
+								'.$arr_html_fields['date_type'].'
+							</li>';
+							
+							if (!$int_identifier || $int_identifier == StoreType::DATE_START_START) {
+								
+								$html .= '<li class="date-section">
+									<label></label>
+									'.$arr_html_fields['date_start'].'
+								</li>';
+							}
+							
+							if ($arr_html_fields['date_end'] && (!$int_identifier || $int_identifier == StoreType::DATE_END_END)) {
+								
+								$html .= '<li class="date-section">
+									<label></label>
+									'.$arr_html_fields['date_end'].'
+								</li>';
+							}
+							
+							$html .= '<li class="date-section">
+								<label></label>
+								<div>'.$arr_html_fields['date_reference'].'</div>
+							</li>
+							<li class="date-section">
+								<label></label>
+								<div>'.$arr_html_fields['date_object'].'</div>
+							</li>
+							<li class="date-section">
+								<label></label>
+								<div>'.$arr_html_fields['date_object_sub'].'</div>
+							</li>
+							<li class="date-section">
+								<label></label>
+								<div>'.$arr_html_fields['date_chronology'].'</div>
+							</li>
+							<li class="date-section">
+								<label></label>
+								<div>'.$arr_html_fields['date_chronology_create'].'</div>
+							</li>
+						</ul>
+					</fieldset></div>';
+					
+					return $html;
+				};
+				
+				$func_parse_sub_object_self = function($arr_values) use ($type_id) {
+					
+					if (!$arr_values) {
+						return [];
+					}
+					
+					$arr_object_sub = self::formatTypeObjectInput($type_id, self::parseTypeObjectInput($type_id, false, ['object_sub' => [0 => ['object_sub' => $arr_values]]]));
+					$arr_object_sub = reset($arr_object_sub['object_subs']);
+					$arr_values = $arr_object_sub['object_sub'];
+					
+					return $arr_values;
+				};
+				
+				$str_id = 'object_sub_details_'.$object_sub_details_id.'_date';
+				if ($str_id == $id) {
+					
+					$arr_values = $func_parse_sub_object_self($arr_values);
+					
+					$html_return = $func_create_date_fieldset($arr_values, ($arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period'] ? getLabel('lbl_period') : getLabel('lbl_date')));
+				}
 				$str_id = 'object_sub_details_'.$object_sub_details_id.'_date_start';
 				if ($str_id == $id) {
-					$str_name = getLabel('lbl_date_start');
-					$return_value = StoreTypeObjects::formatToFormValue('date', StoreTypeObjects::formatToSQLValue('date', $arr_values['object_sub_date_start']), $form_name.'[object_sub_date_start]');
+					
+					$arr_values = $func_parse_sub_object_self($arr_values);
+					
+					$html_return = $func_create_date_fieldset($arr_values, getLabel('lbl_date_start'), StoreType::DATE_START_START);
 				}
 				$str_id = 'object_sub_details_'.$object_sub_details_id.'_date_end';
 				if ($str_id == $id) {
-					$str_name = getLabel('lbl_date_end');
-					$return_value = StoreTypeObjects::formatToFormValue('date', StoreTypeObjects::formatToSQLValue('date', $arr_values['object_sub_date_end']), $form_name.'[object_sub_date_end]');
+					
+					$arr_values = $func_parse_sub_object_self($arr_values);
+					
+					$html_return = $func_create_date_fieldset($arr_values, getLabel('lbl_date_end'), StoreType::DATE_END_END);
 				}
+				
 				$str_id = 'object_sub_details_'.$object_sub_details_id.'_location';
 				if ($str_id == $id) {
-									
-					if ($arr_values['object_sub_location_ref_type_id'] && $arr_values['object_sub_location_ref_object_id']) {
-						
-						$arr_type_object_names = FilterTypeObjects::getTypeObjectNames($arr_values['object_sub_location_ref_type_id'], [$arr_values['object_sub_location_ref_object_id']]);
-						$arr_values['object_sub_location_ref_object_name'] = $arr_type_object_names[$arr_values['object_sub_location_ref_object_id']];
-					}
+														
+					$arr_values = $func_parse_sub_object_self($arr_values);
 					
 					$arr_html_fields = $this->createTypeObjectSubFields($type_id, $object_sub_details_id, 0, $arr_values, ['location_reference' => true, 'location_geometry' => true]);
 					
-					$return = '<div class="entry object-various"><fieldset>
+					$html_return = '<div class="entry object-various"><fieldset>
 						<ul>';
 							if ($arr_html_fields['location_type']) {
 								
-								$return .= '<li class="location-section start">
+								$html_return .= '<li class="location-section start">
 									<label>'.getLabel('lbl_location').'</label>
 									'.$arr_html_fields['location_type'].'
 								</li>
@@ -2207,7 +2531,7 @@ class data_entry extends base_module {
 									<div>'.$arr_html_fields['location_create'].'</div>
 								</li>';
 							}
-							$return .= '<li class="location-section">
+							$html_return .= '<li class="location-section">
 								<label>'.(!$arr_html_fields['location_type'] ? getLabel('lbl_location') : '').'</label>
 								<div>'.$arr_html_fields['location_ref_type'].$arr_html_fields['location_ref_object_sub_details'].'</div>
 							</li>
@@ -2219,13 +2543,13 @@ class data_entry extends base_module {
 					</fieldset></div>';
 				}	
 				
-				if ($return_value) {
+				if ($html_return_value) {
 					
-					$return = '<div class="entry object-various">
+					$html_return = '<div class="entry object-various">
 						<fieldset><ul>
 							<li>
 								<label>'.$str_name.'</label>
-								<div>'.$return_value.'</div>
+								<div>'.$html_return_value.'</div>
 							</li>
 						</ul></fieldset>
 					</div>';
@@ -2238,38 +2562,50 @@ class data_entry extends base_module {
 				
 				$str_id = 'object_sub_description_'.$object_sub_description_id;
 				
-				if ($str_id == $id && $_SESSION['NODEGOAT_CLEARANCE'] >= $arr_object_sub_description['object_sub_description_clearance_view'] && custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+				if ($str_id == $id && $_SESSION['NODEGOAT_CLEARANCE'] >= $arr_object_sub_description['object_sub_description_clearance_view'] && custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 					
-					$str_name = htmlspecialchars(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']));
+					$str_name = strEscapeHTML(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']));
+					
+					if ($_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable']) {
+						
+						$html_definition_version = '<input type="hidden" value="'.($arr_values['object_sub_definition_sources'] ? strEscapeHTML(value2JSON($arr_values['object_sub_definition_sources'])) : '').'" name="'.$form_name.'[object_sub_definition_sources]" />'
+							.'<button type="button" id="y:data_entry:select_version-'.$type_id.'_0_'.$object_sub_details_id.'_0_'.$object_sub_description_id.'" class="data popup neutral" value="version"><span>'.getLabel('lbl_version_abbr').'</span></button>';
+					}
 					
 					if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
 						
 						$arr_type_object_names = ($arr_values['object_sub_definition_ref_object_id'] ? FilterTypeObjects::getTypeObjectNames($arr_object_sub_description['object_sub_description_ref_type_id'], $arr_values['object_sub_definition_ref_object_id']) : []);
 						
-						$return_value = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$arr_object_sub_description['object_sub_description_ref_type_id'].'" name="'.$form_name.'[object_sub_definition_ref_object_id]" value="'.$arr_values['object_sub_definition_ref_object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$arr_object_sub_description['object_sub_description_ref_type_id'].'" class="autocomplete" value="'.$arr_type_object_names[$arr_values['object_sub_definition_ref_object_id']].'" />';
+						$html_return_value = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$arr_object_sub_description['object_sub_description_ref_type_id'].'" name="'.$form_name.'[object_sub_definition_ref_object_id]" value="'.$arr_values['object_sub_definition_ref_object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$arr_object_sub_description['object_sub_description_ref_type_id'].'" class="autocomplete" value="'.$arr_type_object_names[$arr_values['object_sub_definition_ref_object_id']].'" />';
+					
+						$html_return_value .= $html_definition_version;
 					} else {
 						
 						if ($arr_object_sub_description['object_sub_description_value_type'] == 'text' || $arr_object_sub_description['object_sub_description_value_type'] == 'text_layout' || $arr_object_sub_description['object_sub_description_value_type'] == 'text_tags') {
 							$arr_object_sub_description['object_sub_description_value_type'] = false;
-							$append = true;
+							$has_append = true;
 						}
 						
-						$return_value = StoreTypeObjects::formatToFormValue($arr_object_sub_description['object_sub_description_value_type'], StoreTypeObjects::formatToSQLValue($arr_object_sub_description['object_sub_description_value_type'], $arr_values['object_sub_definition_value']), $form_name.'[object_sub_definition_value]', $arr_object_sub_description['object_sub_description_value_type_options']);
-					}
-					
-					if ($_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable']) {
+						if ($arr_object_sub_description['object_sub_description_value_type'] != 'date' && $arr_object_sub_description['object_sub_description_value_type'] != 'boolean') { // Replace only 'plain' values
+							$has_replace = true;
+						}
 						
-						$return_value .= '<input type="hidden" value="'.($arr_values['object_sub_definition_sources'] ? htmlspecialchars(json_encode($arr_values['object_sub_definition_sources'])) : '').'" name="'.$form_name.'[object_sub_definition_sources]" />'
-							.'<button type="button" id="y:data_entry:select_version-'.$type_id.'_0_'.$object_sub_details_id.'_0_'.$object_sub_description_id.'" class="data popup neutral" value="version"><span>'.getLabel('lbl_version_abbr').'</span></button>';
+						$html_return_value = StoreTypeObjects::formatToFormValue($arr_object_sub_description['object_sub_description_value_type'], StoreTypeObjects::formatToSQLValue($arr_object_sub_description['object_sub_description_value_type'], $arr_values['object_sub_definition_value']), $form_name.'[object_sub_definition_value]', $arr_object_sub_description['object_sub_description_value_type_settings'], false, ['menu' => $html_definition_version]);
 					}
-					
-					$return = '<div class="entry object-various">
+										
+					$html_return = '<div class="entry object-various">
 						<fieldset><ul>
 							<li>
-								<label><span>'.$str_name.'</label>
-								<div>'.$return_value.'</div>
+								<label><span>'.$str_name.'</span></label>
+								<div>'.$html_return_value.'</div>
 							</li>
-						</ul></fieldset>
+						</ul></fieldset>'
+						.($has_replace ? '<fieldset><ul>
+							<li>
+								<label><span>'.$str_name.'</span></label>
+								'.cms_general::createRegularExpressionEditor($arr_values['regex'], $form_name.'[regex]', true).'
+							</li>
+						</ul></fieldset>' : '').'
 					</div>';
 					
 					break;
@@ -2277,22 +2613,22 @@ class data_entry extends base_module {
 			}				
 		}
 		
-		if (!$return) {
+		if (!$html_return) {
 						
-			$return = '<section class="info attention">'.getLabel('lbl_none').'</section>';
+			$html_return = '<section class="info attention">'.getLabel('lbl_none').'</section>';
 		}
 			
-		return ['html' => $return, 'change' => $change, 'append' => $append, 'add' => $add];
+		return ['html' => $html_return, 'change' => $has_change, 'replace' => $has_replace, 'append' => $has_append, 'add' => $has_add, 'remove' => ($id ? true : false)];
 	}
 	
 	public static function createSelectTypeObject($arr_type_object_ids = [], $text = '', $string_stored_type_object_group_ids, $input_data) {
 
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_types = StoreType::getTypes(array_keys($arr_project['types']));
 		
 		foreach ($arr_type_object_ids as $type_id => $arr_object_ids) {
 			
-			$filter = new FilterTypeObjects($type_id, 'name');
+			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_NAME);
 			$filter->setFilter(['objects' => $arr_object_ids]);
 			$filter->setVersioning('added');
 			$arr_objects = $filter->init();
@@ -2318,14 +2654,14 @@ class data_entry extends base_module {
 		}
 		$return = '<div class="entry select-object options">
 			<fieldset><ul>
-				<li><label>'.getLabel('lbl_text').'</label><div><input type="text" name="text" data-customised="'.($text ? '1' : '').'" value="'.htmlspecialchars($text).'" /></div></li>
+				<li><label>'.getLabel('lbl_text').'</label><div><input type="text" name="text" data-customised="'.($text ? '1' : '').'" value="'.strEscapeHTML($text).'" /></div></li>
 				<li><label></label><span><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></span></li>
 				<li><label>'.getLabel('lbl_references').'</label>
 					<fieldset><ul>
 						<li><label></label>'.cms_general::createSorter($arr_sorter, false).'</li>
 					</ul><fieldset>
-					<input type="hidden" name="string_stored_type_object_group_ids" value="'.htmlspecialchars($string_stored_type_object_group_ids).'" />
-					<input type="hidden" name="input_data" value="'.htmlspecialchars($input_data).'" />
+					<input type="hidden" name="string_stored_type_object_group_ids" value="'.strEscapeHTML($string_stored_type_object_group_ids).'" />
+					<input type="hidden" name="input_data" value="'.strEscapeHTML($input_data).'" />
 				</li>
 			</ul></fieldset>
 		</div>';
@@ -2338,7 +2674,7 @@ class data_entry extends base_module {
 		$labels = [];
 		
 		$input_data = preg_replace_callback(
-			'/\[object=([0-9_\|]+)\]/si',
+			'/\[object=([0-9-_\|]+)\]/si',
 			function ($arr_matches) {
 				return '<span class="tag" data-ids="'.$arr_matches[1].'">'; 
 			},
@@ -2363,56 +2699,79 @@ class data_entry extends base_module {
 		
 		$return = '<div class="entry select-object options">
 			<fieldset><ul>
-				<li><label>'.getLabel('lbl_text').'</label><div><input type="text" name="text" data-customised="'.($text ? '1' : '').'" value="'.htmlspecialchars($text).'" /></div></li>
+				<li><label>'.getLabel('lbl_text').'</label><div><input type="text" name="text" data-customised="'.($text ? '1' : '').'" value="'.strEscapeHTML($text).'" /></div></li>
 				<li><label>'.getLabel('lbl_references').'</label><div><select name="selected_label">'.cms_general::createDropdown($labels).'</select></div></li>
 			</ul></fieldset>
 		</div>';
 					
 		return $return;
 	}
-	
 		
 	public static function css() {
 	
 		$return = '
+			.data_entry > .tabs > div > menu button .icon + span { margin-left: 4px; }
+			.data_entry > .tabs > div > menu button .icon > svg { height: 12px; }
+			.data_entry .datatable > .options .count > sup { margin-left: 0.1em; font-size: 1em; cursor: default; }
+			
 			.entry fieldset.object > ul { display: block; }
+			
+			.entry fieldset > ul > li > label:first-child + div.definition > .media-preview,
+			.entry fieldset > ul > li > label:first-child + div.definition > fieldset ul.sorter > li > div > .media-preview { margin-bottom: 5px;  }
+			.entry fieldset > ul > li > label:first-child + div.definition > div.show { display: inline-block; vertical-align: middle; }
+			.entry fieldset > ul > li > label:first-child + div.definition > div.show > span + span { margin-left: 4px; }
+			.entry fieldset > ul > li > label:first-child + div.definition > div.show > .text_tags { margin: 0px; }
+			.entry fieldset > ul > li > label:first-child + div.definition > fieldset { margin-left: 0px; }
 			.entry fieldset.object > ul > li > label:first-child + div > input[name=object_name_plain].default { width: 500px; }
 			.entry fieldset.object > ul > li > label:first-child + div.definition > input[type=text].default,
 			.entry fieldset.object > ul > li > label:first-child + div.definition > fieldset ul.sorter > li > div > input[type=text].default { width: 450px; }
 			.entry fieldset.object > ul > li > label:first-child + div.definition > input[type=number],
 			.entry fieldset.object > ul > li > label:first-child + div.definition > fieldset ul.sorter > li > div > input[type=number] { width: 150px; }
+			.entry fieldset.object > ul > li > label:first-child + div.definition > input[name$="[url]"],
+			.entry fieldset.object > ul > li > label:first-child + div.definition > fieldset ul.sorter > li > div > input[name$="[url]"] { width: 325px; }
 			.entry fieldset.object > ul > li > label:first-child + div.definition > input.autocomplete { width: 450px; }
 			.entry fieldset.object > ul > li > label:first-child + div.definition > textarea { width: 450px; height: 100px; }
 			.entry fieldset.object > ul > li > label:first-child + div.definition > textarea.body-content,
 			.entry fieldset.object > ul > li > label:first-child + div.definition > .editor-content > .body-content { width: 750px; height: 200px; }
-			.entry fieldset > ul > li > label:first-child + div.definition > div.show { display: inline-block; vertical-align: middle; }
-			.entry fieldset > ul > li > label:first-child + div.definition > div.show > span + span { margin-left: 4px; }
-			.entry fieldset > ul > li > label:first-child + div.definition > div.show > .text_tags { margin: 0px; }
-			.entry fieldset > ul > li > label:first-child + div.definition > fieldset { margin-left: 0px; }
+			.entry fieldset.object > ul > li > label:first-child + div.definition.options.nested > div > *:first-child { margin-top: 0px; }
+			.entry fieldset.object > ul > li > label:first-child + div.definition.options.nested > div > *:last-child { margin-bottom: 0px; }
+			.entry.object-subs fieldset > ul > li > label:first-child + div.definition > textarea.body-content,
+			.entry.object-subs fieldset > ul > li > label:first-child + div.definition > .editor-content > .body-content { width: 350px; height: 150px; }
 			.entry.object-subs fieldset li.date-section > div > input[name*="[offset_amount]"],
 			.entry.object-subs fieldset div.date-section > span > input[name*="[offset_amount]"],
 			.entry.object-subs fieldset li.date-section > div > input[name*="[period_amount]"],
 			.entry.object-subs fieldset div.date-section > input[name*="[period_amount]"] { width: 50px; }
 			
+			.entry fieldset .media-preview { border: 1px dashed #000000; padding: 8px; overflow: hidden; width: 80px; height: 80px; }
+			.entry fieldset .media-preview:hover { resize: both; }
+			.entry fieldset .media-preview > img,
+			.entry fieldset .media-preview > video,
+			.entry fieldset .media-preview > object,
+			.entry fieldset .media-preview > iframe { width: 100%; height: 100%; object-fit: scale-down; }
+			
 			.entry fieldset.object > ul > li[data-object_description_id="-1"] > label:first-child + div.definition > fieldset input[type=number] { width: 80px; }
 			.entry fieldset.object > ul > li[data-object_description_id="-2"] > label:first-child + div.definition > fieldset input[type=number] { width: 50px; }
+			.entry fieldset.object > ul > li[data-object_description_id="-10"],
+			.entry fieldset.object > ul > li[data-object_description_id="-10"] > label:first-child + div.definition { display: block; }
 			
 			.entry.object-subs fieldset.full div.definition textarea,
 			.entry.object-subs fieldset.full div.definition textarea.body-content,
 			.entry.object-subs fieldset.full div.definition .editor-content .body-content { height: 3em; }
-			.entry.object-subs fieldset div.location-section > span,
+			.entry.object-subs fieldset div.location-section > * + span,
+			.entry.object-subs fieldset div.location-section > span > span + span,
 			.entry.object-subs fieldset li.location-section div > span + span,
 			.entry.object-subs fieldset li.location-section div > span + select,
 			.entry.object-subs fieldset div.location-section > span + select,
-			.entry.object-various fieldset div.location-section > span,
+			.entry.object-various fieldset div.location-section > * + span,
+			.entry.object-various fieldset div.location-section > span > span + span,
 			.entry.object-various fieldset li.location-section div > span + span,
 			.entry.object-various fieldset li.location-section div > span + select,
 			.entry.object-various fieldset div.location-section > span + select,
-			.entry.object-subs fieldset div.date-section > span,
+			.entry.object-subs fieldset div.date-section > * + span,
 			.entry.object-subs fieldset li.date-section div > span + span,
 			.entry.object-subs fieldset li.date-section div > span + select,
 			.entry.object-subs fieldset div.date-section > span + select,
-			.entry.object-various fieldset div.date-section > span,
+			.entry.object-various fieldset div.date-section > * + span,
 			.entry.object-various fieldset li.date-section div > span + span,
 			.entry.object-various fieldset li.date-section div > span + select,
 			.entry.object-various fieldset div.date-section > span + select { margin-left: 4px; }
@@ -2426,10 +2785,12 @@ class data_entry extends base_module {
 			.entry.object-subs fieldset li.deleted .del { display: none; }
 			
 			.entry .object h1 > .icon.a,
+			.entry.object h1 > .icon.a,
 			.entry fieldset.object > ul > li > label:first-child > .icon.a,
 			.entry.object-subs fieldset > legend > .icon.a,
 			.entry.object-subs fieldset > ul > li > label:first-child > .icon.a { margin-left: 0.3em; }
-			.entry .object h1 > .icon.a svg, 
+			.entry .object h1 > .icon.a svg,
+			.entry.object h1 > .icon.a svg, 
 			.entry fieldset.object > ul > li > label:first-child > .icon.a svg,
 			.entry.object-subs fieldset > legend > .icon.a svg,
 			.entry.object-subs fieldset > ul > li > label:first-child > .icon.a svg { height: 1em; }
@@ -2454,7 +2815,8 @@ class data_entry extends base_module {
 	
 	public static function js() {
 	
-		$return = "SCRIPTER.static('.data_entry', function(elm_scripter) {
+		$return = "
+		SCRIPTER.static('.data_entry', function(elm_scripter) {
 		
 			elm_scripter.on('command', '[id^=d\\\:data_entry\\\:data-], [id^=x\\\:data_entry\\\:type_object_id-], [id^=x\\\:data_view\\\:type_object_id-], [id^=y\\\:data_entry\\\:edit_quick-], [id^=y\\\:data_view\\\:view_type_object-]', function() {
 				
@@ -2465,7 +2827,9 @@ class data_entry extends base_module {
 		
 				SCRIPTER.triggerEvent(elm_scripter.find('[id^=y\\\:data_entry\\\:view-0]'), 'commandfinished');
 			});
-			
+		";
+		
+		$return .= "
 			elm_scripter.on('click', '[id=y\\\:data_entry\\\:view-0] [type=button]', function() {
 			
 				var cur = $(this);
@@ -2489,7 +2853,7 @@ class data_entry extends base_module {
 			}).on('commandfinished', '[id=y\\\:data_entry\\\:view-0]', function() {
 			
 				SCRIPTER.triggerEvent(elm_scripter.find('[id^=d\\\:data_entry\\\:data-]').prev('.options').find('input[type=search]'), 'focus');
-			}).on('click', '[id^=d\\\:data_entry\\\:data-] td > .edit', function() {
+			}).on('click', '[id^=d\\\:data_entry\\\:data-] td > .edit, [id^=d\\\:data_entry\\\:data-] td > .run', function() {
 			
 				var cur = $(this);
 				var elm_target = elm_scripter.find('.dynamic').find('form').last();
@@ -2510,17 +2874,17 @@ class data_entry extends base_module {
 			// MERGE & FIND CHANGE
 			
 			elm_scripter.on('command', '[id^=x\\\:data_entry\\\:type_id-] .popup_find_change, [id^=x\\\:data_entry\\\:type_id-] .popup_merge', function(e) {
+				
 				var cur = $(this);
-				var arr_data = COMMANDS.getData(cur.closest('[id^=d\\\:data_entry\\\:data-]'));
-				COMMANDS.setData(cur.parent(), {filter: arr_data});
+				var datatable = getElement(cur.closest('[id^=d\\\:data_entry\\\:data-]')).datatable;
+				
+				COMMANDS.setData(cur.parent(), {filter: datatable.getFilter(), search: datatable.getSearch()});
 			});
 		});
 		
-		SCRIPTER.dynamic('[id^=f\\\:data_entry\\\:insert-], [id^=f\\\:data_entry\\\:update-], .entry.object-subs, [data-method=insert_quick], [data-method=update_quick], [data-method=return_object_sub_multi], [data-method=return_version], [data-method=return_object], [data-method=return_chronology], [data-method=find_change]', 'filtering');
+		// DATA ENTRY
 		
-		SCRIPTER.dynamic('[data-method=return_chronology]', 'application_filter');
-		
-		SCRIPTER.dynamic('[id^=f\\\:data_entry\\\:insert-], [id^=f\\\:data_entry\\\:update-], .entry.object-subs, [data-method=insert_quick], [data-method=update_quick], [data-method=return_object_sub_multi], [data-method=return_version], [data-method=find_change]', function(elm_scripter) {
+		SCRIPTER.dynamic('entry_type_object', function(elm_scripter) {
 			
 			var elm_object_subs = elm_scripter.find('.object .object-subs');
 			
@@ -2564,11 +2928,9 @@ class data_entry extends base_module {
 				};
 			}
 			
-			var elm_scope = elm_scripter.find('.network.type');
-			
-			if (elm_scope.length) {
-				SCRIPTER.runDynamic(elm_scope);
-			}
+			runElementSelectorFunction(elm_scripter, '.network.type, .ingest-source.template, .value-type-module.template', function(elm_found) {
+				SCRIPTER.runDynamic(elm_found);
+			});
 			
 			elm_scripter.on('ajaxloaded scripter', function(e) {
 				
@@ -2602,12 +2964,28 @@ class data_entry extends base_module {
 				object_sub_details_id = object_sub_details_id[object_sub_details_id.length-1];
 				if (!cur.hasClass('unique') || (cur.hasClass('unique') && !cur.closest('form').find('.dynamic-object-subs [name*=\\\[object_sub\\\]\\\[object_sub_details_id\\\]][value='+object_sub_details_id+']').length)) {
 					var elm_target = cur.closest('.object-subs').find('.dynamic-object-subs > div');
+					COMMANDS.setTarget(cur, elm_target);
+					COMMANDS.setOptions(cur, {html: 'prepend'});
 					if (cur.is('[id^=y\\\:data_entry\\\:add_object_sub_multi]')) {
-						cur.data('target', elm_target).popupCommand({'html': 'prepend'});
+						COMMANDS.popupCommand(cur);
 					} else {
-						cur.quickCommand(elm_target, {'html': 'prepend'});
+						COMMANDS.quickCommand(cur);
 					}
 				}
+			}).on('command', '[id^=y\\\:data_entry\\\:copy_object_sub]', function() {
+				var cur = $(this);
+				
+				var elm_target = cur.closest('.dynamic-object-subs > div');
+				if (cur.closest('.sorter').length) {
+					var elms_source = cur.closest('.sorter > li');
+				} else {
+					var elms_source = cur.closest('fieldset');
+				}
+				var elms_value = elms_source.find('[name]');
+					
+				COMMANDS.setData(cur, serializeArrayByName(elms_value));
+				COMMANDS.setTarget(cur, elm_target);
+				COMMANDS.setOptions(cur, {html: 'prepend'});
 			}).on('click', '[id^=x\\\:data_entry\\\:object_sub_id-] .edit_object_sub', function() {
 				var elm_target = $(this).closest('form').find('.dynamic-object-subs > div');
 				
@@ -2619,9 +2997,9 @@ class data_entry extends base_module {
 					
 					elm.each(function() {
 						var cur = $(this);
-						var object_sub_id = cur.children('[name$=\"[object_sub_id]\"]').val();
+						var object_sub_id = cur.children('[name$=\"[object_sub][object_sub_id]\"]').val();
 
-						var elm_check = elm_target.find('[name$=\"[object_sub_id]\"][value='+object_sub_id+']');
+						var elm_check = elm_target.find('[name$=\"[object_sub][object_sub_id]\"][value='+object_sub_id+']');
 						if (elm_check.length) {
 							cur = elm_check;
 						}
@@ -2635,14 +3013,14 @@ class data_entry extends base_module {
 					return;
 				}
 				COMMANDS.setData(COMMANDS.getContext(this), {lock_key: lock_key});
-			}).on('click', 'fieldset > legend > .del, fieldset > ul > li > ul > li > .del', function() {
+			}).on('click', '.object-subs fieldset > legend > .del, .object-subs fieldset > ul > li > ul > li > .del', function() {
 				var cur = $(this);
 				if (cur.closest('.sorter').length) {
 					var target = cur.closest('.sorter > li');
 				} else {
 					var target = cur.closest('fieldset');
 				}
-				if (target.find('[name*=object_sub_id]').length) {
+				if (target.find('[name$=\"[object_sub][object_sub_id]\"]').length) {
 					target.addClass('deleted').find('[name*=object_sub_version]').val('deleted');
 				} else {
 					target.remove();
@@ -2736,7 +3114,7 @@ class data_entry extends base_module {
 								}
 							}
 						} else {
-							var elm_target = cur.prevAll('input:not([type=hidden]), textarea, .input');
+							var elm_target = cur.closest('div.definition').find('input:not([type=hidden], [type=button]), textarea, .input').first();
 							func_update_value(elm_target, data.version);
 						}
 					}
@@ -2762,7 +3140,15 @@ class data_entry extends base_module {
 				$(this).closest('li').next('li').find('.sorter').first().sorter('clean');
 			});
 		});
+		
+		SCRIPTER.dynamic('[id^=f\\\:data_entry\\\:insert-], [id^=f\\\:data_entry\\\:update-], .entry.object-subs, [data-method=insert_quick], [data-method=update_quick], [data-method=return_object_sub_multi], [data-method=return_version], [data-method=find_change]', 'entry_type_object');
+		
+		SCRIPTER.dynamic('[id^=f\\\:data_entry\\\:insert-], [id^=f\\\:data_entry\\\:update-], .entry.object-subs, [data-method=insert_quick], [data-method=update_quick], [data-method=return_object_sub_multi], [data-method=return_version], [data-method=return_object], [data-method=return_chronology], [data-method=find_change]', 'filtering');
+		
+		SCRIPTER.dynamic('[data-method=return_chronology]', 'application_filter');
 				
+		// DATA ENTRY - TEXT TAGGING
+		
 		SCRIPTER.dynamic('[data-method=return_object]', function(elm_scripter) {
 			
 			elm_scripter.on('click', '.del + .add', function() {
@@ -2779,9 +3165,54 @@ class data_entry extends base_module {
 			});
 		});
 		
+		// RUN SYSTEM-TYPES
+		
+		SCRIPTER.dynamic('[id^=f\\\:data_entry\\\:process-], [id^=f\\\:data_entry\\\:check_process-]', function(elm_scripter) {
+			
+			runElementSelectorFunction(elm_scripter, '.ingest-source.run, .ingest-source.template-process', function(elm_found) {
+				SCRIPTER.runDynamic(elm_found);
+			});
+		});
+		
 		// FIND CHANGE
 		
 		SCRIPTER.dynamic('[data-method=find_change]', function(elm_scripter) {
+		
+			var func_update_find_change_settings = function(elm_select) {
+			
+				var elm_settings = elm_select.closest('ul').find('> li > fieldset');
+				var elm_action_replace = elm_select.parent('li').find('[name$=\"[action]\"][value=replace]:checked');
+				var elm_action_remove = elm_select.parent('li').find('[name$=\"[action]\"][value=remove]:checked');
+				
+				elm_settings.addClass('hide');
+				elm_settings[0].disabled = true; // Make sure the validator does not nag about possible required fields
+
+				if (!elm_action_remove.length) {
+					
+					elm_settings.removeClass('hide');
+					elm_settings[0].disabled = null;
+					
+					var elm_settings_replace = elm_settings.find('.input.regex').closest('fieldset');
+					
+					if (elm_settings_replace.length) {
+					
+						var elm_settings_value = elm_settings_replace.prev('fieldset');
+					
+						elm_settings_replace.addClass('hide');
+						elm_settings_replace[0].disabled = true;
+						elm_settings_value.addClass('hide');
+						elm_settings_value[0].disabled = true;
+
+						if (elm_action_replace.length) {
+							elm_settings_replace.removeClass('hide');
+							elm_settings_replace[0].disabled = null;
+						} else {
+							elm_settings_value.removeClass('hide');
+							elm_settings_value[0].disabled = null;
+						}
+					}
+				}
+			};
 		
 			elm_scripter.on('ajaxloaded scripter', function(e) {
 				
@@ -2793,55 +3224,69 @@ class data_entry extends base_module {
 					SCRIPTER.triggerEvent(elm_found, 'update_find_change');
 				});
 			}).on('change update_find_change', '[id^=y\\\:data_entry\\\:select_find_change_id-]', function(e) {
+			
 				var cur = $(this);
-				var elm_settings = cur.closest('ul').find('> li > fieldset');
-				var elm_action_remove = cur.nextAll('[name$=\"[action]\"][value=remove]:checked');
-				if (!elm_action_remove.length) {
-					elm_settings.removeClass('hide');
-				} else {
-					elm_settings.addClass('hide');
-				}
 				
 				if (e.type != 'update_find_change') {
 				
 					COMMANDS.quickCommand(cur, function(data) {
 					
-						var elm_targets = cur.nextAll('[name$=\"[action]\"]');
+						var elm_targets = cur.parent('li').find('[name$=\"[action]\"]');
+						var elm_settings = cur.closest('ul').find('> li > fieldset');
 						
-						var elm_options_append = elm_targets.filter('[value=append]');
+						var elm_options_append = elm_targets.filter('[value=append]').parent();
 						if (!data.append) {
 							elm_options_append.addClass('hide');
 						} else {
 							elm_options_append.removeClass('hide');
 						}
 						
-						var elm_options_add = elm_targets.filter('[value=add]');
+						var elm_options_add = elm_targets.filter('[value=add]').parent();
 						if (!data.add) {
 							elm_options_add.addClass('hide');
 						} else {
 							elm_options_add.removeClass('hide');
 						}
 						
-						var elm_options_change = elm_targets.filter('[value=change]');
+						var elm_options_change = elm_targets.filter('[value=change]').parent();
 						if (!data.change) {
 							elm_options_change.addClass('hide');
 						} else {
 							elm_options_change.removeClass('hide');
 						}
 						
+						var elm_options_replace = elm_targets.filter('[value=replace]').parent();
+						if (!data.replace) {
+							elm_options_replace.addClass('hide');
+						} else {
+							elm_options_replace.removeClass('hide');
+						}
+						
+						var elm_options_remove = elm_targets.filter('[value=remove]').parent();
+						if (!data.remove) {
+							elm_options_remove.addClass('hide');
+						} else {
+							elm_options_remove.removeClass('hide');
+						}
+						
 						if (!elm_targets.not('.hide').filter(':checked').length) {
 							elm_targets.not('.hide').first().prop('checked', true);
 						}
-						
+
 						var elm_html = $(data.html);
 						elm_settings.html(elm_html);
 						
+						func_update_find_change_settings(cur);
+						
 						return elm_html;
 					});
+				} else {
+					
+					func_update_find_change_settings(cur);
 				}
 			}).on('change', '[name$=\"[action]\"]:checked', function(e) {
 			
-				$(this).prevAll('[id^=y\\\:data_entry\\\:select_find_change_id-]').each(function() {
+				$(this).closest('li').children('[id^=y\\\:data_entry\\\:select_find_change_id-]').each(function() {
 					SCRIPTER.triggerEvent(this, 'update_find_change');
 				});
 			}).on('ajaxsubmit', function() {
@@ -2903,7 +3348,7 @@ class data_entry extends base_module {
 						SCRIPTER.triggerEvent(e.detail.source, 'change');
 					});
 					
-					elm_button.quickCommand();
+					COMMANDS.quickCommand(elm_button);
 				});
 			}).on('open', '.discussion', function() {
 			
@@ -2922,7 +3367,7 @@ class data_entry extends base_module {
 							return false;
 						}
 						
-						elm_command_interval.quickCommand(function(data) {
+						COMMANDS.quickCommand(elm_command_interval, function(data) {
 						
 							elm_command_interval[0].value = data.date_edited;
 							
@@ -2991,7 +3436,7 @@ class data_entry extends base_module {
 		
 		if ($method == "add") {
 			
-			if (!data_model::checkClearanceType($id) || !custom_projects::checkAccessType('edit', $id)) {
+			if (!static::checkClearanceType($id) || !custom_projects::checkAccessType('edit', $id)) {
 				return;
 			}
 			
@@ -3008,7 +3453,7 @@ class data_entry extends base_module {
 			$type_id = (int)$arr_id[0];
 			$object_id = (int)$arr_id[1];
 			
-			if (!data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if (!static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				return;
 			}
 
@@ -3022,7 +3467,7 @@ class data_entry extends base_module {
 			
 			$type_id = (int)(is_array($value) && $value ? $value['type_id'] : $id);
 			
-			if (!data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if (!static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				return;
 			}
 			
@@ -3032,7 +3477,7 @@ class data_entry extends base_module {
 			
 			$this->html = '<form data-method="insert_quick" data-lock="1">
 				'.$this->createTypeObject($type_id, false, ['source_referencing' => $arr_project['source_referencing_enable'], 'discussion' => $arr_project['discussion_enable']]).'
-				<input type="submit" value="'.getLabel('lbl_save').' '.htmlspecialchars(Labels::parseTextVariables($arr_type_set['type']['name'])).'" />
+				<input type="submit" value="'.getLabel('lbl_save').' '.strEscapeHTML(Labels::parseTextVariables($arr_type_set['type']['name'])).'" />
 			</form>';
 		}
 		
@@ -3046,7 +3491,7 @@ class data_entry extends base_module {
 			$type_id = (int)$arr_id[0];
 			$object_id = (int)$arr_id[1];
 			
-			if (!data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if (!static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				return;
 			}
 			
@@ -3059,17 +3504,37 @@ class data_entry extends base_module {
 			
 			$this->html = '<form data-method="update_quick" data-lock="1">
 				'.$this->createTypeObject($type_id, $object_id, ['source_referencing' => $arr_project['source_referencing_enable'], 'discussion' => $arr_project['discussion_enable'], 'lock_key' => $lock_key]).'
-				<input type="submit" value="'.getLabel('lbl_save').' '.htmlspecialchars(Labels::parseTextVariables($arr_type_set['type']['name'])).'" />
+				<input type="submit" value="'.getLabel('lbl_save').' '.strEscapeHTML(Labels::parseTextVariables($arr_type_set['type']['name'])).'" />
+			</form>';
+		}
+		
+		if ($method == "run") {
+			
+			$arr_id = explode('_', $id);
+			$type_id = (int)$arr_id[0];
+			$object_id = (int)$arr_id[1];
+			
+			if (!static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+				return;
+			}
+			
+			$arr_type_set = StoreType::getTypeSet($type_id);
+			
+			$this->html = '<form id="f:data_entry:process-'.$type_id.'_'.(int)$object_id.'" data-lock="1">
+				'.$this->createRunModuleTypeObject($type_id, $object_id).'
+				<menu class="options">
+					<input type="submit" value="'.getLabel('lbl_run').' '.strEscapeHTML(Labels::parseTextVariables($arr_type_set['type']['name'])).'" /><input type="submit" name="discard" value="'.getLabel('lbl_cancel').'" />
+				</menu>
 			</form>';
 		}
 				
-		if (($method == "insert" || $method == "update" || $method == "update_quick") && $_POST['discard']) {
+		if (($method == "insert" || $method == "update" || $method == "update_quick" || $method == "process" || $method == "check_process") && $_POST['discard']) {
 		
 			$arr_id = explode('_', $id);
 			$type_id = (int)$arr_id[0];
 			$object_id = (int)$arr_id[1];
 			
-			if (!data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if (!static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				return;
 			}
 			
@@ -3094,7 +3559,7 @@ class data_entry extends base_module {
 			$type_id = (int)$arr_id[0];
 			$object_id = (int)$arr_id[1];
 			
-			if (!data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if (!static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				return;
 			}
 			
@@ -3136,11 +3601,14 @@ class data_entry extends base_module {
 			$type_id = (int)$arr_id[0];
 			$object_id = (int)$arr_id[1];
 			
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_USER || !data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_USER || !static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				error(getLabel('msg_not_allowed'));
 			}
 			
 			$arr_object_set = self::getTypeObjectSet($type_id, $object_id, true);
+			
+			$method_accept_version = false;
+			$method_discard_version = false;
 			
 			if ($method == 'accept_version') {
 				
@@ -3176,7 +3644,7 @@ class data_entry extends base_module {
 			$type_id = (int)$arr_id[0];
 			$object_id = (int)$arr_id[1];
 			
-			if (!data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if (!static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				return;
 			}
 						
@@ -3192,7 +3660,7 @@ class data_entry extends base_module {
 			$this->msg = true;
 		}
 		
-		if ($method_accept_version || $method_discard_version) {
+		if (!empty($method_accept_version) || !empty($method_discard_version)) {
 						
 			$storage = new StoreTypeObjects($type_id, $object_id, $_SESSION['USER_ID']);
 			
@@ -3210,7 +3678,7 @@ class data_entry extends base_module {
 			$arr_id = explode('_', $id);
 			$type_id = (int)$arr_id[0];
 			
-			if (!data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if (!static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				return;
 			}
 			
@@ -3246,7 +3714,7 @@ class data_entry extends base_module {
 			$arr_id = explode('_', $id);
 			$type_id = (int)$arr_id[0];
 			
-			if (!data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if (!static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				return;
 			}
 			
@@ -3262,7 +3730,7 @@ class data_entry extends base_module {
 					}
 				}
 			}
-			$str_sources = json_encode($arr_source_types);
+			$str_sources = value2JSON($arr_source_types);
 			
 			$arr_type_set = StoreType::getTypeSet($type_id);
 			$storage = new StoreTypeObjects($type_id, $arr_id[1], $_SESSION['USER_ID']);
@@ -3279,7 +3747,7 @@ class data_entry extends base_module {
 				if ($arr_object_description['object_description_ref_type_id']) {
 					$return_version = [$arr[$version]['object_definition_ref_object_id'], $arr[$version]['object_definition_value']];
 				} else {
-					$return_version = [($arr_object_description['object_description_has_multi'] ? $arr[$version]['object_definition_value'] : 0), StoreTypeObjects::formatToInputValue($arr_object_description['object_description_value_type'], $arr[$version]['object_definition_value'], $arr_object_description['object_description_value_type_options'])];
+					$return_version = [($arr_object_description['object_description_has_multi'] ? $arr[$version]['object_definition_value'] : 0), StoreTypeObjects::formatToInputValue($arr_object_description['object_description_value_type'], $arr[$version]['object_definition_value'], $arr_object_description['object_description_value_type_settings'])];
 				}
 			} else if ($version && $type == 'object_sub') {
 				
@@ -3293,7 +3761,7 @@ class data_entry extends base_module {
 					
 					$arr_date_chronology = StoreTypeObjects::formatToChronology($arr_date_chronology);
 					$arr_date_chronology = arrFilterRecursive($arr_date_chronology);
-					$arr[$version]['object_sub_date_chronology'] = ($arr_date_chronology ? json_encode($arr_date_chronology, JSON_PRETTY_PRINT) : '');
+					$arr[$version]['object_sub_date_chronology'] = ($arr_date_chronology ? value2JSON($arr_date_chronology, JSON_PRETTY_PRINT) : '');
 					$arr_date_chronology_point = StoreTypeObjects::formatToChronologyPointOnly($arr_date_chronology);
 					
 					$arr[$version]['object_sub_date_type'] = 'chronology';
@@ -3314,7 +3782,7 @@ class data_entry extends base_module {
 				if ($arr_location_geometry) {
 					
 					$arr_location_geometry = StoreTypeObjects::formatToGeometry($arr_location_geometry);
-					$arr[$version]['object_sub_location_geometry'] = ($arr_location_geometry ? json_encode($arr_location_geometry, JSON_PRETTY_PRINT) : '');
+					$arr[$version]['object_sub_location_geometry'] = ($arr_location_geometry ? value2JSON($arr_location_geometry, JSON_PRETTY_PRINT) : '');
 				}
 				
 				$return_version = $arr[$version];
@@ -3326,28 +3794,28 @@ class data_entry extends base_module {
 				if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
 					$return_version = [$arr[$version]['object_sub_definition_ref_object_id'], $arr[$version]['object_sub_definition_value']];
 				} else {
-					$return_version = [($arr_object_sub_description['object_sub_description_has_multi'] ? $arr[$version]['object_sub_definition_value'] : 0), StoreTypeObjects::formatToInputValue($arr_object_sub_description['object_sub_description_value_type'], $arr[$version]['object_sub_definition_value'], $arr_object_sub_description['object_sub_description_value_type_options'])];
+					$return_version = [($arr_object_sub_description['object_sub_description_has_multi'] ? $arr[$version]['object_sub_definition_value'] : 0), StoreTypeObjects::formatToInputValue($arr_object_sub_description['object_sub_description_value_type'], $arr[$version]['object_sub_definition_value'], $arr_object_sub_description['object_sub_description_value_type_settings'])];
 				}
 			}
 			
 			$this->html = ['type' => $type, 'sources' => $str_sources, 'version' => $return_version];
 		}
 		
-		if ($method == "add_object_sub" || $method == "add_object_sub_multi" || $method == "return_object_sub_multi") {
+		if ($method == "add_object_sub" || $method == "add_object_sub_multi" || $method == "copy_object_sub" || $method == "return_object_sub_multi") {
 		
 			$arr_id = explode('_', $id);
 			$type_id = (int)$arr_id[0];
 			$object_id = (int)$arr_id[1];
 			$object_sub_details_id = $arr_id[2];
 			
-			if (!data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if (!static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				return;
 			}
 			
-			$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 			$arr_type_set = StoreType::getTypeSet($type_id);
 			
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 				return;
 			}
 			
@@ -3355,7 +3823,7 @@ class data_entry extends base_module {
 
 				if ($arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_is_single']) { 
 				
-					$filter = new FilterTypeObjects($type_id, 'storage');
+					$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_STORAGE);
 					$filter->setFilter(['objects' => $object_id]);
 					$filter->setSelection(['object' => [], 'object_descriptions' => [], 'object_sub_details' => [$object_sub_details_id => ['object_sub_details' => true]]]);
 					$arr_object = current($filter->init());
@@ -3372,30 +3840,45 @@ class data_entry extends base_module {
 			
 			$this->html = $this->createTypeObjectSub($type_id, $object_sub_details_id, 0, $arr_object_sub, $arr_object_sub);
 		}
-		if ($method == "add_object_sub_multi") {
+		if ($method == "add_object_sub_multi" || $method == "copy_object_sub") {
 			
-			$arr_object_sub = [];
-													
+			$arr_object_sub = $arr_object_subs_changes = [];
+			
+			if ($method == 'copy_object_sub') {
+				
+				$arr_object_sub = self::formatTypeObjectInput($type_id, self::parseTypeObjectInput($type_id, false, $value));
+				$arr_object_sub = reset($arr_object_sub['object_subs']);
+				unset($arr_object_sub['object_sub']['object_sub_id']);
+				
+				$arr_object_subs_changes = [];
+			}
+							
 			$this->html = '<form class="options" data-method="return_object_sub_multi">
 				<fieldset><legend>'.getLabel('lbl_predefine_object_subs').'</legend>
 					<ul>
-						<li><label>'.getLabel('lbl_amount').'</label><div><input type="number" name="amount" value="2" /></div></li>
+						<li><label>'.getLabel('lbl_amount').'</label><div><input type="number" name="amount" value="'.($method == 'copy_object_sub' ? 1 : 2).'" /></div></li>
 					</ul>
 				</fieldset>
-				<div class="entry object-subs">'.$this->createTypeObjectSub($type_id, $object_sub_details_id, 0, $arr_object_sub, $arr_object_sub, ['button_delete' => false]).'</div>				
+				<div class="entry object-subs">'.$this->createTypeObjectSub($type_id, $object_sub_details_id, 0, $arr_object_sub, $arr_object_subs_changes, ['button_delete' => false, 'button_copy' => false]).'</div>				
 			</form>';
 		}
 		if ($method == "return_object_sub_multi") {
 			
 			$arr_object_subs = $arr_object_subs_changes = [];
-			$amount = ($_POST['amount'] > 1 ? $_POST['amount'] : 2);
+			$num_amount = ($_POST['amount'] > 0 ? $_POST['amount'] : 2);
 			
 			$arr_object_sub = self::formatTypeObjectInput($type_id, self::parseTypeObjectInput($type_id, false, $_POST));
 			$arr_object_sub = reset($arr_object_sub['object_subs']);
 			
-			for ($i = 0; $i < $amount; $i++) {
-				$arr_object_subs[] = $arr_object_sub;
-				$arr_object_subs_changes[] = [];
+			if ($num_amount == 1) { // Return single editable sub-object
+				
+				$arr_object_subs = $arr_object_sub;
+			} else {
+				
+				for ($i = 0; $i < $num_amount; $i++) {
+					$arr_object_subs[] = $arr_object_sub;
+					$arr_object_subs_changes[] = [];
+				}
 			}
 																		
 			$this->html = $this->createTypeObjectSub($type_id, $object_sub_details_id, 0, $arr_object_subs, $arr_object_subs_changes, ['multi_source' => $arr_object_sub]);
@@ -3427,18 +3910,18 @@ class data_entry extends base_module {
 			$type_id = $arr_id[0];
 			$object_id = $arr_id[1];
 
-			if (!data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if (!static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				return;
 			}
 			
-			$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
-			$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');	
+			$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');	
 			
 			$return = '';
 			
 			foreach ($arr_collect_object_subs as $object_sub_details_id => $arr_ids) {
 				
-				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 					continue;
 				}	
 				
@@ -3474,16 +3957,16 @@ class data_entry extends base_module {
 			$object_sub_id = $arr_id[3];
 			$object_sub_object_id = $arr_id[4];
 
-			if (!data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if (!static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				return;
 			}
 			
 			$lock_key = $value['lock_key'];
 			
-			$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
-			$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
+			$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
 			
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 				return;
 			}	
 			
@@ -3558,8 +4041,8 @@ class data_entry extends base_module {
 			
 			if ($object_sub_details_id) {
 				
-				$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
-				$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
+				$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
+				$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
 				$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 			}
 			
@@ -3567,7 +4050,7 @@ class data_entry extends base_module {
 			$arr_chronology['type'] = (!$object_sub_details_id || $arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period'] ? 'period' : 'point');
 			$arr_chronology = self::formatChronologyInput($arr_chronology);
 			
-			$str_chronology = ($arr_chronology ? json_encode($arr_chronology, JSON_PRETTY_PRINT) : '');
+			$str_chronology = ($arr_chronology ? value2JSON($arr_chronology, JSON_PRETTY_PRINT) : '');
 
 			$this->html = $str_chronology;
 		}
@@ -3686,7 +4169,7 @@ class data_entry extends base_module {
 
 			$arr_type_object_ids = [];
 			
-			preg_match('/^\[object=([0-9_\|]+)\](.+)\[\/object\]$/si', $value['selected'], $arr_match);
+			preg_match('/^\[object=([0-9-_\|]+)\](.+)\[\/object\]$/si', $value['selected'], $arr_match);
 			
 			if ($arr_match[1]) {
 				
@@ -3735,8 +4218,8 @@ class data_entry extends base_module {
 				if ($_POST['input_data']) {
 					
 					preg_replace_callback(
-						'/\[object=([0-9_\|]+)\](.*?)\[\/object\]/si',
-						function ($arr_matches) use (&$arr_object_definition_type_object_groups) {							
+						'/\[object=([0-9-_\|]+)\](.*?)\[\/object\]/si',
+						function ($arr_matches) use (&$arr_object_definition_type_object_groups) {
 							$arr_ids = explode('|', $arr_matches[1]);
 							foreach ($arr_ids as $arr_type_object_id) {
 								$arr_id = explode('_', $arr_type_object_id);
@@ -3791,9 +4274,12 @@ class data_entry extends base_module {
 				
 				$type_id = $id;
 				$arr_filter = data_filter::parseUserFilterInput($value['filter']);
+				if ($value['search']) {
+					$arr_filter['search'] = $value['search'];
+				}
 			}
 			
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_USER || !data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_USER || !static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				error(getLabel('msg_not_allowed'));
 			}
 												
@@ -3820,9 +4306,12 @@ class data_entry extends base_module {
 				
 				$type_id = $id;
 				$arr_filter = data_filter::parseUserFilterInput($value['filter']);
+				if ($value['search']) {
+					$arr_filter['search'] = $value['search'];
+				}
 			}
 						
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_USER || !data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_USER || !static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				error(getLabel('msg_not_allowed'));
 			}
 									
@@ -3834,7 +4323,7 @@ class data_entry extends base_module {
 		
 		if ($method == "select_find_change_id") {
 			
-			if (!data_model::checkClearanceType($id) || !custom_projects::checkAccessType('edit', $id)) {
+			if (!static::checkClearanceType($id) || !custom_projects::checkAccessType('edit', $id)) {
 				error(getLabel('msg_not_allowed'));
 			}
 			
@@ -3855,16 +4344,19 @@ class data_entry extends base_module {
 				return;
 			}
 			
-			$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 			$arr_use_project_ids = array_keys($arr_project['use_projects']);
 			
-			$arr_ref_type_ids = cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']);
+			$arr_ref_type_ids = StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']);
 			$arr_type_set = StoreType::getTypeSet($type_id);
 
-			//$filter = new FilterTypeObjects((int)$type_id, "overview");
-			$filter = new FilterTypeObjects($type_id, 'overview', true);
+			//$filter = new FilterTypeObjects((int)$type_id, GenerateTypeObjects::VIEW_OVERVIEW);
+			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_OVERVIEW, true);
 			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids, 'project_id' => $_SESSION['custom_projects']['project_id']]);
-
+			
+			$filter->setVersioning();
+			$filter->setVersioningFilter('added');
+			
 			$arr_selection = ['object' => ['all' => true], 'object_descriptions' => [], 'object_sub_details' => []];
 			
 			$arr_analyses_active = data_analysis::getTypeAnalysesActive($type_id);
@@ -3876,7 +4368,7 @@ class data_entry extends base_module {
 			
 			foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 				
-				if (!$arr_object_description['object_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+				if (!$arr_object_description['object_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
 					continue;
 				}
 				
@@ -3885,13 +4377,16 @@ class data_entry extends base_module {
 			
 			$filter->setSelection($arr_selection);
 			
-			if ($_POST['arr_order_column']) {
+			$arr_ordering = [];
+			$has_order = ($_POST['arr_order_column'] ?: false);
+			
+			if ($has_order) {
 				
 				foreach ($_POST['arr_order_column'] as $nr_order => list($nr_column, $str_direction)) {
 					
 					if ($nr_column == 0 && $arr_type_set['type']['object_name_in_overview']) { // Object name
 						
-						$filter->setOrder(['object_name' => $str_direction]);
+						$arr_ordering['object_name'] = $str_direction;
 					} else {
 						
 						$count_column = ($arr_type_set['type']['object_name_in_overview'] ? 1 : 0);
@@ -3903,7 +4398,7 @@ class data_entry extends base_module {
 							}
 							
 							if ($nr_column == $count_column) {
-								$filter->setOrder([$object_description_id => $str_direction]);
+								$arr_ordering['object_description_'.$object_description_id] = $str_direction;
 							}
 							$count_column++;
 						}
@@ -3911,20 +4406,23 @@ class data_entry extends base_module {
 						if ($arr_selection['object']['analysis']) { 
 							
 							if ($nr_column == $count_column) {
-								$filter->setOrder(['object_analysis' => $str_direction]); // Object analysis
+								$arr_ordering['object_analysis'] = $str_direction; // Object analysis
 							}
 							$count_column++;
 						}
 						
 						if ($nr_column == $count_column) {
-							$filter->setOrder(['date' => $str_direction]); // Object dating
+							$arr_ordering['date'] = $str_direction; // Object dating
 						}
 					}
 				}
 			} else {
 				
-				$filter->setOrder(['date' => 'desc']); // Default ordering
+				$arr_ordering['date'] = 'desc'; // Default ordering
 			}
+			
+			$filter->setOrder($arr_ordering);
+			
 			if (isset($_POST['nr_records_start']) && $_POST['nr_records_length'] != '-1') {
 				$filter->setLimit([$_POST['nr_records_start'], $_POST['nr_records_length']]);
 			}
@@ -3936,19 +4434,46 @@ class data_entry extends base_module {
 			$arr_filter = data_filter::parseUserFilterInput($value);
 			$has_filter_input = ($arr_filter ? true : false);
 			
-			if (!$arr_filter['object_versioning'] || $arr_filter['object_versioning']['version']) {
-				$filter->setVersioning('full');
-			}
-			
-			$arr_set = false;
+			$arr_set_cache = false;
 				
-			if ($has_filter_input) {
+			if ($has_filter_input) { // When there is a filter active, check for client or scenario cache 
 				
 				$filter_set = clone $filter;
 				$filter->setFilter($arr_filter);
 				
 				$arr_filters = $filter->getDepth();
-				$arr_set = toolbar::getTypeFilterSet($type_id, $arr_filters['arr_filters']);
+				$arr_filters = ($arr_filters['arr_filters'] ?? []);
+				
+				$scenario_id = SiteStartVars::getFeedback('scenario_id');
+				$has_scenario_cache = null;
+
+				if ($scenario_id) { // Check for scenario filter
+					
+					$arr_scenario_filters = toolbar::getScenarioFilters($scenario_id);
+						
+					if ($arr_filters === $arr_scenario_filters) { // Check for valid (active) Scenario filter
+						
+						$scenario_hash = CacheProjectTypeScenario::generateHashFilter($_SESSION['custom_projects']['project_id'], $scenario_id, $arr_scenario_filters); // Hash only includes the filter part
+
+						$cache_scenario = new CacheProjectTypeScenario($_SESSION['custom_projects']['project_id'], $scenario_id);						
+						$has_scenario_cache = $cache_scenario->checkCacheFilter($scenario_hash);
+						
+						$arr_set_cache = ['result' => null];
+						
+						if ($has_scenario_cache) {
+						
+							$arr_set_cache['result'] = $cache_scenario->getCache();
+						} else {
+							
+							status(getLabel('msg_building_cache_scenario_filter'), false, getLabel('msg_wait'), ['identifier' => SiteStartVars::getSessionId(true).'cache_scenario_filter', 'duration' => 1000, 'persist' => true]);
+						}
+					}
+				}
+				
+				if ($has_scenario_cache === null) { // Check for client cache 
+					
+					$arr_set_cache = toolbar::getTypeFilterSet($type_id, $arr_filters);
+				}
 			}
 
 			$arr_filter_search = false;
@@ -3960,19 +4485,42 @@ class data_entry extends base_module {
 			}
 
 			$arr_filters = $filter->getDepth();
-			toolbar::setFilter([(int)$type_id => (array)$arr_filters['arr_filters']], true);
+			$arr_filters = ($arr_filters['arr_filters'] ?? []);
+			toolbar::setFilter([(int)$type_id => $arr_filters], true);
+			toolbar::setOrder([(int)$type_id => $arr_ordering], true);
 
-			if ($arr_set) {
+			if ($arr_set_cache) {
 				
-				$has_set = ($arr_set['result'] !== null);
+				$has_set_cache = ($arr_set_cache['result'] !== null);
 				
-				if ($has_set) {
+				if ($has_set_cache) {
 					
-					$arr_filter_set = data_filter::parseUserFilterInput($arr_set['result']);
-					$arr_filter_set = ($arr_filter_set ?: ['none' => true]); // Find nothing
+					$arr_filter_set = data_filter::parseUserFilterInput($arr_set_cache['result']);
 					
 					$filter = $filter_set;
-					$filter->setFilter($arr_filter_set);
+					
+					if ($has_scenario_cache) {
+						
+						$filter->setDifferentiationIdentifier(SiteStartVars::getSessionId()); // Keep temporary table name the same (when applicable) over multiple requests
+						$table_name = $filter->storeIdsTemporarily($arr_filter_set['objects'], true);
+						
+						if (!$has_order) { // Set order to temporary table and internally to none when scenario is opened
+							
+							$filter->setFilter(['table' => [
+								['table_name' => $table_name, 'table_alias' => 't_order', 'order' => 't_order.order_id']
+							]]);
+							$filter->setOrder([], true);
+						} else {
+							
+							$filter->setFilter(['table' => [['table_name' => $table_name]]]);
+						}
+					} else {
+						
+						$arr_filter_set = ($arr_filter_set ?: ['none' => true]); // Find nothing
+						
+						$filter->setFilter($arr_filter_set);
+					}
+
 					if ($arr_filter_search) {
 						$filter->setFilter($arr_filter_search);
 					}
@@ -3980,7 +4528,7 @@ class data_entry extends base_module {
 			}
 			
 			$arr_conditions = toolbar::getTypeConditions($type_id);
-			$filter->setConditions('style', $arr_conditions);
+			$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE, $arr_conditions);
 						
 			if ($arr_project['types'][$type_id]['type_filter_id']) {
 			
@@ -3992,42 +4540,63 @@ class data_entry extends base_module {
 			if ($arr_nodegoat_details['processing_time']) {
 				timeLimit($arr_nodegoat_details['processing_time']);
 			}
-			
+
 			$arr_changes = $filter->init();
 
-			if ($arr_set) {
+			if ($arr_set_cache) {
 				
-				if (!$has_set && !$arr_filter_search) { // Only cache when no user-specific filters are active
-				
-					$arr_info = $filter->getResultInfo(true, 'data_entry');
-
+				if (!$has_set_cache && !$arr_filter_search) { // Only set cache when no user-specific filters are active
+					
 					$arr_set_result = [];
+
+					$arr_info = $filter->getResultInfo(['statistics' => true, 'objects' => true], 'data_entry');
+					
 					$arr_set_result['objects'] = $arr_info['objects'];
 					unset($arr_info['objects']);
-
-					$arr_set['result'] = $arr_set_result;
 					
-					toolbar::setTypeFilterSet($type_id, $arr_set);
+					if ($has_scenario_cache === false) {
+						
+						$cache_scenario->updateCache($arr_set_result);
+						
+						clearStatus(SiteStartVars::getSessionId(true).'cache_scenario_filter');
+					} else {
+
+						$arr_set_cache['result'] = $arr_set_result;
+					
+						toolbar::setTypeFilterSet($type_id, $arr_set_cache);
+					}
 				}
 			}
 			
-			$arr_info = $filter->getResultInfo(false, 'data_entry');
+			$arr_info = $filter->getResultInfo(['statistics' => true], 'data_entry');
+			
+			$str_info = ($arr_info['statistics']['added'] ? '<sup title="'.strEscapeHTML('<ul><li><label>'.getLabel('lbl_active').'</label><span>'.$arr_info['statistics']['active'].'</span></li><li><label>'.getLabel('lbl_clearance_under_review').'</label><span>'.$arr_info['statistics']['added'].'</span></li></ul>').'">*</sup>' : null);
+			$str_filtered_info = ($arr_info['statistics_filtered']['added'] ? '<sup title="'.strEscapeHTML('<ul><li><label>'.getLabel('lbl_active').'</label><span>'.$arr_info['statistics_filtered']['active'].'</span></li><li><label>'.getLabel('lbl_clearance_under_review').'</label><span>'.$arr_info['statistics_filtered']['added'].'</span></li></ul>').'">*</sup>' : null);
 
 			$arr_output = [
-				'echo' => intval($_POST['echo']),
 				'total_records' => $arr_info['total'],
+				'total_records_info' => $str_info,
 				'total_records_filtered' => $arr_info['total_filtered'],
+				'total_records_filtered_info' => $str_filtered_info,
 				'data' => []
 			];
 			
 			if ($arr_changes) {
 				
-				$filter = new FilterTypeObjects($type_id, 'overview');
-				$filter->setConditions('style', $arr_conditions);
+				$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_OVERVIEW);
+				$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE, $arr_conditions);
 				$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids, 'project_id' => $_SESSION['custom_projects']['project_id']]);
 				$filter->setSelection($arr_selection);
 				$filter->setFilter(['objects' => array_keys($arr_changes)]);
 				$arr_original = $filter->init();
+			}
+			
+			$is_type_system_process = false;
+			
+			if ($arr_type_set['type']['class'] == StoreType::TYPE_CLASS_SYSTEM) {
+				if ($type_id != StoreType::getSystemTypeID('cycle')) {
+					$is_type_system_process = true;
+				}
 			}
 					
 			foreach ($arr_changes as $object_id => $arr_object) {
@@ -4078,7 +4647,7 @@ class data_entry extends base_module {
 								}
 							}
 							
-							$arr_data[] = implode(', ', $arr_html);
+							$arr_data[] = implode(($arr_object_description['object_description_value_type_settings']['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR_LIST), $arr_html);
 						} else if ($arr_object_description['object_description_has_multi']) {
 							
 							$arr_html = [];
@@ -4088,7 +4657,7 @@ class data_entry extends base_module {
 								$arr_html[] = data_view::createTypeObjectLink($arr_object_description['object_description_ref_type_id'], $value, $arr_object_definition['object_definition_value'][$key]);
 							}
 							
-							$arr_data[] = implode(', ', $arr_html);
+							$arr_data[] = implode(($arr_object_description['object_description_value_type_settings']['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR_LIST), $arr_html);
 						} else {
 							
 							$arr_data[] = data_view::createTypeObjectLink($arr_object_description['object_description_ref_type_id'], $arr_object_definition['object_definition_ref_object_id'], $arr_object_definition['object_definition_value']);
@@ -4097,7 +4666,7 @@ class data_entry extends base_module {
 						
 						$str_value = arrParseRecursive($arr_object_definition['object_definition_value'], ['Labels', 'parseLanguage']);
 						
-						$arr_data[] = StoreTypeObjects::formatToPreviewValue($arr_object_description['object_description_value_type'], $str_value, $arr_object_description['object_description_value_type_options']);
+						$arr_data[] = StoreTypeObjects::formatToHTMLPreviewValue($arr_object_description['object_description_value_type'], $str_value, $arr_object_description['object_description_value_type_settings']);
 					}
 					
 					$count++;
@@ -4109,7 +4678,7 @@ class data_entry extends base_module {
 					
 					$count++;
 				}
-				if ($_SESSION['NODEGOAT_CLEARANCE'] > NODEGOAT_CLEARANCE_INTERACT && data_model::checkClearanceType($type_id, false) && custom_projects::checkAccessType('edit', $type_id, false)) {
+				if ($_SESSION['NODEGOAT_CLEARANCE'] > NODEGOAT_CLEARANCE_INTERACT && static::checkClearanceType($type_id, false) && custom_projects::checkAccessType('edit', $type_id, false)) {
 					
 					$arr_changes_info = $this->createChangesTypeObject($type_id, $arr_object_use['object']['object_id'], $arr_original[$object_id], $arr_object);
 					
@@ -4117,7 +4686,13 @@ class data_entry extends base_module {
 						$arr_data['cell'][$count]['attr']['title'] = $arr_changes_info['title'];
 					}
 					$arr_data[] = $arr_changes_info['html'];
-					$arr_data[] = '<input type="button" class="data edit" value="edit" /><input type="button" class="data msg del" value="del" /><input class="multi" value="'.$type_id.'_'.$arr_object_use['object']['object_id'].'" type="checkbox" />';
+
+					$html_menu = '<input type="button" class="data edit" value="edit" /><input type="button" class="data msg del" value="del" /><input class="multi" value="'.$type_id.'_'.$arr_object_use['object']['object_id'].'" type="checkbox" />';
+					if ($is_type_system_process) {
+						$html_menu = '<input type="button" class="data add run" value="run" />'.$html_menu;
+					}
+					
+					$arr_data[] = $html_menu;
 				}
 				$arr_output['data'][] = $arr_data;
 			}
@@ -4136,21 +4711,24 @@ class data_entry extends base_module {
 				return;
 			}
 			
-			$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 			$arr_use_project_ids = array_keys($arr_project['use_projects']);
 			
 			$arr_types = StoreType::getTypes(array_keys($arr_project['types']));
 			
-			$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
+			$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
 			$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 			
-			if ($object_sub_details_id != 'all' && ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id))) {
+			if ($object_sub_details_id != 'all' && ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id))) {
 				return;
 			}
 			
-			$filter = new FilterTypeObjects($type_id, 'all', true, $arr_type_set);
-			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
-			$filter->setConditions('style', toolbar::getTypeConditions($type_id));
+			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ALL, true, $arr_type_set);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
+			$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE, toolbar::getTypeConditions($type_id));
+			
+			$filter->setVersioning();
+			$filter->setVersioningFilter('added');
 			
 			$arr_selection = ['object' => [], 'object_descriptions' => [], 'object_sub_details' => [$object_sub_details_id => ['object_sub_details' => true, 'object_sub_descriptions' => []]]];
 			$arr_filter_object_sub_details_ids = [];
@@ -4159,7 +4737,7 @@ class data_entry extends base_module {
 		
 				foreach ($arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 					
-					if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+					if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 						continue;
 					}
 					
@@ -4184,13 +4762,15 @@ class data_entry extends base_module {
 						$filter->setFilter($arr_filter_referenced_object_sub_details, true);
 					}
 				}
+				
+				$filter->setFilter(['objects' => $object_id]);
 			} else {
 				
 				$filter->setSelection($arr_selection);
 				
 				foreach ($arr_type_set['object_sub_details'] as $cur_object_sub_details_id => $arr_cur_object_sub_details) {
 					
-					if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_cur_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $cur_object_sub_details_id)) {
+					if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_cur_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $cur_object_sub_details_id)) {
 						continue;
 					}
 					
@@ -4213,12 +4793,12 @@ class data_entry extends base_module {
 					
 					$arr_filter_object_sub_details_ids[] = $cur_object_sub_details_id;
 				}
-			}
-
-			if ($arr_filter_object_sub_details_ids) {
+				
+				if (!$arr_filter_object_sub_details_ids) {
+					return;
+				}
+				
 				$filter->setFilter(['objects' => $object_id, 'object_sub_details' => $arr_filter_object_sub_details_ids], true);
-			} else {
-				$filter->setFilter(['objects' => $object_id]);
 			}
 			
 			if ($value && $arr_project['types'][$type_id]['type_filter_id'] && $value['filter_id'] == $arr_project['types'][$type_id]['type_filter_id']) {
@@ -4230,45 +4810,48 @@ class data_entry extends base_module {
 			if ($_POST['search']) {
 				$arr_filter['search'][] = $_POST['search'];
 			}
-			if (!$arr_filter['object_versioning'] || $arr_filter['object_versioning']['version']) {
-				$filter->setVersioning('full');
-			}
 			if ($arr_filter) {
 				$filter->setFilter($arr_filter, true);
 			}
 			if ($_POST['arr_order_column']) {
 				
-				foreach ($_POST['arr_order_column'] as $nr_order => list($nr_column, $str_direction)) {
+				foreach ($_POST['arr_order_column'] as $nr_order => list($num_column, $str_direction)) {
 					
 					if ($object_sub_details_id == 'all') { // Object sub details combined
 						
-						$sort_id = ($nr_column == 0 ? 'object_sub_details_name' : ($nr_column == 1 ? 'object_sub_date_start' : ($nr_column == 2 ? 'object_sub_date_end' : '')));
+						$sort_id = ($num_column == 0 ? 'object_sub_details_name' : ($num_column == 1 ? 'object_sub_date_start' : ($num_column == 2 ? 'object_sub_date_end' : '')));
 						$filter->setOrderObjectSubs($object_sub_details_id, [$sort_id => $str_direction]);
 					} else {
 						
 						if (!$arr_object_sub_details['object_sub_details']['object_sub_details_has_date']) {
-							$nr_column += 2;
-						}
-						if (!$arr_object_sub_details['object_sub_details']['object_sub_details_has_location']) {
-							$nr_column += 2;
+							
+							$num_column += 2;
+						} else if ($num_column <= 1) {
+							
+							$sort_id = ($num_column == 0 ? 'object_sub_date_start' : ($num_column == 1 ? 'object_sub_date_end' : ''));
+							$filter->setOrderObjectSubs($object_sub_details_id, [$sort_id => $str_direction]);
+							
+							continue;
 						}
 						
-						if ($nr_column <= 1) {
-							$sort_id = ($nr_column == 0 ? 'object_sub_date_start' : ($nr_column == 1 ? 'object_sub_date_end' : ''));
-							$filter->setOrderObjectSubs($object_sub_details_id, [$sort_id => $str_direction]);
-						} else {
-							$count_column = 4;
-							foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_sub_object_description) {
-								
-								if (!$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]) {
-									continue;
-								}
-															
-								if ($nr_column == $count_column) {
-									$filter->setOrderObjectSubs($object_sub_details_id, [$object_sub_description_id => $str_direction]);
-								}
-								$count_column++;
+						if (!$arr_object_sub_details['object_sub_details']['object_sub_details_has_location']) {
+							$num_column += 2;
+						}
+													
+						$count_column = 4;
+						
+						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_sub_object_description) {
+							
+							if (!$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]) {
+								continue;
 							}
+							
+							if ($num_column == $count_column) {
+								
+								$filter->setOrderObjectSubs($object_sub_details_id, ['object_sub_description_'.$object_sub_description_id => $str_direction]);
+								break;
+							}
+							$count_column++;
 						}
 					}
 				}
@@ -4287,7 +4870,6 @@ class data_entry extends base_module {
 			$arr_info = $filter->getResultInfoObjectSubs($object_id, $object_sub_details_id);
 
 			$arr_output = [
-				'echo' => intval($_POST['echo']),
 				'total_records' => $arr_info['total'],
 				'total_records_filtered' => $arr_info['total_filtered'],
 				'data' => []
@@ -4346,7 +4928,7 @@ class data_entry extends base_module {
 					$count++;
 				}
 				
-				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, false, $cur_object_sub_details_id)) {
+				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, false, $cur_object_sub_details_id)) {
 					$arr_data[] = '';
 				} else {
 					$arr_data[] = '<input type="button" class="data edit edit_object_sub" value="edit" />'.(!($arr_object_sub_details['object_sub_details_is_required'] && $arr_object_sub_details['object_sub_details_is_single']) ? '<input type="button" class="data del msg del_object_sub" value="del" />' : '').'<input class="multi" value="'.$id.'" type="checkbox" />';
@@ -4372,12 +4954,12 @@ class data_entry extends base_module {
 			$type_id = $arr_id[0];
 			$object_id = (int)$arr_id[1];
 						
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_UNDER_REVIEW || !data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_UNDER_REVIEW || !static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				error(getLabel('msg_not_allowed'));
 			}
 			
-			$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
-			$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
+			$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
 			
 			$lock_key = ($object_id ? $value['lock_key'] : false);
 			$locked_discussion = ($lock_key && $value['locked_discussion'] ? true : false);
@@ -4394,99 +4976,73 @@ class data_entry extends base_module {
 				$arr_discussion = ['object_discussion_body' => trim($arr_input['object_discussion_body'])];
 				$storage->handleDiscussion($arr_discussion);
 			}
-			
-			if ($arr_type_set['type']['is_reversal']) {
-				
-				$arr_object_self = [
-					'object_name_plain' => $arr_input['object_name_plain'],
-					'object_ref_object_id' => $arr_input['object_ref_object_id']
-				];
-				
-				$arr_object_definitions = [];
-				foreach ((array)$arr_input['object_definition'] as $key => $value) {
-					$arr_object_definitions[] = [
-						'object_description_id' => $key,
-						'object_definition_ref_object_id' => $value['object_definition_ref_object_id']
-					];
-				}
-				
-				$arr_object_filters = ($arr_input['filter'] ?: []);
-				$arr_object_scopes = ($arr_input['scope'] ?: []);
-				
-				$object_id = $storage->storeReversal($arr_object_self, $arr_object_definitions, $arr_object_filters, $arr_object_scopes);
-				$storage->removeLockObject($lock_key);
-				if ($locked_discussion) {
-					$storage->removeLockDiscussion($lock_key);
-				}
-			} else {
 
-				$arr = self::parseTypeObjectInput($type_id, $object_id, $arr_input, true);
+			$arr = self::parseTypeObjectInput($type_id, $object_id, $arr_input, true);
+			
+			$object_id = $storage->store($arr['object_self'], $arr['object_definitions'], $arr['object_subs']);
+			$storage->commit(($_SESSION['NODEGOAT_CLEARANCE'] >= NODEGOAT_CLEARANCE_USER));
+			$storage->removeLockObject($lock_key);
+			if ($locked_discussion) {
+				$storage->removeLockDiscussion($lock_key);
+			}
+			
+			if ($arr['referenced_type_objects']) {
 				
-				$object_id = $storage->store($arr['object_self'], $arr['object_definitions'], $arr['object_subs']);
-				$storage->commit(($_SESSION['NODEGOAT_CLEARANCE'] >= NODEGOAT_CLEARANCE_USER));
-				$storage->removeLockObject($lock_key);
-				if ($locked_discussion) {
-					$storage->removeLockDiscussion($lock_key);
-				}
+				$arr_type_storage = [];
 				
-				if ($arr['referenced_type_objects']) {
+				// Let's try to update all referenced Objects, if not, rollback all changes.
+				
+				try {
 					
-					$arr_type_storage = [];
-					
-					// Let's try to update all referenced Objects, if not, rollback all changes.
-					
-					try {
+					foreach ($arr['referenced_type_objects'] as $ref_type_id => $arr_referenced_objects) {
 						
-						foreach ($arr['referenced_type_objects'] as $ref_type_id => $arr_referenced_objects) {
+						$storage = new StoreTypeObjects($ref_type_id, false, $_SESSION['USER_ID'], 'type_'.$ref_type_id);
+						
+						$arr_type_storage[$ref_type_id] = $storage;
+						
+						foreach ($arr_referenced_objects as $ref_object_id => $arr_referenced_object) {
 							
-							$storage = new StoreTypeObjects($ref_type_id, false, $_SESSION['USER_ID'], 'type_'.$ref_type_id);
-							
-							$arr_type_storage[$ref_type_id] = $storage;
-							
-							foreach ($arr_referenced_objects as $ref_object_id => $arr_referenced_object) {
-								
-								$storage->setObjectID($ref_object_id);
-							
-								$storage->handleLockObject();
-							}
+							$storage->setObjectID($ref_object_id);
+						
+							$storage->handleLockObject();
 						}
-						
-						DB::startTransaction('data_entry_insert_update');
-					
-						foreach ($arr['referenced_type_objects'] as $ref_type_id => $arr_referenced_objects) {
-							
-							$storage = $arr_type_storage[$ref_type_id];
-							
-							foreach ($arr_referenced_objects as $ref_object_id => $arr_referenced_object) {
-								
-								$storage->setObjectID($ref_object_id);
-								
-								if ($arr_referenced_object['object_definitions']) {
-									$storage->setAppend(['object_definitions' => array_keys($arr_referenced_object['object_definitions'])]);
-								}
-								
-								$storage->store([], (array)$arr_referenced_object['object_definitions'], (array)$arr_referenced_object['object_subs']);
-							}
-							
-							$storage->save();
-							$storage->commit(($_SESSION['NODEGOAT_CLEARANCE'] >= NODEGOAT_CLEARANCE_USER));
-						}
-					} catch (Exception $e) {
-						
-						DB::rollbackTransaction('data_entry_insert_update');
-						
-						foreach ($arr_type_storage as $storage) {
-							$storage->removeLockObject();
-						}
-					
-						throw($e);
 					}
 					
-					DB::commitTransaction('data_entry_insert_update');
+					DB::startTransaction('data_entry_insert_update');
+				
+					foreach ($arr['referenced_type_objects'] as $ref_type_id => $arr_referenced_objects) {
+						
+						$storage = $arr_type_storage[$ref_type_id];
+						
+						foreach ($arr_referenced_objects as $ref_object_id => $arr_referenced_object) {
+							
+							$storage->setObjectID($ref_object_id);
+							
+							if ($arr_referenced_object['object_definitions']) {
+								$storage->setAppend(['object_definitions' => array_keys($arr_referenced_object['object_definitions'])]);
+							}
+							
+							$storage->store([], (array)$arr_referenced_object['object_definitions'], (array)$arr_referenced_object['object_subs']);
+						}
+						
+						$storage->save();
+						$storage->commit(($_SESSION['NODEGOAT_CLEARANCE'] >= NODEGOAT_CLEARANCE_USER));
+					}
+				} catch (Exception $e) {
+					
+					DB::rollbackTransaction('data_entry_insert_update');
 					
 					foreach ($arr_type_storage as $storage) {
 						$storage->removeLockObject();
 					}
+				
+					throw($e);
+				}
+				
+				DB::commitTransaction('data_entry_insert_update');
+				
+				foreach ($arr_type_storage as $storage) {
+					$storage->removeLockObject();
 				}
 			}
 		}
@@ -4505,7 +5061,7 @@ class data_entry extends base_module {
 		}
 		if ($method == "insert_quick") {
 			
-			$filter = new FilterTypeObjects($type_id, 'name');
+			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_NAME);
 			$filter->setFilter(['objects' => $object_id]);
 			$filter->setVersioning('added');
 			$arr_object = $filter->init();
@@ -4526,6 +5082,46 @@ class data_entry extends base_module {
 			$this->msg = true;
 		}
 		
+		if ($method == "process" || $method == "check_process") {
+			
+			$arr_id = explode('_', $id);
+			$type_id = (int)$arr_id[0];
+			$object_id = (int)$arr_id[1];
+			$source_id = ((int)$arr_id[2] ?: (int)$_POST['source_id']);
+			
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_USER || !static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+				error(getLabel('msg_not_allowed'));
+			}
+			
+			$arr_type_set = StoreType::getTypeSet($type_id);
+			
+			$arr_nodegoat_details = cms_nodegoat_details::getDetails();
+			if ($arr_nodegoat_details['processing_time']) {
+				timeLimit($arr_nodegoat_details['processing_time']);
+			}
+			
+			$arr_data = array_merge_recursive($_POST, ($value ?: [])); // Combine both posted and dynamic data
+			
+			$arr_result = $this->createProcessModuleTypeObject($type_id, $object_id, $source_id, $arr_data);
+			
+			if ($arr_result['is_done']) {
+				$html_buttons = '<input type="submit" name="discard" value="'.getLabel('lbl_close').'" />';
+			} else if ($arr_result['has_feedback']) {
+				$html_buttons = '<input type="submit" value="'.getLabel('lbl_continue').'" /><input type="submit" name="discard" value="'.getLabel('lbl_cancel').'" />';
+			} else {
+				$html_buttons = '<input type="submit" value="'.getLabel('lbl_run').' '.strEscapeHTML(Labels::parseTextVariables($arr_type_set['type']['name'])).'" /><input type="submit" name="discard" value="'.getLabel('lbl_cancel').'" />';
+			}
+			
+			$this->html = '<form id="f:data_entry:check_process-'.$type_id.'_'.$object_id.'_'.$source_id.'">
+				
+				'.$arr_result['html'].'
+				
+				<menu class="options">
+					'.$html_buttons.'
+				</menu>
+			</form>';
+		}
+		
 		if (($method == 'merge' || (is_array($method) && $method['method'] == 'merge' && $method['confirmed'])) && $id) {
 						
 			if (is_array($id)) {
@@ -4543,9 +5139,12 @@ class data_entry extends base_module {
 				
 				$type_id = $id;
 				$arr_filter = data_filter::parseUserFilterInput($value['filter']);
+				if ($value['search']) {
+					$arr_filter['search'] = $value['search'];
+				}
 			}
 
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_USER || !data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_USER || !static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				error(getLabel('msg_not_allowed'));
 			}
 			
@@ -4586,7 +5185,7 @@ class data_entry extends base_module {
 				}
 			}
 			
-			$filter = new FilterTypeObjects($type_id, 'id');
+			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ID);
 			$filter->setVersioning();
 			$filter->setFilter($arr_filter);
 			
@@ -4723,14 +5322,17 @@ class data_entry extends base_module {
 			}
 			
 			$arr_filter[] = data_filter::parseUserFilterInput($value['filter']);
+			if ($value['search']) {
+				$arr_filter[] = ['search' => $value['search']];
+			}
 
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_USER || !data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_USER || !static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				error(getLabel('msg_not_allowed'));
 			}
 			
 			// No futher user or project clearance restrictions because find & change best utilises full objects
 			
-			$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 			$arr_type_set = StoreType::getTypeSet($type_id);
 
 			$is_filtering = (!$value['filter'] || $_POST['find_change']['target_full'] ? false : true);
@@ -4765,6 +5367,16 @@ class data_entry extends base_module {
 							unset($arr_append['object_definitions'][$object_description_id]);
 						}
 						
+						if ($arr_selected['action'] == 'replace') {
+							
+							$arr_regex = $arr_selected['values']['regex'];
+							if ($arr_regex['enable']) {
+								$arr_selected['values']['regex'] = parseRegularExpression($arr_regex['pattern'], $arr_regex['flags'], $arr_regex['template']);
+							} else {
+								$arr_selected['values']['regex'] = ($arr_regex['pattern'] ? $arr_regex : false);
+							}
+						}
+						
 						$arr_selected['values']['object_definition_sources'] = json_decode($arr_selected['values']['object_definition_sources'], true);
 						
 						$arr_find_change['object_descriptions'][$object_description_id] = $arr_selected;
@@ -4794,10 +5406,14 @@ class data_entry extends base_module {
 						$arr_find_change['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_date_end'] = $arr_selected;
 						$match = $match_select = true;
 					}
+					if ($str_id.'_date' == $arr_selected['id']) {
+						$arr_find_change['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_date'] = $arr_selected;
+						$match = $match_select = true;
+					}
 					if ($str_id.'_location' == $arr_selected['id']) {
 						$arr_find_change['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_location'] = $arr_selected;
 						$match = $match_select = true;
-					}	
+					}
 					
 					if ($match_select) {
 						if (!isset($arr_selection['object_sub_details'][$object_sub_details_id])) {
@@ -4824,6 +5440,16 @@ class data_entry extends base_module {
 								unset($arr_append['object_subs'][$object_sub_details_id]['object_sub_definitions'][$object_sub_description_id]);
 							}
 							
+							if ($arr_selected['action'] == 'replace') {
+							
+								$arr_regex = $arr_selected['values']['regex'];
+								if ($arr_regex['enable']) {
+									$arr_selected['values']['regex'] = parseRegularExpression($arr_regex['pattern'], $arr_regex['flags'], $arr_regex['template']);
+								} else {
+									$arr_selected['values']['regex'] = ($arr_regex['pattern'] ? $arr_regex : false);
+								}
+							}
+							
 							$arr_selected['values']['object_sub_definition_sources'] = json_decode($arr_selected['values']['object_sub_definition_sources'], true);
 							
 							$arr_find_change['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id] = $arr_selected;
@@ -4837,13 +5463,17 @@ class data_entry extends base_module {
 				error(getLabel('msg_missing_information'));
 			}
 			
-			$filter = new FilterTypeObjects($type_id, 'set');
+			$arr_ordering = toolbar::getOrder();
+			$arr_ordering = ($arr_ordering[$type_id] ?? []);
+			
+			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_STORAGE);
 			$filter->setVersioning();
 			$filter->setSelection($arr_selection);
 			if ($is_filtering) {
 				$filter->setFiltering(['all' => true], ['all' => true], true);
 			}
 			$filter->setFilter($arr_filter);
+			$filter->setOrder($arr_ordering);
 			
 			if ($method == 'find_change') {
 				
@@ -4902,7 +5532,7 @@ class data_entry extends base_module {
 			// Update objects
 			
 			$storage = new StoreTypeObjects($type_id, false, $_SESSION['USER_ID']);
-			$storage->setMode(null, false);
+			$storage->setMode(StoreTypeObjects::MODE_UPDATE, false);
 			$storage->setAppend($arr_append);
 			
 			$arr_arr_find_change_parsed = [];
@@ -4924,7 +5554,7 @@ class data_entry extends base_module {
 				
 				if ($arr_input['object_sub']) {
 					
-					$arr_input = self::parseTypeObjectInput($type_id, $object_id, $arr_input, true);
+					$arr_input = self::parseTypeObjectInput($type_id, false, $arr_input, true);
 					$arr_arr_find_change_parsed['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_subs'] = $arr_input['object_subs'];
 				}
 				
@@ -4941,7 +5571,7 @@ class data_entry extends base_module {
 									
 					if ($is_filtering) {
 						
-						$filter_full = new FilterTypeObjects($type_id, 'storage');
+						$filter_full = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_STORAGE);
 						$filter_full->setVersioning();
 						$filter_full->setSelection($arr_selection);
 						$filter_full->setFilter(['objects' => $object_id]);
@@ -4959,7 +5589,7 @@ class data_entry extends base_module {
 						
 						$arr_object_description = $arr_type_set['object_descriptions'][$object_description_id];
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
@@ -4970,7 +5600,7 @@ class data_entry extends base_module {
 							
 							$key_object_definition = ($arr_object_description['object_description_ref_type_id'] ? 'object_definition_ref_object_id' : 'object_definition_value');
 							
-							if ($arr_selected['action'] == 'change' || $arr_selected['action'] == 'remove') {
+							if ($arr_selected['action'] == 'change' || $arr_selected['action'] == 'replace' || $arr_selected['action'] == 'remove') {
 								if ($is_filtering) {
 									$arr_object_definition_store[$key_object_definition] = array_diff($arr_object_definition_store[$key_object_definition], $arr_object['object_definitions'][$object_description_id][$key_object_definition]);
 								} else {
@@ -4980,6 +5610,21 @@ class data_entry extends base_module {
 							
 							if ($arr_selected['action'] == 'change') {
 								$arr_object_definition_store[$key_object_definition] = array_merge($arr_object_definition_store[$key_object_definition], (array)$arr_selected['values'][$key_object_definition]);
+							} else if ($arr_selected['action'] == 'replace') {
+								
+								$arr_object_definition_values = $arr_object['object_definitions'][$object_description_id][$key_object_definition];
+								$arr_regex = $arr_selected['values']['regex'];
+								
+								foreach ($arr_object_definition_values as &$str_value) {
+									if ($arr_regex['enable']) {
+										$str_value = preg_replace('/'.$arr_regex['pattern'].'/'.$arr_regex['flags'], $arr_regex['template'], $str_value);
+									} else {
+										$str_value = str_replace($arr_regex['pattern'], $arr_regex['template'], $str_value);
+									}
+								}
+								unset($str_value);
+								
+								$arr_object_definition_store[$key_object_definition] = array_merge($arr_object_definition_store[$key_object_definition], $arr_object_definition_values);
 							} else if ($arr_selected['action'] == 'append') {
 								$arr_object_definition_store[$key_object_definition] = (array)$arr_selected['values'][$key_object_definition];
 							}
@@ -4998,6 +5643,13 @@ class data_entry extends base_module {
 									$arr_object_definition_store['object_definition_value'] = '';
 								} else if ($arr_selected['action'] == 'change' || $arr_selected['action'] == 'append') {
 									$arr_object_definition_store['object_definition_value'] = $arr_selected['values']['object_definition_value'];
+								} else if ($arr_selected['action'] == 'replace') {
+									$arr_regex = $arr_selected['values']['regex'];
+									if ($arr_regex['enable']) {
+										$arr_object_definition_store['object_definition_value'] = preg_replace('/'.$arr_regex['pattern'].'/'.$arr_regex['flags'], $arr_regex['template'], $arr_object_definition_store['object_definition_value']);
+									} else {
+										$arr_object_definition_store['object_definition_value'] = str_replace($arr_regex['pattern'], $arr_regex['template'], $arr_object_definition_store['object_definition_value']);
+									}
 								}
 							}
 						}
@@ -5011,7 +5663,7 @@ class data_entry extends base_module {
 					
 					foreach ((array)$arr_find_change['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 							continue;
 						}
 										
@@ -5029,12 +5681,75 @@ class data_entry extends base_module {
 							$arr_object_store['object_subs'][$object_sub_id] = $arr_object_full['object_subs'][$object_sub_id];
 							$arr_object_sub_store =& $arr_object_store['object_subs'][$object_sub_id];
 							unset($arr_object_sub_store['object_sub_sources']);
+							unset($arr_object_sub_store['object_sub']['object_sub_date_type'], $arr_object_sub_store['object_sub']['object_sub_date_start'], $arr_object_sub_store['object_sub']['object_sub_date_end'], $arr_object_sub_store['object_sub']['object_sub_date_chronology']);
+							unset($arr_object_sub_store['object_sub']['object_sub_location_type'], $arr_object_sub_store['object_sub']['object_sub_location_ref_object_id']);
 							
 							foreach ((array)$arr_object_sub_details['object_sub_details'] as $str_id => $arr_selected) {
 								
 								if ($str_id == 'object_sub_id') {
 									if ($arr_selected['action'] == 'remove') {
 										$arr_object_sub_store['object_sub']['object_sub_version'] = 'deleted';
+									}
+								}
+								
+								if ($str_id == 'object_sub_details_date_start' || $str_id == 'object_sub_details_date_end') {
+
+									if ($str_id == 'object_sub_details_date_start') {
+
+										if ($arr_selected['action'] == 'remove') {
+											
+											$arr_object_sub_store['object_sub']['object_sub_date_start']['chronology'] = '';
+										} else if ($arr_selected['action'] == 'change') {
+											
+											if ($arr_selected['values']['object_sub_date_start_infinite']) {
+												$arr_selected['values']['object_sub_date_start'] = '-∞';
+											}
+
+											$arr_object_sub_store['object_sub']['object_sub_date_type'] = $arr_selected['values']['object_sub_date_type'];
+											
+											$arr_object_sub_store['object_sub']['object_sub_date_start'] = [
+												'value' => $arr_selected['values']['object_sub_date_start'],
+												'object_sub_id' => $arr_selected['values']['object_sub_date_object_sub_id'],
+												'chronology' => $arr_selected['values']['object_sub_date_chronology']
+											];
+										}	
+									} else {
+										
+										if ($arr_selected['action'] == 'remove') {
+											
+											$arr_object_sub_store['object_sub']['object_sub_date_end']['chronology'] = '';
+										} else if ($arr_selected['action'] == 'change') {
+											
+											if ($arr_selected['values']['object_sub_date_end_infinite']) {
+												$arr_selected['values']['object_sub_date_end'] = '∞';
+											}
+											
+											$arr_object_sub_store['object_sub']['object_sub_date_type'] = $arr_selected['values']['object_sub_date_type'];
+											
+											$arr_object_sub_store['object_sub']['object_sub_date_end'] = [
+												'value' => $arr_selected['values']['object_sub_date_end'],
+												'object_sub_id' => $arr_selected['values']['object_sub_date_object_sub_id'],
+												'chronology' => $arr_selected['values']['object_sub_date_chronology']
+											];
+										}
+									}		
+								}
+								
+								if ($str_id == 'object_sub_details_date') {
+									
+									if ($arr_selected['action'] == 'remove') {
+										
+										$arr_object_sub_store['object_sub']['object_sub_date_chronology'] = '';
+									} else if ($arr_selected['action'] == 'change') {
+										
+										if ($arr_selected['values']['object_sub_date_start_infinite']) {
+											$arr_selected['values']['object_sub_date_start'] = '-∞';
+										}
+										if ($arr_selected['values']['object_sub_date_end_infinite']) {
+											$arr_selected['values']['object_sub_date_end'] = '∞';
+										}
+										
+										$arr_object_sub_store['object_sub'] = $arr_selected['values'] + $arr_object_sub_store['object_sub'];
 									}
 								}
 								
@@ -5049,30 +5764,13 @@ class data_entry extends base_module {
 										$arr_object_sub_store['object_sub'] = $arr_selected['values'] + $arr_object_sub_store['object_sub'];
 									}
 								}
-								
-								$str_id_store = '';
-								
-								if ($str_id == 'object_sub_details_date_start') {
-									$str_id_store = 'object_sub_date_start';
-								}
-								if ($str_id == 'object_sub_details_date_end') {
-									$str_id_store = 'object_sub_date_end';
-								}
-															
-								if ($str_id_store) {
-									if ($arr_selected['action'] == 'remove') {
-										$arr_object_sub_store['object_sub'][$str_id_store] = '';
-									} else if ($arr_selected['action'] == 'change') {
-										$arr_object_sub_store['object_sub'][$str_id_store] = $arr_selected['values'][$str_id_store];
-									}
-								}
 							}
 							
 							foreach ((array)$arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_selected) {
 								
 								$arr_object_sub_description = $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
 								
-								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 									continue;
 								}
 								
@@ -5092,6 +5790,13 @@ class data_entry extends base_module {
 										$arr_object_sub_definition_store['object_sub_definition_value'] = '';
 									} else if ($arr_selected['action'] == 'change' || $arr_selected['action'] == 'append') {
 										$arr_object_sub_definition_store['object_sub_definition_value'] = $arr_selected['values']['object_sub_definition_value'];
+									} else if ($arr_selected['action'] == 'replace') {
+										$arr_regex = $arr_selected['values']['regex'];
+										if ($arr_regex['enable']) {
+											$arr_object_sub_definition_store['object_sub_definition_value'] = preg_replace('/'.$arr_regex['pattern'].'/'.$arr_regex['flags'], $arr_regex['template'], $arr_object_sub_definition_store['object_sub_definition_value']);
+										} else {
+											$arr_object_sub_definition_store['object_sub_definition_value'] = str_replace($arr_regex['pattern'], $arr_regex['template'], $arr_object_sub_definition_store['object_sub_definition_value']);
+										}
 									}
 								}
 								
@@ -5130,12 +5835,12 @@ class data_entry extends base_module {
 			$arr_ids = [];
 			if (is_array($id)) {
 				foreach ($id as $cur_id) {
-					$arr_id = explode("_", $cur_id);
+					$arr_id = explode('_', $cur_id);
 					$type_id = $arr_id[0];
 					$arr_ids[] = $arr_id[1];
 				}
 			} else {
-				$arr_id = explode("_", $id);
+				$arr_id = explode('_', $id);
 				$type_id = $arr_id[0];
 				$arr_ids[] = $arr_id[1];
 			}
@@ -5145,14 +5850,12 @@ class data_entry extends base_module {
 				error(getLabel('msg_missing_information'));
 			}
 						
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_UNDER_REVIEW || !data_model::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_UNDER_REVIEW || !static::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
 				error(getLabel('msg_not_allowed'));
 			}
 			
-			//Check whether user id is 0 to prevent shared object deletion - TEMPORARY UNTIL LOG SYSTEM IS IN PLACE
-			$res = DB::query("SELECT user_id FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = ".(int)$type_id."");
-			$row = $res->fetchAssoc();			
-						
+			$arr_type_set = StoreType::getTypeSet($type_id);
+			
 			$arr_locked = [];
 			
 			$storage = new StoreTypeObjects($type_id, 0, $_SESSION['USER_ID']);
@@ -5205,9 +5908,9 @@ class data_entry extends base_module {
 			$arr_filter = ['objects' => $arr_filter];
 		}
 		
-		$filter = new FilterTypeObjects($type_id, 'set', false, $arr_type_set);
+		$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_SET, false, $arr_type_set);
 		$filter->setFilter($arr_filter, ($arr_filter['object_subs'] ? true : false));
-		$filter->setConditions('text', toolbar::getTypeConditions($type_id));
+		$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_TEXT, toolbar::getTypeConditions($type_id, true));
 		if ($changes) {
 			$filter->setVersioning();
 		}
@@ -5218,14 +5921,18 @@ class data_entry extends base_module {
 	
 	public static function parseTypeObjectInput($type_id, $object_id, $arr_input, $store = false) {
 	
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
-		$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
 		
 		if ($object_id && $arr_type_set['type']['include_referenced']) {
 			$arr_object_set = self::getTypeObjectSet($type_id, $object_id, false, $arr_type_set);
 		}
 		
 		$func_parse_sources = function($type, $value) use ($arr_project) {
+			
+			if (!isset($value)) {
+				return null;
+			}
 			
 			if (is_string($value)) { // Values already processed, only needs a decode
 				
@@ -5235,7 +5942,7 @@ class data_entry extends base_module {
 				$arr_source_types = [];
 				$arr_sources_raw = (array)$value;
 				
-				foreach ((array)$arr_sources_raw as $key => $arr_sources) {
+				foreach ($arr_sources_raw as $key => $arr_sources) {
 					
 					if ($arr_sources[$type.'_source_ref_type_id'] && $arr_sources['objects']) {
 						
@@ -5246,12 +5953,22 @@ class data_entry extends base_module {
 				}
 			}
 			
-			foreach ($arr_project['source_types'] as $ref_type_id => $value) { // Check and sort all project source types
+			// Check and sort all project source types
 			
-				if (!$arr_source_types[$ref_type_id]) { // Make sure an empty source type is passed for necessary deletion
+			foreach ($arr_source_types as $ref_type_id => $value) {
+				
+				if (!isset($arr_project['source_types'][$ref_type_id])) {
+					unset($arr_source_types[$ref_type_id]);
+				}
+			}
+			
+			foreach ($arr_project['source_types'] as $ref_type_id => $value) {
+			
+				if (!isset($arr_source_types[$ref_type_id])) { // Make sure an empty source type is passed for necessary deletion
 					$arr_source_types[$ref_type_id] = [];
 				}
 			}
+			
 			$arr_sources = $arr_source_types;
 	
 			return $arr_sources;
@@ -5259,34 +5976,34 @@ class data_entry extends base_module {
 		
 		$arr_object_self = [
 			'object_name_plain' => $arr_input['object_name_plain'],
-			'object_sources' => ($arr_input['object_sources'] ? $func_parse_sources('object', $arr_input['object_sources']) : [])
+			'object_sources' => $func_parse_sources('object', $arr_input['object_sources'])
 		];
 		
 		$arr_object_definitions = [];
-		$arr_object_definition_files = ($_FILES['object_definition'] ? arrRearrangeParams($_FILES['object_definition']) : []);
+		$arr_object_definitions_files = ($_FILES['object_definition'] ? arrRearrangeParams($_FILES['object_definition']) : []);
 		$referenced_type_objects = [];
 		
-		foreach ((array)$arr_input['object_definition'] as $object_description_id => $value) {
+		foreach ((array)$arr_input['object_definition'] as $object_description_id => $arr_object_definition) {
 			
 			$arr_object_description = $arr_type_set['object_descriptions'][$object_description_id];
 			
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, $object_description_id)) {
 				continue;
 			}
 			
-			if ($arr_object_description['object_description_value_type'] == 'media' && $arr_object_definition_files[$object_description_id]) {
+			if ($arr_object_description['object_description_value_type'] == 'media' && $arr_object_definitions_files[$object_description_id]) {
 				
-				$arr_object_definition_files_value = arrRearrangeParams($arr_object_definition_files[$object_description_id]);
-				$arr_object_definition_files_value = arrRearrangeParams($arr_object_definition_files_value['object_definition_value']);
+				$arr_object_definitions_files_value = arrRearrangeParams($arr_object_definitions_files[$object_description_id]);
+				$arr_object_definitions_files_value = arrRearrangeParams($arr_object_definitions_files_value['object_definition_value']);
 				
-				if ($value['object_definition_value']['file'] !== null || $value['object_definition_value']['url'] !== null) {
+				if (isset($arr_object_definition['object_definition_value']['file']) || isset($arr_object_definition['object_definition_value']['url'])) {
 				
-					$value['object_definition_value'] = array_merge((array)$value['object_definition_value'], $arr_object_definition_files_value);
+					$arr_object_definition['object_definition_value'] = array_merge((array)$arr_object_definition['object_definition_value'], $arr_object_definitions_files_value);
 				} else { // Multi
 					
-					foreach ($value['object_definition_value'] as $key => $arr_value) {
+					foreach ($arr_object_definition['object_definition_value'] as $key => $arr_value) {
 						
-						$arr_object_definition_file_value = $arr_object_definition_files_value[$key];
+						$arr_object_definition_file_value = $arr_object_definitions_files_value[$key];
 						
 						if (!$arr_object_definition_file_value) {
 							continue;
@@ -5294,19 +6011,36 @@ class data_entry extends base_module {
 
 						$arr_object_definition_file_value = arrRearrangeParams($arr_object_definition_file_value);
 					
-						$value['object_definition_value'][$key] = array_merge((array)$arr_value, $arr_object_definition_file_value);
+						$arr_object_definition['object_definition_value'][$key] = array_merge((array)$arr_value, $arr_object_definition_file_value);
 					}
+				}
+			} else if (StoreType::isValueTypeModule($arr_object_description['object_description_value_type'])) {
+			
+				if (StoreType::getValueTypeProperty($arr_object_description['object_description_value_type'], 'module_class', 'entry')) {
+				
+					$class = StoreType::getValueTypeProperty($arr_object_description['object_description_value_type'], 'module_class', 'entry');
+					
+					$arr_object_definition['object_definition_value'] = $class::parseTemplate($arr_object_definition['object_definition_value']);
+				} else if ($arr_object_description['object_description_value_type'] == 'reversal_module') {
+					
+					$arr_object_definition['object_definition_value'] = static::formatTypeObjectReversalInput($type_id, $arr_object_definition['object_definition_value']);
+				} else if ($arr_object_description['object_description_value_type'] == 'module') {
+					
+					$module = EnucleateValueTypeModule::init($arr_object_description['object_description_value_type_settings']['type']);
+					$module->setValue($arr_object_definition['object_definition_value']);
+									
+					$arr_object_definition['object_definition_value'] = $module->parseTemplate();
 				}
 			}
 			
-			$value['object_definition_value'] = ($arr_object_description['object_description_has_multi'] ? ($value['object_definition_value'] ?: []) : $value['object_definition_value']);
-			$value['object_definition_ref_object_id'] = ($arr_object_description['object_description_has_multi'] ? ($value['object_definition_ref_object_id'] ?: []) : $value['object_definition_ref_object_id']);
+			$arr_object_definition['object_definition_value'] = ($arr_object_description['object_description_has_multi'] ? ($arr_object_definition['object_definition_value'] ?: []) : $arr_object_definition['object_definition_value']);
+			$arr_object_definition['object_definition_ref_object_id'] = ($arr_object_description['object_description_has_multi'] ? ($arr_object_definition['object_definition_ref_object_id'] ?: []) : $arr_object_definition['object_definition_ref_object_id']);
 			
 			if ($arr_object_description['object_description_is_referenced'] && $store) { // Dealing with referenced descriptions is only needed when planning to store
 				
 				$use_object_description_id = $arr_object_description['object_description_id']; // Because the object description is referenced
 				
-				foreach ($value['object_definition_ref_object_id'] as $ref_object_id) {
+				foreach ($arr_object_definition['object_definition_ref_object_id'] as $ref_object_id) {
 					
 					if ($object_id && in_array($ref_object_id, $arr_object_set['object_definitions'][$object_description_id]['object_definition_ref_object_id'])) { // Not changed
 						continue;
@@ -5322,7 +6056,7 @@ class data_entry extends base_module {
 						
 					foreach ((array)$arr_object_set['object_definitions'][$object_description_id]['object_definition_ref_object_id'] as $ref_object_id) {
 						
-						if (in_array($ref_object_id, $value['object_definition_ref_object_id'])) { // Not changed
+						if (in_array($ref_object_id, $arr_object_definition['object_definition_ref_object_id'])) { // Not changed
 							continue;
 						}
 						
@@ -5336,16 +6070,18 @@ class data_entry extends base_module {
 				
 				$arr_object_definitions[] = [
 					'object_description_id' => $object_description_id,
-					'object_definition_value' => $value['object_definition_value'],
-					'object_definition_ref_object_id' => $value['object_definition_ref_object_id'],
-					'object_definition_sources' => ($value['object_definition_sources'] ? $func_parse_sources('object_definition', $value['object_definition_sources']) : [])
+					'object_definition_value' => $arr_object_definition['object_definition_value'],
+					'object_definition_ref_object_id' => $arr_object_definition['object_definition_ref_object_id'],
+					'object_definition_sources' => $func_parse_sources('object_definition', $arr_object_definition['object_definition_sources'])
 				];
 			}
 		}
 		
 		$arr_object_subs = [];
 		
-		foreach ((array)$arr_input['object_sub'] as $arr_object_sub) {
+		$arr_object_subs_files = ($_FILES['object_sub'] ? arrRearrangeParams($_FILES['object_sub']) : []);
+		
+		foreach ((array)$arr_input['object_sub'] as $key_object_sub => $arr_object_sub) {
 			
 			if ($arr_object_sub['object_sub']['object_sub_id'] == 'deleted') {
 				continue;
@@ -5354,28 +6090,47 @@ class data_entry extends base_module {
 			$object_sub_details_id = $arr_object_sub['object_sub']['object_sub_details_id'];
 			$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 			
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 				continue;
 			}
 			
 			$object_sub_id = $arr_object_sub['object_sub']['object_sub_id'];
 			$object_sub_object_id = $arr_object_set['object_subs'][$object_sub_id]['object_sub']['object_sub_object_id'];
 			
+			if ($arr_object_sub['object_sub']['object_sub_date_start_infinite'] && $store) {
+				$arr_object_sub['object_sub']['object_sub_date_start'] = '-∞';
+			}
 			if ($arr_object_sub['object_sub']['object_sub_date_end_infinite'] && $store) {
 				$arr_object_sub['object_sub']['object_sub_date_end'] = '∞';
 			}
 			
-			$arr_object_sub['object_sub']['object_sub_sources'] = ($arr_object_sub['object_sub']['object_sub_sources'] ? $func_parse_sources('object_sub', $arr_object_sub['object_sub']['object_sub_sources']) : []);
+			$arr_object_sub['object_sub']['object_sub_sources'] = $func_parse_sources('object_sub', $arr_object_sub['object_sub']['object_sub_sources']);
 			
 			$arr_object_sub_definitions = [];
+			$arr_object_sub_definitions_files = [];
+			if ($arr_object_subs_files[$key_object_sub]) {
+				$arr_object_sub_definitions_files = arrRearrangeParams($arr_object_subs_files[$key_object_sub]);
+				$arr_object_sub_definitions_files = arrRearrangeParams($arr_object_sub_definitions_files['object_sub_definitions']);
+			}
 			$has_referenced = false;
 			
 			foreach ((array)$arr_object_sub['object_sub_definitions'] as $object_sub_description_id => $arr_object_sub_definition) {
 				
 				$arr_object_sub_description = $arr_object_sub_details['object_sub_descriptions'][$object_sub_description_id];
 				
-				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_edit'] || !custom_projects::checkAccessTypeConfiguration('edit', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 					continue;
+				}
+				
+				if ($arr_object_sub_description['object_sub_description_value_type'] == 'media' && $arr_object_sub_definitions_files[$object_sub_description_id]) {
+					
+					$arr_object_sub_definitions_files_value = arrRearrangeParams($arr_object_sub_definitions_files[$object_sub_description_id]);
+					$arr_object_sub_definitions_files_value = arrRearrangeParams($arr_object_sub_definitions_files_value['object_sub_definition_value']);
+					
+					if (isset($arr_object_sub_definition['object_sub_definition_value']['file']) || isset($arr_object_sub_definition['object_sub_definition_value']['url'])) {
+					
+						$arr_object_sub_definition['object_sub_definition_value'] = array_merge((array)$arr_object_sub_definition['object_sub_definition_value'], $arr_object_sub_definitions_files_value);
+					}
 				}
 				
 				$arr_object_sub_definition['object_sub_definition_value'] = ($arr_object_sub_description['object_sub_description_has_multi'] ? ($arr_object_sub_definition['object_sub_definition_value'] ?: []) : $arr_object_sub_definition['object_sub_definition_value']);
@@ -5393,7 +6148,7 @@ class data_entry extends base_module {
 					'object_sub_description_id' => $object_sub_description_id,
 					'object_sub_definition_value' => $arr_object_sub_definition['object_sub_definition_value'],
 					'object_sub_definition_ref_object_id' => $arr_object_sub_definition['object_sub_definition_ref_object_id'],
-					'object_sub_definition_sources' => ($arr_object_sub_definition['object_sub_definition_sources'] ? $func_parse_sources('object_sub_definition', $arr_object_sub_definition['object_sub_definition_sources']) : [])
+					'object_sub_definition_sources' => $func_parse_sources('object_sub_definition', $arr_object_sub_definition['object_sub_definition_sources'])
 				];
 			}
 			
@@ -5422,25 +6177,54 @@ class data_entry extends base_module {
 	
 	public static function formatTypeObjectInput($type_id, $arr_input) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
-		$arr_type_set = cms_nodegoat_custom_projects::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
 		
 		$arr_object_subs = [];
 		
 		foreach ((array)$arr_input['object_subs'] as $arr_object_sub) {
 			
-			$arr_object_sub['object_sub']['object_sub_date_start'] = StoreTypeObjects::formatToSQLValue('date', $arr_object_sub['object_sub']['object_sub_date_start']);
+			if ($arr_object_sub['object_sub']['object_sub_date_start_infinite']) {
+				$arr_object_sub['object_sub']['object_sub_date_start'] = StoreTypeObjects::formatToSQLValue('date', '-∞');
+			} else {
+				$arr_object_sub['object_sub']['object_sub_date_start'] = StoreTypeObjects::formatToSQLValue('date', $arr_object_sub['object_sub']['object_sub_date_start']);
+			}
 			if ($arr_object_sub['object_sub']['object_sub_date_end_infinite']) {
 				$arr_object_sub['object_sub']['object_sub_date_end'] = StoreTypeObjects::formatToSQLValue('date', '∞');
 			} else if ($arr_object_sub['object_sub']['object_sub_date_end']) {
 				$arr_object_sub['object_sub']['object_sub_date_end'] = StoreTypeObjects::formatToSQLValue('date', $arr_object_sub['object_sub']['object_sub_date_end']);
 			}
-			
-			if ($arr_object_sub['object_sub']['object_sub_location_ref_object_id']) {
-				$arr_object_names = FilterTypeObjects::getTypeObjectNames($arr_object_sub['object_sub']['object_sub_location_ref_type_id'], $arr_object_sub['object_sub']['object_sub_location_ref_object_id'], false);
-				$arr_object_sub['object_sub']['object_sub_location_ref_object_name'] = $arr_object_names[$arr_object_sub['object_sub']['object_sub_location_ref_object_id']];
+
+			if (!$arr_object_sub['object_sub']['object_sub_location_type']) {
+				$arr_object_sub['object_sub']['object_sub_location_type'] = 'reference';
 			}
+
+			switch ($arr_object_sub['object_sub']['object_sub_location_type']) {
+				case 'point':
+			
+					if ($arr_object_sub['object_sub']['object_sub_location_latitude'] || $arr_object_sub['object_sub']['object_sub_location_longitude']) {
 						
+						$arr_geometry = ['type' => 'Point', 'coordinates' => [(float)$arr_object_sub['object_sub']['object_sub_location_longitude'], (float)$arr_object_sub['object_sub']['object_sub_location_latitude']]];
+						$arr_object_sub['object_sub']['object_sub_location_geometry'] = StoreTypeObjects::formatToSQLValue('geometry', $arr_geometry);
+						
+						$arr_object_sub['object_sub']['object_sub_location_type'] = 'geometry';
+					}
+					
+					break;
+				case 'geometry':
+					
+					break;
+				case 'reference':
+				
+					if ($arr_object_sub['object_sub']['object_sub_location_ref_object_id']) {
+						
+						$arr_object_names = FilterTypeObjects::getTypeObjectNames($arr_object_sub['object_sub']['object_sub_location_ref_type_id'], $arr_object_sub['object_sub']['object_sub_location_ref_object_id'], false);
+						$arr_object_sub['object_sub']['object_sub_location_ref_object_name'] = $arr_object_names[$arr_object_sub['object_sub']['object_sub_location_ref_object_id']];
+					}
+					
+					break;
+				}
+					
 			$arr_object_sub_definitions = [];
 			
 			foreach ((array)$arr_object_sub['object_sub_definitions'] as $key => $arr_object_sub_definition) {
@@ -5482,14 +6266,18 @@ class data_entry extends base_module {
 
 			unset($arr_chronology['start']);
 		} else {
-			
+
 			if ($arr_chronology['start']['start']['date_infinite']) {
 				$arr_chronology['start']['start']['date_value'] = '-∞';
 			}
-			if ($arr_chronology['start']['end']['date_infinite']) {
-				$arr_chronology['start']['end']['date_value'] = '∞';
+			if ($arr_chronology['start']['type'] == 'statement_between') {
+				if ($arr_chronology['start']['end']['date_infinite']) {
+					$arr_chronology['start']['end']['date_value'] = '∞';
+				}
+			} else {
+				unset($arr_chronology['start']['end']);
 			}
-			
+
 			unset($arr_chronology['date']['start']);
 		}
 		
@@ -5505,6 +6293,11 @@ class data_entry extends base_module {
 			if ($arr_chronology['end']['end']['date_infinite']) {
 				$arr_chronology['end']['end']['date_value'] = '∞';
 			}
+			if ($arr_chronology['end']['type'] == 'statement_between') {
+				// End's start cannot be infinite
+			} else {
+				unset($arr_chronology['end']['start']);
+			}
 			
 			unset($arr_chronology['date']['end']);
 		}
@@ -5513,5 +6306,54 @@ class data_entry extends base_module {
 		$arr_chronology = arrFilterRecursive($arr_chronology);
 		
 		return $arr_chronology;
+	}
+	
+	public static function formatTypeObjectReversalInput($type_id, $arr_types_filter_scope) {
+		
+		if (!$arr_types_filter_scope) {
+			return null;
+		}
+		
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], 'edit');
+		$arr_ref_type_ids = StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']);
+		
+		foreach ($arr_types_filter_scope as $ref_type_id => &$arr_type_filter_scope) {
+							
+			$arr_type_scope = null;
+			
+			if ($arr_type_set['type']['mode'] & StoreType::TYPE_MODE_REVERSAL_COLLECTION) {
+				$arr_type_scope = $arr_type_filter_scope['scope'];
+			}
+						
+			$filter = new FilterTypeObjects($ref_type_id, GenerateTypeObjects::VIEW_ID);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids, 'project_id' => $_SESSION['custom_projects']['project_id']]);
+			$arr_type_filter = $filter->cleanupFilterInput($arr_type_filter_scope['filter']);
+			
+			if ($arr_type_filter || $arr_type_scope) {
+				$arr_type_filter_scope = ['filter' => $arr_type_filter, 'scope' => $arr_type_scope];
+			} else {
+				unset($arr_types_filter_scope[$ref_type_id]);
+			}
+		}
+		
+		return $arr_types_filter_scope;
+	}
+	
+	public static function checkClearanceType($type_id, $error = true) {
+		
+		$arr_type_set = StoreType::getTypeSet($type_id);
+		
+		$clearance = (
+			$arr_type_set
+			&& ($_SESSION['NODEGOAT_CLEARANCE'] >= $arr_type_set['type']['clearance_edit'])
+			
+		);
+		
+		if (!$clearance && $error) {
+			error(getLabel('msg_not_allowed'));
+		}
+		
+		return $clearance;
 	}
 }

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -61,22 +61,27 @@ class data_filter extends base_module {
 	
 	private function getFilterTypeObjectTabs($arr_type_filter, $arr_source = []) {
 		
-		$arr_filter_codes_new = []; // Keep newly added filters unique, generate new filter codes
+		$arr_filter_codes_new = [];
 		$arr_filter_tabs = [];
 		
 		foreach ((array)$arr_type_filter as $filter_code => $arr_filter) {
 			
-			if (!$arr_filter_codes_new[$filter_code]) {
-				$arr_filter['filter_code'] = $arr_filter_codes_new[$filter_code] = uniqid('filter_');
-			}
-			
-			if ($arr_filter['source'] && $arr_filter['source']['filter_code']) {
-				
-				if (!$arr_filter_codes_new[$arr_filter['source']['filter_code']]) {
-					$arr_filter_codes_new[$arr_filter['source']['filter_code']] = uniqid('filter_');
+			if ($arr_source) { // Keep newly added filters unique, generate new filter codes
+					
+				if (!$arr_filter_codes_new[$filter_code]) {
+					$arr_filter['filter_code'] = $arr_filter_codes_new[$filter_code] = uniqid('filter_');
 				}
 				
-				$arr_filter['source']['filter_code'] = $arr_filter_codes_new[$arr_filter['source']['filter_code']];
+				if ($arr_filter['source'] && $arr_filter['source']['filter_code']) {
+					
+					if (!$arr_filter_codes_new[$arr_filter['source']['filter_code']]) {
+						$arr_filter_codes_new[$arr_filter['source']['filter_code']] = uniqid('filter_');
+					}
+					
+					$arr_filter['source']['filter_code'] = $arr_filter_codes_new[$arr_filter['source']['filter_code']];
+				}
+			} else {
+				$arr_filter['filter_code'] = $filter_code;
 			}
 			
 			$arr_filter_tabs[] = $this->createFilterTypeObjectTab($arr_filter['type_id'], ((!$arr_filter['source'] || !$arr_filter['source']['filter_code']) && $arr_source ? $arr_source : $arr_filter['source']), $arr_filter);
@@ -92,13 +97,16 @@ class data_filter extends base_module {
 			$arr_source_type_set = StoreType::getTypeSet($arr_source['type_id']);
 		}
 		
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_use_project_ids = array_keys($arr_project['use_projects']);
+		
 		$str_identifier = 'type_referenced_'.$type_id;
 		$cache = self::getCache($str_identifier);
 		
 		if ($cache) {
 			$arr_type_referenced = $cache;
 		} else {
-			$arr_ref_type_ids = cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']);
+			$arr_ref_type_ids = StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']);
 			$arr_type_referenced = FilterTypeObjects::getTypesReferenced($type_id, $arr_ref_type_ids, ['object_sub_locations' => true, 'dynamic_is_used' => true]);
 			self::setCache($str_identifier, $arr_type_referenced);
 		}
@@ -166,7 +174,8 @@ class data_filter extends base_module {
 							$return .= cms_general::createSelectorRadio([
 								['id' => 'object_or_sub_or', 'name' => '<span title="'.getLabel('inf_filter_object_or_sub_or').'">'.getLabel('lbl_filter_object_or_sub_or').'</span>'],
 								['id' => 'object_and_sub_or', 'name' => '<span title="'.getLabel('inf_filter_object_and_sub_or').'">'.getLabel('lbl_filter_object_and_sub_or').'</span>'],
-								['id' => 'object_and_sub_and', 'name' => '<span title="'.getLabel('inf_filter_object_and_sub_and').'">'.getLabel('lbl_filter_object_and_sub_and').'</span>']
+								['id' => 'object_and_sub_and', 'name' => '<span title="'.getLabel('inf_filter_object_and_sub_and').'">'.getLabel('lbl_filter_object_and_sub_and').'</span>'],
+								['id' => 'object_optional_sub_optional', 'name' => '<span title="'.getLabel('inf_filter_object_optional_sub_optional').'">'.getLabel('lbl_filter_object_optional_sub_optional').'</span>']
 							], $name.'[options][operator]', $str_operator)
 							.'<span class="split"></span>'
 							.'<label><em>n</em> <span>=</span><input type="number" name="'.$name.'[options][operator_extra]" value="'.((int)$arr_filter['options']['operator_extra'] ?: 1).'"/></label>'
@@ -212,30 +221,39 @@ class data_filter extends base_module {
 										'.cms_general::createSorter($arr_sorter, false, true).'
 									</li>';
 								}
-								
-								$arr_object_analyses = data_analysis::createTypeAnalysesSelection($type_id);
-	
-								$arr_sorter = [];
-									
-								foreach (($arr_filter['object_analyses'] ?: [[]]) as $arr_filter_object_analysis) {
-									
-									$unique = uniqid('array_');
-									
-									$arr_sorter[] = ['value' => [
-										'<select name="'.$name.'[object_analyses]['.$unique.'][object_analysis_id]"'.($info ? ' title="'.htmlspecialchars($info).'"' : '').'>'.Labels::parseTextVariables(cms_general::createDropdown($arr_object_analyses, $arr_filter_object_analysis['object_analysis_id'], true, 'label')).'</select>',
-										StoreTypeObjects::formatToFormValueFilter('float', $arr_filter_object_analysis['number'], $name.'[object_analyses]['.$unique.'][number]')
-										.'<span class="input" title="'.getLabel('lbl_analysis_secondary_value').'">'.StoreTypeObjects::formatToFormValueFilter('float', $arr_filter_object_analysis['number_secondary'], $name.'[object_analyses]['.$unique.'][number_secondary]').'</span>'
-									]];
+
+								$arr_object_analyses = cms_nodegoat_custom_projects::getProjectTypeAnalyses($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, [], $arr_use_project_ids);
+								foreach ($arr_object_analyses as &$value){
+									$value['analysis_id'] = $value['id'];
 								}
+								$has_analysis = ($arr_object_analyses && FilterTypeObjects::hasTypesAnalyses($arr_object_analyses));
 								
-								$return .= '<li>
-									<label>'.getLabel('lbl_analysis').'</label><span>
-										<input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" />'
-									.'</span>
-								</li><li>
-									<label></label>
-									'.cms_general::createSorter($arr_sorter, false, true).'
-								</li>';
+								if ($has_analysis) {
+									
+									$arr_object_analyses_selection = data_analysis::createTypeAnalysesSelection($type_id);
+		
+									$arr_sorter = [];
+										
+									foreach (($arr_filter['object_analyses'] ?: [[]]) as $arr_filter_object_analysis) {
+										
+										$unique = uniqid('array_');
+										
+										$arr_sorter[] = ['value' => [
+											'<select name="'.$name.'[object_analyses]['.$unique.'][object_analysis_id]"'.($info ? ' title="'.strEscapeHTML($info).'"' : '').'>'.Labels::parseTextVariables(cms_general::createDropdown($arr_object_analyses_selection, $arr_filter_object_analysis['object_analysis_id'], true, 'label')).'</select>',
+											StoreTypeObjects::formatToFormValueFilter('float', $arr_filter_object_analysis['number'], $name.'[object_analyses]['.$unique.'][number]')
+											.'<span class="input" title="'.getLabel('lbl_analysis_secondary_value').'">'.StoreTypeObjects::formatToFormValueFilter('float', $arr_filter_object_analysis['number_secondary'], $name.'[object_analyses]['.$unique.'][number_secondary]').'</span>'
+										]];
+									}
+									
+									$return .= '<li>
+										<label>'.getLabel('lbl_analysis').'</label><span>
+											<input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" />'
+										.'</span>
+									</li><li>
+										<label></label>
+										'.cms_general::createSorter($arr_sorter, false, true).'
+									</li>';
+								}
 										
 							$return .= '</ul></fieldset>';
 								
@@ -398,7 +416,7 @@ class data_filter extends base_module {
 	
 	private function createFilterTypeObjectDefinitions($type_id, $filter_code, $arr_object_definitions = [], $arr_referenced = []) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		$arr_object_descriptions = ($arr_referenced ?: $arr_type_set['object_descriptions']);
 		
@@ -410,14 +428,14 @@ class data_filter extends base_module {
 				
 				$arr_object_description = $arr_type_set['object_descriptions'][$object_description_id];
 				
-				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
 					continue;
 				}
 				
 				$has_object_descriptions = true;
 				
 				$return .= '<li'.($arr_object_definitions[$object_description_id] ? ' class="min"' : '').'>'
-					.'<span>'.htmlspecialchars(Labels::parseTextVariables($arr_object_description['object_description_name'])).'</span>'
+					.'<span>'.strEscapeHTML(Labels::parseTextVariables($arr_object_description['object_description_name'])).'</span>'
 					.'<span class="handler" data-tag_identifier="object_description_id-'.$object_description_id.'" id="y:data_filter:add_filter_object_definition-'.$type_id.'_'.$object_description_id.'_'.($arr_referenced ? 1 : 0).'">'.$html_handler.'</span>'
 				.'</li>';
 			}
@@ -430,7 +448,7 @@ class data_filter extends base_module {
 				
 				$arr_object_description = $arr_type_set['object_descriptions'][$object_description_id];
 					
-				if (!($arr_object_definitions[$object_description_id]) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id)) {
+				if (!($arr_object_definitions[$object_description_id]) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
 					continue;
 				}
 					
@@ -446,7 +464,7 @@ class data_filter extends base_module {
 	
 	private function createFilterTypeObjectSubs($type_id, $filter_code, $arr_object_subs = [], $arr_referenced = [], $referenced_type_id = false) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		$arr_object_subs_details = ($arr_referenced ?: $arr_type_set['object_sub_details']);
 		
@@ -465,7 +483,7 @@ class data_filter extends base_module {
 				
 				$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 				
-				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 					continue;
 				}
 				
@@ -477,7 +495,7 @@ class data_filter extends base_module {
 						
 						$arr_object_sub_description = $arr_object_sub_details['object_sub_descriptions'][$object_sub_description_id];
 					
-						if ($_SESSION['NODEGOAT_CLEARANCE'] >= $arr_object_sub_description['object_sub_description_clearance_view'] && custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] >= $arr_object_sub_description['object_sub_description_clearance_view'] && custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 							
 							$has_object_sub_descriptions = true;
 							break;
@@ -492,7 +510,7 @@ class data_filter extends base_module {
 				$has_object_subs_details = true;
 
 				$return .= '<li'.($arr_object_subs[$object_sub_details_id] ? ' class="min"' : '').'>'
-					.'<span><span class="sub-name">'.htmlspecialchars(Labels::parseTextVariables($arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_name'])).'</span></span>'
+					.'<span><span class="sub-name">'.strEscapeHTML(Labels::parseTextVariables($arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_name'])).'</span></span>'
 					.'<span class="handler" data-tag_identifier="object_sub_details_id-'.$object_sub_details_id.'" id="y:data_filter:add_filter_object_sub-'.$type_id.'_'.$object_sub_details_id.'_'.(int)$referenced_type_id.'">'.$html_handler.'</span>'
 				.'</li>';
 			}
@@ -511,7 +529,7 @@ class data_filter extends base_module {
 				
 				$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 								
-				if (!$arr_object_subs[$object_sub_details_id] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id)) {
+				if (!$arr_object_subs[$object_sub_details_id] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 					continue;
 				}
 
@@ -552,7 +570,7 @@ class data_filter extends base_module {
 			$return .= self::createFilterTypeReferences($arr_object_description['object_description_ref_type_id'], $arr_object_definition, $name, Labels::parseTextVariables($arr_object_description['object_description_name']), $arr_options);
 		} else {
 			
-			$return .= self::createFilterValueType($arr_object_description['object_description_value_type'], $arr_object_definition, $name, $arr_object_description['object_description_value_type_options'], Labels::parseTextVariables($arr_object_description['object_description_name']), $arr_options);
+			$return .= self::createFilterValueType($arr_object_description['object_description_value_type'], $arr_object_definition, $name, $arr_object_description['object_description_value_type_settings'], Labels::parseTextVariables($arr_object_description['object_description_name']), $arr_options);
 		}
 		
 		return $return;
@@ -596,7 +614,7 @@ class data_filter extends base_module {
 				$return .= self::createFilterTypeReferences($arr_object_sub_description['object_sub_description_ref_type_id'], $arr_object_sub_definition, $name, Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']), $arr_options);
 			} else {
 				
-				$return .= self::createFilterValueType($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition, $name, $arr_object_sub_description['object_sub_description_value_type_options'], Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']), $arr_options);
+				$return .= self::createFilterValueType($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition, $name, $arr_object_sub_description['object_sub_description_value_type_settings'], Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']), $arr_options);
 			}
 		}
 
@@ -630,7 +648,7 @@ class data_filter extends base_module {
 	
 	private function createFilterTypeObjectSub($type_id, $object_sub_details_id, $filter_code, $arr_object_sub = [], $arr_referenced = [], $referenced_type_id = false) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		
 		if (is_array($object_sub_details_id)) { // Custom object_sub_details filter
@@ -640,7 +658,7 @@ class data_filter extends base_module {
 			$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 		}
 		
-		$str_name = ($arr_object_sub_details['object_sub_details']['object_sub_details_name'] == 'any' ? '<span>'.getLabel('lbl_object_subs').': '.getLabel('lbl_any').'</span>' : '<span class="sub-name">'.htmlspecialchars(Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])).'</span>');
+		$str_name = ($arr_object_sub_details['object_sub_details']['object_sub_details_name'] == 'any' ? '<span>'.getLabel('lbl_object_subs').': '.getLabel('lbl_any').'</span>' : '<span class="sub-name">'.strEscapeHTML(Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])).'</span>');
 		$html_handler = '<span class="icon">'.getIcon('min').'</span><span class="icon">'.getIcon('plus').'</span>';
 		
 		$return .= '<fieldset data-tag_identifier="object_sub_details_id-'.$object_sub_details_id.'"><legend>'.$str_name.'</legend>';
@@ -705,7 +723,7 @@ class data_filter extends base_module {
 								if (!is_array($arr_object_sub_date['object_sub_date_chronology'])) {
 									$arr_object_sub_date['object_sub_date_chronology'] = json_decode($arr_object_sub_date['object_sub_date_chronology'], true);
 								}
-								$arr_object_sub_date['object_sub_date_chronology'] = json_encode($arr_object_sub_date['object_sub_date_chronology'], JSON_PRETTY_PRINT);
+								$arr_object_sub_date['object_sub_date_chronology'] = value2JSON($arr_object_sub_date['object_sub_date_chronology'], JSON_PRETTY_PRINT);
 							}
 														
 							$return .= '<li class="date-section">
@@ -886,12 +904,12 @@ class data_filter extends base_module {
 				
 				$arr_object_sub_description = $arr_object_sub_details['object_sub_descriptions'][$object_sub_description_id];
 				
-				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+				if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 					continue;
 				}
 				
 				$arr_html_object_sub_descriptions['html_tags'] .= '<li'.($arr_object_sub['object_sub_definitions'][$object_sub_description_id] || $referenced_type_id ? ' class="min"' : '').'>'
-					.'<span>'.htmlspecialchars(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name'])).'</span>'
+					.'<span>'.strEscapeHTML(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name'])).'</span>'
 					.'<span class="handler" data-tag_identifier="object_sub_description_id-'.$object_sub_description_id.'" id="y:data_filter:add_filter_object_sub_definition-'.$type_id.'_'.$object_sub_details_id.'_'.$object_sub_description_id.'_'.(int)$referenced_type_id.'">'.$html_handler.'</span>'
 				.'</li>';
 			
@@ -924,8 +942,8 @@ class data_filter extends base_module {
 	
 	public function createFilterExternal($resource_id, $arr_filter = []) {
 	
-		$arr_resource = data_linked_data::getLinkedDataResources($resource_id);
-		$external = new ExternalResource($arr_resource);
+		$arr_resource = StoreResourceExternal::getResources($resource_id);
+		$external = new ResourceExternal($arr_resource);
 
 		$arr_query_variables = $external->getQueryVariables();
 
@@ -935,15 +953,15 @@ class data_filter extends base_module {
 		
 			foreach ($arr_query_variables as $name_query => $arr_variables) {
 			
-				$return .= '<h3>'.htmlspecialchars(Labels::parseTextVariables($name_query)).'</h3>
+				$return .= '<h3>'.strEscapeHTML(Labels::parseTextVariables($name_query)).'</h3>
 				
 				<div class="tags plus"><ul>';
 				
 					foreach ($arr_variables as $name_variable => $arr_variable) {
 						
 						$return .= '<li'.($arr_filter[$name_query][$name_variable] ? ' class="min"' : '').'>'
-							.'<span>'.htmlspecialchars(Labels::parseTextVariables($name_variable)).'</span>'
-							.'<span class="handler" data-tag_identifier="'.htmlspecialchars($name_query).'_'.htmlspecialchars($name_variable).'" id="y:data_filter:add_filter_external_variable-'.$resource_id.'_'.htmlspecialchars($name_query).'_'.htmlspecialchars($name_variable).'">'.$html_handler.'</span>'
+							.'<span>'.strEscapeHTML(Labels::parseTextVariables($name_variable)).'</span>'
+							.'<span class="handler" data-tag_identifier="'.strEscapeHTML($name_query).'_'.strEscapeHTML($name_variable).'" id="y:data_filter:add_filter_external_variable-'.$resource_id.'_'.strEscapeHTML($name_query).'_'.strEscapeHTML($name_variable).'">'.$html_handler.'</span>'
 						.'</li>';
 					}
 						
@@ -957,7 +975,7 @@ class data_filter extends base_module {
 							continue;
 						}
 												
-						$return .= '<fieldset data-tag_identifier="'.htmlspecialchars($name_query).'_'.htmlspecialchars($name_variable).'">
+						$return .= '<fieldset data-tag_identifier="'.strEscapeHTML($name_query).'_'.strEscapeHTML($name_variable).'">
 							<ul>'.$this->createFilterExternalVariable($resource_id, $name_query, $name_variable, $arr_filter[$name_query][$name_variable]).'</ul>
 						</fieldset>';
 					}
@@ -971,12 +989,12 @@ class data_filter extends base_module {
 	
 	private function createFilterExternalVariable($resource_id, $name_query, $name_variable, $arr_filter_variable = []) {
 		
-		$arr_resource = data_linked_data::getLinkedDataResources($resource_id);
-		$external = new ExternalResource($arr_resource);
+		$arr_resource = StoreResourceExternal::getResources($resource_id);
+		$external = new ResourceExternal($arr_resource);
 		
 		$arr_query_variables = $external->getQueryVariables();
 		
-		$name = 'filter_external['.htmlspecialchars($name_query).']['.htmlspecialchars($name_variable).']';
+		$name = 'filter_external['.strEscapeHTML($name_query).']['.strEscapeHTML($name_variable).']';
 		
 		$arr_variable = $arr_query_variables[$name_query][$name_variable];
 		
@@ -985,12 +1003,12 @@ class data_filter extends base_module {
 		return $return;
 	}
 	
-	public static function createFilterExternalValueType($type, $arr_values, $name, $type_options = false, $label = '', $arr_options = []) {
+	public static function createFilterExternalValueType($type, $arr_values, $name, $arr_type_options = false, $label = '', $arr_options = []) {
 		
 		switch ($type) {
 			default:
 				$return = '<li>
-					<label>'.htmlspecialchars($label).'</label>'.ExternalResource::formatToFormValueFilter($type, $arr_values[0], $name.'[]', $type_options).'
+					<label>'.strEscapeHTML($label).'</label>'.ResourceExternal::formatToFormValueFilter($type, $arr_values[0], $name.'[]', $arr_type_options).'
 				</li>';
 				break;
 		}
@@ -998,13 +1016,13 @@ class data_filter extends base_module {
 		return $return;
 	}
 	
-	public static function createFilterValueType($type, $arr_values, $name, $type_options = false, $label = '', $arr_options = []) {
+	public static function createFilterValueType($type, $arr_values, $name, $arr_type_options = false, $label = '', $arr_options = []) {
 		
 		switch ($type) {
 			case 'boolean':
 			
 				$return = '<li>
-					<label>'.htmlspecialchars($label).'</label>'.StoreTypeObjects::formatToFormValueFilter($type, $arr_values[0], $name.'[]', $type_options).'
+					<label>'.strEscapeHTML($label).'</label>'.StoreTypeObjects::formatToFormValueFilter($type, $arr_values[0], $name.'[]', $arr_type_options).'
 				</li>';
 
 				break;
@@ -1014,7 +1032,7 @@ class data_filter extends base_module {
 				unset($arr_options['transcension']);
 				
 				$arr_sorter = [];
-				$arr_types = StoreType::getTypes(cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']));
+				$arr_types = StoreType::getTypes(StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']));
 				
 				foreach (($arr_values['type_tags'] ?: [[]]) as $type_id => $arr_tags) {
 					
@@ -1045,17 +1063,35 @@ class data_filter extends base_module {
 				</li>';
 
 				break;
+			case 'module':
+			
+				unset($arr_options['transcension']);
+				
+				$str_class_module = EnucleateValueTypeModule::getClassName($arr_type_options['type']);
+				$arr_fields = $str_class_module::getValueFields();
+				
+				$return = '';
+				
+				foreach ($arr_fields as $str_identifier => $arr_field) {
+					
+					$arr_options_extra = ['transcension' => $arr_values[$str_identifier]['transcension']] + $arr_options;
+					unset($arr_values[$str_identifier]['transcension']);
+				
+					$return .= self::createFilterValueType($arr_field['type'], $arr_values[$str_identifier], $name.'['.$str_identifier.']', false, $arr_field['name'], $arr_options_extra);
+				}
+
+				break;
 			default:
 			
 				$arr_sorter = [];
 				
 				foreach (($arr_values ?: ['']) as $value) {
 					$unique = uniqid('array_');
-					$arr_sorter[] = ['value' => StoreTypeObjects::formatToFormValueFilter($type, $value, $name.'['.$unique.']', $type_options)];
+					$arr_sorter[] = ['value' => StoreTypeObjects::formatToFormValueFilter($type, $value, $name.'['.$unique.']', $arr_type_options)];
 				}
 				
 				$return = '<li>
-					<label>'.htmlspecialchars($label).'</label>
+					<label>'.strEscapeHTML($label).'</label>
 					<span><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></span>
 				</li><li>
 					<label></label>
@@ -1130,7 +1166,7 @@ class data_filter extends base_module {
 		}
 		
 		$return = '<li>
-			<label>'.htmlspecialchars($label).'</label>
+			<label>'.strEscapeHTML($label).'</label>
 			<span>'
 				.'<input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" />'
 				.(keyIsUncontested('filter_deep', $arr_options) ? 
@@ -1215,13 +1251,13 @@ class data_filter extends base_module {
 	
 	private function createSelectFilterExtra($type_id, $arr_type_filter = false) {
 		
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = [];
 
 		if ($arr_type_filter !== false) {
 			
 			$filter = new FilterTypeObjects($type_id);
-			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id'])]);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id'])]);
 			$arr_type_filter = $filter->cleanupFilterInput(($arr_type_filter ?: []));
 		} else {
 
@@ -1251,7 +1287,7 @@ class data_filter extends base_module {
 					<fieldset>
 						<ul>
 							<li><label>'.getLabel('lbl_form').'</label><div>'
-								.'<textarea name="plain">'.($arr_type_filter ? json_encode($arr_type_filter, JSON_PRETTY_PRINT) : '').'</textarea>'
+								.'<textarea name="plain">'.($arr_type_filter ? value2JSON($arr_type_filter, JSON_PRETTY_PRINT) : '').'</textarea>'
 							.'</div></li>
 						</ul>
 					</fieldset>
@@ -1380,15 +1416,103 @@ class data_filter extends base_module {
 		
 			var func_find_select_type = function(elm) {
 				
-				var elm_target = elm.parent().closest('li');
+				const str_selector = '.update_object_type';
+				var elm_target = $(elm).closest('li');
 				
-				var elm_target_find = elm_target.prev('li').find('.update_object_type');
+				var elm_target_find = elm_target.find(str_selector);
 				
-				if (elm_target.length && !elm_target_find.length) {
-					elm_target_find = func_find_select_type(elm_target);
+				if (!elm_target_find.length) {
+					elm_target_find = elm_target.prev('li').find(str_selector);
+				}
+				
+				if (!elm_target_find.length) {
+					
+					var elm_in_list = elm_target.closest('ul.sorter > li');
+					elm_target_find = elm_in_list.find(str_selector);
+					
+					if (!elm_target_find.length) {
+					
+						elm_in_list = elm_in_list.parent('ul').closest('ul.sorter > li');
+						elm_target_find = elm_in_list.find(str_selector);
+						
+						if (!elm_target_find.length) {
+							elm_target_find = elm_in_list.prev('li').find(str_selector);
+						}
+					}
 				}
 				
 				return elm_target_find;
+			};
+			
+			var func_find_select_type_object = function(elm, is_select_type_object_sub) {
+			
+				const str_selector = '[id^=y\\\:data_filter\\\:lookup_type_object-]';
+				var elm_row = $(elm).closest('li');
+				
+				var elms_select_object = elm_row.find(str_selector);
+									
+				if (!elms_select_object.length) {
+				
+					if (is_select_type_object_sub) { // Look backwards from select_type_object_sub
+						elms_select_object = elm_row.prev('li').find(str_selector);
+					} else {
+						elms_select_object = elm_row.next('li').find(str_selector);
+					}
+				}
+				
+				if (!elms_select_object.length) {
+					return;
+				}
+				
+				elms_select_object = elms_select_object.prev('input[type=hidden]');
+				
+				return elms_select_object;
+			};
+			
+			var func_clear_select_type_object = function(elms_select_object) {
+			
+				if (!elms_select_object) {
+					return;
+				}
+				
+				var elms_select_object = $(elms_select_object).next('.autocomplete');
+				
+				for (var i = 0, len = elms_select_object.length; i < len; i++) {
+				
+					elms_select_object[i].autocompleter.clear();
+
+					func_update_select_type_object_sub(func_find_select_type_object_sub(elms_select_object[i].previousSibling));
+				}
+			};
+			
+			var func_find_select_type_object_sub = function(elm) {
+			
+				const str_selector = 'input[name$=\"[object_sub_date_object_sub_id]\"], input[name$=\"[date_object_sub_id]\"]';
+				var elm_row = $(elm).closest('li');
+				
+				var elm_select_object_sub = elm_row.find(str_selector);
+									
+				if (!elm_select_object_sub.length) {
+					elm_select_object_sub = elm_row.next('li').find(str_selector);
+				}
+				
+				if (!elm_select_object_sub.length) {
+					return;
+				}
+				
+				return elm_select_object_sub;
+			};
+			
+			var func_update_select_type_object_sub = function(elm_select_object_sub, objecht_sub_id, objecht_sub_name) {
+
+				if (!elm_select_object_sub) {
+					return;
+				}
+				
+				var elm_select_object_sub = $(elm_select_object_sub);
+				
+				elm_select_object_sub.val((objecht_sub_id ? objecht_sub_id : ''))
+				elm_select_object_sub.next('input[type=search]').val((objecht_sub_name ? objecht_sub_name : ''));
 			};
 		
 			elm_scripter.on('ajaxloaded scripter', function(e) {
@@ -1426,25 +1550,33 @@ class data_filter extends base_module {
 					elm_target_point.addClass('hide');
 					elm_target_chronology.removeClass('hide');
 				}
-			}).on('change update_date_type', '[name*=\"[object_sub][object_sub_date_type]\"]', function() { // Entry
+			}).on('change update_date_type', '.entry [name*=\"[object_sub_date_type]\"]', function() { // Entry
 			
 				var cur = $(this);
 				var elm_target = cur.closest('.date-section');
 				
 				if (elm_target.closest('ul.full').length) { // Multi data entry
 					var elm_target_point = elm_target.find('[name*=\"[object_sub_date_start]\"], [name*=\"[object_sub_date_end]\"]').parent('span');
+					var elm_target_reference = elm_target.find('[name*=\"[object_sub_date_type_id]\"], [name*=\"[object_sub_date_object_id]\"], [name*=\"[object_sub_date_object_sub_id]\"]').parent('span');
 					var elm_target_chronology = elm_target.find('[name*=object_sub_date_chronology], [id^=y\\\:data_entry\\\:select_chronology-]').parent('span');
 				} else { // Basic data entry
 					elm_target = elm_target.add(elm_target.nextUntil('.start, :not(.date-section)'));	
 					var elm_target_point = elm_target.find('[name*=\"[object_sub_date_start]\"], [name*=\"[object_sub_date_end]\"]').closest('.date-section');
+					var elm_target_reference = elm_target.find('[name*=\"[object_sub_date_type_id]\"], [name*=\"[object_sub_date_object_id]\"], [name*=\"[object_sub_date_object_sub_id]\"]').closest('.date-section');
 					var elm_target_chronology = elm_target.find('[name*=object_sub_date_chronology], [id^=y\\\:data_entry\\\:select_chronology-]').closest('.date-section');
 				}
 					
 				if (this.value == 'chronology') {
 					elm_target_chronology.removeClass('hide');
+					elm_target_reference.addClass('hide');
+					elm_target_point.addClass('hide');
+				} else if (this.value == 'object_sub') {
+					elm_target_chronology.addClass('hide');
+					elm_target_reference.removeClass('hide');
 					elm_target_point.addClass('hide');
 				} else if (this.value == 'point') {
 					elm_target_chronology.addClass('hide');
+					elm_target_reference.addClass('hide');
 					elm_target_point.removeClass('hide');
 				}
 			}).on('change update_date_type', '[name*=\"chronology[start][type]\"], [name*=\"chronology[end][type]\"]', function() {
@@ -1530,60 +1662,88 @@ class data_filter extends base_module {
 					elm_target_geometry.addClass('hide');
 					elm_target_reference.removeClass('hide');
 				}
-			}).on('change', '[id^=y\\\:data_filter\\\:lookup_type_object_pick-]', function() {
+			}).on('change update_type_object_pick', '[id^=y\\\:data_filter\\\:lookup_type_object_pick-]', function(e) {
+			
+				var elm_select_type_object_sub = func_find_select_type_object_sub(this);
+				
 				if (this.value) {
-					COMMANDS.quickCommand(this);
+					
+					if (elm_select_type_object_sub) {
+						
+						var elm_target = func_find_select_type(this);
+						var object_sub_details_id = (elm_target.next().length ? elm_target.next()[0].value : false);
+						
+						COMMANDS.setData(this, {object_sub_details_id: object_sub_details_id});
+						COMMANDS.quickCommand(this, function(data) {
+						
+							var data = (data ? data : []);
+						
+							func_update_select_type_object_sub(elm_select_type_object_sub, data.id, data.value);
+						});
+						
+						return;
+					} else {
+						COMMANDS.quickCommand(this);
+					}
 				}
-			}).on('change', '[id=y\\\:data_filter\\\:selector_object_sub_details-0]', function() {
-				var elm_target = $(this).next('select');
+				
+				if (elm_select_type_object_sub && SCRIPTER.isUserEvent(e)) {
+					func_update_select_type_object_sub(elm_select_type_object_sub);
+				}
+			}).on('change', '[id=y\\\:data_filter\\\:selector_object_sub_details-0]', function(e) {
+				
+				var cur = $(this);
+				var elm_target = cur.next('select');
+				
 				if (elm_target.length) {
-					COMMANDS.quickCommand(this, elm_target);
+				
+					COMMANDS.quickCommand(this, elm_target);					
+				}
+				
+				if (SCRIPTER.isUserEvent(e)) {
+					func_clear_select_type_object(func_find_select_type_object(cur));
 				}
 			}).on('focus', '[id^=y\\\:data_filter\\\:lookup_type_object-]', function() {
+				
 				var cur = $(this);
 
 				if (cur.closest('.entry, .select-object').length) {
-					COMMANDS.setData(cur, {new: true});
+					COMMANDS.setData(cur, {do_new: true});
 				}
 
 				if (cur.is('[id=y\\\:data_filter\\\:lookup_type_object-0]')) {
 					
-					var elm_target = cur.siblings('.update_object_type');
-					if (!elm_target.length) {
-						elm_target = func_find_select_type(cur);
-					}
+					var elm_target = func_find_select_type(cur);
 					
 					if (elm_target.length) {
-						COMMANDS.setData(cur, {type_id: elm_target[0].value});
-						COMMANDS.setData(cur.parent().find('[id=y\\\:data_filter\\\:lookup_type_object_pick-0]'), {type_id: elm_target[0].value});
+						
+						var type_id = elm_target[0].value;
+						
+						COMMANDS.setData(cur, {type_id: type_id});
+						COMMANDS.setData(cur.prev('[id=y\\\:data_filter\\\:lookup_type_object_pick-0]'), {type_id: type_id});
 					}
 				}
 			}).on('click', '[id^=y\\\:data_filter\\\:select_type_object_sub-]', function() {
 			
 				var cur = $(this);
 				
-				var elm_object_id = cur.closest('li').prev().children('input[type=hidden]');
+				var elm_object_id = func_find_select_type_object(cur, true);
 				
-				var elm_target = elm_object_id.siblings('.update_object_type');
-				if (!elm_target.length) {
-					elm_target = func_find_select_type(elm_object_id);
-				}
+				var elm_target = func_find_select_type(elm_object_id);
 				
 				var type_id = elm_target[0].value;
-				var object_sub_details_id = elm_target.next()[0].value;
+				var object_sub_details_id = (elm_target.next().length ? elm_target.next()[0].value : false);
 				var object_id = elm_object_id[0].value;
 				var object_sub_id = cur.prev()[0].value;
 				
 				if (elm_target.length) {
+				
 					COMMANDS.setData(this, {type_id: type_id, object_id: object_id, object_sub_details_id: object_sub_details_id, object_sub_id: object_sub_id});
 					COMMANDS.setTarget(this, function(data) {
 					
-						if (!data || !data.id) {
-							var data = {id: '', value: ''};
-						}
-
-						this.value = data.value;
-						cur.prev()[0].value = data.id;
+						var data = (data ? data : []);
+						
+						func_update_select_type_object_sub(cur.prev(), data.id, data.value);
 					});
 					COMMANDS.popupCommand(this);
 				}
@@ -1608,9 +1768,9 @@ class data_filter extends base_module {
 				var elm_target = cur.closest('.tags').next('.fieldsets');
 				var target = elm_target.find('fieldset[data-tag_identifier='+tag_identifier+']');
 				var filter_code = elm_filter_form.attr('id');
-				var name = elm_filter.find('[data-name]').attr('data-name');
+				var str_name = elm_filter.find('[data-name]').attr('data-name');
 				if (!target.length) {
-					COMMANDS.setData(cur, {filter_code: filter_code, name: name});
+					COMMANDS.setData(cur, {filter_code: filter_code, name: str_name});
 					cur.quickCommand(function(html) {
 						elm_target.children().prepend(html);
 						cur.parent('li').addClass('min');
@@ -1644,7 +1804,7 @@ class data_filter extends base_module {
 					filter_beacon = guid();
 					elm_filter_beacon.val(filter_beacon);
 				}
-				var name = elm_parent.find('[data-name]').attr('data-name');
+				var str_name = elm_parent.find('[data-name]').attr('data-name');
 				var type_id = 0;
 				
 				if (cur.is('[id^=y\\\:data_filter\\\:add_filter_extra-0]')) {
@@ -1660,7 +1820,7 @@ class data_filter extends base_module {
 					}
 				}
 										
-				COMMANDS.setData(cur, {filter_code: filter_code, filter_type_id: filter_type_id, filter_beacon: filter_beacon, type_id: type_id, name: name});
+				COMMANDS.setData(cur, {filter_code: filter_code, filter_type_id: filter_type_id, filter_beacon: filter_beacon, type_id: type_id, name: str_name});
 				COMMANDS.setTarget(cur, function(data) {
 				
 					var elm_collect = $();
@@ -1795,6 +1955,12 @@ class data_filter extends base_module {
 				var cur = $(this);
 				var elm_target = cur.prev('input[type=hidden]');
 				
+				if (cur.is('[id$=configure_application_filter-0]')) {
+				
+					var type_id = cur.prevAll('select:last').val();
+					COMMANDS.setID(cur, type_id);
+				}
+				
 				COMMANDS.setData(cur, {filter: elm_target.val()});
 				COMMANDS.setTarget(cur, function(data) {
 					elm_target.val(data);
@@ -1803,6 +1969,12 @@ class data_filter extends base_module {
 			
 				var cur = $(this);
 				var elm_target = cur.prev('input[type=hidden]');
+				
+				if (cur.is('[id$=configure_application_path-0]')) {
+				
+					var type_id = cur.prevAll('select:last').val();
+					COMMANDS.setID(cur, type_id);
+				}
 				
 				COMMANDS.setData(cur, {path: elm_target.val(), options: cur.attr('data-options')});
 				COMMANDS.setTarget(cur, function(data) {
@@ -1862,11 +2034,12 @@ class data_filter extends base_module {
 					});
 					
 					var arr_levels = [];
-					for (var i = 1; i <= 18; i++) {
-						arr_levels.push({width: 256 * Math.pow(2,i), height: 256 * Math.pow(2,i), tile_width: 256, tile_height: 256});
+					for (var i = data.frame.zoom.min; i <= data.frame.zoom.max; i++) {
+						arr_levels.push({level: i, width: 256 * Math.pow(2,i), height: 256 * Math.pow(2,i), tile_width: 256, tile_height: 256});
 					}
+					var num_default_zoom = Math.floor((data.frame.zoom.max - data.frame.zoom.min) * 0.2);
 					
-					if (cur.parent().is('div.location-section')) {
+					if (cur.closest('div.location-section').length) {
 						var elm_latitude = cur.siblings('[name*=location_latitude]');
 						var elm_longitude = cur.siblings('[name*=location_longitude]');
 					} else {
@@ -1875,31 +2048,44 @@ class data_filter extends base_module {
 					}
 					
 					var arr_data = {points: []};
-					var latlong = {latitude: elm_latitude.val(), longitude: elm_longitude.val()};
-					if (latlong.latitude) {
-						arr_data.points.push(latlong);
+					var arr_latlong = {latitude: parseFloat(elm_latitude.val()), longitude: parseFloat(elm_longitude.val())};
+					if (arr_latlong.latitude) {
+						arr_data.points.push(arr_latlong);
 					}
 					
-					var obj_labmap = new Map(elm_map);
-					
-					obj_labmap.init({
+					var obj_options = {
 						call_class_paint: MapDrawPoints,
 						arr_levels: arr_levels,
 						arr_class_paint_settings: {arr_visual: data.visual},
 						arr_data: arr_data,
 						tile_path: data.visual.settings.map_url,
 						tile_subdomain_range: [1,2,3],
-						default_center: (latlong.latitude ? latlong : {x: 0.5, y: 0.5})
-					});
+						allow_sizing: true,
+						default_zoom: num_default_zoom
+					};
+					
+					if (arr_latlong.latitude) {
+						obj_options.default_center = arr_latlong;
+						obj_options.default_zoom = false;
+					} else if (data.frame.coordinates.latitude) {
+						obj_options.default_center = data.frame.coordinates;
+					}
+					
+					if (data.frame.zoom.scale) {
+						obj_options.default_zoom = {scale: data.frame.zoom.scale};
+					}
+					
+					var obj_labmap = new MapManager(elm_map);
+					obj_labmap.init(obj_options);
 					
 					elm_map.on('click', function(e) {
 						
-						var mouse_latlong = obj_labmap.getMousePosition();
+						var arr_latlong_mouse = obj_labmap.getMousePosition();
 						obj_labmap.prepareData({
-							points: [mouse_latlong]
+							points: [arr_latlong_mouse]
 						});
-						elm_latitude.val(mouse_latlong.latitude);
-						elm_longitude.val(mouse_latlong.longitude);
+						elm_latitude.val(arr_latlong_mouse.latitude);
+						elm_longitude.val(arr_latlong_mouse.longitude);
 					});
 					
 					return elm_map;
@@ -1997,16 +2183,16 @@ class data_filter extends base_module {
 		if ($method == "filter") {
 						
 			$filter = new FilterTypeObjects($id);
-			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id'])]);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id'])]);
 			$arr_type_filter = $filter->cleanupFilterInput(($_POST['filter'] ?: []));
 			
 			$is_active = ($arr_type_filter ? true : false);
 			
-			if (!$arr_type_filter) {
-				$arr_type_filter = ['form' => [], 'versioning' => [], 'filter_id' => 0];	
-			} else {
-				$arr_type_filter['filter_id'] = 0; // Always reset a possible set filter_id
-			}
+			$arr_type_filter = [
+				'form' => ($arr_type_filter['form'] ?: []),
+				'versioning' => ($arr_type_filter['versioning'] ?: []),
+				'filter_id' => 0 // Always reset a possible set filter_id
+			];
 								
 			$this->html = ['active' => $is_active, 'filter' => $arr_type_filter];
 		}
@@ -2076,7 +2262,7 @@ class data_filter extends base_module {
 				}
 								
 				$filter = new FilterTypeObjects($type_id);
-				$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id'])]);
+				$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id'])]);
 				$arr_type_filter = $filter->cleanupFilterInput($arr_type_filter);
 				
 				$arr_filter_tabs = $this->getFilterTypeObjectTabs($arr_type_filter['form'], $arr_source);
@@ -2160,8 +2346,8 @@ class data_filter extends base_module {
 		}
 		if ($method == "filter_external") {
 						
-			$arr_resource = data_linked_data::getLinkedDataResources($id);
-			$external = new ExternalResource($arr_resource);
+			$arr_resource = StoreResourceExternal::getResources($id);
+			$external = new ResourceExternal($arr_resource);
 
 			$arr_filter = $external->cleanupFilterForm(($_POST['filter_external'] ?: []));
 			
@@ -2174,7 +2360,7 @@ class data_filter extends base_module {
 		
 			$arr_id = explode('_', $id);
 						
-			$this->html = '<fieldset data-tag_identifier="'.htmlspecialchars($arr_id[1]).'_'.htmlspecialchars($arr_id[2]).'">
+			$this->html = '<fieldset data-tag_identifier="'.strEscapeHTML($arr_id[1]).'_'.strEscapeHTML($arr_id[2]).'">
 				<ul>'.$this->createFilterExternalVariable($arr_id[0], $arr_id[1], $arr_id[2]).'</ul>
 			</fieldset>';
 		}
@@ -2189,10 +2375,10 @@ class data_filter extends base_module {
 		if ($method == "return_application_filter") {
 						
 			$filter = new FilterTypeObjects($id);
-			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id'])]);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id'])]);
 			$arr_type_filter = $filter->cleanupFilterInput(($_POST['filter'] ?: []));
 						
-			$return = json_encode($arr_type_filter);
+			$return = value2JSON($arr_type_filter);
 			
 			$this->html = $return;
 		}
@@ -2228,7 +2414,7 @@ class data_filter extends base_module {
 		if ($method == "return_application_path") {
 						
 			$filter = new FilterTypeObjects($id);
-			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id'])]);
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id'])]);
 			$arr_type_filter = $filter->cleanupFilterInput(($_POST['filter'] ?: []));
 			
 			$arr_type_scope = data_model::parseTypeNetwork(($_POST['scope'] ?: []));
@@ -2239,7 +2425,7 @@ class data_filter extends base_module {
 			
 			$arr_path = ['filter' => $arr_type_filter, 'scope' => $arr_type_scope];
 			
-			$this->html = ['path' => json_encode($arr_path)];
+			$this->html = ['path' => value2JSON($arr_path)];
 		}
 		
 		if ($method == "lookup_type_object") {
@@ -2260,20 +2446,20 @@ class data_filter extends base_module {
 				return;
 			}
 			
-			$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+			$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 			$arr_type_set = StoreType::getTypeSet($type_id);
 			
-			$filter = new FilterTypeObjects($type_id, 'overview', true);
+			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_OVERVIEW, true);
 			$filter->setLimit(20);
 			$filter->setOrder(['object_name' => 'asc']);
 			$filter->setVersioning('added');
-			$filter->setConditions('style_include', toolbar::getTypeConditions($type_id));
+			$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE_INCLUDE, toolbar::getTypeConditions($type_id));
 						
 			if ($arr_project['types'][$type_id]['type_filter_id']) {
 				
 				if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_UNDER_REVIEW) {
 					
-					$arr_ref_type_ids = cms_nodegoat_custom_projects::getProjectScopeTypes($_SESSION['custom_projects']['project_id']);
+					$arr_ref_type_ids = StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']);
 					$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids]);
 					
 					$arr_use_project_ids = array_keys($arr_project['use_projects']);
@@ -2331,7 +2517,7 @@ class data_filter extends base_module {
 					
 					$arr_object_description = $arr_type_set['object_descriptions'][$object_description_id];
 					
-					if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'][$type_id], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
+					if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
 						continue;
 					}
 					
@@ -2359,12 +2545,12 @@ class data_filter extends base_module {
 						
 						$str_value = arrParseRecursive($arr_object_definition['object_definition_value'], ['Labels', 'parseLanguage']);
 						
-						$title = StoreTypeObjects::formatToPreviewValue($arr_object_description['object_description_value_type'], $str_value);
+						$title = StoreTypeObjects::formatToHTMLPreviewValue($arr_object_description['object_description_value_type'], $str_value, $arr_object_description['object_description_value_type_settings']);
 					}
 					
 					$title = ($title ?: '-');
 					
-					$arr_title[] = '<li><dt>'.htmlspecialchars(Labels::parseTextVariables($arr_object_description['object_description_name'])).'</dt><dd class="limit">'.($arr_object_definition['object_definition_style'] ? '<span style="'.$arr_object_definition['object_definition_style'].'">'.$title.'</span>' : $title).'</dd></li>';
+					$arr_title[] = '<li><dt>'.strEscapeHTML(Labels::parseTextVariables($arr_object_description['object_description_name'])).'</dt><dd class="limit">'.($arr_object_definition['object_definition_style'] ? '<span style="'.$arr_object_definition['object_definition_style'].'">'.$title.'</span>' : $title).'</dd></li>';
 				}
 				
 				$str_object_name = $arr_object['object']['object_name'];
@@ -2372,7 +2558,7 @@ class data_filter extends base_module {
 				$arr[] = ['id' => $arr_object['object']['object_id'], 'label' => $str_object_name, 'value' => Response::addParsePost($str_object_name, ['strip' => true]), 'title' => ($arr_title ? '<dl>'.implode('', $arr_title).'</dl>' : '')];
 			}
 		
-			if ($value['new'] && $_SESSION['NODEGOAT_CLEARANCE'] > NODEGOAT_CLEARANCE_INTERACT && data_model::checkClearanceType($type_id, false) && custom_projects::checkAccessType('edit', $type_id, false)) {
+			if ($value['do_new'] && $_SESSION['NODEGOAT_CLEARANCE'] > NODEGOAT_CLEARANCE_INTERACT && data_entry::checkClearanceType($type_id, false) && custom_projects::checkAccessType('edit', $type_id, false)) {
 				$arr[] = ['id' => '', 'label' => '<input type="button" id="y:data_entry:add_quick-'.$type_id.'" class="data add popup" value="new" />', 'value' => ''];
 			}
 			$arr[] = ['id' => '', 'label' => '<input type="button" id="y:data_filter:select_type_object-'.$type_id.'" class="data neutral popup" value="filter" />', 'value' => ''];
@@ -2394,15 +2580,31 @@ class data_filter extends base_module {
 				return;
 			}
 			
-			$arr_resource = data_linked_data::getLinkedDataResources($resource_id);
-			$external = new ExternalResource($arr_resource);
+			$arr_resource = StoreResourceExternal::getResources($resource_id);
+			$external = new ResourceExternal($arr_resource);
 			
 			if ($value_search) {
 				
 				$external->setLimit(20);
 				$external->setFilter(['name' => $value_search]);
-				$arr_results = $external->request();
-				$arr_results = $arr_results['values'];
+				$external->request();
+
+				try {
+					
+					$arr_results = $external->getResultValues();
+				} catch (RealTroubleThrown $e) {
+
+					$arr_code = Trouble::parseCode($e);
+					
+					if ($arr_code['suppress'] != LOG_SYSTEM) {
+						
+						Labels::setVariable('name', $arr_resource['name']);
+
+						error(getLabel('msg_external_resource_error_parse').' '.$e->getMessage(), TROUBLE_ERROR, LOG_CLIENT, false, $e); // Make notice
+					}
+					
+					throw($e);
+				}
 			} else if ($_SESSION['data_filter']['lookup_external'][$resource_id]) {
 				
 				foreach (array_reverse($_SESSION['data_filter']['lookup_external'][$resource_id]) as $key => $value) {
@@ -2412,16 +2614,27 @@ class data_filter extends base_module {
 
 			$arr = [];
 			
-			if ($value_search && !$arr_results) {
-				$arr[] = ['id' => '', 'label' => getLabel('msg_no_results'), 'value' => ''];
-			} else if (!$arr_results) {
-				Labels::setVariable('what', $arr_resource['name']);
-				$arr[] = ['id' => '', 'label' => getLabel('msg_search_by_typing'), 'value' => ''];
+			if (!$arr_results) {
+				
+				if ($value_search) {
+					
+					$arr[] = ['id' => '', 'label' => getLabel('msg_no_results'), 'value' => ''];
+				} else {
+					
+					Labels::setVariable('what', $arr_resource['name']);
+					$arr[] = ['id' => '', 'label' => getLabel('msg_search_by_typing'), 'value' => ''];
+				}
+			} else {
+			
+				foreach ($arr_results as $arr_result) {
+					
+					$label = ($arr_result['label'] && $arr_result['label'] != $arr_result['uri'] ? $arr_result['label'].' ('.$arr_result['uri'].')' : $arr_result['uri']);
+					$arr[] = ['id' => $arr_result['uri'], 'label' => (FormatHTML::test($label) ? $label : strEscapeHTML($label)), 'value' => $arr_result['uri']];
+				}
 			}
 			
-			foreach ((array)$arr_results as $arr_result) {
-				$label = ($arr_result['label'] && $arr_result['label'] != $arr_result['uri'] ? $arr_result['label'].' ('.$arr_result['uri'].')' : $arr_result['uri']);
-				$arr[] = ['id' => $arr_result['uri'], 'label' => $label, 'value' => $arr_result['uri']];
+			if ($value_search) {
+				$arr[] = ['id' => $value_search, 'label' => getLabel('msg_search_use_input').' <em>'.(FormatHTML::test($value_search) ? $value_search : strEscapeHTML($value_search)).'</em>', 'value' => $value_search];
 			}
 		
 			$arr[] = ['id' => '', 'label' => '<input type="button" id="y:data_filter:select_external-'.$resource_id.'" class="data neutral popup" value="filter" />', 'value' => ''];
@@ -2458,7 +2671,7 @@ class data_filter extends base_module {
 		if ($method == "select_external") {
 			
 			$resource_id = (int)($id ?: $value);
-			$arr_external_resources = data_linked_data::getLinkedDataResources();
+			$arr_external_resources = StoreResourceExternal::getResources();
 			foreach ($arr_external_resources as $cur_resource_id => $arr_external_resource) {
 				if ($arr_external_resource['protocol'] == 'static') {
 					unset($arr_external_resources[$cur_resource_id]);
@@ -2496,7 +2709,7 @@ class data_filter extends base_module {
 				return;
 			}
 			
-			$arr_objects = GenerateTypeObjects::getTypeObjectNames($id, $object_id, 'text');
+			$arr_objects = GenerateTypeObjects::getTypeObjectNames($id, $object_id, GenerateTypeObjects::CONDITIONS_MODE_TEXT);
 			$str_object_name = $arr_objects[$object_id];
 			
 			$this->html = ['id' => $object_id, 'value' => $str_object_name];
@@ -2510,14 +2723,12 @@ class data_filter extends base_module {
 			$object_sub_id = (int)$_POST['type_object_sub_id'];
 			
 			if (!$object_sub_id || !$object_id || !$type_id) {
-				$this->html = [];
 				return;
 			}
 
-			$arr_object_subs_names = GenerateTypeObjects::getTypeObjectSubsNames($type_id, $object_id, $object_sub_id, 'text');
+			$arr_object_subs_names = GenerateTypeObjects::getTypeObjectSubsNames($type_id, $object_id, $object_sub_id, false, GenerateTypeObjects::CONDITIONS_MODE_TEXT);
 
 			if (!$arr_object_subs_names) {
-				$this->html = [];
 				return;
 			}
 			
@@ -2538,9 +2749,17 @@ class data_filter extends base_module {
 		}
 				
 		if ($method == "lookup_type_object_pick") {
-					
-			$type_id = (is_array($value) ? $value['type_id'] : $id);
-			$object_id = (is_array($value) ? $value['value_element'] : $value);
+			
+			$type_id = (int)$id;
+			$object_id = (int)$value;
+			$object_sub_details_id = null;
+			
+			if (is_array($value)) {
+				$type_id = ((int)$value['type_id'] ?: $type_id);
+				$object_id = (int)$value['value_element'];
+				$object_sub_details_id = (int)$value['object_sub_details_id'];
+			}
+
 			if (!$type_id || !$object_id) {
 				return;
 			}
@@ -2554,6 +2773,29 @@ class data_filter extends base_module {
 			
 			if (count($_SESSION['data_filter']['lookup'][$type_id]) > 20) {
 				$_SESSION['data_filter']['lookup'][$type_id] = array_slice($_SESSION['data_filter']['lookup'][$type_id], 1, 20, true);
+			}
+			
+			if ($object_sub_details_id) {
+								
+				if (!custom_projects::checkAccessType('view', $type_id)) {
+					return;
+				}
+				
+				$arr_object_sub_details = StoreType::getTypeObjectSubsDetails($type_id, $object_sub_details_id);
+								
+				if ($arr_object_sub_details[$object_sub_details_id]['object_sub_details_is_single']) {
+				
+					$arr_object_subs_names = GenerateTypeObjects::getTypeObjectSubsNames($type_id, $object_id, [], $object_sub_details_id, GenerateTypeObjects::CONDITIONS_MODE_TEXT);
+
+					if (!$arr_object_subs_names) {
+						return;
+					}
+					
+					$object_sub_id = key($arr_object_subs_names);
+					$str_object_sub_name = current($arr_object_subs_names);
+					
+					$this->html = ['id' => $object_sub_id, 'value' => $str_object_sub_name];
+				}
 			}
 		}
 		
@@ -2587,12 +2829,26 @@ class data_filter extends base_module {
 			$type_id = toolbar::getFilterTypeId();
 			
 			$arr_visualisation_settings = data_visualise::getVisualSettings();
+			$arr_type_frame = data_visualise::getTypeFrame($type_id);
+			
+			$arr_frame = ['coordinates' => [], 'zoom' => []];
+			
+			if ($arr_type_frame['area']['geo']['latitude'] || $arr_type_frame['area']['geo']['longitude']) {
+				$arr_frame['coordinates']['latitude'] = $arr_type_frame['area']['geo']['latitude'];
+				$arr_frame['coordinates']['longitude'] = $arr_type_frame['area']['geo']['longitude'];
+			}
+			if ($arr_type_frame['area']['geo']['zoom']['scale']) {
+				$arr_frame['zoom']['scale'] = $arr_type_frame['area']['geo']['zoom']['scale'];
+			}
+			$arr_frame['zoom']['min'] = ($arr_type_frame['area']['geo']['zoom']['min'] ?: 2);
+			$arr_frame['zoom']['max'] = ($arr_type_frame['area']['geo']['zoom']['max'] ?: 18);	
 						
 			$this->html = [
 				'html' => '<div class="point labmap">
 					<div class="map"></div>
 				</div>',
-				'visual' => $arr_visualisation_settings
+				'visual' => $arr_visualisation_settings,
+				'frame' => $arr_frame
 			];
 		}
 		
@@ -2612,6 +2868,9 @@ class data_filter extends base_module {
 		if (is_numeric($value)) { // Project filter id
 			$arr_value = ['filter_id' => $value];
 		}
+		
+		$arr_filter_set = false;
+		
 		if ($arr_value['filter_id']) {
 			
 			$arr_filter_set = self::getFilterSet($arr_value['filter_id']);
@@ -2635,7 +2894,7 @@ class data_filter extends base_module {
 	
 	public static function getFilterSet($filter_id) {
 				
-		$arr_project = cms_nodegoat_custom_projects::getProjects($_SESSION['custom_projects']['project_id']);
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
 		$arr_filter_set = cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], false, false, $filter_id, (($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN || toolbar::getActionSpace() !== 0) ? true : false), $arr_use_project_ids);

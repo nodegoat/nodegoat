@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -11,20 +11,24 @@
 
 class CreateVisualisationPackage {
 	
-	private $arr_data = [];
-	private $arr_project = [];
-	private $arr_types_all = [];
-	private $arr_frame = [];
-	private $arr_visual_settings = [];
 	
-	private $arr_collect_info = [];
-	private $attribution = '';
-	private $arr_pack_data = [];
+	protected $arr_data = [];
+	protected $arr_project = [];
+	protected $arr_types_all = [];
+	protected $arr_frame = [];
+	protected $arr_visual_settings = [];
 	
-	private $arr_package_html = [];
-	private $arr_package_data = [];
+	protected $arr_collect_info = [];
+	protected $attribution = '';
+	protected $arr_pack_data = [];
+	
+	protected $arr_package_html = [];
+	protected $arr_package_data = [];
+	
+	protected $arr_type_sets = [];
 
     public function __construct($arr_project, $arr_types_all, $arr_frame, $arr_visual_settings) {
+		
 		
 		$this->arr_project = $arr_project;
 		$this->arr_types_all = $arr_types_all;
@@ -47,44 +51,23 @@ class CreateVisualisationPackage {
 	public function addType($type_id, $collect, $arr_filters, $arr_scope, $arr_conditions, $scenario_id = false, $scenario_hash = false) {
 		
 		$this->arr_pack_data = [];
-		
-		$arr_use_project_ids = array_keys($this->arr_project['use_projects']);
+		$has_cache = null;
 		
 		if ($scenario_hash) {
 			
+			$arr_use_project_ids = array_keys($this->arr_project['use_projects']);
 			$arr_scenario = cms_nodegoat_custom_projects::getProjectTypeScenarios($this->arr_project['project']['id'], false, false, $scenario_id, $arr_use_project_ids);
 			
 			if ($arr_scenario['attribution']) {
 				$this->attribution = $arr_scenario['attribution'];
 			}
 			
-			$arr_scenario_cache = cms_nodegoat_custom_projects::getProjectTypeScenarioHash($arr_scenario['project_id'], $scenario_id, $this->arr_project['project']['id']);
-			$path_scenario = toolbar::getScenarioPath($scenario_id, 'visualise');
-			$store_scenario = false;
-
-			$is_path = isPath($path_scenario);
-			$date_updated = FilterTypeObjects::getTypesUpdatedAfter($arr_scenario_cache['hash_date'], cms_nodegoat_custom_projects::getProjectScopeTypes($this->arr_project['project']['id']), 'last');
+			$cache_scenario = new CacheProjectTypeScenario($this->arr_project['project']['id'], $scenario_id);						
+			$has_cache = $cache_scenario->checkCacheVisualise($scenario_hash);
 			
-			if (!$date_updated) {
-				$date_updated = $arr_scenario_cache['hash_date'];
-			}
-			
-			if ($scenario_hash != $arr_scenario_cache['hash'] || !$is_path || (!$arr_scenario['cache_retain'] && $date_updated > $arr_scenario_cache['hash_date'])) { // Scenario should be updated
-									
-				$code = $scenario_hash.'_'.(!$arr_scenario['cache_retain'] ? $date_updated : '0');
-				
-				$store_scenario = Mediator::setLock($path_scenario, $code);
-				
-				if (!$store_scenario) {
-					$is_path = true; // Should now be a path
-				}
-			}
-				
-			if (!$store_scenario && $is_path) {
-				
-				memoryBoost();
-				$arr_scenario_storage = file_get_contents($path_scenario);
-				$arr_scenario_storage = json_decode($arr_scenario_storage, true);
+			if ($has_cache === true) {
+						
+				$arr_scenario_storage = $cache_scenario->getCache();
 
 				$this->arr_pack_data = $arr_scenario_storage['arr_pack'];
 				$arr_collect_info = $arr_scenario_storage['arr_collect_info'];
@@ -99,6 +82,9 @@ class CreateVisualisationPackage {
 				}
 				
 				$this->arr_collect_info = ($this->arr_collect_info ? array_merge_recursive($this->arr_collect_info, $arr_collect_info) : $arr_collect_info);
+			} else {
+				
+				status(getLabel('msg_building_cache_scenario_visualisation'), false, getLabel('msg_wait'), ['identifier' => SiteStartVars::getSessionId(true).'cache_scenario_visualisation', 'duration' => 1000, 'persist' => true]);
 			}
 		}
 		
@@ -109,6 +95,7 @@ class CreateVisualisationPackage {
 
 			$arr_check = []; // Have arrays with unique values while preserving an array (not object) for fast javascript iteration
 			$arr_post_process_date = [];
+			$num_sort = 1;
 			
 			foreach ($arr_collect_info['types'] as $cur_type_id => $arr_paths) {
 				
@@ -121,11 +108,11 @@ class CreateVisualisationPackage {
 			
 			$this->arr_collect_info = ($this->arr_collect_info ? array_merge_recursive($this->arr_collect_info, $arr_collect_info) : $arr_collect_info);
 							
-			$arr_objects = $collect->getPathObjects(0);
+			$arr_objects = $collect->getPathObjects('0');
 			
 			foreach ($arr_objects as $object_id => $arr_object) {
 								
-				$collect->getWalkedObject($object_id, [], function &($cur_target_object_id, $cur_arr, $source_path, $cur_path, $cur_target_type_id, $arr_info, $collect) use ($object_id, &$arr_check, &$arr_post_process_date) {
+				$collect->getWalkedObject($object_id, [], function &($cur_target_object_id, $cur_arr, $source_path, $cur_path, $cur_target_type_id, $arr_info, $collect) use ($object_id, &$arr_check, &$arr_post_process_date, &$num_sort) {
 					
 					$arr_object_descriptions = $this->arr_type_sets[$cur_target_type_id]['object_descriptions'];
 					$arr_object_subs_details = $this->arr_type_sets[$cur_target_type_id]['object_sub_details'];
@@ -135,6 +122,8 @@ class CreateVisualisationPackage {
 					$collapse = ($arr_info['arr_collapse_source'] ? true : false);
 					$collapsed = ($arr_info['arr_collapsed_source'] ? true : false);
 					$arr_collapsing_source = ($collapsed ? $arr_info['arr_collapsed_source'] : $arr_info['arr_collapse_source']);
+				
+					$num_depth = ($source_path == '0' ? 0 : 1 + substr_count($source_path, '-'));
 					
 					$s_arr_object =& $this->arr_pack_data['objects'][$cur_target_object_id];
 					
@@ -144,12 +133,17 @@ class CreateVisualisationPackage {
 							
 							$s_arr_object = [
 								'name' => $arr_object['object']['object_name'],
-								'style' => $arr_object['object']['object_style'],
-								'type_id' => $cur_target_type_id
+								'style' => [],
+								'type_id' => $cur_target_type_id,
+								'sort' => $num_sort
 							];
+														
+							$num_sort++;
 						}
 						
-						if (!$arr_check[$cur_path.$arr_info['in_out'].'_objects_'.$cur_target_object_id]) { // Objects can exist in multiple paths, update descriptions (in case of filtering) once in every path
+						static::parseStyle($s_arr_object['style'], $arr_object['object']['object_style'], $num_depth);
+						
+						if (!isset($arr_check[$cur_path.$arr_info['in_out'].'_objects_'.$cur_target_object_id])) { // Objects can exist in multiple paths, update descriptions (in case of filtering) once in every path
 							
 							$s_arr_object_definitions =& $s_arr_object['object_definitions'];
 							
@@ -172,7 +166,8 @@ class CreateVisualisationPackage {
 											$s_arr = [
 												'description_id' => $object_description_id,
 												'value' => [$arr_object_definition['object_definition_value']],
-												'ref_object_id' => []
+												'ref_object_id' => [],
+												'style' => []
 											];
 										}
 									}
@@ -186,7 +181,8 @@ class CreateVisualisationPackage {
 											$s_arr = [
 												'description_id' => $object_description_id.'_'.$ref_type_id,
 												'value' => [],
-												'ref_object_id' => []
+												'ref_object_id' => [],
+												'style' => []
 											];
 										}
 										
@@ -206,16 +202,15 @@ class CreateVisualisationPackage {
 											'description_id' => $object_description_id,
 											'value' => (array)$arr_object_definition['object_definition_value'],
 											'ref_object_id' => (array)$arr_object_definition['object_definition_ref_object_id'],
-											'style' => $arr_object_definition['object_definition_style']
+											'style' => []
 										];
 									} else if ($s_arr['ref_object_id'] !== (array)$arr_object_definition['object_definition_ref_object_id']) {
 										
 										$s_arr['value'] = arrMergeValues([$s_arr['value'], (array)$arr_object_definition['object_definition_value']]);
 										$s_arr['ref_object_id'] = arrMergeValues([$s_arr['ref_object_id'], (array)$arr_object_definition['object_definition_ref_object_id']]);
-										if ($arr_object_definition['object_definition_style']) {
-											$s_arr['style'] += $arr_object_definition['object_definition_style'];
-										}
 									}
+									
+									static::parseStyle($s_arr['style'], $arr_object_definition['object_definition_style'], $num_depth);
 								}
 							}
 							
@@ -226,9 +221,11 @@ class CreateVisualisationPackage {
 						if (!$s_arr_object) {
 							
 							$s_arr_object = [
-								'style' => $arr_object['object']['object_style'],
+								'style' => [],
 								'type_id' => $cur_target_type_id
 							];
+							
+							static::parseStyle($s_arr_object['style'], $arr_object['object']['object_style'], $num_depth);
 						}
 					}
 					
@@ -253,28 +250,30 @@ class CreateVisualisationPackage {
 						if (!$s_arr_object_sub) { // Subobjects can exist in multiple paths
 
 							// Return *ymmdd
-							$date_raw_start = $arr_object_sub['object_sub']['object_sub_date_start'];
-							$date_raw_end = $arr_object_sub['object_sub']['object_sub_date_end'];
+							$date_raw_start = ($arr_object_sub['object_sub']['object_sub_date_start'] ?: $arr_object_sub['object_sub']['object_sub_date_end']);
+							$date_raw_end = ($arr_object_sub['object_sub']['object_sub_date_end'] ?: $date_raw_start);
 							$date_start = self::parseDate($date_raw_start);
 							$date_end = self::parseDate($date_raw_end);
+							
+							$location_geometry = ($arr_object_sub['object_sub']['object_sub_location_geometry'] ?? '');
 
 							$s_arr_object_sub = [
 								'object_id' => $cur_target_object_id,
 								'object_sub_details_id' => $arr_object_sub['object_sub']['object_sub_details_id'],
-								'location_geometry' => $arr_object_sub['object_sub']['object_sub_location_geometry'],
+								'location_geometry' => $location_geometry,
 								'location_name' => $arr_object_sub['object_sub']['object_sub_location_ref_object_name'],
 								'location_object_id' => $arr_object_sub['object_sub']['object_sub_location_ref_object_id'],
 								'location_type_id' => $arr_object_sub['object_sub']['object_sub_location_ref_type_id'],
 								'date_start' => $date_start,
 								'date_end' => $date_end,
-								'style' => $arr_object_sub['object_sub']['object_sub_style']
+								'style' => []
 							];
 							
 							$this->arr_pack_data['legend']['object_subs'][$arr_object_sub['object_sub']['object_sub_details_id']] = [];
 							
 							if ($date_start) {
 								
-								if (($date_raw_start == DATE_INT_MIN && $date_raw_end == DATE_INT_MIN) || ($date_raw_start == DATE_INT_MAX && $date_raw_end == DATE_INT_MAX)) {
+								if (($date_raw_start == StoreTypeObjects::DATE_INT_MIN && $date_raw_end == StoreTypeObjects::DATE_INT_MIN) || ($date_raw_start == StoreTypeObjects::DATE_INT_MAX && $date_raw_end == StoreTypeObjects::DATE_INT_MAX)) {
 									
 									$arr_post_process_date[$object_sub_id] = $date_raw_start;
 									
@@ -287,21 +286,23 @@ class CreateVisualisationPackage {
 										$this->arr_pack_data['date'][$date_start][] = $object_sub_id;
 									}
 									
-									$date_start = ($date_raw_start == DATE_INT_MIN || $date_raw_start == DATE_INT_MAX ? ($date_raw_end == DATE_INT_MIN || $date_raw_end == DATE_INT_MAX ? false : $date_end) : $date_start);
-									if ($date_start && ($date_start < $this->arr_pack_data['date_range']['min'] || !$this->arr_pack_data['date_range']['min'])) {
+									$date_start = ($date_raw_start == StoreTypeObjects::DATE_INT_MIN || $date_raw_start == StoreTypeObjects::DATE_INT_MAX ? ($date_raw_end == StoreTypeObjects::DATE_INT_MIN || $date_raw_end == StoreTypeObjects::DATE_INT_MAX ? false : $date_end) : $date_start);
+									if ($date_start && (empty($this->arr_pack_data['date_range']['min']) || StoreTypeObjects::dateInt2Absolute($date_start) < StoreTypeObjects::dateInt2Absolute($this->arr_pack_data['date_range']['min']))) {
 										$this->arr_pack_data['date_range']['min'] = $date_start;
 									}
-									$date_end = ($date_raw_end == DATE_INT_MIN || $date_raw_end == DATE_INT_MAX ? ($date_raw_start == DATE_INT_MIN || $date_raw_start == DATE_INT_MAX ? false : $date_start) : $date_end);
-									if ($date_end && ($date_end > $this->arr_pack_data['date_range']['max'] || !$this->arr_pack_data['date_range']['max'])) {
+									$date_end = ($date_raw_end == StoreTypeObjects::DATE_INT_MIN || $date_raw_end == StoreTypeObjects::DATE_INT_MAX ? ($date_raw_start == StoreTypeObjects::DATE_INT_MIN || $date_raw_start == StoreTypeObjects::DATE_INT_MAX ? false : $date_start) : $date_end);
+									if ($date_end && (empty($this->arr_pack_data['date_range']['max']) || StoreTypeObjects::dateInt2Absolute($date_end) > StoreTypeObjects::dateInt2Absolute($this->arr_pack_data['date_range']['max']))) {
 										$this->arr_pack_data['date_range']['max'] = $date_end;
 									}
 								}
 							}
 						}
 						
+						static::parseStyle($s_arr_object_sub['style'], $arr_object_sub['object_sub']['object_sub_style'], $num_depth);
+						
 						$s_arr_object_connect_object_sub_ids['_'.$object_sub_id] = $object_sub_id; // Make sure the key is not numeric to prevent potential sorting by client
 						
-						if (!$arr_check[$cur_path.$arr_info['in_out'].'_object_subs_'.$object_sub_id]) { // Subobjects can exist in multiple paths, update descriptions (in case of filtering) once in every path
+						if (!isset($arr_check[$cur_path.$arr_info['in_out'].'_object_subs_'.$object_sub_id])) { // Subobjects can exist in multiple paths, update descriptions (in case of filtering) once in every path
 							
 							if (!$collapse) { // Subobject description is not needed when it is collapsed
 								
@@ -328,7 +329,8 @@ class CreateVisualisationPackage {
 												$s_arr = [
 													'description_id' => $object_sub_description_id,
 													'value' => [$arr_object_sub_definition['object_sub_definition_value']],
-													'ref_object_id' => []
+													'ref_object_id' => [],
+													'style' => []
 												];
 											}
 										}
@@ -342,7 +344,8 @@ class CreateVisualisationPackage {
 												$s_arr = [
 													'description_id' => $object_sub_description_id.'_'.$ref_type_id,
 													'value' => [],
-													'ref_object_id' => []
+													'ref_object_id' => [],
+													'style' => []
 												];
 											}
 											
@@ -362,16 +365,15 @@ class CreateVisualisationPackage {
 												'description_id' => $object_sub_description_id,
 												'value' => (array)$arr_object_sub_definition['object_sub_definition_value'],
 												'ref_object_id' => (array)$arr_object_sub_definition['object_sub_definition_ref_object_id'],
-												'style' => $arr_object_sub_definition['object_sub_definition_style']
+												'style' => []
 											];
 										} else if ($s_arr['ref_object_id'] !== (array)$arr_object_sub_definition['object_sub_definition_ref_object_id']) {
 											
 											$s_arr['value'] = arrMergeValues([$s_arr['value'], (array)$arr_object_sub_definition['object_sub_definition_value']]);
 											$s_arr['ref_object_id'] = arrMergeValues([$s_arr['ref_object_id'], (array)$arr_object_sub_definition['object_sub_definition_ref_object_id']]);
-											if ($arr_object_sub_definition['object_sub_definition_style']) {
-												$s_arr['style'] += $arr_object_sub_definition['object_sub_definition_style'];
-											}
 										}
+										
+										static::parseStyle($s_arr['style'], $arr_object_sub_definition['object_sub_definition_style'], $num_depth);
 									}
 								}
 							}
@@ -389,7 +391,12 @@ class CreateVisualisationPackage {
 							
 							$s_arr_object_sub =& $this->arr_pack_data['object_subs'][$source_object_sub_id];
 							
-							if (!$s_arr_object_sub['original_object_id']) {
+							if (!isset($s_arr_object_sub)) { // sub-object could be missing when the sub-object itself is collapsed and not part of the selection
+								
+								$s_arr_object_sub['object_sub_details_id'] = false;
+								$s_arr_object_sub['original_object_id'] = ($arr_info['in_out'] == 'in' ? $cur_target_object_id : $arr_info['object_id']);
+								$s_arr_object_sub['object_id'] = $source_object_id;
+							} else if (!isset($s_arr_object_sub['original_object_id'])) {
 							
 								$s_arr_object_sub['original_object_id'] = $s_arr_object_sub['object_id'];
 								$s_arr_object_sub['object_id'] = $source_object_id;
@@ -505,24 +512,31 @@ class CreateVisualisationPackage {
 							
 							if ($arr_info['object_description_id']) {
 								
-								$s_arr =& $this->arr_pack_data['objects'][$cur_target_object_id]['object_definitions'][$arr_info['object_description_id'].($arr_collapsing_source['dynamic'] ? '_'.$arr_info['type_id'] : '')];
-							} else if ($arr_info['object_sub_description_id']) {
+								$s_arr_object_definitions =& $this->arr_pack_data['objects'][$cur_target_object_id]['object_definitions'];
+								$object_description_identifier = $arr_info['object_description_id'].($arr_collapsing_source['dynamic'] ? '_'.$arr_info['type_id'] : '');
+							} else {
 								
-								$s_arr =& $this->arr_pack_data['object_subs'][$arr_info['object_sub_id']]['object_sub_definitions'][$arr_info['object_sub_description_id'].($arr_collapsing_source['dynamic'] ? '_'.$arr_info['type_id'] : '')];
+								$s_arr_object_definitions =& $this->arr_pack_data['object_subs'][$arr_info['object_sub_id']]['object_sub_definitions'];
+								$object_description_identifier = $arr_info['object_sub_description_id'].($arr_collapsing_source['dynamic'] ? '_'.$arr_info['type_id'] : '');
 							}
-							
-							if ($s_arr['ref_object_id']) { // If collapsed description is part of the selection, remove
-							
-								$key = array_search($arr_info['object_id'], $s_arr['ref_object_id']);
 
-								unset(
-									$s_arr['value'][$key],
-									$s_arr['ref_object_id'][$key]
-								);
+							if (isset($s_arr_object_definitions[$object_description_identifier])) {
 								
-								// Make sure the arrays do not have nonsequential keys
-								$s_arr['value'] = array_values($s_arr['value']);
-								$s_arr['ref_object_id'] = array_values($s_arr['ref_object_id']);
+								$s_arr =& $s_arr_object_definitions[$object_description_identifier];
+								
+								if ($s_arr['ref_object_id']) { // If collapsed description is part of the selection, remove
+								
+									$key = array_search($arr_info['object_id'], $s_arr['ref_object_id']);
+
+									unset(
+										$s_arr['value'][$key],
+										$s_arr['ref_object_id'][$key]
+									);
+									
+									// Make sure the arrays do not have nonsequential keys
+									$s_arr['value'] = array_values($s_arr['value']);
+									$s_arr['ref_object_id'] = array_values($s_arr['ref_object_id']);
+								}
 							}
 						} else if ($arr_info['object_sub_location']) {
 							
@@ -535,16 +549,16 @@ class CreateVisualisationPackage {
 						
 				$s_arr_object_sub =& $this->arr_pack_data['object_subs'][$object_sub_id];
 				
-				if ($date_start_raw == DATE_INT_MIN) {
-					$s_arr_object_sub['date_end'] = $this->arr_pack_data['date_range']['min'];
+				if ($date_start_raw == StoreTypeObjects::DATE_INT_MIN) {
+					$s_arr_object_sub['date_end'] = ($this->arr_pack_data['date_range']['min'] ?? null);
 				} else {
-					$s_arr_object_sub['date_start'] = $this->arr_pack_data['date_range']['max'];
+					$s_arr_object_sub['date_start'] = ($this->arr_pack_data['date_range']['max'] ?? null);
 				}
 			}
 		}
 		
-		if ($store_scenario) {
-			
+		if ($has_cache === false) {
+							
 			$arr_store = ['arr_pack' => $this->arr_pack_data, 'arr_collect_info' => $arr_collect_info];
 			
 			// Parse package
@@ -563,11 +577,9 @@ class CreateVisualisationPackage {
 			
 			// Store package
 			
-			FileStore::storeFile($path_scenario.'_temp', $str, $path_scenario);
+			$cache_scenario->updateCache($str);
 			
-			cms_nodegoat_custom_projects::updateProjectTypeScenarioHash($arr_scenario['project_id'], $arr_scenario['id'], $scenario_hash, $date_updated, $this->arr_project['project']['id']);
-			
-			Mediator::removeLock($path_scenario);
+			clearStatus(SiteStartVars::getSessionId(true).'cache_scenario_visualisation');
 		}
 		
 		if ($this->arr_pack_data) {
@@ -576,7 +588,7 @@ class CreateVisualisationPackage {
 		}
 	}
 	
-	private function collapseObjectDescription($org_object_description_id, $arr_value, $arr_ref_object_id, $arr_collapse_to, $ref_type_id) {
+	protected function collapseObjectDescription($org_object_description_id, $arr_value, $arr_ref_object_id, $arr_collapse_to, $ref_type_id) {
 		
 		if ($arr_collapse_to['object_description_id']) {
 			$new_object_description_id = $arr_collapse_to['object_description_id'].'_'.$org_object_description_id;
@@ -590,22 +602,22 @@ class CreateVisualisationPackage {
 		
 			$s_arr_new =& $this->arr_pack_data['objects'][$arr_collapse_to['object_id']]['object_definitions'][$new_object_description_id];
 			
-			if (!$this->arr_pack_data['info']['object_descriptions'][$new_object_description_id]) {
-				$this->arr_pack_data['info']['object_descriptions'][$new_object_description_id] = ['object_description_ref_type_id' => $ref_type_id];
+			if (!isset($this->arr_pack_data['info']['object_descriptions'][$new_object_description_id])) {
+				$this->arr_pack_data['info']['object_descriptions'][$new_object_description_id] = ['object_description_ref_type_id' => $ref_type_id, 'object_description_name' => ''];
 			}
 		} else if ($arr_collapse_to['object_sub_description_id']) {
 		
 			$s_arr_new =& $this->arr_pack_data['object_subs'][$arr_collapse_to['object_sub_id']]['object_sub_definitions'][$new_object_description_id];
 			
-			if (!$this->arr_pack_data['info']['object_sub_descriptions'][$new_object_description_id]) {
-				$this->arr_pack_data['info']['object_sub_descriptions'][$new_object_description_id] = ['object_sub_description_ref_type_id' => $ref_type_id];
+			if (!isset($this->arr_pack_data['info']['object_sub_descriptions'][$new_object_description_id])) {
+				$this->arr_pack_data['info']['object_sub_descriptions'][$new_object_description_id] = ['object_sub_description_ref_type_id' => $ref_type_id, 'object_sub_description_name' => ''];
 			}
 		} else if ($arr_collapse_to['object_sub_location']) {
 		
 			$s_arr_new =& $this->arr_pack_data['object_subs'][$arr_collapse_to['object_sub_id']]['object_sub_definitions'][$new_object_description_id];
 			
-			if (!$this->arr_pack_data['info']['object_sub_descriptions'][$new_object_description_id]) {
-				$this->arr_pack_data['info']['object_sub_descriptions'][$new_object_description_id] = ['object_sub_description_ref_type_id' => $ref_type_id];
+			if (!isset($this->arr_pack_data['info']['object_sub_descriptions'][$new_object_description_id])) {
+				$this->arr_pack_data['info']['object_sub_descriptions'][$new_object_description_id] = ['object_sub_description_ref_type_id' => $ref_type_id, 'object_sub_description_name' => ''];
 			}
 		}
 		
@@ -614,6 +626,7 @@ class CreateVisualisationPackage {
 			$s_arr_new['description_id'] = $new_object_description_id;
 			$s_arr_new['value'] = $arr_value;
 			$s_arr_new['ref_object_id'] = $arr_ref_object_id;
+			$s_arr_new['style'] = [];
 			
 		} else if ($s_arr_new['ref_object_id'] !== $arr_ref_object_id) {
 		
@@ -662,7 +675,7 @@ class CreateVisualisationPackage {
 			
 			if ($count_objects) {
 									
-				$date_now = (int)(date('Ymd').'0000');
+				$date_now = (int)(date('Ymd').StoreTypeObjects::DATE_INT_SEQUENCE_NULL);
 				if (!$this->arr_package_data['date_range']['min']) {
 					$this->arr_package_data['date_range']['min'] = $date_now;
 				}
@@ -706,8 +719,8 @@ class CreateVisualisationPackage {
 					foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 						
 						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view']) {
-								continue;
-							}
+							continue;
+						}
 						
 						$this->arr_package_data['info']['object_sub_details'][$arr_object_sub_details['object_sub_details']['object_sub_details_id']] = ['object_sub_details_name' => Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])];
 						$arr_legend['object_sub_details'][$object_sub_details_id] = '<span>'.Labels::parseTextVariables($arr_type_set['type']['name']).' </span><span class="sub-name">'.$this->arr_package_data['info']['object_sub_details'][$object_sub_details_id]['object_sub_details_name'].'</span>';
@@ -748,10 +761,10 @@ class CreateVisualisationPackage {
 				];
 				$arr_color_full = ['start' => 0, 'stop' => 1, 'sat' => .75, 'val' => .95, 'name' => 'full'];
 				
-				$total = ($this->arr_package_data['legend']['object_subs'] ? count($this->arr_package_data['legend']['object_subs']) : 0);
+				$total = (isset($this->arr_package_data['legend']['object_subs']) ? count($this->arr_package_data['legend']['object_subs']) : 0);
 				$total_colors = count($arr_colors);
 				$i = 0;
-				foreach ((array)$this->arr_package_data['legend']['object_subs'] as $object_sub_details_id => $value) {
+				foreach (($this->arr_package_data['legend']['object_subs'] ?? []) as $object_sub_details_id => $value) {
 					
 					if ($i >= $total_colors) {
 						
@@ -771,20 +784,20 @@ class CreateVisualisationPackage {
 					];
 					
 					$arr_info = $this->arr_package_data['legend']['object_subs'][$object_sub_details_id];
-					$arr_html_legend['object_sub_details'][$object_sub_details_id] = '<li data-identifier="'.$object_sub_details_id.'"><dt>'.$arr_legend['object_sub_details'][$object_sub_details_id].'</dt><dd><span style="background-color: rgb('.$arr_info['color']['red'].','.$arr_info['color']['green'].','.$arr_info['color']['blue'].');"></span></dd></li>';
+					$arr_html_legend['object_sub_details'][$object_sub_details_id] = '<li data-identifier="'.$object_sub_details_id.'"><dt>'.$arr_legend['object_sub_details'][$object_sub_details_id].'</dt><dd><span style="background-color: rgb('.$arr_info['color']['r'].','.$arr_info['color']['g'].','.$arr_info['color']['b'].');"></span></dd></li>';
 					
 					$i++;
 				}
 				
-				if ($this->arr_collect_info['types_found']['locations']) {
+				if (isset($this->arr_collect_info['types_found']['locations'])) {
 					
 					$arr_types_found += $this->arr_collect_info['types_found']['locations'];
 				}
 				foreach ($arr_types_found as $type_id => $value) {
 					
-					if ($this->arr_types_all[$type_id]['color'] || $this->arr_project['types'][$type_id]['color']) {
+					if ($this->arr_types_all[$type_id]['color'] || !empty($this->arr_project['types'][$type_id]['color'])) {
 						
-						$str_color = ($this->arr_project['types'][$type_id]['color'] ?: $this->arr_types_all[$type_id]['color']);
+						$str_color = ($this->arr_project['types'][$type_id]['color'] ?? null ?: $this->arr_types_all[$type_id]['color']);
 						
 						$this->arr_package_data['legend']['types'][$type_id] = [
 							'color' => $str_color
@@ -795,7 +808,7 @@ class CreateVisualisationPackage {
 				
 				$arr_condition_settings = [];
 				
-				foreach ($this->arr_collect_info['conditions_found'] as $arr_conditions) {
+				foreach ($this->arr_collect_info['conditions'] as $arr_conditions) {
 					
 					foreach ((array)$arr_conditions['object'] as $arr_condition_setting) {
 									
@@ -832,16 +845,16 @@ class CreateVisualisationPackage {
 					}
 					
 					$str_label = Labels::parseTextVariables($arr_condition_setting['condition_label']);
-					$str_color = $arr_condition_setting['condition_actions']['color']['color'];
-					$str_weight = $arr_condition_setting['condition_actions']['weight']['number'];
-					$str_icon = $arr_condition_setting['condition_actions']['icon']['image'];
+					$str_color = ($arr_condition_setting['condition_actions']['color']['color'] ?? null);
+					$str_weight = ($arr_condition_setting['condition_actions']['weight']['number'] ?? null);
+					$str_icon = ($arr_condition_setting['condition_actions']['icon']['image'] ?? null);
 					
 					if ($str_icon) {
 						
 						$str_icon = '/'.DIR_CUSTOM_PROJECT_WORKSPACE.$str_icon;
 					}
 					
-					$str_identifier = ($arr_condition_setting['condition_label'] ?: $key);
+					$str_identifier = $arr_condition_setting['condition_identifier'];
 					
 					$this->arr_package_data['legend']['conditions'][$str_identifier] = [
 						'label' => $str_label,
@@ -854,9 +867,9 @@ class CreateVisualisationPackage {
 						continue;
 					}
 				
-					$arr_html_legend['conditions'][] = '<li data-identifier="'.htmlspecialchars($str_identifier).'"><dt>'.$str_label.'</dt><dd><span style="background-color: '.$str_color.';"></span></dd></li>';
+					$arr_html_legend['conditions'][] = '<li data-identifier="'.strEscapeHTML($str_identifier).'"><dt>'.$str_label.'</dt><dd><span style="background-color: '.$str_color.';"></span></dd></li>';
 				}
-										
+				
 				$this->arr_package_html = '<div class="labmap">
 					<div class="map"></div>
 					<div class="controls">
@@ -888,15 +901,15 @@ class CreateVisualisationPackage {
 			
 			status(getLabel('msg_transferring'), false, false, ['persist' => true, 'duration' => 0]);
 		}
-				
+		
 		$this->arr_package_data['time'] = ['bounds' => [], 'selection' => []];
 		if ($this->arr_frame['time']['bounds']['date_start'] && $this->arr_frame['time']['bounds']['date_end']) {
-			$this->arr_package_data['time']['bounds']['min'] = self::parseDate($this->arr_frame['time']['bounds']['date_start']);
-			$this->arr_package_data['time']['bounds']['max'] = self::parseDate($this->arr_frame['time']['bounds']['date_end']);
+			$this->arr_package_data['time']['bounds']['min'] = static::parseDate($this->arr_frame['time']['bounds']['date_start']);
+			$this->arr_package_data['time']['bounds']['max'] = static::parseDate($this->arr_frame['time']['bounds']['date_end']);
 		}
 		if ($this->arr_frame['time']['selection']['date_start'] && $this->arr_frame['time']['selection']['date_end']) {
-			$this->arr_package_data['time']['selection']['min'] = self::parseDate($this->arr_frame['time']['selection']['date_start']);
-			$this->arr_package_data['time']['selection']['max'] = self::parseDate($this->arr_frame['time']['selection']['date_end']);
+			$this->arr_package_data['time']['selection']['min'] = static::parseDate($this->arr_frame['time']['selection']['date_start']);
+			$this->arr_package_data['time']['selection']['max'] = static::parseDate($this->arr_frame['time']['selection']['date_end']);
 		}
 		
 		$this->arr_package_data['center'] = false;
@@ -904,10 +917,21 @@ class CreateVisualisationPackage {
 			$this->arr_package_data['center']['coordinates']['latitude'] = $this->arr_frame['area']['geo']['latitude'];
 			$this->arr_package_data['center']['coordinates']['longitude'] = $this->arr_frame['area']['geo']['longitude'];
 		}
-		$this->arr_package_data['zoom'] = false;
-		if ($this->arr_frame['area']['geo']['scale']) {
-			$this->arr_package_data['zoom'] = ['scale' => $this->arr_frame['area']['geo']['scale']];
+		$this->arr_package_data['focus'] = false;
+		if ($this->arr_frame['area']['social']['object_id']) {
+			$this->arr_package_data['focus'] = ['object_id' => $this->arr_frame['area']['social']['object_id']];
 		}
+		$this->arr_package_data['zoom'] = [];
+		if ($this->arr_frame['area']['geo']['zoom']['scale']) {
+			$this->arr_package_data['zoom']['scale'] = $this->arr_frame['area']['geo']['zoom']['scale'];
+		}
+		$this->arr_package_data['zoom']['geo']['min'] = ($this->arr_frame['area']['geo']['zoom']['min'] ?: 1);
+		$this->arr_package_data['zoom']['geo']['max'] = ($this->arr_frame['area']['geo']['zoom']['max'] ?: 18);
+		if ($this->arr_frame['area']['social']['zoom']['level']) {
+			$this->arr_package_data['zoom']['level'] = $this->arr_frame['area']['social']['zoom']['level'];
+		}
+		$this->arr_package_data['zoom']['social']['min'] = ($this->arr_frame['area']['social']['zoom']['min'] ?: -7);
+		$this->arr_package_data['zoom']['social']['max'] = ($this->arr_frame['area']['social']['zoom']['max'] ?: 7);
 		$this->arr_package_data['options'] = [];
 		if ($this->arr_frame['object_subs']['unknown']) {
 			$this->arr_package_data['options']['object_subs']['unknown'] = $this->arr_frame['object_subs']['unknown'];
@@ -921,12 +945,55 @@ class CreateVisualisationPackage {
 		return $this->arr_data;
 	}
 	
-	private static function parseDate($date) {
+	protected static function parseDate($date) {
+		
+		if (!$date) {
+			return 0;
+		}
 		
 		return (int)preg_replace(['/0000(.{4})$/', '/00(.{4})$/'], ['0101$1', '01$1'], $date);
 	}
 	
-	private static function HSV2RGB($h, $s, $v) {
+	protected static function parseStyle(&$arr_style_target, $arr_style_add, $num_depth) {
+		
+		if (!$arr_style_add || ($arr_style_target == $arr_style_add)) {
+			return;
+		}
+		
+		$is_deeper = ($num_depth >= ($arr_style_target['depth'] ?? 0));
+
+		foreach ($arr_style_add as $key => $value) {
+			
+			if ($key === 'conditions') {
+				
+				$arr_style_target['conditions'] = (array)$arr_style_target['conditions'] + $value;
+			} else {
+				
+				if (is_array($value)) {
+					if (!isset($arr_style_target[$key])) {
+						$arr_style_target[$key] = $value;
+					} else if (is_array($arr_style_target[$key])) {
+						array_push($arr_style_target[$key], ...$value);
+					} else if ($is_deeper) {
+						$arr_style_target[$key] = [$arr_style_target[$key]];
+						array_push($arr_style_target[$key], ...$value);
+					}
+				} else {
+					if ($is_deeper || !isset($arr_style_target[$key])) {
+						$arr_style_target[$key] = $value;
+					}
+				}
+			}
+		}
+		
+		if ($is_deeper) {
+			$arr_style_target['depth'] = $num_depth;
+		}
+		
+		return $arr_style_target;
+	}
+	
+	protected static function HSV2RGB($h, $s, $v) {
 	
 		//1
 		$h *= 6;
@@ -963,6 +1030,6 @@ class CreateVisualisationPackage {
 		$g = round($g * 255);
 		$b = round($b * 255);
 		
-		return ['red' => $r, 'green' => $g, 'blue' => $b];
+		return ['r' => $r, 'g' => $g, 'b' => $b];
 	}
 }

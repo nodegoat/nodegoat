@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -21,9 +21,9 @@ class register_by_user extends register_by {
 
 	protected function contentsForm() {
 				
-		$arr_projects = cms_nodegoat_custom_projects::getProjects();
+		$arr_projects = StoreCustomProject::getProjects();
 		$return .= '<fieldset><legend>'.getLabel('lbl_projects').'</legend><ul>
-			<li>'.Labels::parseTextVariables(cms_general::createSelectorList(arrParseRecursive(arrValuesRecursive('project', $arr_projects), 'htmlspecialchars'), 'projects', ($this->arr_user[DB::getTableName('USER_LINK_NODEGOAT_CUSTOM_PROJECTS')] ? array_keys($this->arr_user[DB::getTableName('USER_LINK_NODEGOAT_CUSTOM_PROJECTS')]) : []))).'</li>
+			<li>'.Labels::parseTextVariables(cms_general::createSelectorList(arrParseRecursive(arrValuesRecursive('project', $arr_projects), 'strEscapeHTML'), 'projects', ($this->arr_user[DB::getTableName('USER_LINK_NODEGOAT_CUSTOM_PROJECTS')] ? array_keys($this->arr_user[DB::getTableName('USER_LINK_NODEGOAT_CUSTOM_PROJECTS')]) : []))).'</li>
 		</ul></fieldset>';
 			
 		$return .= '<fieldset><legend>'.getLabel('lbl_clearance').'</legend><ul>
@@ -42,19 +42,25 @@ class register_by_user extends register_by {
 		return $return;
 	}
 	
-	protected function doubleCheckValidUserId($user_id = false) {
+	protected function doubleCheckAuthorisedUserId($user_id = false) {
 				
 		if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_ADMIN) {
+			
 			error(getLabel('msg_not_allowed'));
-			return;
+		}
+		
+		if ($user_id) {
+			
+			$cur_data = user_groups::getUserData($user_id);
+			
 		}
 	}
-	
+
 	protected function processForm() {
 
 		$user_data = [
 			DB::getTableName('TABLE_USER_DETAILS').'.clearance' => $_POST['clearance'],
-			DB::getTableName('USER_LINK_NODEGOAT_CUSTOM_PROJECTS').'.project_id' => ($_POST['projects'] ? array_intersect($_POST['projects'], array_keys(cms_nodegoat_custom_projects::getProjects())) : [])
+			DB::getTableName('USER_LINK_NODEGOAT_CUSTOM_PROJECTS').'.project_id' => ($_POST['projects'] ? array_intersect($_POST['projects'], array_keys(StoreCustomProject::getProjects())) : [])
 		];
 				
 		return $user_data;

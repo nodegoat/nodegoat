@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -29,15 +29,16 @@ class cms_nodegoat_api extends base_module {
 		}
 		
 		$arr = [];
-
+		
 		$res = DB::query("
 			SELECT a.*,
 				ap.project_id, ap.is_default, ap.require_authentication, ap.identifier_url
 					FROM ".DB::getTable('DEF_NODEGOAT_APIS')." a
-					LEFT JOIN ".DB::getTable('DEF_NODEGOAT_API_CUSTOM_PROJECTS')." ap ON (ap.api_id = a.api_id)
+					LEFT JOIN ".DB::getTable('DEF_NODEGOAT_API_CUSTOM_PROJECTS')." ap ON (ap.api_id = a.api_id".")
 				WHERE a.api_id = ".(int)$api_id."
+				"."
 		");
-
+		
 		while ($row = $res->fetchAssoc()) {
 			
 			if (!$arr) {
@@ -61,14 +62,14 @@ class cms_nodegoat_api extends base_module {
 		}
 		
 		$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_APIS')."
-			(api_id)
+			(api_id".")
 				VALUES
 			(
 				".(int)$api_id."
 			)
 			".DBFunctions::onConflict('api_id', ['api_id'])."
 		");
-													
+		
 		$arr_sql_keys = [];
 
 		if ($arr['projects']) {
@@ -82,10 +83,10 @@ class cms_nodegoat_api extends base_module {
 			}
 			
 			$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_API_CUSTOM_PROJECTS')."
-				(api_id, project_id)
+				(api_id".", project_id)
 					VALUES
 				".implode(",", $arr_sql_insert)."
-				".DBFunctions::onConflict('api_id, project_id', ['api_id'])."
+				".DBFunctions::onConflict('api_id'.', project_id', ['api_id'])."
 			");
 
 			$i = 0;

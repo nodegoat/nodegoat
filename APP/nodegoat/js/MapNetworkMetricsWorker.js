@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -9,15 +9,15 @@
  */
 
 var arr_network_data = false;
-var date_range = false;
+var dateinta_range = false;
 var update_metrics = [];
-var nodes = [];
-var links = [];
+var arr_nodes = [];
+var arr_links = [];
 
 onmessage = function(event) {
 
-	if (event.data.date_range) {
-		date_range = event.data.date_range;
+	if (event.data.dateinta_range) {
+		dateinta_range = event.data.dateinta_range;
 	}
 	
 	if (event.data.action) {
@@ -240,15 +240,15 @@ var cooccurrences = function(id) {
 
 var centrality_degree = function(id) {
 
-	var total_iterations = links.length + nodes.length;
+	var total_iterations = arr_links.length + arr_nodes.length;
 	var iterations = 0;
 	
 	var total_degree = 0;
 	
-	for (var i = 0, len = links.length; i < len; i++) {
+	for (var i = 0, len = arr_links.length; i < len; i++) {
 
-		nodes[links[i].target.node_position].in_degree ? nodes[links[i].target.node_position].in_degree++ : nodes[links[i].target.node_position].in_degree = 1;
-		nodes[links[i].source.node_position].out_degree ? nodes[links[i].source.node_position].out_degree++ : nodes[links[i].source.node_position].out_degree = 1;
+		arr_nodes[arr_links[i].target.node_position].in_degree ? arr_nodes[arr_links[i].target.node_position].in_degree++ : arr_nodes[arr_links[i].target.node_position].in_degree = 1;
+		arr_nodes[arr_links[i].source.node_position].out_degree ? arr_nodes[arr_links[i].source.node_position].out_degree++ : arr_nodes[arr_links[i].source.node_position].out_degree = 1;
 		
 		total_degree++;
 		
@@ -257,15 +257,15 @@ var centrality_degree = function(id) {
 
 	}
 	
-	for (var i = 0, len = nodes.length; i < len; i++) {
+	for (var i = 0, len = arr_nodes.length; i < len; i++) {
 		
-		!nodes[i].in_degree ? nodes[i].in_degree = 0 : '';
-		!nodes[i].out_degree ? nodes[i].out_degree = 0 : '';
+		!arr_nodes[i].in_degree ? arr_nodes[i].in_degree = 0 : '';
+		!arr_nodes[i].out_degree ? arr_nodes[i].out_degree = 0 : '';
 		
-		nodes[i].degree = Math.round(((nodes[i].in_degree + nodes[i].out_degree) / total_degree) * 100) / 100;
+		arr_nodes[i].degree = Math.round(((arr_nodes[i].in_degree + arr_nodes[i].out_degree) / total_degree) * 100) / 100;
 		
-		nodes[i].in_degree = Math.round((nodes[i].in_degree / (total_degree / 2)) * 100) / 100;
-		nodes[i].out_degree = Math.round((nodes[i].out_degree / (total_degree / 2)) * 100) / 100;
+		arr_nodes[i].in_degree = Math.round((arr_nodes[i].in_degree / (total_degree / 2)) * 100) / 100;
+		arr_nodes[i].out_degree = Math.round((arr_nodes[i].out_degree / (total_degree / 2)) * 100) / 100;
 
 		postMessage({type: "status", progress: Math.round((iterations / total_iterations) * 100), id: id});
 		iterations++;			
@@ -273,8 +273,8 @@ var centrality_degree = function(id) {
 	
 	var arr_sorted_nodes = [];
 	
-	for (var i = 0, len = nodes.length; i < len; i++) {
-		arr_sorted_nodes.push(nodes[i]);		
+	for (var i = 0, len = arr_nodes.length; i < len; i++) {
+		arr_sorted_nodes.push(arr_nodes[i]);		
 	}
 	
 	arr_sorted_nodes.sort(function(a,b) {
@@ -288,16 +288,16 @@ var centrality_degree = function(id) {
 
 var weighted_centrality_degree = function(id) {
 	
-	var total_iterations = links.length + nodes.length;
+	var total_iterations = arr_links.length + arr_nodes.length;
 	var iterations = 0;
 	
 	var total_weighted_degree = 0;
 	
-	for (var i = 0, len = links.length; i < len; i++) {
+	for (var i = 0, len = arr_links.length; i < len; i++) {
 
-		var value = links[i].value;
-		nodes[links[i].target.node_position].in_weighted_degree ? nodes[links[i].target.node_position].in_weighted_degree += value : nodes[links[i].target.node_position].in_weighted_degree = value;
-		nodes[links[i].source.node_position].out_weighted_degree ? nodes[links[i].source.node_position].out_weighted_degree += value : nodes[links[i].source.node_position].out_weighted_degree = value;
+		var value = arr_links[i].value;
+		arr_nodes[arr_links[i].target.node_position].in_weighted_degree ? arr_nodes[arr_links[i].target.node_position].in_weighted_degree += value : arr_nodes[arr_links[i].target.node_position].in_weighted_degree = value;
+		arr_nodes[arr_links[i].source.node_position].out_weighted_degree ? arr_nodes[arr_links[i].source.node_position].out_weighted_degree += value : arr_nodes[arr_links[i].source.node_position].out_weighted_degree = value;
 		
 		total_weighted_degree += value;
 		
@@ -306,15 +306,15 @@ var weighted_centrality_degree = function(id) {
 
 	}
 	
-	for (var i = 0, len = nodes.length; i < len; i++) {
+	for (var i = 0, len = arr_nodes.length; i < len; i++) {
 		
-		!nodes[i].in_weighted_degree ? nodes[i].in_weighted_degree = 0 : '';
-		!nodes[i].out_weighted_degree ? nodes[i].out_weighted_degree = 0 : '';
+		!arr_nodes[i].in_weighted_degree ? arr_nodes[i].in_weighted_degree = 0 : '';
+		!arr_nodes[i].out_weighted_degree ? arr_nodes[i].out_weighted_degree = 0 : '';
 		
-		nodes[i].weighted_degree = Math.round(((nodes[i].in_weighted_degree + nodes[i].out_weighted_degree) / total_weighted_degree) * 100) / 100;
+		arr_nodes[i].weighted_degree = Math.round(((arr_nodes[i].in_weighted_degree + arr_nodes[i].out_weighted_degree) / total_weighted_degree) * 100) / 100;
 		
-		nodes[i].in_weighted_degree = Math.round((nodes[i].in_weighted_degree / (total_weighted_degree / 2)) * 100) / 100;
-		nodes[i].out_weighted_degree = Math.round((nodes[i].out_weighted_degree / (total_weighted_degree / 2)) * 100) / 100;
+		arr_nodes[i].in_weighted_degree = Math.round((arr_nodes[i].in_weighted_degree / (total_weighted_degree / 2)) * 100) / 100;
+		arr_nodes[i].out_weighted_degree = Math.round((arr_nodes[i].out_weighted_degree / (total_weighted_degree / 2)) * 100) / 100;
 
 		postMessage({type: "status", progress: Math.round((iterations / total_iterations) * 100), id: id});
 		iterations++;			
@@ -322,8 +322,8 @@ var weighted_centrality_degree = function(id) {
 	
 	var arr_sorted_nodes = [];
 	
-	for (var i = 0, len = nodes.length; i < len; i++) {
-		arr_sorted_nodes.push(nodes[i]);		
+	for (var i = 0, len = arr_nodes.length; i < len; i++) {
+		arr_sorted_nodes.push(arr_nodes[i]);		
 	}
 	
 	arr_sorted_nodes.sort(function(a,b) {
@@ -337,17 +337,18 @@ var weighted_centrality_degree = function(id) {
 
 var updateData = function() {
 
-	var setCheckSub = function() {
+	var setCheckObjectSubs = function() {
 
 		// Single date sub objects
 		for (var i = 0, len = arr_network_data.date.arr_loop.length; i < len; i++) {
 			
 			var date = arr_network_data.date.arr_loop[i];
-			var in_range = (date >= date_range.min && date <= date_range.max);
+			var dateinta = DATEPARSER.dateInt2Absolute(date);
+			var in_range = (dateinta >= dateinta_range.min && dateinta <= dateinta_range.max);
 			var arr_object_subs = arr_network_data.date[date];
 
 			for (var j = 0; j < arr_object_subs.length; j++) {					
-				checkSub(arr_object_subs[j], !in_range);
+				checkObjectSub(arr_object_subs[j], !in_range);
 			}
 		}
 		
@@ -355,14 +356,18 @@ var updateData = function() {
 		for (var i = 0, len = arr_network_data.range.length; i < len; i++) {
 			
 			var arr_object_sub = arr_network_data.object_subs[arr_network_data.range[i]];
-			var in_range = ((arr_object_sub.date_start >= date_range.min && arr_object_sub.date_start <= date_range.max) || (arr_object_sub.date_end >= date_range.min && arr_object_sub.date_end <= date_range.max) || (arr_object_sub.date_start < date_range.min && arr_object_sub.date_end > date_range.max));
 			
-			checkSub(arr_network_data.range[i], !in_range);
+			var dateinta_start = DATEPARSER.dateInt2Absolute(arr_object_sub.date_start);
+			var dateinta_end = DATEPARSER.dateInt2Absolute(arr_object_sub.date_end);
+			
+			var in_range = ((dateinta_start >= dateinta_range.min && dateinta_start <= dateinta_range.max) || (dateinta_end >= dateinta_range.min && dateinta_end <= dateinta_range.max) || (dateinta_start < dateinta_range.min && dateinta_end > dateinta_range.max));
+					
+			checkObjectSub(arr_network_data.range[i], !in_range);
 		}
 
 	};
 
-	var checkSub = function(object_sub_id, remove) {
+	var checkObjectSub = function(object_sub_id, remove) {
 
 		var object_sub = arr_network_data.object_subs[object_sub_id],
 		count_object_sub_child_nodes = object_sub.child_nodes.length,
@@ -431,7 +436,7 @@ var updateData = function() {
 					if (parent_pos == -1) {
 						arr_sub_object_parents.push(object_sub_id);
 						if (!active) {
-							var pos = links.push(arr_link);
+							var pos = arr_links.push(arr_link);
 							arr_link.link_position =  pos - 1;
 						}
 					}
@@ -444,7 +449,7 @@ var updateData = function() {
 
 		if (add) {
 			
-			var pos = nodes.push(arr_object);
+			var pos = arr_nodes.push(arr_object);
 			
 			arr_object.node_position = pos - 1;
 			
@@ -501,7 +506,7 @@ var updateData = function() {
 						arr_link.object_parents.push(arr_object.id);
 						
 						if (!active) {
-							var pos = links.push(arr_link);
+							var pos = arr_links.push(arr_link);
 							arr_link.link_position = pos - 1;
 						}
 					}
@@ -534,12 +539,12 @@ var updateData = function() {
 		
 		var cur_pos = arr_object.node_position;
 		
-		if (cur_pos == nodes.length - 1) {
-			nodes.pop();
+		if (cur_pos == arr_nodes.length - 1) {
+			arr_nodes.pop();
 		} else {
 			
-			nodes[cur_pos] = nodes.pop();
-			var arr_repositioned_node = arr_network_data.objects[nodes[cur_pos].id];
+			arr_nodes[cur_pos] = arr_nodes.pop();
+			var arr_repositioned_node = arr_network_data.objects[arr_nodes[cur_pos].id];
 			arr_repositioned_node.node_position = cur_pos;
 		}
 		
@@ -598,17 +603,17 @@ var updateData = function() {
 			
 			var cur_pos = arr_link.link_position;
 			
-			if (cur_pos == links.length - 1) {
-				links.pop();
+			if (cur_pos == arr_links.length - 1) {
+				arr_links.pop();
 			} else {
-				links[cur_pos] = links.pop();
-				arr_network_data.links[links[cur_pos].id].link_position = cur_pos;
+				arr_links[cur_pos] = arr_links.pop();
+				arr_network_data.links[arr_links[cur_pos].id].link_position = cur_pos;
 			}
 		}
 		
 	}
 	
-	setCheckSub();
+	setCheckObjectSubs();
 }
 
 var indexOfFor = function(array, check) {

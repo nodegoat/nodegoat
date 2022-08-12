@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -15,10 +15,17 @@ class StoreTypeObjectsExtensions extends StoreTypeObjects {
 		
 	protected $stmt_object_id = false;
 		
-    public function __construct($type_id, $object_id, $user_id) {
+    public function __construct($type_id, $object_id, $arr_owner) {
 	
 		$this->type_id = $type_id;
-		$this->user_id = $user_id;
+		
+		if (is_array($arr_owner)) {
+			$this->user_id = (int)$arr_owner['user_id'];
+			$this->system_object_id = ($arr_owner['system_object_id'] ? (int)$arr_owner['system_object_id'] : null);
+		} else {
+			$this->user_id = (int)$arr_owner;
+		}
+		
 		
 		if ($object_id) {
 			$this->setObjectID($object_id);

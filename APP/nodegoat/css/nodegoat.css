@@ -1,4 +1,5 @@
 body .container { flex: 1 1 100vh; display: flex; flex-flow: row wrap; align-content: stretch; align-items: flex-start; justify-content: flex-start; }
+body.framed .container { flex: 1 1 100%; }
 body .container > .site { flex: 1 1 auto; }
 body .container > .full { flex: 0 0 100%; align-self: flex-end; }
 

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2022 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -14,11 +14,13 @@ DB::setTable('TABLE_NODEGOAT_DETAILS', DB::$database_home.'.def_nodegoat_details
 DB::setTable('TABLE_USER_DETAILS' , DB::$database_home.'.user_details');
 DB::setTable('TABLE_USER_PREFERENCES' , DB::$database_home.'.user_preferences');
 
+
 define('NODEGOAT_CLEARANCE_DEMO', 1);
 define('NODEGOAT_CLEARANCE_INTERACT', 2);
 define('NODEGOAT_CLEARANCE_UNDER_REVIEW', 3);
 define('NODEGOAT_CLEARANCE_USER', 4);
 define('NODEGOAT_CLEARANCE_ADMIN', 5);
+define('NODEGOAT_CLEARANCE_SYSTEM', 6);
 
 define('DIR_CACHE_SCENARIOS', DIR_ROOT_CACHE.SITE_NAME.'/scenarios/');
 
@@ -31,7 +33,7 @@ class cms_nodegoat_details extends base_module {
 	
 	public function contents() {
 		
-		$return .= '<div class="section"><h1>'.self::$label.'</h1>
+		$return = '<div class="section"><h1>'.self::$label.'</h1>
 		<div class="nodegoat_details">';
 
 			$arr = self::getDetails();
@@ -39,6 +41,8 @@ class cms_nodegoat_details extends base_module {
 			$return .= '<div class="tabs">
 				<ul>
 					<li><a href="#">'.getLabel('lbl_settings').'</a></li>
+					<li><a href="#">'.getLabel('lbl_system').'</a></li>
+					'.'
 				</ul>
 				
 				<div>
@@ -46,6 +50,7 @@ class cms_nodegoat_details extends base_module {
 						
 						<div class="options">
 							<fieldset><ul>
+								'.'
 								<li>
 									<label>'.getLabel('lbl_processing_memory').'</label>
 									<span><input type="text" name="details[processing_memory]" value="'.$arr['processing_memory'].'" /><label>MB</label></span>
@@ -62,6 +67,10 @@ class cms_nodegoat_details extends base_module {
 									<label>'.getLabel('lbl_import_limit').'</label>
 									<span><input type="text" name="details[limit_import]" value="'.$arr['limit_import'].'" /><label>'.getLabel('lbl_rows').'</label></span>
 								</li>
+								<li>
+									<label>'.getLabel('lbl_file_size_limit').'</label>
+									<span><input type="text" name="details[limit_file_size]" value="'.$arr['limit_file_size'].'" /><label>B / kB / MB / GB</label></span>
+								</li>
 							</ul></fieldset>
 						</div>
 						
@@ -70,7 +79,20 @@ class cms_nodegoat_details extends base_module {
 					</form>
 				</div>
 				
-		</div></div>';
+				<div>
+				
+					<div class="options">
+						<fieldset><ul>
+							<li>
+								<label>'.getLabel('lbl_model').' ('.getLabel('lbl_quick_search').'/'.getLabel('lbl_name').')</label>
+								<div><input type="button" id="y:cms_nodegoat_details:reset_data_model_paths-0" class="data neutral quick" value="'.getLabel('lbl_reset').'" /></div>
+							</li>
+						</ul></fieldset>
+					</div>
+
+				</div>';
+				
+		$return .= '</div></div>';
 		
 		return $return;
 	}
@@ -109,8 +131,25 @@ class cms_nodegoat_details extends base_module {
 				".DBFunctions::onConflict('unique_row', $arr_sql_fields)."
 			");
 	
-			$this->msg = true;				
+			$this->msg = true;
 		}
+		
+		if ($method == 'reset_data_model_paths') {
+			
+			$arr_type_ids = StoreType::getTypes();
+			
+			if (!$arr_type_ids) {
+				return;
+			}
+			
+			$arr_type_ids = array_keys($arr_type_ids);
+			
+			StoreType::setTypesObjectPath($arr_type_ids, 'name');
+			StoreType::setTypesObjectPath($arr_type_ids, 'search');
+			
+			$this->msg = true;
+		}
+		
 	}
 	
 	public static function getDetails() {
@@ -142,4 +181,5 @@ class cms_nodegoat_details extends base_module {
 
 		return $arr;
 	}
+	
 }
