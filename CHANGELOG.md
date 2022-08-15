@@ -47,7 +47,7 @@ Initial release.
 * Model: Migrated and streamlined all Reversal and Chronology Statement Cycle logic to the new system-defined Type infrastucture.
 * Model: Added a new Object Description value type 'Application', internally called 'module'. This value type allows Objects to interact, communicate, and store data using various advanced and extendable functionalities. Classes can be created (drop-in / plugin) that add possible applications.
 * Model: Added a new Object Description value type 'Serial String'. This value type allows Objects to store auto-incrementable integers as part of an optional string.
-* Model: Added a new Object Description value type 'Numeric' to host both whole nubmers and decimals. Renamed the 'Integer' value type to 'Number'.
+* Model: Added a new Object Description value type 'Numeric' to host both whole numbers and decimals. Renamed the 'Integer' value type to 'Number'.
 * Ingest: Reworked ImportTypeObjects into a generic IngestTypeObjects class and ingest_source module that can be extended by both data_import and data_ingest. 
 * Ingest: Created the module data_ingest and a new system-defined Type 'Ingest' that use Linked Data Resources to dynamically ingest external data into a data model.
 * Linked Data: Extended ResourceExternal to be able to communicate with any proper API or SPARQL endpoint that is able to output JSON. Using URI templates it is now possible to store and interchangeably use full or partial URIs (i.e. only the identifier part).
