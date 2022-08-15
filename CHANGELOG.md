@@ -68,6 +68,7 @@ Initial release.
 * Project: Added a Project overview mode that generates a visualisation for the graph of the implemented data model and its options. The graph can be rearranged by dragging, and highlighted by clicking.
 * Model: Created a value type Application extention 'Music Notation' to be able to store and render sheet music. The rendering to SVG is done by Verovio (verovio.org) as a WebAssembly file.
 * Pattern Pairs: Moved and extended the 'String To Object Pairs' functionality from Import to its own separate new StorePatternsTypeObjectPair class and data_pattern_pairs interface. Pattern Pairs can communicate with current (Import/Ingest and upcomming Reconcile) and future functionalities.
+* Data/Model: Geometries now support and enforce their geographic coordinate system (indicated by their CRS in e.g. GeoJSON). By default geometries are interpreted using the WGS84 geographic coordinate system (EPSG:4326). Any other geographic coordinate system in the EPSG registry is now supported with help of the GDAL library (gdal.org), and can be used interchangeably throughout.
 * Various fixes, modernisation, and overall streamlining.
 
 ## VERSION x.x
