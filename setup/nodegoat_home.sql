@@ -1,4 +1,4 @@
-rCREATE TABLE `data_nodegoat_custom_project_type_scenario_cache` (
+CREATE TABLE `data_nodegoat_custom_project_type_scenario_cache` (
   `project_id` int NOT NULL,
   `scenario_id` int NOT NULL,
   `use_project_id` int NOT NULL,
