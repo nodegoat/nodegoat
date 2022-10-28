@@ -3287,7 +3287,7 @@ class data_model extends base_module {
 								$return = $arr_condition_setting['condition_actions'][$action][$type];
 						}
 						
-						if ((string)$return !== '' && $return !== []) {
+						if ($return === '' || $return === false || $return === null || $return === []) {
 							$condition_actions[$action][$type] = $return;
 						}
 					}

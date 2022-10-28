@@ -9,6 +9,7 @@ Update the new nodegoat setup with this repository:
 1. Copy `./APP/STORAGE/nodegoat/CMS/css/templates.css` from this repository to the same path in your 1100CC directory.
 1. Update `./APP/SETTINGS/nodegoat/settings.php` to configure the database passwords.
 1. Add the appropriate databases and run the additional SQL, see [Database](SETUP.md#database).
+1. Configure the additional software packages, see [Software](SETUP.md#software).
 1. Compile nodegoat's services, see [Programs](SETUP.md#programs).
 1. Login to your nodegoat CMS (cms.yournodegoathost.com), go to User Management, and add a new user to 'User' (see the [1100CC Guides](https://lab1100.com/1100cc/guides#create-user)).
 1. You can now login with your new user account to your nodegoat HOME (yournodegoathost.com).

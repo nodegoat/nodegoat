@@ -16,6 +16,7 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 	protected $arr_column_names = [];
 	protected $arr_column_identifiers = [];
 	protected $arr_column_identifier_keys = [];
+	protected $arr_column_connection_identifiers = [];
 	
 	protected $arr_collector = [];
 	protected $arr_collector_connections = [];
