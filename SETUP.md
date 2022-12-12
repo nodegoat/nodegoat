@@ -38,6 +38,7 @@ Import additional SQL to their respective databases:
 * [nodegoat_cms.cms_labels.sql](/setup/nodegoat_cms.cms_labels.sql) to the nodegoat_cms database.
 * [nodegoat_cms.various.sql](/setup/nodegoat_cms.various.sql) to the nodegoat_cms database.
 * [nodegoat_home.sql](/setup/nodegoat_home.sql) to the nodegoat_home database.
+* [nodegoat_home.changes.sql](/setup/nodegoat_home.changes.sql) to the nodegoat_home database.
 * [nodegoat_home.various.sql](/setup/nodegoat_home.various.sql) to the nodegoat_home database.
 * [nodegoat_content.sql](/setup/nodegoat_content.sql) to the nodegoat_content database.
 

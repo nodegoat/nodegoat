@@ -479,7 +479,6 @@ CREATE TABLE `user_preferences` (
   `user_id` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-
 ALTER TABLE `data_nodegoat_custom_project_type_scenario_cache`
   ADD PRIMARY KEY (`project_id`,`scenario_id`,`use_project_id`);
 
@@ -621,7 +620,6 @@ ALTER TABLE `user_link_nodegoat_custom_project_type_filters`
 
 ALTER TABLE `user_preferences`
   ADD PRIMARY KEY (`user_id`);
-
 
 ALTER TABLE `def_nodegoat_custom_projects`
   MODIFY `id` int NOT NULL AUTO_INCREMENT;
