@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -565,12 +565,12 @@ class CreateVisualisationPackage {
 			
 			GenerateTypeObjects::setClearSharedTypeObjectNames(false);
 			
-			$response_format = Response::getFormat();
+			Response::holdFormat(true);
 			Response::setFormat(Response::OUTPUT_JSON);
 			
 			$str = Response::parse($arr_store);
 			
-			Response::setFormat($response_format);
+			Response::holdFormat();
 			
 			unset($arr_store);
 			GenerateTypeObjects::setClearSharedTypeObjectNames(true);

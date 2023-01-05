@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -209,7 +209,7 @@ class ResourceExternal {
 			return $str_url;
 		};
 		
-		Labels::setVariable('name', $this->arr_resource['name']);
+		Labels::setVariable('resource_name', $this->arr_resource['name']);
 		Labels::setVariable('seconds', $this->timeout);
 		status(getLabel('msg_external_resource_running'), false, false, 3000);
 		

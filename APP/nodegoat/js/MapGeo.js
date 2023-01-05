@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -568,11 +568,11 @@ function MapGeo(elm_draw, PARENT, options) {
 					drawer_5 = renderer_dots.view;
 					elm[0].appendChild(drawer_5);
 					
-					renderer_geometry.plugins.interaction.autoPreventDefault = false;
-					renderer_connection_lines.plugins.interaction.autoPreventDefault = false;
-					renderer_locations.plugins.interaction.autoPreventDefault = false;
-					renderer_activity.plugins.interaction.autoPreventDefault = false;
-					renderer_dots.plugins.interaction.autoPreventDefault = false;
+					renderer_geometry.events.autoPreventDefault = false;
+					renderer_connection_lines.events.autoPreventDefault = false;
+					renderer_locations.events.autoPreventDefault = false;
+					renderer_activity.events.autoPreventDefault = false;
+					renderer_dots.events.autoPreventDefault = false;
 					drawer.style.removeProperty('touch-action');
 					drawer_2.style.removeProperty('touch-action');
 					drawer_3.style.removeProperty('touch-action');
@@ -603,11 +603,11 @@ function MapGeo(elm_draw, PARENT, options) {
 					drawer_5 = renderer_dots.view;
 					elm[0].appendChild(drawer_5);
 					
-					renderer_geometry.plugins.interaction.autoPreventDefault = false;
-					renderer_locations.plugins.interaction.autoPreventDefault = false;
-					renderer_lines.plugins.interaction.autoPreventDefault = false;
-					renderer_activity.plugins.interaction.autoPreventDefault = false;
-					renderer_dots.plugins.interaction.autoPreventDefault = false;
+					renderer_geometry.events.autoPreventDefault = false;
+					renderer_locations.events.autoPreventDefault = false;
+					renderer_lines.events.autoPreventDefault = false;
+					renderer_activity.events.autoPreventDefault = false;
+					renderer_dots.events.autoPreventDefault = false;
 					drawer.style.removeProperty('touch-action');
 					drawer_2.style.removeProperty('touch-action');
 					drawer_3.style.removeProperty('touch-action');

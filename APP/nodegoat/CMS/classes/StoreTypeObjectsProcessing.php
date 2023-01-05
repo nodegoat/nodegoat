@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -16,7 +16,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 
 	public static function cacheTypesObjectSubs($date_after = false, $date_to = false) {
 		
-		$table_name_tos_temp = DB::getTableTemporary(DATABASE_NODEGOAT_TEMP.'.nodegoat_tos_temp');
+		$table_name_tos_cache_temporary = DB::getTableTemporary(DATABASE_NODEGOAT_TEMP.'.nodegoat_tos_cache_temp');
 		$table_name_tos_changed = DB::getTableTemporary(DATABASE_NODEGOAT_TEMP.'.nodegoat_tos_changed');
 		$table_name_tos_changed_all = DB::getTableTemporary(DATABASE_NODEGOAT_TEMP.'.nodegoat_tos_changed_all');
 		
@@ -99,7 +99,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 			";
 		};
 		
-		$func_collect_new = function($sql_table_name, $arr_source) use ($table_name_tos_temp, $count) {
+		$func_collect_new = function($sql_table_name, $arr_source) use ($table_name_tos_cache_temporary, $count) {
 				
 			$arr_sql = [];
 
@@ -118,7 +118,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 					)
 					(
 						SELECT object_sub_id, path_".$i."_object_sub_id AS path_object_sub_id, active, status
-							FROM ".$table_name_tos_temp."
+							FROM ".$table_name_tos_cache_temporary."
 							WHERE path_".$i."_object_sub_id IS NOT NULL
 					)
 					".DBFunctions::onConflict('object_sub_id, path_object_sub_id, active, status', false, "state = 0")."
@@ -163,12 +163,12 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 		
 		$arr_sql_paths = $func_collect_new(DB::getTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_DATE_PATH'), $arr_source);
 		
-		$func_update_date = function($sql_field_target, $arr_source, $is_null = true) use ($table_name_tos_temp, $table_name_tos_changed_all, $arr_sql_paths, $table_name_tos, $table_name_tos_details, $date_after, $date_to) {
+		$func_update_date = function($sql_field_target, $arr_source, $is_null = true) use ($table_name_tos_cache_temporary, $table_name_tos_changed_all, $arr_sql_paths, $table_name_tos, $table_name_tos_details, $date_after, $date_to) {
 			
 			return "
 				-- Create temporary table for new ".$sql_field_target." values.
 				
-				CREATE TEMPORARY TABLE ".$table_name_tos_temp." (
+				CREATE TEMPORARY TABLE ".$table_name_tos_cache_temporary." (
 					object_sub_id INT,
 					date_value BIGINT NULL,
 					".implode(',', $arr_sql_paths['columns']).",
@@ -179,7 +179,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 				
 				-- Select and store all new ".$sql_field_target." values.
 				
-				INSERT INTO ".$table_name_tos_temp."
+				INSERT INTO ".$table_name_tos_cache_temporary."
 					(
 						SELECT
 							".$table_name_tos.".id AS object_sub_id,
@@ -211,7 +211,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 							".(!$is_null ? "COALESCE(date_value, 0)" : "date_value").",
 							active,
 							status
-								FROM ".$table_name_tos_temp."
+								FROM ".$table_name_tos_cache_temporary."
 					)
 					".DBFunctions::onConflict('object_sub_id, active, status', [$sql_field_target], "state = 0")."
 				;
@@ -220,7 +220,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 				
 				".implode(" ", $arr_sql_paths['insert'])."
 				
-				DROP ".(DB::ENGINE_IS_MYSQL ? 'TEMPORARY' : '')." TABLE ".$table_name_tos_temp.";
+				DROP ".(DB::ENGINE_IS_MYSQL ? 'TEMPORARY' : '')." TABLE ".$table_name_tos_cache_temporary.";
 			";
 		};
 				
@@ -299,7 +299,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 			
 			-- Create temporary table for new location values.
 			
-			CREATE TEMPORARY TABLE ".$table_name_tos_temp." (
+			CREATE TEMPORARY TABLE ".$table_name_tos_cache_temporary." (
 				object_sub_id INT,
 				object_sub_details_id INT,
 				geometry_object_sub_id INT,
@@ -316,7 +316,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 			
 			-- Select and store all new location values, use conflict clause in case of duplicate end/geometry sub-objects.
 			
-			INSERT INTO ".$table_name_tos_temp."
+			INSERT INTO ".$table_name_tos_cache_temporary."
 				(
 					SELECT DISTINCT
 						".$table_name_tos.".id AS object_sub_id,
@@ -369,7 +369,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 						ref_object_sub_details_id,
 						active,
 						status
-							FROM ".$table_name_tos_temp."
+							FROM ".$table_name_tos_cache_temporary."
 				)
 				".DBFunctions::onConflict('object_sub_id, geometry_object_sub_id, active, status', ['ref_object_id', 'ref_type_id', 'ref_object_sub_details_id'], "state = 0")."
 			;
@@ -378,7 +378,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 					
 			".implode(" ", $arr_sql_paths['insert'])."
 			
-			DROP ".(DB::ENGINE_IS_MYSQL ? 'TEMPORARY' : '')." TABLE ".$table_name_tos_temp.";
+			DROP ".(DB::ENGINE_IS_MYSQL ? 'TEMPORARY' : '')." TABLE ".$table_name_tos_cache_temporary.";
 		";
 		
 		DB::startTransaction('cache_types_objects');
@@ -471,7 +471,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 							
 							$filter = new FilterTypeObjects($ref_type_id, GenerateTypeObjects::VIEW_ALL, false, false);
 							$filter->setScope(['types' => $arr_scope_type_ids]);
-							$filter->setFiltering(['all' => true], ['all' => true]);
+							$filter->setFiltering(['all' => true]);
 							$filter->setFilter($arr_filters);
 							
 							foreach ($arr_selection_source['object_sub_details'] as $object_sub_details_id => $value) {
@@ -875,7 +875,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 				$count_skipped_categories += count($arr_categories);
 			}
 			
-			msg('StoreTypeObjectsProcessing::setReversals SUCCESS:'.PHP_EOL
+			msg(__METHOD__.' SUCCESS:'.PHP_EOL
 				.'	Types = '.$count_types
 				.' Categories = '.$count_categories
 				.' Referenced Types = '.$count_referenced_types

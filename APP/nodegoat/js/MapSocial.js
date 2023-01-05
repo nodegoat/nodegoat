@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -423,8 +423,8 @@ function MapSocial(elm_draw, PARENT, options) {
 				drawer_2 = renderer_2.view;
 				elm[0].appendChild(drawer_2);
 				
-				renderer.plugins.interaction.autoPreventDefault = false;
-				renderer_2.plugins.interaction.autoPreventDefault = false;
+				renderer.events.autoPreventDefault = false;
+				renderer_2.events.autoPreventDefault = false;
 				drawer.style.removeProperty('touch-action');
 				drawer_2.style.removeProperty('touch-action');
 				
@@ -743,7 +743,7 @@ function MapSocial(elm_draw, PARENT, options) {
 	
 	var HandleSimulation = function() {
 		
-		var SELF = this;
+		const SELF = this;
 		
 		this.draw = null;
 		this.layout = null;
@@ -820,8 +820,8 @@ function MapSocial(elm_draw, PARENT, options) {
 	
 	var HandleSimulationDrawNative = function(obj) {
 		
-		var PARENT = obj;
-		var SELF = this;
+		const PARENT = obj;
+		const SELF = this;
 			
 		var simulate = false;
 		var simulate_force_links = false;
@@ -931,8 +931,8 @@ function MapSocial(elm_draw, PARENT, options) {
 	
 	var HandleSimulationDrawWorker = function(obj) {
 		
-		var PARENT = obj;
-		var SELF = this;
+		const PARENT = obj;
+		const SELF = this;
 		
 		var worker = false;
 		var is_running = false;
@@ -1470,8 +1470,8 @@ function MapSocial(elm_draw, PARENT, options) {
 	
 	var HandleSimulationLayout = function(obj) {
 		
-		var PARENT = obj;
-		var SELF = this;
+		const PARENT = obj;
+		const SELF = this;
 		
 		var worker = null;
 		

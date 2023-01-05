@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -95,7 +95,7 @@ class data_analysis extends base_module {
 	
 	public function createTypeAnalysis($type_id, $arr_analysis = []) {
 				
-		$html_type_network = data_model::createTypeNetwork($type_id, false, false, ['references' => 'both', 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_analysis['scope'], 'name' => 'analysis[scope]', 'descriptions' => false, 'functions' => ['filter' => true, 'collapse' => false]]);
+		$html_type_network = data_model::createTypeNetwork($type_id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_analysis['scope'], 'name' => 'analysis[scope]', 'descriptions' => false, 'functions' => ['filter' => true, 'collapse' => false]]);
 		$arr_algorithms = AnalyseTypeObjects::getAlgorithms();
 		
 		$has_graph_database = Settings::get('graph_analysis_service');
@@ -507,7 +507,7 @@ class data_analysis extends base_module {
 		
 		if ($method == "analyse") {
 			
-			$type_id = toolbar::getFilterTypeId();
+			$type_id = toolbar::getFilterTypeID();
 			
 			$arr_analysis = self::getTypeAnalysis($type_id);
 			
@@ -556,9 +556,9 @@ class data_analysis extends base_module {
 			}
 			
 			$arr_type_filters = toolbar::getFilter();
-			$type_id = toolbar::getFilterTypeId();
+			$type_id = toolbar::getFilterTypeID();
 			
-			if (!custom_projects::checkAccessType('view', $type_id)) {
+			if (!custom_projects::checkAccessType(StoreCustomProject::ACCESS_PURPOSE_VIEW, $type_id)) {
 				return;
 			}
 			
@@ -602,7 +602,7 @@ class data_analysis extends base_module {
 				}
 			}
 
-			$collect = self::getTypeAnalysisCollector($type_id, $arr_filters, $arr_scope);
+			$collect = static::getTypeAnalysisCollector($type_id, $arr_analysis, $arr_filters, $arr_scope);
 			
 			$arr_nodegoat_details = cms_nodegoat_details::getDetails();
 			if ($arr_nodegoat_details['processing_time']) {
@@ -633,7 +633,7 @@ class data_analysis extends base_module {
 		
 		if ($method == "edit_analysis") {
 			
-			$type_id = toolbar::getFilterTypeId();
+			$type_id = toolbar::getFilterTypeID();
 
 			$arr_analysis = self::getTypeAnalysis($type_id);
 			$arr_analysis_context = self::getTypeAnalysisContext($type_id);
@@ -649,7 +649,7 @@ class data_analysis extends base_module {
 		
 		if ($method == "update_analysis") {
 				
-			$type_id = toolbar::getFilterTypeId();
+			$type_id = toolbar::getFilterTypeID();
 			
 			if ($_POST['clear_analysis']) {
 				
@@ -701,7 +701,7 @@ class data_analysis extends base_module {
 			$this->html = '<form class="options storage">
 				'.($method == 'store_analysis_context' ? $this->createSelectAnalysisContext($type_id, true) : $this->createSelectAnalysis($type_id, true)).'
 				<input class="hide" type="submit" name="" value="" />
-				<input type="submit" name="discard" value="'.getLabel('lbl_close').'" />
+				<input type="submit" name="do_discard" value="'.getLabel('lbl_close').'" />
 			</form>';
 		}
 		
@@ -749,10 +749,13 @@ class data_analysis extends base_module {
 		}
 	}
 	
-	public static function getTypeAnalysisCollector($type_id, $arr_filters, $arr_scope) {
+	public static function getTypeAnalysisCollector($type_id, $arr_analysis, $arr_filters, $arr_scope) {
 		
 		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
+		
+		$arr_algorithm = AnalyseTypeObjects::getAlgorithms($arr_analysis['algorithm']);
+		$do_weighted = ($arr_algorithm['weighted'] && $arr_analysis['settings']['weighted']['mode'] != 'unweighted');
 		
 		if ($arr_scope['paths']) {
 			$trace = new TraceTypesNetwork(array_keys($arr_project['types']), true, true);
@@ -765,7 +768,69 @@ class data_analysis extends base_module {
 		
 		$collect = new CollectTypesObjects($arr_type_network_paths, GenerateTypeObjects::VIEW_ALL);
 		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
-		$collect->setConditions(false);
+		
+		if ($do_weighted) {
+			
+			$collect->setConditions(GenerateTypeObjects::CONDITIONS_MODE_FULL, function($cur_type_id) use ($type_id) {
+								
+				$arr_type_set_conditions = toolbar::getTypeConditions($cur_type_id);
+				
+				if (!$arr_type_set_conditions) {
+					return $arr_type_set_conditions;
+				}
+				
+				$func_check_conditions = function(&$arr_condition_settings) {
+					
+					foreach ($arr_condition_settings as $key => &$arr_condition_setting) {
+						
+						$arr_condition_setting = data_model::checkTypeConditionNamespace($arr_condition_setting, data_model::CONDITION_NAMESPACE_ANALYSE);
+						
+						if ($arr_condition_setting !== false && isset($arr_condition_setting['condition_actions']['weight'])) {
+							continue;
+						}
+						
+						unset($arr_condition_settings[$key]);
+					}
+					
+					return $arr_condition_settings;
+				};
+				
+				if ($arr_type_set_conditions['object']) {
+					
+					$func_check_conditions($arr_type_set_conditions['object']);
+				}
+				
+				if ($arr_type_set_conditions['object_descriptions']) {
+				
+					foreach ($arr_type_set_conditions['object_descriptions'] as $object_description_id => &$arr_condition_settings) {
+						$func_check_conditions($arr_condition_settings);
+					}
+				}
+				
+				if ($arr_type_set_conditions['object_sub_details']) {
+					
+					foreach ($arr_type_set_conditions['object_sub_details'] as $object_sub_details_id => &$arr_conditions_object_sub_details) {
+						
+						if ($arr_conditions_object_sub_details['object_sub_details']) {
+							$func_check_conditions($arr_conditions_object_sub_details['object_sub_details']);
+						}
+						
+						if ($arr_conditions_object_sub_details['object_sub_descriptions']) {
+							
+							foreach ($arr_conditions_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => &$arr_condition_settings) {
+								$func_check_conditions($arr_condition_settings);
+							}
+						}
+					}
+				}
+
+				return $arr_type_set_conditions;
+			});
+		} else {
+			
+			$collect->setConditions(false);
+		}
+		
 		$collect->init($arr_filters, false);
 			
 		$arr_collect_info = $collect->getResultInfo();

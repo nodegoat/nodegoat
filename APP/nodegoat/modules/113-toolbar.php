@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -17,7 +17,6 @@ class toolbar extends base_module {
 	}
 	
 	private static $action_space = null;
-	private static $dynamic_filtering = false;
 
 	public function contents() {
 		
@@ -97,7 +96,7 @@ class toolbar extends base_module {
 					
 			<div>
 				<div class="options">
-				'.data_model::createTypeNetwork($type_id, false, false, ['references' => 'both', 'descriptions' => 'pick', 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_settings['scope'], 'name' => 'export_settings[scope]']).'
+				'.data_model::createTypeNetwork($type_id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'descriptions' => 'pick', 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_settings['scope'], 'name' => 'export_settings[scope]']).'
 				</div>
 			</div>
 			
@@ -379,27 +378,31 @@ class toolbar extends base_module {
 					}
 					
 					var elm_table = $('table[id^=d\\\\:data_entry\\\:data-]');
-					var datatable = getElement(elm_table).datatable;
 					
-					if (data.analysis_column !== undefined) {
+					if (elm_table.length) {
 						
-						if (!elm.matches('[id=y\\\:data_entry\\\:view-0]')) { // Do not use on Type switch
+						var datatable = getElement(elm_table).datatable;
 						
-							var elm_analysis_header = elm_table[0].querySelector('[data-identifier=analysis]');
+						if (data.analysis_column !== undefined) {
 							
-							if (data.analysis_column || (!data.analysis_column && elm_analysis_header)) {
-								datatable.handleColumn('[data-identifier=analysis]', data.analysis_column, '[data-identifier=version]');
+							if (!elm.matches('[id=y\\\:data_entry\\\:view-0]')) { // Do not use on Type switch
+							
+								var elm_analysis_header = elm_table[0].querySelector('[data-identifier=analysis]');
+								
+								if (data.analysis_column || (!data.analysis_column && elm_analysis_header)) {
+									datatable.handleColumn('[data-identifier=analysis]', data.analysis_column, '[data-identifier=version]');
+								}
 							}
 						}
-					}
-					
-					if (data.filter) {
 						
-						if (data.scenario_has_cache) {
-							datatable.resetSort();
+						if (data.filter) {
+							
+							if (data.scenario_has_cache) {
+								datatable.resetSort();
+							}
+												
+							datatable.setFilter(data.filter.filter, data.filter.active);
 						}
-											
-						datatable.setFilter(data.filter.filter, data.filter.active);
 					}
 				});
 			}
@@ -459,15 +462,15 @@ class toolbar extends base_module {
 				return;
 			}
 			
-			$type_id = toolbar::getFilterTypeId();
+			$type_id = toolbar::getFilterTypeID();
 
-			if (!custom_projects::checkAccessType('view', $type_id)) {
+			if (!custom_projects::checkAccessType(StoreCustomProject::ACCESS_PURPOSE_VIEW, $type_id)) {
 				return;
 			}
 			
 			$arr_export_settings = self::getTypeExportSettings($type_id);
 						
-			if ($_POST['get-download']) {
+			if ($this->is_download) {
 				
 				Response::setOutputUpdates(false); // Do not output anything that could mess up the export headers
 				
@@ -517,13 +520,13 @@ class toolbar extends base_module {
 				die;
 			} else {
 				 
-				$this->download = true;
+				$this->do_download = true;
 			}
 		}
 		
 		if ($method == "export_settings") {
 			
-			$type_id = toolbar::getFilterTypeId();
+			$type_id = toolbar::getFilterTypeID();
 			
 			$arr_export_settings = self::getTypeExportSettings($type_id);
 		
@@ -535,7 +538,7 @@ class toolbar extends base_module {
 		
 		if ($method == "update_export_settings") {
 			
-			$type_id = toolbar::getFilterTypeId();
+			$type_id = toolbar::getFilterTypeID();
 			
 			if ($_POST['reset']) {
 				
@@ -557,7 +560,7 @@ class toolbar extends base_module {
 			$this->html = '<form class="options storage">
 				'.$this->createSelectExportSettings($type_id, true).'
 				<input class="hide" type="submit" name="" value="" />
-				<input type="submit" name="discard" value="'.getLabel('lbl_close').'" />
+				<input type="submit" name="do_discard" value="'.getLabel('lbl_close').'" />
 			</form>';
 		}
 		
@@ -592,7 +595,7 @@ class toolbar extends base_module {
 				
 		if ($method == "manage_scenarios") {
 			
-			$type_id = self::getFilterTypeId();
+			$type_id = self::getFilterTypeID();
 			
 			$this->html = '<form class="options storage" data-method="select_scenario">
 				'.$this->createSelectScenario($type_id).'
@@ -620,7 +623,7 @@ class toolbar extends base_module {
 	
 	public static function setScenario($scenario_id = false) {
 		
-		$type_id = self::getFilterTypeId();
+		$type_id = self::getFilterTypeID();
 		$arr_scenario = [];
 				
 		if ($scenario_id) {
@@ -685,6 +688,7 @@ class toolbar extends base_module {
 			if (self::$action_space === 0) {
 
 				$arr_condition = [];
+				$arr_model_conditions = [];
 				
 				if ($arr_scenario['condition_id']) {
 					
@@ -807,7 +811,7 @@ class toolbar extends base_module {
 		
 		self::checkActiveSettings();
 	}
-
+	
 	public static function checkActiveScenario($do_enable = true) {
 		
 		$scenario_id = SiteStartVars::getFeedback('scenario_id');
@@ -961,25 +965,11 @@ class toolbar extends base_module {
 		return $arr_filter;
 	}
 
-	public static function setFilter($arr_filters, $dynamic_filtering = false) {
-		
-		if ($dynamic_filtering) {
-			
-			if (!self::$dynamic_filtering) {
-				return;
-			}
-			
-			$cur_type_id = self::getFilterTypeId();
-			$type_id = key($arr_filters);
-			
-			if ($cur_type_id && $type_id != $cur_type_id) {
-				return;
-			}
-		}
-		
+	public static function setFilter($arr_filters) {
+				
 		// $arr_filters = array(type_id => arr_filter = see FilterTypeObjects)
 		
-		$arr_cur_filters = self::getFilter();
+		$arr_cur_filters = self::getFilter(false);
 		
 		if (arrKsortRecursive($arr_filters) === arrKsortRecursive($arr_cur_filters)) {
 			return;
@@ -987,18 +977,87 @@ class toolbar extends base_module {
 		
 		SiteEndVars::setFeedback('filter', $arr_filters, true);
 		
-		self::checkFilter();
+		self::checkFilters();
 	}
-
-	public static function checkFilter() {
+	
+	public static function getFilter($do_selected = true) {
 		
-		$arr_filters = self::getFilter();
+		$arr = SiteStartVars::getFeedback('filter');
+		$arr = ($arr ?: []);
+		
+		if ($do_selected) {
+			
+			$arr_selected = self::getSelectedFilter();
+				
+			if ($arr_selected) {
+
+				$arr[key($arr_selected)][] = current($arr_selected); // Includes Type ID as key
+			}
+		}
+	
+		return $arr;
+	}
+	
+	public static function getFilterTypeID() {
+						
+		$arr_filter = self::getFilter(false);
+		$type_id = ($arr_filter ? key($arr_filter) : 0);
+		
+		return $type_id;
+	}
+	
+	public static function setSelected() {
+		
+		// Selection is handled by setFeedback on client/JavaScript side
+		
+		self::checkFilters();
+	}
+	
+	public static function getSelected() {
+		
+		$arr = SiteStartVars::getFeedback('selected');
+		$arr = ($arr ?: []);
+		
+		foreach ($arr as $type_id => &$arr_object_ids) {
+			
+			if (!custom_projects::checkAccessType(StoreCustomProject::ACCESS_PURPOSE_VIEW, $type_id)) {
+				unset($arr[$type_id]);
+				continue;
+			}
+			
+			$arr_object_ids = arrParseRecursive($arr_object_ids, 'int');
+		}
+		unset($arr_object_ids);
+		
+		return $arr;
+	}
+	
+	public static function getSelectedFilter() {
+
+		$type_id = self::getFilterTypeID();
+		
+		$arr_objects = self::getSelected();
+		$arr_objects = ($arr_objects[$type_id] ?? null);
+		
+		if (!$arr_objects) {
+			return false;
+		}
+			
+		$arr_filters = [$type_id => ['objects' => $arr_objects]];
+		
+		return $arr_filters;
+	}
+	
+	public static function checkFilters() {
+		
+		$arr_selected = self::getSelected();
+		$arr_filters = self::getFilter(false);
 		
 		SiteEndVars::setFeedback('project_id', $_SESSION['custom_projects']['project_id']);
-		
-		if ($arr_filters) {
+
+		if ($arr_selected || $arr_filters) {
 			
-			$type_id = key($arr_filters);
+			$type_id = ($arr_selected ? key($arr_selected) : key($arr_filters));
 			
 			self::checkActiveSettings($type_id);
 			
@@ -1016,38 +1075,11 @@ class toolbar extends base_module {
 		}
 	}
 	
-	public static function setOrder($arr_ordering, $dynamic_filtering = false) {
-		
-		if ($dynamic_filtering) {
-			
-			if (!self::$dynamic_filtering) {
-				return;
-			}
-			
-			$cur_type_id = self::getFilterTypeId();
-			$type_id = key($arr_ordering);
-			
-			if ($cur_type_id && $type_id != $cur_type_id) {
-				return;
-			}
-		}
-		
+	public static function setOrder($arr_ordering) {
+				
 		// $arr_ordering = array(type_id => arr_ordering = see GenerateTypeObjects)
 		
 		SiteEndVars::setFeedback('order', $arr_ordering, true);
-	}
-	
-	public static function enableDynamicFiltering() {
-			
-		self::$dynamic_filtering = true;
-	}
-	
-	public static function getFilter() {
-		
-		$arr = SiteStartVars::getFeedback('filter');
-		$arr = ($arr ?: []);
-		
-		return $arr;
 	}
 	
 	public static function getOrder() {
@@ -1082,7 +1114,7 @@ class toolbar extends base_module {
 			SiteEndVars::setFeedback('type_id', $type_id, true);
 		} else {
 			
-			$type_id = self::getFilterTypeId();
+			$type_id = self::getFilterTypeID();
 		}
 		
 		$arr_scope = data_visualise::getTypeScope($type_id);
@@ -1142,14 +1174,6 @@ class toolbar extends base_module {
 		}
 
 		SiteEndVars::setFeedback('visual_settings', ($arr_visual_settings ? true : false));
-	}
-	
-	public static function getFilterTypeId() {
-						
-		$arr_filter = self::getFilter();
-		$type_id = ($arr_filter ? key($arr_filter) : 0);
-		
-		return $type_id;
 	}
 	
 	public static function getTypeFilterSet($str_identifier, $arr_filters) {
@@ -1226,7 +1250,7 @@ class toolbar extends base_module {
 			if ($arr_context) {
 				$active_type_id = $arr_context['type_id'];
 			} else {
-				$active_type_id = self::getFilterTypeId();
+				$active_type_id = self::getFilterTypeID();
 			}
 			
 			$condition_id = SiteStartVars::getFeedback('condition_id');
@@ -1446,7 +1470,7 @@ class toolbar extends base_module {
 					
 					if ($object_description_id) {
 							
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
@@ -1459,7 +1483,7 @@ class toolbar extends base_module {
 					
 					if ($object_sub_details_id) {
 
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 							continue;
 						}
 						
@@ -1469,7 +1493,7 @@ class toolbar extends base_module {
 						
 						if ($object_sub_description_id) {
 							
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 								continue;
 							}
 							

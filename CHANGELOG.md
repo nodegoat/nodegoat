@@ -71,4 +71,11 @@ Initial release.
 * Data/Model: Geometries now support and enforce their geographic coordinate system (indicated by their CRS in e.g. GeoJSON). By default geometries are interpreted using the WGS84 geographic coordinate system (EPSG:4326). Any other geographic coordinate system in the EPSG registry is now supported with help of the GDAL library (gdal.org), and can be used interchangeably throughout.
 * Various fixes, modernisation, and overall streamlining.
 
+## VERSION 8.1
+
+* Data/Toolbar: Added new Objects selection layer to the existing Filter interaction layer. Manually selecting or deselecting Type Objects narrows or reversibly expands the results of a possible active Filter.
+* Analysis: Implemented Conditions to source the weights used in a graph. Sourcing weights from Conditions allows for any level of constraint or assertion, ranging from the whole graph to the level of a single edge.
+* Filter: Revamped the implementation of the (path-aware) filtering procedures providing performance, consistence, and scalability.
+* Various fixes and tweaks.
+
 ## VERSION x.x

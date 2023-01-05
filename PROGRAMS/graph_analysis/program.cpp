@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -52,14 +52,14 @@ namespace LAB1100CC {
 
 		public:
 				
-			unsigned int port;
+			unsigned int num_port;
 				
 			void run() {
 
 				// HTTP-server at (port) using 1 default thread
 				HttpServer server;
 				server.config.address = "127.0.0.1";
-				server.config.port = port;
+				server.config.port = num_port;
 				server.config.timeout_content = 60*60;
 				
 				LAB1100CC::Jobs jobs;
@@ -501,7 +501,7 @@ namespace LAB1100CC {
 				
 				server_thread.detach();
 				
-				std::cout << "Server running on port " << port << std::endl;
+				std::cout << "Server running on port " << num_port << std::endl;
 				
 				std::signal(SIGINT, handleSignal);
 				
@@ -527,7 +527,7 @@ int main(int argc, char** argv) {
 	}
 
 	//std::vector <std::string> sources;
-	unsigned int port;
+	unsigned int num_port;
 	
 	std::string str_arg;
 	
@@ -552,13 +552,13 @@ int main(int argc, char** argv) {
 				return 1;
 			}
 			
-			port = std::atoi(argv[i]);
+			num_port = std::atoi(argv[i]);
 		}
 	}
 	
 	LAB1100CC::Program program;
 	
-	program.port = port;
+	program.num_port = num_port;
 	
 	program.run();
 }

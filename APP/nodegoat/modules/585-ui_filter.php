@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -491,8 +491,8 @@ class ui_filter extends base_module {
 					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="boolean"] .input > input:checked + label { pointer-events: none; order: 2; display: inline-block; background-color: rgba(255, 255, 255, 0.6); color: #333; }
 					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="boolean"] .input > input:checked + label + input + label + label,
 					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="boolean"] .input > input:checked + label + label { display: inline-block; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="int"] .input > label { pointer-events: none; order: 1; display: inline-block; margin: 0px; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="int"] .input > input { pointer-events: none; order: 2; display: inline-block; height: 36px; width: 60px; padding: 10px; background-color: rgba(255, 255, 255, 0.6); color: #333; }
+					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="int"] .input > label { display: none; pointer-events: none; order: 1; margin: 0px; }
+					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="int"] .input > input { display: none; pointer-events: none; order: 2; height: 36px; width: 60px; padding: 10px; background-color: rgba(255, 255, 255, 0.6); color: #333; }
 					
 					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date { display: inline-block; display: flex; }
 					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input { background-color: rgba(255, 255, 255, 0.6); width: 90px; min-width: 10px; border: 0; height: 36px; padding: 0 10px; margin: 0; pointer-events: none;  text-align: center; }
@@ -1049,6 +1049,7 @@ class ui_filter extends base_module {
 							// close responsive menu
 							if (!$(e.target).is('label, input, ul, span, span path, [class*=filter]')) {
 														
+								elm_ui.find('#form-toggle').prop('checked', false);
 								elm_ui.children('input').prop('checked', false);
 							}
 						}
@@ -1398,7 +1399,27 @@ class ui_filter extends base_module {
 			
 				if (count($arr_type_set['object_sub_details'])) {
 			
-					$arr_type_object_filters[$type_id][uniqid()] = ['object_filter' => ['object_subs' => [['object_sub_dates' => [['object_sub_date_type' => 'range', 'object_sub_date_from' => $arr_filter_dates['min'], 'object_sub_date_to' => $arr_filter_dates['max']]]]]]];
+					$arr_type_object_filters[$type_id][uniqid()] = [
+						'object_filter' => [
+							'object_subs' => [
+								[
+									'object_sub_dates' => [
+										['object_sub_date_type' => 
+											'point', 
+											'object_sub_date_start' => [
+												'equality' => '≥',
+												'value' => $arr_filter_dates['min']
+											],
+											'object_sub_date_end' => [
+												'equality' => '≤',
+												'value' => $arr_filter_dates['max']
+											]
+										]
+									]
+								]
+							]
+						]
+					];
 				}
 			}
 			
@@ -1493,7 +1514,7 @@ class ui_filter extends base_module {
 			if (!$crossreferenced || ($crossreferenced && !in_array($ref_type_id, $arr_object_description_ref_type_ids) && !in_array($ref_type_id, $arr_object_sub_description_ref_type_ids))) {
 				
 				$trace = new TraceTypesNetwork($arr_types, true, true);
-				$trace->run($type_id, $type_id, $steps, 'both', ['shortest' => true]);
+				$trace->run($type_id, $type_id, $steps, TraceTypesNetwork::RUN_MODE_BOTH, ['shortest' => true]);
 
 				$arr_type_network_paths = $trace->getTypeNetworkPaths(true);
 

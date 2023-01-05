@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2019 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -62,6 +62,8 @@ namespace LAB1100CC {
 	const type_mode CLOSENESS_CENTRALITY = 1;
 	const type_mode CLOSENESS_ECCENTRICITY = 2;
 	
+	const unsigned int OUTPUT_DECIMALS = std::pow(10, 9);
+	
 	class GraphAnalysis {
 		
 		protected:
@@ -112,8 +114,8 @@ namespace LAB1100CC {
 			unsigned int num_nodes;
 			unsigned int num_edges;
 			
-			unsigned int count_primary = 0;
-			unsigned int count_secondary = 0;
+			unsigned int num_count_primary = 0;
+			unsigned int num_count_secondary = 0;
 			
 			type_mode mode_weighted = WEIGHTED_UNWEIGHTED;
 			unsigned int num_weight_min = 0;
@@ -133,10 +135,10 @@ namespace LAB1100CC {
 				std::string str_line;
 				bool header_found = false;
 
-				using type_identifiers = std::vector<std::string>;
+				using type_identifiers = std::vector<std::pair<std::string, type_weight>>;
 				std::unordered_map<std::string, type_identifiers> map_identifiers_from_identifiers_to_resolve;
 				
-				type_weight weight = 1;
+				const type_weight num_weight_default = 1;
 				
 				// Parse lines into nodes (map_identifiers_node) and edges (map_identifiers_from_identifiers_to)
 
@@ -167,12 +169,19 @@ namespace LAB1100CC {
 					const auto& str_identifier_to = arr_cells[2];
 					
 					std::string str_identifier = str_identifier_from + str_identifier_to;
+					type_weight num_weight = num_weight_default;
+					
+					try {
+						num_weight = std::stoi(arr_cells.at(3));
+					} catch (std::out_of_range const& exc) {
+						// No weight available
+					}
 
 					if (map_identifiers_from_identifiers_to.find(str_identifier) != map_identifiers_from_identifiers_to.end()) { // Edge exists, add weight
 						
 						auto& arr_edge_settings = map_identifiers_from_identifiers_to[str_identifier];
 						
-						std::get<2>(arr_edge_settings) += weight;
+						std::get<2>(arr_edge_settings) += num_weight;
 					} else {
 						
 						// Check wether the edge is of different Types, if different, add it to a map to resolve the edges
@@ -197,7 +206,8 @@ namespace LAB1100CC {
 						
 						if (is_different_type) {
 							
-							map_identifiers_from_identifiers_to_resolve[str_identifier_to].push_back(str_identifier_from);
+							//map_identifiers_from_identifiers_to_resolve[str_identifier_to].push_back(std::make_pair(str_identifier_from, num_weight));
+							map_identifiers_from_identifiers_to_resolve[str_identifier_to].emplace_back(str_identifier_from, num_weight);
 						} else {
 						
 							if (map_identifiers_node.find(str_identifier_to) == map_identifiers_node.end()) { // Add connection node if not exists
@@ -207,7 +217,7 @@ namespace LAB1100CC {
 
 							// Store the edge
 							
-							map_identifiers_from_identifiers_to[str_identifier] = std::make_tuple(str_identifier_from, str_identifier_to, weight);
+							map_identifiers_from_identifiers_to[str_identifier] = std::make_tuple(str_identifier_from, str_identifier_to, num_weight);
 						}
 					}
 				}
@@ -216,26 +226,32 @@ namespace LAB1100CC {
 								
 				for (const auto& arr_identifiers : map_identifiers_from_identifiers_to_resolve) {
 					
-					for (const auto& str_identifier_from : arr_identifiers.second) {
+					for (const auto& arr_identifier_from : arr_identifiers.second) {
+						
+						const auto& str_identifier_from = arr_identifier_from.first;
+						
+						for (const auto& arr_identifier_to : arr_identifiers.second) {
 							
-						for (const auto& str_identifier_to : arr_identifiers.second) {
-														
+							const auto& str_identifier_to = arr_identifier_to.first;
+							
 							if (str_identifier_from == str_identifier_to) {
 								continue;
 							}
 							
+							const auto& num_weight = arr_identifier_to.second;
+							
 							std::string str_identifier = str_identifier_from + str_identifier_to;
-
+							
 							if (map_identifiers_from_identifiers_to.find(str_identifier) != map_identifiers_from_identifiers_to.end()) { // Edge exists, add weight
 							
 								auto& arr_edge = map_identifiers_from_identifiers_to[str_identifier];
 								
-								std::get<2>(arr_edge) += weight;
+								std::get<2>(arr_edge) += num_weight;
 							} else {
 								
 								// Store the edge
 								
-								map_identifiers_from_identifiers_to[str_identifier] = std::make_tuple(str_identifier_from, str_identifier_to, weight);
+								map_identifiers_from_identifiers_to[str_identifier] = std::make_tuple(str_identifier_from, str_identifier_to, num_weight);
 							}
 						}
 					}
@@ -267,16 +283,16 @@ namespace LAB1100CC {
 				} else {
 					
 					for (const auto& map_edge : map_identifiers_from_identifiers_to) {
-											
-						const auto& weight = std::get<2>(map_edge.second);
 						
-						if (weight < num_weight_min || num_weight_min == 0) {
+						const auto& num_weight = std::get<2>(map_edge.second);
+						
+						if (num_weight < num_weight_min || num_weight_min == 0) {
 							
-							num_weight_min = weight;
+							num_weight_min = num_weight;
 						}
-						if (weight > num_weight_max) {
+						if (num_weight > num_weight_max) {
 							
-							num_weight_max = weight;
+							num_weight_max = num_weight;
 						}
 					}
 					
@@ -291,32 +307,30 @@ namespace LAB1100CC {
 				for (const auto& map_edge : map_identifiers_from_identifiers_to) {
 					
 					const auto& str_identifier_from = std::get<0>(map_edge.second);
-
 					const auto& arr_vertex_from_settings = map_identifiers_node[str_identifier_from];
 
 					const auto& str_identifier_to = std::get<1>(map_edge.second);
-						
 					const auto& arr_vertex_to_settings = map_identifiers_node[str_identifier_to];
 					
-					auto weight = std::get<2>(map_edge.second);
+					auto num_weight = std::get<2>(map_edge.second);
 					
 					if (mode_weighted == WEIGHTED_UNWEIGHTED) {
 						
-						weight = 1;
+						num_weight = 1;
 					} else { // WEIGHTED_CLOSENESS & WEIGHTED_DISTANCE
 						
-						if (weight > num_weight_max) {
+						if (num_weight > num_weight_max) {
 							
-							weight = num_weight_max;
+							num_weight = num_weight_max;
 						}
 						
 						if (mode_weighted == WEIGHTED_CLOSENESS) { // Reverse weight based on maximum weight
 							
-							weight = 1 + (num_weight_max - weight);
+							num_weight = 1 + (num_weight_max - num_weight);
 						}
 					}
 					
-					boost::add_edge(std::get<0>(arr_vertex_from_settings), std::get<0>(arr_vertex_to_settings), Power("edge", weight), g);					
+					boost::add_edge(std::get<0>(arr_vertex_from_settings), std::get<0>(arr_vertex_to_settings), Power("edge", num_weight), g);					
 				}
 			}
 			
@@ -358,10 +372,10 @@ namespace LAB1100CC {
 			
 			void formatResults(const type_mode& mode_primary, const type_mode& mode_secondary = MODE_NONE) {
 				
-				type_number_primary count_min_primary = 0;
-				type_number_primary count_max_primary = 0;
-				type_number_secondary count_min_secondary = 0;
-				type_number_secondary count_max_secondary = 0;
+				type_number_primary num_primary_min;
+				type_number_primary num_primary_max = 0;
+				type_number_secondary num_secondary_min;
+				type_number_secondary num_secondary_max = 0;
 				
 				for (const auto& arr_map : map_identifiers_node) {
 					
@@ -380,26 +394,26 @@ namespace LAB1100CC {
 						continue;
 					}
 					
-					if (num_primary > count_max_primary || count_max_primary == 0) {
-						count_max_primary = num_primary;
+					if (num_primary > num_primary_max || num_primary_max == 0) {
+						num_primary_max = num_primary;
 					}
-					if (num_primary < count_min_primary || count_min_primary == 0) {
-						count_min_primary = num_primary;
+					if (std::isnan(num_primary_min) || num_primary < num_primary_min) {
+						num_primary_min = num_primary;
 					}
 					
 					if (!std::isnan(num_secondary)) {
 
-						if (num_secondary > count_max_secondary || count_max_secondary == 0) {
-							count_max_secondary = num_secondary;
+						if (num_secondary > num_secondary_max || num_secondary_max == 0) {
+							num_secondary_max = num_secondary;
 						}
-						if (num_secondary < count_min_secondary || count_min_secondary == 0) {
-							count_min_secondary = num_secondary;
+						if (std::isnan(num_secondary_min) || num_secondary < num_secondary_min) {
+							num_secondary_min = num_secondary;
 						}
 					}
 					
 					map_identifier_number[arr_map.first];
 				}
-												
+																
 				for (const auto& arr_map : map_identifier_number) {
 					
 					const auto& str_identifier_node = arr_map.first;
@@ -413,15 +427,23 @@ namespace LAB1100CC {
 
 							if (mode_primary == MODE_RELATIVE) {
 								
-								num_primary = (num_primary / (type_number_primary)count_primary);
+								num_primary = (num_primary / (type_number_primary)num_count_primary);
 							} else if (mode_primary == MODE_NORMALISED) {
 
-								if (count_max_primary == count_min_primary) {
+								if (num_primary_max == num_primary_min || num_primary == num_primary_max) {
+									
 									num_primary = 1;
-								} else {
-									num_primary = ((num_primary - count_min_primary) / (count_max_primary - count_min_primary));
+								} else if (num_primary > 0) {
+																			
+									num_primary = ((num_primary - num_primary_min) / (num_primary_max - num_primary_min));
+
+									if (num_primary < std::numeric_limits<type_number_primary>::min()) { // Large normalised datasets can get really close to 0, too close for floating point
+										num_primary = std::numeric_limits<type_number_primary>::min();
+									}
 								}
 							}
+
+							num_primary = (std::ceil(num_primary * OUTPUT_DECIMALS) / OUTPUT_DECIMALS);
 						}
 					}
 					
@@ -440,15 +462,23 @@ namespace LAB1100CC {
 									
 								if (mode_secondary == MODE_RELATIVE) {
 
-									num_secondary = (num_secondary / (type_number_secondary)count_secondary);
+									num_secondary = (num_secondary / (type_number_secondary)num_count_secondary);
 								} else if (mode_secondary == MODE_NORMALISED) {
 									
-									if (count_max_secondary == count_min_secondary) {
+									if (num_secondary_max == num_secondary_min || num_secondary == num_secondary_max) {
+										
 										num_secondary = 1;
-									} else {
-										num_secondary = ((num_secondary - count_min_secondary) / (count_max_secondary - count_min_secondary));
+									} else if (num_secondary > 0) {
+											
+										num_secondary = ((num_secondary - num_secondary_min) / (num_secondary_max - num_secondary_min));
+
+										if (num_secondary < std::numeric_limits<type_number_primary>::min()) { // Large normalised datasets can get really close to 0, too close for floating point
+											num_secondary = std::numeric_limits<type_number_primary>::min();
+										}
 									}
 								}
+								
+								num_secondary = (std::ceil(num_secondary * OUTPUT_DECIMALS) / OUTPUT_DECIMALS);
 							}
 						}
 					}
@@ -464,13 +494,13 @@ namespace LAB1100CC {
 				
 				using type_centrality = type_number_primary;
 				
-				std::vector<type_centrality> arr_centralities(boost::num_vertices(g)); // To store centrality
+				std::vector<type_centrality> arr_vertices_centrality(boost::num_vertices(g)); // To store centrality
 				
 				if (mode_weighted != WEIGHTED_UNWEIGHTED) {
 					
 					brandes_betweenness_centrality(g, boost::
 						centrality_map(
-							boost::make_iterator_property_map(arr_centralities.begin(), map_index)
+							boost::make_iterator_property_map(arr_vertices_centrality.begin(), map_index)
 						)
 						.weight_map(boost::get(&Power::weight, g))
 					);
@@ -478,7 +508,7 @@ namespace LAB1100CC {
 					
 					brandes_betweenness_centrality(g, boost::
 						centrality_map(
-							boost::make_iterator_property_map(arr_centralities.begin(), map_index)
+							boost::make_iterator_property_map(arr_vertices_centrality.begin(), map_index)
 						)
 					);
 				}
@@ -495,7 +525,7 @@ namespace LAB1100CC {
 					
 					const auto& vertex_check = std::get<0>(arr_node_check);
 					
-					const auto& num_centrality_found = arr_centralities[vertex_check];
+					const auto& num_centrality_found = arr_vertices_centrality[vertex_check];
 					
 					if (num_centrality_found == std::numeric_limits<type_centrality>::max()) { // Node distance is NaN of infinite
 						continue;
@@ -504,7 +534,7 @@ namespace LAB1100CC {
 					std::get<2>(arr_node_check) = num_centrality_found;
 				}
 				
-				count_primary = ((map_identifiers_node.size() - 1) * (map_identifiers_node.size() - 2));
+				num_count_primary = ((map_identifiers_node.size() - 1) * (map_identifiers_node.size() - 2));
 			}
 
 			void runCloseness(const type_mode& mode_closeness) {
@@ -516,21 +546,21 @@ namespace LAB1100CC {
 				using type_distance_matrix = typename type_distance_property::matrix_type;
 				using type_distance_matrix_map = typename type_distance_property::matrix_map_type;
 								
-				type_distance_matrix arr_distances(boost::num_vertices(g)); // To store distances
-				type_distance_matrix_map map_distances(arr_distances, g);
+				type_distance_matrix arr_vertices_distance(boost::num_vertices(g)); // To store distances
+				type_distance_matrix_map map_vertices_distances(arr_vertices_distance, g);
 				
 				std::vector<type_closeness> arr_closenesses(boost::num_vertices(g)); // To store centrality
 				
 				if (is_dense) {
 					
 					floyd_warshall_all_pairs_shortest_paths(g,
-						map_distances,
+						map_vertices_distances,
 						weight_map(boost::get(&Power::weight, g))
 					);
 				} else {
 				
 					johnson_all_pairs_shortest_paths(g,
-						map_distances,
+						map_vertices_distances,
 						weight_map(boost::get(&Power::weight, g))
 					);
 				}
@@ -545,7 +575,7 @@ namespace LAB1100CC {
 							continue;
 						}
 						
-						auto& num_distance_found = map_distances[std::get<0>(arr_map_from.second)][std::get<0>(arr_map_to.second)];
+						auto& num_distance_found = map_vertices_distances[std::get<0>(arr_map_from.second)][std::get<0>(arr_map_to.second)];
 						
 						if (num_distance_found == std::numeric_limits<type_distance>::max()) {
 							
@@ -563,13 +593,13 @@ namespace LAB1100CC {
 				if (mode_closeness == CLOSENESS_CENTRALITY) {
 					
 					all_closeness_centralities(g,
-						map_distances,
+						map_vertices_distances,
 						boost::make_iterator_property_map(arr_closenesses.begin(), map_index)
 					);
 				} else { // Eccentricity
 					
 					all_eccentricities(g,
-						map_distances,
+						map_vertices_distances,
 						boost::make_iterator_property_map(arr_closenesses.begin(), map_index)
 					);
 				}
@@ -659,50 +689,53 @@ namespace LAB1100CC {
 				}
 			}
 			
-			using type_arr_paths = std::vector<type_vertex>;
+			using type_arr_vertices = std::vector<type_vertex>;
 			
 			template <typename typename_report>
-			void walkPathsStep(const type_vertex& vertex_from, const type_vertex& vertex_to, const type_weight& length_find, const type_graph& g, type_weight length_path, type_arr_paths& arr_paths, const typename_report& callback) {
+			void walkPathsStep(const type_vertex& vertex_from, const type_vertex& vertex_to, const type_weight& num_distance_find, const type_arr_vertices& arr_vertices_distance, const type_graph& g, type_weight num_distance, type_arr_vertices& arr_vertices_path, const typename_report& callback) {
 				
-				arr_paths.push_back(vertex_from);
+				arr_vertices_path.push_back(vertex_from);
 
 				if (vertex_from == vertex_to) {
 					
-					callback(arr_paths);
+					callback(arr_vertices_path);
 				} else {
 					
 					for (const auto& edge_out : boost::make_iterator_range(boost::out_edges(vertex_from, g))) {
 					
 						const auto& vertex_target = boost::target(edge_out, g);
 						
-						if (arr_paths.end() == std::find(arr_paths.begin(), arr_paths.end(), vertex_target)) {
+						if (arr_vertices_path.end() == std::find(arr_vertices_path.begin(), arr_vertices_path.end(), vertex_target)) {
 							
 							const auto& num_weight = g[edge_out].weight;
-							
-							if ((length_path + num_weight) <= length_find) {
+							const auto& num_distance_check = arr_vertices_distance[vertex_target];
+													
+							if (num_distance_check >= (num_distance + num_weight) && (num_distance + num_weight) <= num_distance_find) {
 								
-								walkPathsStep(vertex_target, vertex_to, length_find, g, (length_path + num_weight), arr_paths, callback);
+								walkPathsStep(vertex_target, vertex_to, num_distance_find, arr_vertices_distance, g, (num_distance + num_weight), arr_vertices_path, callback);
 							}
 						}
 					}
 				}
 
-				arr_paths.pop_back();
+				arr_vertices_path.pop_back();
 			}
 
 			template <typename typename_report>
-			void walkPaths(const type_vertex& vertex_from, const type_vertex& vertex_to, const type_weight& length_find, const type_graph& g, const typename_report& callback) {
+			void walkPaths(const type_vertex& vertex_from, const type_vertex& vertex_to, const type_weight& num_distance_find, const type_arr_vertices& arr_vertices_distance, const type_graph& g, const typename_report& callback) {
 				
-				type_arr_paths arr_paths;
+				type_arr_vertices arr_vertices_path;
 				
-				walkPathsStep(vertex_from, vertex_to, length_find, g, 0, arr_paths, callback);
+				walkPathsStep(vertex_from, vertex_to, num_distance_find, arr_vertices_distance, g, 0, arr_vertices_path, callback);
 			}
 	
-			void runShortestPath(const std::vector<std::string>& arr_identifiers_from, const std::vector<std::string>& arr_identifiers_to = {}, const bool& include_betweenness_centrality = false) {
+			void runShortestPath(const std::vector<std::string>& arr_identifiers_from, const std::vector<std::string>& arr_identifiers_to = {}, const bool& do_betweenness_centrality = false) {
 				
 				std::vector<type_vertex> arr_nodes_from;
 				std::vector<std::string> arr_identifiers_to_checked;
 				using type_distance = type_weight;
+				
+				const bool has_target_nodes = !arr_identifiers_to.empty();
 				
 				for (const auto& str_identifier_to : arr_identifiers_to) {
 					
@@ -721,17 +754,15 @@ namespace LAB1100CC {
 					
 					auto& arr_node_settings = map_identifiers_node[str_identifier_from];
 					
-					std::vector<type_distance> arr_distances(boost::num_vertices(g)); // To store distances
+					type_arr_vertices arr_vertices_distance(boost::num_vertices(g)); // To store distances
 					
 					const auto& vertex_from = std::get<0>(arr_node_settings);
 					arr_nodes_from.push_back(vertex_from);
 					
-					unsigned int count_paths = 0;
-					
 					// Compute shortest paths from vertex_from to all vertices, and store the output in distances
 					boost::dijkstra_shortest_paths(g, vertex_from, boost::
 						distance_map(
-							boost::make_iterator_property_map(arr_distances.begin(), map_index)
+							boost::make_iterator_property_map(arr_vertices_distance.begin(), map_index)
 						).weight_map(boost::get(&Power::weight, g))
 					);
 										
@@ -740,7 +771,6 @@ namespace LAB1100CC {
 					for (auto& arr_map : map_identifiers_node) {
 
 						const std::string& str_identifier_check = arr_map.first;
-						
 						auto& arr_node_check = arr_map.second;
 																		
 						// Do not look for other sources nodes
@@ -748,8 +778,8 @@ namespace LAB1100CC {
 							continue;
 						}
 						
-						// If looking for target nodes, check if this one is needed
-						if (!arr_identifiers_to.empty()) {
+						// If looking for TO nodes, check if this one is needed
+						if (has_target_nodes) {
 							
 							if (std::find(arr_identifiers_to_checked.begin(), arr_identifiers_to_checked.end(), str_identifier_check) == arr_identifiers_to_checked.end()) {
 								continue;
@@ -757,8 +787,7 @@ namespace LAB1100CC {
 						}
 						
 						const auto& vertex_check = std::get<0>(arr_node_check);
-						
-						const auto& num_distance_found = arr_distances[vertex_check];
+						const auto& num_distance_found = arr_vertices_distance[vertex_check];
 						
 						if (num_distance_found == std::numeric_limits<type_distance>::max()) { // Node distance is NaN of infinite
 							continue;
@@ -770,38 +799,87 @@ namespace LAB1100CC {
 							
 							num_distance = num_distance_found;
 						}
-						
-						count_paths++;
 					}
 					
 					auto& num_primary = std::get<2>(arr_node_settings);
 					
 					if (std::isnan(num_primary)) {
-						num_primary = 0; // Make sure the from node is touched to include in the results
+						num_primary = 0; // Default the FROM node to 0
 					}
 					
-					if (include_betweenness_centrality) {
+					if (do_betweenness_centrality) { // Include a secondary betweenness centrality
 						
 						auto& num_secondary = std::get<3>(arr_node_settings);
 						
-						num_secondary = (std::isnan(num_secondary) ? 0 : num_secondary) + count_paths; // Include an additional count for the start nodes
+						if (std::isnan(num_secondary)) {
+							num_secondary = 0; // Make sure the FROM node is touched to include in the results
+						}
+						
+						if (has_target_nodes) { // Calculate a centrality based on a specific node selection FROM to an other specific node selection TO
+
+							for (const auto& str_identifier_to : arr_identifiers_to_checked) {
+								
+								const auto& arr_node_settings = map_identifiers_node[str_identifier_to];
+								const auto& vertex_to = std::get<0>(arr_node_settings);
+								const auto& num_distance_find = arr_vertices_distance[vertex_to];
+								
+								if (num_distance_find == std::numeric_limits<type_distance>::max()) { // Node distance is NaN of infinite
+									continue;
+								}
+
+								walkPaths(vertex_from, vertex_to, num_distance_find, arr_vertices_distance, g, [&](const type_arr_vertices& arr_vertices_path) {
+
+									num_count_secondary++; // Count all paths that are touched
+									
+									type_vertex vertex_path = vertex_from;
+									type_weight num_distance = 0;
+									
+									for (const auto& vertex_check : arr_vertices_path) {
+										
+										if (vertex_check == vertex_from || vertex_check == vertex_to) {
+											continue;
+										}
+										
+										const auto& str_identifier_check = g[vertex_check].name;
+										auto& arr_node_check = map_identifiers_node[str_identifier_check];
+										auto& num_primary = std::get<2>(arr_node_check);
+										auto& num_secondary = std::get<3>(arr_node_check);
+
+										const auto& edge_check = boost::edge(vertex_path, vertex_check, g).first;
+										const auto& num_weight = g[edge_check].weight;
+										
+										num_distance += num_weight;
+
+										if (std::isnan(num_primary) || num_distance < num_primary) {
+											num_primary = num_distance;
+										}
+										
+										if (std::isnan(num_secondary)) {
+											num_secondary = 1;
+										} else {
+											num_secondary++;
+										}
+										
+										vertex_path = vertex_check;
+									}
+								});
+							}
+						}
 					}
 				}
 				
-				// Include a secondary betweenness centrality
-				
-				if (include_betweenness_centrality) {
+				if (do_betweenness_centrality) { // Include a secondary betweenness centrality
 					
-					if (arr_identifiers_to.empty()) { // Calculate a centrality based on a specific node selection to all other nodes
+					if (!has_target_nodes) { // Calculate a centrality based on a specific node selection to all other nodes
 						
 						using type_centrality = type_number_primary;
-						std::vector<type_centrality> arr_centralities(boost::num_vertices(g)); // To store centrality
+						std::vector<type_centrality> arr_vertices_centrality(boost::num_vertices(g)); // To store centrality
 						
 						if (mode_weighted != WEIGHTED_UNWEIGHTED) {
 							
 							brandes_betweenness_centrality_filtered(g, arr_nodes_from, boost::
 								centrality_map(
-									boost::make_iterator_property_map(arr_centralities.begin(), map_index)
+									boost::make_iterator_property_map(arr_vertices_centrality.begin(), map_index)
 								)
 								.weight_map(boost::get(&Power::weight, g))
 							);
@@ -809,15 +887,14 @@ namespace LAB1100CC {
 							
 							brandes_betweenness_centrality_filtered(g, arr_nodes_from, boost::
 								centrality_map(
-									boost::make_iterator_property_map(arr_centralities.begin(), map_index)
+									boost::make_iterator_property_map(arr_vertices_centrality.begin(), map_index)
 								)
 							);
 						}
 						
 						for (auto& arr_map : map_identifiers_node) {
 							
-							auto& arr_node_check = arr_map.second;
-																	
+							auto& arr_node_check = arr_map.second;	
 							const bool& is_primary = std::get<1>(arr_node_check);
 							
 							if (!is_primary) {
@@ -825,79 +902,30 @@ namespace LAB1100CC {
 							}
 							
 							const auto& vertex_check = std::get<0>(arr_node_check);
+							const auto& num_centrality_found = arr_vertices_centrality[vertex_check];
 							
-							const auto& centrality_found = arr_centralities[vertex_check];
-							
-							if (centrality_found == std::numeric_limits<type_centrality>::max()) { // Node distance is NaN of infinite
+							if (num_centrality_found == std::numeric_limits<type_centrality>::max()) { // Node distance is NaN of infinite
 								continue;
 							}
 							
-							std::get<3>(arr_node_check) = centrality_found;
+							std::get<3>(arr_node_check) = num_centrality_found;
 						}
 						
-						count_secondary = (arr_nodes_from.size() * (map_identifiers_node.size() - 1)); // Count all paths that are touched
-					} else { // Calculate a centraility based on a specific node selection (from) to an other specific node selection (to)
+						num_count_secondary = (arr_nodes_from.size() * (map_identifiers_node.size() - 1)); // Count all paths that are touched
+					} else { // Cleanup of already performed calculations, clear of out of range nodes
 						
-						count_secondary = 0;
+						for (auto& arr_map : map_identifiers_node) {
 
-						for (const auto& vertex_from : arr_nodes_from) {
-
-							for (const auto& str_identifier_to : arr_identifiers_to_checked) {
-								
-								const auto& arr_node_settings = map_identifiers_node[str_identifier_to];
-								
-								const auto& vertex_to = std::get<0>(arr_node_settings);
-								
-								const auto& num_distance = std::get<2>(arr_node_settings);
-								
-								if (std::isnan(num_distance) || num_distance == 0) {
-									continue;
-								}
-								
-								count_secondary++; // Count all paths that are touched
-								
-								std::unordered_map<type_vertex, type_weight> map_nodes;
-								unsigned int count_paths = 0;
-
-								walkPaths(vertex_from, vertex_to, num_distance, g, [&](const type_arr_paths& arr_paths) {
-
-									count_paths++;
-									
-									type_vertex vertex_path = vertex_from;
-									
-									for (const auto& vertex_check : arr_paths) {
-										
-										if (vertex_check == vertex_from || vertex_check == vertex_to) {
-											continue;
-										}
-										
-										const auto& edge_check = boost::edge(vertex_path, vertex_check, g).first;
-										const auto& num_weight = g[edge_check].weight;
-										
-										auto& length_node = map_nodes[vertex_check];
-										
-										length_node = (!length_node ? 0 : length_node) + num_weight;
-										
-										vertex_path = vertex_check;
-									}
-								});
-								
-								for (const auto& map_node : map_nodes) {
-						
-									const auto& str_identifier_check = g[map_node.first].name;
+							const std::string& str_identifier_check = arr_map.first;
+							auto& arr_node_check = arr_map.second;
 							
-									auto& arr_node_check = map_identifiers_node[str_identifier_check];
-									
-									auto& num_primary = std::get<2>(arr_node_check);
-									
-									if (std::isnan(num_primary)) {
-										num_primary = 0;
-									}
-									
-									auto& num_secondary = std::get<3>(arr_node_check);
-									
-									// Divide weight by the total number of paths (get influence) and by the total overall weight (centrality does not need the weight included)
-									num_secondary = (std::isnan(num_secondary) ? 0 : num_secondary) + (map_node.second / (type_number_secondary)count_paths / (type_number_secondary)num_weight_max);
+							auto& num_primary = std::get<2>(arr_node_check);
+							auto& num_secondary = std::get<3>(arr_node_check);
+							
+							if (std::isnan(num_secondary)) {
+								
+								if (std::find(arr_identifiers_to_checked.begin(), arr_identifiers_to_checked.end(), str_identifier_check) == arr_identifiers_to_checked.end()) {
+									num_primary = std::numeric_limits<type_number_primary>::quiet_NaN();
 								}
 							}
 						}

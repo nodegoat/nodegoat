@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -42,7 +42,6 @@ class cms_nodegoat_details extends base_module {
 				<ul>
 					<li><a href="#">'.getLabel('lbl_settings').'</a></li>
 					<li><a href="#">'.getLabel('lbl_system').'</a></li>
-					'.'
 				</ul>
 				
 				<div>
@@ -74,7 +73,7 @@ class cms_nodegoat_details extends base_module {
 							</ul></fieldset>
 						</div>
 						
-						<input type="submit" value="'.getLabel('lbl_save').'" />
+						<menu><input type="submit" value="'.getLabel('lbl_save').'" /></menu>
 					
 					</form>
 				</div>
@@ -90,16 +89,17 @@ class cms_nodegoat_details extends base_module {
 						</ul></fieldset>
 					</div>
 
-				</div>';
+				</div>
 				
-		$return .= '</div></div>';
+			</div>
+		</div></div>';
 		
 		return $return;
 	}
 		
 	public static function css() {
 	
-		$return = '.nodegoat_details input[type=submit] { display: block; margin: 15px auto 0px auto; }';
+		$return = '';
 		
 		return $return;
 	}
@@ -149,7 +149,6 @@ class cms_nodegoat_details extends base_module {
 			
 			$this->msg = true;
 		}
-		
 	}
 	
 	public static function getDetails() {
@@ -181,5 +180,4 @@ class cms_nodegoat_details extends base_module {
 
 		return $arr;
 	}
-	
 }

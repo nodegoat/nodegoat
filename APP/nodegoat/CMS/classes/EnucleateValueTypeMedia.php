@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -24,7 +24,7 @@ class EnucleateValueTypeMedia {
 	public function __construct($path_file) {
 	
 		$this->path_file = $path_file;
-		$this->is_external = FileGet::getExternalProtocol($this->path_file);
+		$this->is_external = FileGet::getProtocolExternal($this->path_file);
 		
 		$this->setPath(false);
 	}
@@ -97,6 +97,7 @@ class EnucleateValueTypeMedia {
 				case 'jpg':
 				case 'png':
 				case 'gif':
+				case 'webp':
 				case 'bmp':
 					if ($type) {
 						$return = 'image';

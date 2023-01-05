@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -46,7 +46,7 @@ class CreateProjectOverviewGraph {
 		
 		foreach ($this->arr_project['types'] as $type_id => $arr_project_type) {
 			
-			$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project_type, 'view');
+			$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project_type, StoreCustomProject::ACCESS_PURPOSE_VIEW);
 			
 			if ($arr_type_set['type']['class'] == StoreType::TYPE_CLASS_REVERSAL || $arr_type_set['type']['class'] == StoreType::TYPE_CLASS_SYSTEM) {
 				continue;

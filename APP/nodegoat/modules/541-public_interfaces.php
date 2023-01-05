@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -321,7 +321,7 @@ class public_interfaces extends base_module {
 		</div>
 		
 		<menu class="options">
-			<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_public_interface').'" /><input type="submit" name="discard" value="'.getLabel("lbl_cancel").'" />
+			<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_public_interface').'" /><input type="submit" name="do_discard" value="'.getLabel("lbl_cancel").'" />
 		</menu>';
 		
 		$this->validate = ['name' => 'required', 'user_id' => 'required'];
@@ -768,18 +768,18 @@ class public_interfaces extends base_module {
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		$arr_descriptions = [];
 		
-		// Use Object IDs as Classes
+		// Use textual values for meta descriptions
 		foreach ((array)$arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 			
 			$str_id = 'object_description_'.$object_description_id;
 		
-			if ($arr_object_description['object_description_value_type_base'] == 'reversal' || $arr_object_description['object_description_value_type_base'] == 'classification' || $arr_object_description['object_description_value_type_base'] == 'type') {
+			if ($arr_object_description['object_description_value_type_base'] == '' || strpos($arr_object_description['object_description_value_type_base'], 'text') !== false) {
 				$arr_descriptions[$str_id] = $arr_type_set_flat[$str_id];
 			}
 		}
 		
-		$return .= '<select name="settings[types]['.$type_id.'][classify_with]" title="'.getLabel('lbl_class').'">'.
-					Labels::parseTextVariables(cms_general::createDropdown($arr_descriptions, $arr['classify_with'], true)).
+		$return .= '<select name="settings[types]['.$type_id.'][meta_description]" title="'.getLabel('lbl_description').'">'.
+					Labels::parseTextVariables(cms_general::createDropdown($arr_descriptions, $arr['meta_description'], true)).
 				'</select>';
 		
 		$arr_filters = [];
@@ -1217,7 +1217,7 @@ class public_interfaces extends base_module {
 	
 		// QUERY
 		
-		if (($method == "insert" || $method == "update") && $_POST['discard']) {
+		if (($method == "insert" || $method == "update") && $this->is_discard) {
 			
 			$this->html = self::createAddPublicInterface();
 			return;

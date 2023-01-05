@@ -547,3 +547,9 @@ UPDATE `data_type_object_sub_location_geometry` SET `geometry` = ST_GeomFromGeoJ
 ALTER TABLE `data_type_object_definitions_modules` ADD `state` SMALLINT NOT NULL DEFAULT '0' AFTER `identifier`; 
 ALTER TABLE `data_type_object_sub_definitions_modules` ADD `state` SMALLINT NOT NULL DEFAULT '0' AFTER `object`; 
 ```
+
+## VERSION 8.1
+
+Update 1100CC to 10.5 ([1100CC UPDATE](https://github.com/LAB1100/1100CC/blob/master/UPDATE.md)).
+
+Optionally, use the `creation_station.sh` script to rebuild and link network_analysis. See [Programs - Network Analysis](SETUP.md#network-analysis).

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -623,7 +623,7 @@ class data_ingest extends ingest_source {
 					
 					elm_form.on('command', function(e) {
 						
-						const is_discard = (e.target.getAttribute('name') == 'discard');
+						const is_discard = (e.target.getAttribute('name') == 'do_discard');
 						const is_active = INGEST_SOURCE.isActive();
 						const do_abort = (!is_active && !is_discard);
 											
@@ -660,7 +660,7 @@ class data_ingest extends ingest_source {
 
 			$type_id = StoreType::getSystemTypeID('ingestion');
 			
-			if (!data_entry::checkClearanceType($type_id) || !custom_projects::checkAccessType('edit', $type_id)) {
+			if (!data_entry::checkClearanceType($type_id) || !custom_projects::checkAccessType(StoreCustomProject::ACCESS_PURPOSE_EDIT, $type_id)) {
 				return;
 			}
 			

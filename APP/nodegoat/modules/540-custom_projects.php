@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -21,7 +21,6 @@ class custom_projects extends base_module {
 	];
 	
 	public static function modulePreload() {
-		
 		
 		if (SiteStartVars::$page['name'] == 'viewer') {
 
@@ -102,7 +101,6 @@ class custom_projects extends base_module {
 					</style>');
 				}
 			}
-			
 		} else if (SiteStartVars::getRequestState() == SiteStartVars::REQUEST_API) {
 			
 			$_SESSION['custom_projects']['project_id'] = false;
@@ -375,24 +373,17 @@ class custom_projects extends base_module {
 		}
 		
 		$arr_types = StoreType::getTypes();
-		
-		$arr_types_classifications = [StoreType::TYPE_CLASS_TYPE => [], StoreType::TYPE_CLASS_CLASSIFICATION => [], StoreType::TYPE_CLASS_REVERSAL => [], StoreType::TYPE_CLASS_SYSTEM => []];
-		
-		foreach ($arr_types as $type_id => $arr_type) {
-			
-			$arr_types_classifications[$arr_type['class']][$type_id] = $arr_type;
-		}
-		
+		$arr_classes_types = static::getTypesByClass($arr_types);
 		$arr_projects = StoreCustomProject::getProjects();
-		
 		$arr_project_use_sources = [];
+		
 		foreach ($arr_projects as $project_id => $arr_cur_project) {
 			
 			if ($id == $project_id) {
 				continue;
 			}
 			
-			$arr_project_use_sources[$project_id] = ['id' => $project_id, 'name' => $arr_cur_project['project']['name']];
+			$arr_project_use_sources[$project_id] = ['id' => $project_id, 'name' => strEscapeHTML($arr_cur_project['project']['name'])];
 		}
 		
 		$return = '<h1>'.($id ? '<span>'.getLabel('lbl_project').': '.strEscapeHTML(Labels::parseTextVariables($arr_project['project']['name'])).'</span><small title="'.getLabel('lbl_project').' ID">'.$id.'</small>' : '<span>'.getLabel('lbl_project').'</span>').'</h1>
@@ -431,16 +422,16 @@ class custom_projects extends base_module {
 						<div>
 							<div class="options fieldsets"><div>
 								
-								'.($arr_types_classifications[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.getLabel('lbl_types').'</legend><ul>
-									<li>'.Labels::parseTextVariables(cms_general::createSelectorList(arrParseRecursive($arr_types_classifications[StoreType::TYPE_CLASS_TYPE], 'strEscapeHTML'), 'types', array_keys((array)$arr_project['types']))).'</li>
+								'.($arr_classes_types[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.getLabel('lbl_types').'</legend><ul>
+									<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_TYPE], 'types', array_keys((array)$arr_project['types']))).'</li>
 								</ul></fieldset>' : '').'
 								
-								'.($arr_types_classifications[StoreType::TYPE_CLASS_CLASSIFICATION] ? '<fieldset><legend>'.getLabel('lbl_classifications').'</legend><ul>
-									<li>'.Labels::parseTextVariables(cms_general::createSelectorList(arrParseRecursive($arr_types_classifications[StoreType::TYPE_CLASS_CLASSIFICATION], 'strEscapeHTML'), 'types', array_keys((array)$arr_project['types']))).'</li>
+								'.($arr_classes_types[StoreType::TYPE_CLASS_CLASSIFICATION] ? '<fieldset><legend>'.getLabel('lbl_classifications').'</legend><ul>
+									<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_CLASSIFICATION], 'types', array_keys((array)$arr_project['types']))).'</li>
 								</ul></fieldset>' : '').'
 								
-								'.($arr_types_classifications[StoreType::TYPE_CLASS_REVERSAL] ? '<fieldset><legend>'.getLabel('lbl_reversals').'</legend><ul>
-									<li>'.Labels::parseTextVariables(cms_general::createSelectorList(arrParseRecursive($arr_types_classifications[StoreType::TYPE_CLASS_REVERSAL], 'strEscapeHTML'), 'types', array_keys((array)$arr_project['types']))).'</li>
+								'.($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL] ? '<fieldset><legend>'.getLabel('lbl_reversals').'</legend><ul>
+									<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL], 'types', array_keys((array)$arr_project['types']))).'</li>
 								</ul></fieldset>' : '');
 								
 								$arr_system_types = [
@@ -479,12 +470,12 @@ class custom_projects extends base_module {
 											
 											<div class="fieldsets"><div>
 												
-												'.($arr_types_classifications[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.getLabel('lbl_types').'</legend><ul>
-													<li>'.Labels::parseTextVariables(cms_general::createSelectorList(arrParseRecursive($arr_types_classifications[StoreType::TYPE_CLASS_TYPE], 'strEscapeHTML'), 'date_types', array_keys((array)$arr_project['date_types']))).'</li>
+												'.($arr_classes_types[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.getLabel('lbl_types').'</legend><ul>
+													<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_TYPE], 'date_types', array_keys((array)$arr_project['date_types']))).'</li>
 												</ul></fieldset>' : '').'
 												
-												'.($arr_types_classifications[StoreType::TYPE_CLASS_REVERSAL] ? '<fieldset><legend>'.getLabel('lbl_reversals').'</legend><ul>
-													<li>'.Labels::parseTextVariables(cms_general::createSelectorList(arrParseRecursive($arr_types_classifications[StoreType::TYPE_CLASS_REVERSAL], 'strEscapeHTML'), 'date_types', array_keys((array)$arr_project['date_types']))).'</li>
+												'.($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL] ? '<fieldset><legend>'.getLabel('lbl_reversals').'</legend><ul>
+													<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL], 'date_types', array_keys((array)$arr_project['date_types']))).'</li>
 												</ul></fieldset>' : '').'
 												
 											</div></div>
@@ -499,12 +490,12 @@ class custom_projects extends base_module {
 											
 											<div class="fieldsets"><div>
 												
-												'.($arr_types_classifications[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.getLabel('lbl_types').'</legend><ul>
-													<li>'.Labels::parseTextVariables(cms_general::createSelectorList(arrParseRecursive($arr_types_classifications[StoreType::TYPE_CLASS_TYPE], 'strEscapeHTML'), 'location_types', array_keys((array)$arr_project['location_types']))).'</li>
+												'.($arr_classes_types[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.getLabel('lbl_types').'</legend><ul>
+													<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_TYPE], 'location_types', array_keys((array)$arr_project['location_types']))).'</li>
 												</ul></fieldset>' : '').'
 												
-												'.($arr_types_classifications[StoreType::TYPE_CLASS_REVERSAL] ? '<fieldset><legend>'.getLabel('lbl_reversals').'</legend><ul>
-													<li>'.Labels::parseTextVariables(cms_general::createSelectorList(arrParseRecursive($arr_types_classifications[StoreType::TYPE_CLASS_REVERSAL], 'strEscapeHTML'), 'location_types', array_keys((array)$arr_project['location_types']))).'</li>
+												'.($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL] ? '<fieldset><legend>'.getLabel('lbl_reversals').'</legend><ul>
+													<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL], 'location_types', array_keys((array)$arr_project['location_types']))).'</li>
 												</ul></fieldset>' : '').'
 												
 											</div></div>
@@ -524,8 +515,8 @@ class custom_projects extends base_module {
 								
 								<div class="fieldsets"><div>
 									
-									'.($arr_types_classifications[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.getLabel('lbl_types').'</legend><ul>
-										<li>'.Labels::parseTextVariables(cms_general::createSelectorList(arrParseRecursive($arr_types_classifications[StoreType::TYPE_CLASS_TYPE], 'strEscapeHTML'), 'source_types', array_keys((array)$arr_project['source_types']))).'</li>
+									'.($arr_classes_types[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.getLabel('lbl_types').'</legend><ul>
+										<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_TYPE], 'source_types', array_keys((array)$arr_project['source_types']))).'</li>
 									</ul></fieldset>' : '').'
 									
 								</div></div>
@@ -541,7 +532,7 @@ class custom_projects extends base_module {
 								<div class="fieldsets"><div>
 									
 									'.($arr_project_use_sources ? '<fieldset><legend>'.getLabel('lbl_projects').'</legend><ul>
-										<li>'.Labels::parseTextVariables(cms_general::createSelectorList(arrParseRecursive($arr_project_use_sources, 'strEscapeHTML'), 'use_projects', $arr_use_project_ids)).'</li>
+										<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_project_use_sources, 'use_projects', $arr_use_project_ids)).'</li>
 									</ul></fieldset>' : '').'
 									
 								</div></div>
@@ -838,7 +829,7 @@ class custom_projects extends base_module {
 		</div>
 		
 		<menu class="options">
-			<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_project').'" /><input type="submit" name="discard" value="'.getLabel('lbl_cancel').'" />
+			<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_project').'" /><input type="submit" name="do_discard" value="'.getLabel('lbl_cancel').'" />
 		</menu>';
 		
 		$this->validate['name'] = 'required';
@@ -1234,9 +1225,26 @@ class custom_projects extends base_module {
 		return $return;
 	}
 	
+	public static function createInformationIcon($str_html, $str_icon = 'info-point') {
+		
+		if (!$str_html) {
+			return '';
+		}
+		
+		$str_html = parseBody($str_html, ['function' => 'strEscapeHTML']);
+		$str_html = '<span title="'.$str_html.'" class="icon a info">'.getIcon($str_icon).'</span>';
+		
+		return $str_html;
+	}
+	
 	public static function css() {
 	
 		$return = '
+			.custom_projects ul.select > li > label > div .info.icon.a { margin-left: 0.1em; }
+			.custom_projects ul.select > li > label > div .info.icon.a svg { height: 1em; }
+			.custom_projects ul.select > li > label > div .info.icon.a + span  { margin-left: 0.4em; font-style: italic; }
+			.custom_projects ul.select > li > label > div .info.icon.a + span + span { margin-left: 0.4em; }
+		
 			.project-overview { height: 100%; display: flex; flex-flow: column nowrap; align-content: flex-start; }
 			.project-overview > div:last-child { flex: 1 1 auto; overflow: hidden; }
 			.project-overview > div:last-child > svg { width: 100%; height: 100%; }
@@ -1265,7 +1273,11 @@ class custom_projects extends base_module {
 				COMMANDS.setTarget(cur, function(data) {
 					elm_target.val(data);
 				});
-			}).on('command', '[id^=x\\\:custom_projects\\\:project_id-][data-method=view]', function() {
+			}).on('command', '[id^=x\\\:custom_projects\\\:project_id-][data-method=view]', function(e) {
+			
+				if (e.target.matches('[type=button]')) {
+					return;
+				}
 
 				COMMANDS.setOptions(this, {overlay: 'document', overlay_settings: {sizing: 'full'}});				
 			});
@@ -1516,16 +1528,16 @@ class custom_projects extends base_module {
 				$arr_data['attr']['data-method'] = 'view';
 				$arr_data[] = Labels::parseTextVariables($arr_row['name']);
 				
-				$arr_types_classifications = [StoreType::TYPE_CLASS_TYPE => [], StoreType::TYPE_CLASS_CLASSIFICATION => [], StoreType::TYPE_CLASS_REVERSAL => []];
+				$arr_classes_types = [StoreType::TYPE_CLASS_TYPE => [], StoreType::TYPE_CLASS_CLASSIFICATION => [], StoreType::TYPE_CLASS_REVERSAL => []];
 				
 				foreach (array_filter(explode('$|$', $arr_row['types'])) as $type_id) {
 					
-					$arr_types_classifications[$arr_types[$type_id]['class']][$type_id] = $arr_types[$type_id]['name'];
+					$arr_classes_types[$arr_types[$type_id]['class']][$type_id] = $arr_types[$type_id]['name'];
 				}
 				
-				$arr_data[] = '<span class="info"><span class="icon" title="'.($arr_types_classifications[StoreType::TYPE_CLASS_TYPE] ? strEscapeHTML(Labels::parseTextVariables(implode('<br />', $arr_types_classifications[StoreType::TYPE_CLASS_TYPE]))) : getLabel('inf_none')).'">'.getIcon('info').'</span><span>'.(int)count($arr_types_classifications[StoreType::TYPE_CLASS_TYPE]).'</span></span>';
-				$arr_data[] = '<span class="info"><span class="icon" title="'.($arr_types_classifications[StoreType::TYPE_CLASS_CLASSIFICATION] ? strEscapeHTML(Labels::parseTextVariables(implode('<br />', $arr_types_classifications[StoreType::TYPE_CLASS_CLASSIFICATION]))) : getLabel('inf_none')).'">'.getIcon('info').'</span><span>'.(int)count($arr_types_classifications[StoreType::TYPE_CLASS_CLASSIFICATION]).'</span></span>';
-				$arr_data[] = '<span class="info"><span class="icon" title="'.($arr_types_classifications[StoreType::TYPE_CLASS_REVERSAL] ? strEscapeHTML(Labels::parseTextVariables(implode('<br />', $arr_types_classifications[StoreType::TYPE_CLASS_REVERSAL]))) : getLabel('inf_none')).'">'.getIcon('info').'</span><span>'.(int)count($arr_types_classifications[StoreType::TYPE_CLASS_REVERSAL]).'</span></span>';
+				$arr_data[] = '<span class="info"><span class="icon" title="'.($arr_classes_types[StoreType::TYPE_CLASS_TYPE] ? strEscapeHTML(Labels::parseTextVariables(implode('<br />', $arr_classes_types[StoreType::TYPE_CLASS_TYPE]))) : getLabel('inf_none')).'">'.getIcon('info').'</span><span>'.(int)count($arr_classes_types[StoreType::TYPE_CLASS_TYPE]).'</span></span>';
+				$arr_data[] = '<span class="info"><span class="icon" title="'.($arr_classes_types[StoreType::TYPE_CLASS_CLASSIFICATION] ? strEscapeHTML(Labels::parseTextVariables(implode('<br />', $arr_classes_types[StoreType::TYPE_CLASS_CLASSIFICATION]))) : getLabel('inf_none')).'">'.getIcon('info').'</span><span>'.(int)count($arr_classes_types[StoreType::TYPE_CLASS_CLASSIFICATION]).'</span></span>';
+				$arr_data[] = '<span class="info"><span class="icon" title="'.($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL] ? strEscapeHTML(Labels::parseTextVariables(implode('<br />', $arr_classes_types[StoreType::TYPE_CLASS_REVERSAL]))) : getLabel('inf_none')).'">'.getIcon('info').'</span><span>'.(int)count($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL]).'</span></span>';
 				$arr_data[] = '<input type="button" class="data edit" value="edit" /><input type="button" class="data del msg del" value="del" />';
 				
 				$arr_datatable['output']['data'][] = $arr_data;
@@ -1882,7 +1894,7 @@ class custom_projects extends base_module {
 	
 		// QUERY
 		
-		if (($method == "insert" || $method == "update") && $_POST['discard']) {
+		if (($method == "insert" || $method == "update") && $this->is_discard) {
 			
 			$this->html = self::createAddProject();
 			return;
@@ -1943,6 +1955,20 @@ class custom_projects extends base_module {
 			
 			Response::location(SiteStartVars::getPageUrl());
 		}
+	}
+	
+	public static function getTypesByClass($arr_types) {
+		
+		$arr_classes_types = [StoreType::TYPE_CLASS_TYPE => [], StoreType::TYPE_CLASS_CLASSIFICATION => [], StoreType::TYPE_CLASS_REVERSAL => [], StoreType::TYPE_CLASS_SYSTEM => []];
+		
+		foreach ($arr_types as $type_id => $arr_type) {
+			
+			$arr_type['name'] = strEscapeHTML($arr_type['name']);
+			
+			$arr_classes_types[$arr_type['class']][$type_id] = $arr_type;
+		}
+		
+		return $arr_classes_types;
 	}
 	
 	public static function setUserProjectID($project_id) {

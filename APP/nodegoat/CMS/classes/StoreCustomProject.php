@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -10,6 +10,10 @@
  */
 
 class StoreCustomProject {
+	
+	const ACCESS_PURPOSE_VIEW = 'view';
+	const ACCESS_PURPOSE_EDIT = 'edit';
+	const ACCESS_PURPOSE_ANY = 'any';
 	
 	const MODE_UPDATE = 1;
 	const MODE_OVERWRITE = 2;
@@ -43,7 +47,7 @@ class StoreCustomProject {
 		if (!$this->project_id) {
 			
 			$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')."
-				("."name, full_scope_enable, source_referencing_enable, discussion_enable, system_date_cycle_enable, system_ingestion_enable, visual_settings_id)
+				("."name, full_scope_enable, source_referencing_enable, discussion_enable, system_date_cycle_enable, system_ingestion_enable".", visual_settings_id)
 					VALUES
 				(
 					"."
@@ -660,7 +664,7 @@ class StoreCustomProject {
 		return $arr;
 	}
 	
-	public static function getTypeSetReferenced($type_id, $arr_project_type, $purpose = 'view') {
+	public static function getTypeSetReferenced($type_id, $arr_project_type, $purpose = self::ACCESS_PURPOSE_VIEW) {
 		
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		
@@ -672,7 +676,7 @@ class StoreCustomProject {
 				
 				$arr_referenced_object_description = $arr_referenced_type_set['object_descriptions'][$object_description_id];
 				
-				if (!$arr_options[$purpose] || !isset($arr_referenced_object_description) || !$arr_referenced_object_description['object_description_ref_type_id']) {
+				if (($purpose != static::ACCESS_PURPOSE_ANY && !$arr_options[$purpose]) || !isset($arr_referenced_object_description) || !$arr_referenced_object_description['object_description_ref_type_id']) {
 					continue;
 				}
 				
@@ -698,7 +702,7 @@ class StoreCustomProject {
 					
 					$arr_referenced_object_sub_description = $arr_referenced_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
 					
-					if (!$arr_options[$purpose] || !isset($arr_referenced_object_sub_description) || !$arr_referenced_object_sub_description['object_sub_description_ref_type_id']) {
+					if (($purpose != static::ACCESS_PURPOSE_ANY && !$arr_options[$purpose]) || !isset($arr_referenced_object_sub_description) || !$arr_referenced_object_sub_description['object_sub_description_ref_type_id']) {
 						continue;
 					}
 					
@@ -715,6 +719,54 @@ class StoreCustomProject {
 					
 					if ($arr_referenced_object_sub_description['object_sub_description_is_dynamic']) { // In the referenced view the focus lies with the singular source type, not the dynamic values.
 						$s_arr['object_sub_description_is_dynamic'] = false;
+					}
+					
+					foreach ($arr_type_set['object_sub_details'][$use_object_sub_details_id]['object_sub_descriptions'] as $arr_check_object_sub_description) {
+					
+						if ($arr_check_object_sub_description['object_sub_description_use_object_description_id']) {
+							
+							$use_object_description_id = $arr_check_object_sub_description['object_sub_description_use_object_description_id'];
+							
+							$arr_type_set['type']['include_helpers']['object_descriptions'][$use_object_description_id] = $arr_referenced_type_set['object_descriptions'][$use_object_description_id];
+						}
+					}
+					
+					$arr_object_sub_details_self = $arr_type_set['object_sub_details'][$use_object_sub_details_id]['object_sub_details'];
+					
+					if ($arr_object_sub_details_self['object_sub_details_has_date']) {
+					
+						if ($arr_object_sub_details_self['object_sub_details_date_use_object_sub_details_id']) {
+							
+							$use_object_sub_details_id = $arr_object_sub_details_self['object_sub_details_date_use_object_sub_details_id'];
+							
+							$arr_type_set['type']['include_helpers']['object_sub_details'][$use_object_sub_details_id] = $arr_referenced_type_set['object_sub_details'][$use_object_sub_details_id];
+						} else if ($arr_object_sub_details_self['object_sub_details_date_start_use_object_description_id']) {
+							
+							$use_object_description_id = $arr_object_sub_details_self['object_sub_details_date_start_use_object_description_id'];
+							
+							$arr_type_set['type']['include_helpers']['object_descriptions'][$use_object_description_id] = $arr_referenced_type_set['object_descriptions'][$use_object_description_id];
+							
+							if ($arr_object_sub_details_self['object_sub_details_date_end_use_object_description_id']) {
+								
+								$use_object_description_id = $arr_object_sub_details_self['object_sub_details_date_end_use_object_description_id'];
+							
+								$arr_type_set['type']['include_helpers']['object_descriptions'][$use_object_description_id] = $arr_referenced_type_set['object_descriptions'][$use_object_description_id];
+							}
+						}
+					}
+					if ($arr_object_sub_details_self['object_sub_details_has_location']) {
+						
+						if ($arr_object_sub_details_self['object_sub_details_location_use_object_sub_details_id']) {
+							
+							$use_object_sub_details_id = $arr_object_sub_details_self['object_sub_details_location_use_object_sub_details_id'];
+							
+							$arr_type_set['type']['include_helpers']['object_sub_details'][$use_object_sub_details_id] = $arr_referenced_type_set['object_sub_details'][$use_object_sub_details_id];
+						} else if ($arr_object_sub_details_self['object_sub_details_location_use_object_description_id']) {
+							
+							$use_object_description_id = $arr_object_sub_details_self['object_sub_details_location_use_object_description_id'];
+							
+							$arr_type_set['type']['include_helpers']['object_descriptions'][$use_object_description_id] = $arr_referenced_type_set['object_descriptions'][$use_object_description_id];
+						}
 					}
 				}
 			}
@@ -739,7 +791,7 @@ class StoreCustomProject {
 			$found = ($arr_project['types'][$type_id] ? 'project' : false);
 		}
 		
-		if ($type == 'edit') {
+		if ($type == static::ACCESS_PURPOSE_EDIT) {
 			
 			if ($found) {
 				
@@ -928,7 +980,7 @@ class StoreCustomProject {
 	
 	public static function getWorkspaceMedia($project_id) {
 		
-		$sql_project_id = (is_array($project_id) ? "IN (".implode(',', arrParseRecursive($project_id, 'int')).")" : "= ".(int)$project_id);
+		$sql_project_id = ($project_id && is_array($project_id) ? "IN (".implode(',', arrParseRecursive($project_id, 'int')).")" : "= ".(int)$project_id);
 		
 		$arr = [];
 		

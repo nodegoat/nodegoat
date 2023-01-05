@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -61,7 +61,7 @@ class data_visualise extends base_module {
 			<div>
 
 				<div class="options scope">
-					'.data_model::createTypeNetwork($type_id, false, false, ['references' => 'both', 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => 'scope', 'descriptions' => 'combine']).'
+					'.data_model::createTypeNetwork($type_id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => 'scope', 'descriptions' => 'combine']).'
 				</div>
 				
 			</div>
@@ -1200,9 +1200,9 @@ class data_visualise extends base_module {
 			
 			$arr_filters = current(toolbar::getFilter());
 			$arr_ordering = current(toolbar::getOrder());
-			$type_id = toolbar::getFilterTypeId();
+			$type_id = toolbar::getFilterTypeID();
 			
-			if (!custom_projects::checkAccessType('view', $type_id)) {
+			if (!custom_projects::checkAccessType(StoreCustomProject::ACCESS_PURPOSE_VIEW, $type_id)) {
 				return;
 			}
 
@@ -1336,7 +1336,7 @@ class data_visualise extends base_module {
 		
 		if ($method == "edit_visualisation_settings") {
 
-			$type_id = toolbar::getFilterTypeId();
+			$type_id = toolbar::getFilterTypeID();
 			
 			$arr_visual_settings = self::getVisualSettings();
 			$arr_scope = self::getTypeScope($type_id);
@@ -1355,7 +1355,7 @@ class data_visualise extends base_module {
 		
 		if ($method == "update_visualisation_settings") {
 			
-			$type_id = toolbar::getFilterTypeId();
+			$type_id = toolbar::getFilterTypeID();
 			
 			if ($_POST['default_scope']) {
 				
@@ -1441,9 +1441,9 @@ class data_visualise extends base_module {
 		
 		if ($method == "review_data") {
 			
-			$type_id = toolbar::getFilterTypeId();
+			$type_id = toolbar::getFilterTypeID();
 			
-			if (!custom_projects::checkAccessType('view', $type_id)) {
+			if (!custom_projects::checkAccessType(StoreCustomProject::ACCESS_PURPOSE_VIEW, $type_id)) {
 				return;
 			}
 
@@ -1592,7 +1592,7 @@ class data_visualise extends base_module {
 			$this->html = '<form class="scope-storage storage">
 				'.$this->createSelectScope($id, $arr_scope).'
 				<input class="hide" type="submit" name="" value="" />
-				<input type="submit" name="discard" value="'.getLabel('lbl_close').'" />
+				<input type="submit" name="do_discard" value="'.getLabel('lbl_close').'" />
 			</form>';
 		}
 		
@@ -1625,7 +1625,7 @@ class data_visualise extends base_module {
 				$arr_scope = data_model::parseTypeNetwork($arr_scope);
 			}
 
-			$this->html = data_model::createTypeNetwork($id, false, false, ['references' => 'both', 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => 'scope', 'descriptions' => 'combine']);
+			$this->html = data_model::createTypeNetwork($id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => 'scope', 'descriptions' => 'combine']);
 		}
 		
 		if ($method == "select_context_include_type") {
@@ -1645,7 +1645,7 @@ class data_visualise extends base_module {
 			$this->html = '<form class="options storage">
 				'.$this->createSelectContext($id, true).'
 				<input class="hide" type="submit" name="" value="" />
-				<input type="submit" name="discard" value="'.getLabel('lbl_close').'" />
+				<input type="submit" name="do_discard" value="'.getLabel('lbl_close').'" />
 			</form>';
 		}
 		
@@ -1680,7 +1680,7 @@ class data_visualise extends base_module {
 			$this->html = '<form class="options storage">
 				'.$this->createSelectFrame($id, true).'
 				<input class="hide" type="submit" name="" value="" />
-				<input type="submit" name="discard" value="'.getLabel('lbl_close').'" />
+				<input type="submit" name="do_discard" value="'.getLabel('lbl_close').'" />
 			</form>';
 		}
 		
@@ -1712,7 +1712,7 @@ class data_visualise extends base_module {
 			$this->html = '<form class="options storage">
 				'.$this->createSelectVisualSettings(true).'
 				<input class="hide" type="submit" name="" value="" />
-				<input type="submit" name="discard" value="'.getLabel('lbl_close').'" />
+				<input type="submit" name="do_discard" value="'.getLabel('lbl_close').'" />
 			</form>';
 		}
 		
@@ -1758,14 +1758,67 @@ class data_visualise extends base_module {
 		
 		$collect = new CollectTypesObjects($arr_type_network_paths, GenerateTypeObjects::VIEW_VISUALISE);
 		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
+		
 		$collect->setConditions(GenerateTypeObjects::CONDITIONS_MODE_FULL, function($cur_type_id) use ($type_id, $arr_conditions) {
 			
 			if ($cur_type_id == $type_id && $arr_conditions !== false) {
-				return $arr_conditions;
+				$arr_type_set_conditions = $arr_conditions;
+			} else {
+				$arr_type_set_conditions = toolbar::getTypeConditions($cur_type_id);
+			}
+
+			if (!$arr_type_set_conditions) {
+				return $arr_type_set_conditions;
 			}
 			
-			return toolbar::getTypeConditions($cur_type_id);
+			$func_check_conditions = function(&$arr_condition_settings) {
+				
+				foreach ($arr_condition_settings as $key => &$arr_condition_setting) {
+					
+					$arr_condition_setting = data_model::checkTypeConditionNamespace($arr_condition_setting, data_model::CONDITION_NAMESPACE_VISUALISE);
+					
+					if ($arr_condition_setting !== false) {
+						continue;
+					}
+					
+					unset($arr_condition_settings[$key]);
+				}
+				
+				return $arr_condition_settings;
+			};
+			
+			if ($arr_type_set_conditions['object']) {
+				
+				$func_check_conditions($arr_type_set_conditions['object']);
+			}
+			
+			if ($arr_type_set_conditions['object_descriptions']) {
+			
+				foreach ($arr_type_set_conditions['object_descriptions'] as $object_description_id => &$arr_condition_settings) {
+					$func_check_conditions($arr_condition_settings);
+				}
+			}
+			
+			if ($arr_type_set_conditions['object_sub_details']) {
+				
+				foreach ($arr_type_set_conditions['object_sub_details'] as $object_sub_details_id => &$arr_conditions_object_sub_details) {
+					
+					if ($arr_conditions_object_sub_details['object_sub_details']) {
+						$func_check_conditions($arr_conditions_object_sub_details['object_sub_details']);
+					}
+					
+					if ($arr_conditions_object_sub_details['object_sub_descriptions']) {
+						
+						foreach ($arr_conditions_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => &$arr_condition_settings) {
+							$func_check_conditions($arr_condition_settings);
+						}
+					}
+				}
+			}
+			
+			return $arr_type_set_conditions;
 		});
+		
 		$collect->setTypeOptions([$type_id => ['order' => $arr_ordering]]);
 		$collect->init($arr_filters, false);
 			
@@ -1814,7 +1867,7 @@ class data_visualise extends base_module {
 						
 						if ($object_description_id) {
 							
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
 								continue;
 							}
 							
@@ -1836,7 +1889,7 @@ class data_visualise extends base_module {
 						
 						if ($object_sub_details_id) {
 
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 								continue;
 							}
 							
@@ -1846,7 +1899,7 @@ class data_visualise extends base_module {
 							
 							if ($object_sub_description_id) {
 
-								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 									continue;
 								}
 								
@@ -1873,7 +1926,7 @@ class data_visualise extends base_module {
 					
 					foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
@@ -1886,7 +1939,7 @@ class data_visualise extends base_module {
 								
 					foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 							continue;
 						}
 
@@ -1894,7 +1947,7 @@ class data_visualise extends base_module {
 
 						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 													
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 								continue;
 							}
 								

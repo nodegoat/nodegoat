@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -79,12 +79,16 @@ class CollectTypesObjects {
 		return $this->arr_path_objects[$path][($in_out ?: 'start')];
 	}
 	
-	public function getPathObject($path, $in_out, $object_id, $ref_object_id) {
+	public function getPathObject($path, $in_out, $object_id, $ref_object_id, $do_unprocessed = false) {
 		
 		$arr_object = $this->arr_path_objects[$path][($in_out ?: 'start')][$object_id];
 		
 		if (!$arr_object) {
 			return [];
+		}
+		
+		if ($do_unprocessed) {
+			return $arr_object;
 		}
 	
 		$arr_selection = ($this->arr_path_options[$path]['arr_selection'] ?: ($this->arr_type_options[$this->arr_paths[$path]]['arr_selection'] ?: []));
@@ -954,7 +958,7 @@ class CollectTypesObjects {
 						}
 						
 						$arr_filtering = ($this->arr_path_options[$path_new]['arr_filtering'] ?? ($this->arr_type_options[$target_type_id]['arr_filtering'] ?? []));
-						$arr_filtering_enable = (array_filter(arrValuesRecursive('arr_filtering', array_merge($this->arr_path_options, $this->arr_type_options))) ? ['all' => true] : []);
+						$has_filtering = (array_filter(arrValuesRecursive('arr_filtering', array_merge($this->arr_path_options, $this->arr_type_options))) ? true : false);
 						
 						if ($in_out == 'start') {
 							
@@ -991,7 +995,7 @@ class CollectTypesObjects {
 								// Apply the filter as a stand-alone filter when it's not used for filtering
 								$arr_collect_filters['query'] = array_merge($arr_source_filters, $arr_collect_filters['query']);
 								
-								if ($arr_filtering_enable) { // Do use the filter for filtering purposes
+								if ($has_filtering) { // Do use the filter for filtering purposes
 									$arr_filtering_filters = true;
 								}
 							}
@@ -999,7 +1003,7 @@ class CollectTypesObjects {
 							
 							$arr_filtering_filters = [];
 							
-							if ($arr_filtering_enable) {
+							if ($has_filtering) {
 								
 								$arr_depth_filter = $this->arr_depth_filters;
 								foreach ($arr_type_object_connections['path'] as $cur_type_id) {
@@ -1023,7 +1027,7 @@ class CollectTypesObjects {
 						
 						$filter->setScope($this->arr_scope, $path);
 						$filter->setSelection($arr_selection);
-						$filter->setFiltering($arr_filtering, $arr_filtering_enable, $arr_filtering_filters, ($filter_source ? $filter_source->storeResultTemporarily() : false));
+						$filter->setFiltering($arr_filtering, $arr_filtering_filters, $filter_source);
 						
 						if ($arr_collect_filters['filter']) {
 							$filter->setFilter($arr_collect_filters['filter'], true);
@@ -1065,8 +1069,9 @@ class CollectTypesObjects {
 							$filter->setInitLimit($this->nr_limit);
 						}
 						
+						//$filter->debug();
 						$table_name = $filter->storeResultTemporarily(uniqid(), true);
-						
+
 						$arr_objects = $filter->init();
 						
 						$this->arr_path_objects[$path_new][$in_out] += $arr_objects;

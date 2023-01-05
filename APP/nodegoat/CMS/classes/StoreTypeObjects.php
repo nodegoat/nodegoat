@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -21,8 +21,14 @@ class StoreTypeObjects {
 	const VALUE_NUMERIC_MULTIPLIER = 10 ** 10;
 	const GEOMETRY_SRID = 4326; // 4326 for WGS84
 	const GEOMETRY_COORDINATE_DECIMALS = 20;
-	const TAGCODE_TEST_SERIAL_VARCHAR = '/\[\[#(?:=[\d]*)?\]\]/';
-	const TAGCODE_PARSE_SERIAL_VARCHAR = '/\[\[#(?:=([\d]*))?\]\]/';
+	const TEXT_TAG_OBJECT = 1;
+	const TEXT_TAG_ENTITY = 2;
+	const TAGCODE_PARSE_TEXT_OBJECT_OPEN = '\[object=([0-9-_\|]+)\]';
+	const TAGCODE_PARSE_TEXT_OBJECT_CLOSE = '\[\/object(?:=([0-9-_\|]+))?\]';
+	const TAGCODE_PARSE_TEXT_ENTITY_OPEN = '\[entity(?:=([^\]]*))?\]';
+	const TAGCODE_PARSE_TEXT_ENTITY_CLOSE = '\[\/entity\]';
+	const TAGCODE_TEST_SERIAL_VARCHAR = '\[\[#(?:=[\d]*)?\]\]';
+	const TAGCODE_PARSE_SERIAL_VARCHAR = '\[\[#(?:=([\d]*))?\]\]';
 	const PIXEL_TO_CENTIMETER = 0.026458333;
 	
 	const FORMAT_DATE_YMD = 1;
@@ -1002,7 +1008,7 @@ class StoreTypeObjects {
 						$str_location_geometry = $arr_object_sub['object_sub']['object_sub_location_geometry'];
 						
 						if (static::geometryToSRID($str_location_geometry) != static::GEOMETRY_SRID) {
-															
+							
 							$str_location_geometry = static::translateToGeometry($str_location_geometry, static::GEOMETRY_SRID);
 							
 							$this->addTypeObjectSubGeometryVersion($object_sub_id, (static::VERSION_OFFSET_ALTERNATE - $arr_object_sub['object_sub']['object_sub_location_geometry_version']), $str_location_geometry, static::GEOMETRY_SRID);
@@ -1711,14 +1717,14 @@ class StoreTypeObjects {
 				
 				foreach ($value as $value_check) {
 					
-					if (preg_match(static::TAGCODE_TEST_SERIAL_VARCHAR, $value_check)) {
+					if (preg_match('/'.static::TAGCODE_TEST_SERIAL_VARCHAR.'/', $value_check)) {
 						$has_serial = true;
 						break;
 					}
 				}
 			} else {
 					
-				if (preg_match(static::TAGCODE_TEST_SERIAL_VARCHAR, $value)) {
+				if (preg_match('/'.static::TAGCODE_TEST_SERIAL_VARCHAR.'/', $value)) {
 					$has_serial = true;
 				}
 			}
@@ -1732,7 +1738,7 @@ class StoreTypeObjects {
 					foreach ($value as &$value_update) {
 						
 						$value_update = preg_replace_callback(
-							static::TAGCODE_PARSE_SERIAL_VARCHAR,
+							'/'.static::TAGCODE_PARSE_SERIAL_VARCHAR.'/',
 							function ($arr_matches) use ($num_serial) {
 								
 								$num_pad = (int)$arr_matches[1];
@@ -1748,7 +1754,7 @@ class StoreTypeObjects {
 				} else {
 					
 					$value = preg_replace_callback(
-						static::TAGCODE_PARSE_SERIAL_VARCHAR,
+						'/'.static::TAGCODE_PARSE_SERIAL_VARCHAR.'/',
 						function ($arr_matches) use ($num_serial) {
 							
 							$num_pad = (int)$arr_matches[1];
@@ -1780,14 +1786,14 @@ class StoreTypeObjects {
 				
 				foreach ($value as $value_check) {
 					
-					if (preg_match(static::TAGCODE_TEST_SERIAL_VARCHAR, $value_check)) {
+					if (preg_match('/'.static::TAGCODE_TEST_SERIAL_VARCHAR.'/', $value_check)) {
 						$has_serial = true;
 						break;
 					}
 				}
 			} else {
 					
-				if (preg_match(static::TAGCODE_TEST_SERIAL_VARCHAR, $value)) {
+				if (preg_match('/'.static::TAGCODE_TEST_SERIAL_VARCHAR.'/', $value)) {
 					$has_serial = true;
 				}
 			}
@@ -2841,7 +2847,7 @@ class StoreTypeObjects {
 		return $arr;
 	}
     
-	public function getTypeObjectDescriptionVersions($object_description_id, $full = false) {
+	public function getTypeObjectDescriptionVersions($object_description_id, $do_full = false) {
 		
 		$arr_object_description = $this->arr_type_set['object_descriptions'][$object_description_id];
 		$is_multi = $arr_object_description['object_description_has_multi'];
@@ -2898,7 +2904,7 @@ class StoreTypeObjects {
 				}
 			}
 			
-			if ($full && $arr) {
+			if ($do_full && $arr) {
 				
 				$arr_objects = [];
 				
@@ -2969,7 +2975,7 @@ class StoreTypeObjects {
 		return $arr;
 	}
 	
-	public function getTypeObjectSubVersions($object_sub_id, $full = false) {
+	public function getTypeObjectSubVersions($object_sub_id, $do_full = false) {
 		
 		if (!$this->stmt_object_sub_versions) {
 			
@@ -3018,7 +3024,7 @@ class StoreTypeObjects {
 			];
 		}
 		
-		if ($full && $arr) {
+		if ($do_full && $arr) {
 			
 			$arr_type_object_names = [];
 			
@@ -3047,7 +3053,7 @@ class StoreTypeObjects {
 		return $arr;
 	}
 	
-	public function getTypeObjectSubDescriptionVersions($object_sub_details_id, $object_sub_id, $object_sub_description_id, $full = false) {
+	public function getTypeObjectSubDescriptionVersions($object_sub_details_id, $object_sub_id, $object_sub_description_id, $do_full = false) {
 		
 		$arr_object_sub_description = $this->arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
 		$is_multi = $arr_object_sub_description['object_sub_description_has_multi'];
@@ -3104,7 +3110,7 @@ class StoreTypeObjects {
 				}
 			}
 			
-			if ($full && $arr) {
+			if ($do_full && $arr) {
 				
 				$arr_objects = [];
 				
@@ -4108,13 +4114,16 @@ class StoreTypeObjects {
 	public static function parseObjectDefinitionText($str_text) {
 
 		$str_text = preg_replace_callback(
-			'/\[object=([0-9-_\|]+)\]/s',
+			'/'.static::TAGCODE_PARSE_TEXT_OBJECT_OPEN.'/s',
 			function ($matches) {
 				return '<span class="tag" data-ids="'.$matches[1].'">'; 
 			},
 			$str_text
 		);
-		$str_text = preg_replace('/\[\/object(?:=([0-9-_\|]+))?\]/s', '</span>', $str_text);
+		$str_text = preg_replace('/'.static::TAGCODE_PARSE_TEXT_OBJECT_CLOSE.'/s', '</span>', $str_text);
+		
+		$str_text = preg_replace('/'.static::TAGCODE_PARSE_TEXT_ENTITY_OPEN.'/s', '', $str_text);
+		$str_text = preg_replace('/'.static::TAGCODE_PARSE_TEXT_ENTITY_CLOSE.'/s', '', $str_text);
 		
 		$str_text_clear = strip_tags($str_text);
 		
@@ -4153,7 +4162,24 @@ class StoreTypeObjects {
 		return ['text' => $str_text_clear, 'tags' => $arr];
 	}
 	
-	public static function updateObjectDefinitionText($str_text, $arr_types_objects, $any_type = false) {
+	public static function clearObjectDefinitionText($str_text, $target_tag = false) {
+		
+		if (!$target_tag || $target_tag == static::TEXT_TAG_OBJECT) {
+			
+			$str_text = preg_replace('/'.static::TAGCODE_PARSE_TEXT_OBJECT_OPEN.'/s', '', $str_text);
+			$str_text = preg_replace('/'.static::TAGCODE_PARSE_TEXT_OBJECT_CLOSE.'/s', '', $str_text);
+		}
+		
+		if (!$target_tag || $target_tag == static::TEXT_TAG_ENTITY) {
+			
+			$str_text = preg_replace('/'.static::TAGCODE_PARSE_TEXT_ENTITY_OPEN.'/s', '', $str_text);
+			$str_text = preg_replace('/'.static::TAGCODE_PARSE_TEXT_ENTITY_CLOSE.'/s', '', $str_text);
+		}
+		
+		return $str_text;
+	}
+	
+	public static function updateObjectDefinitionTextTagsObject($str_text, $arr_types_objects, $any_type = false) {
 		
 		$num_length_text = 0;
 		$num_length_tag_open = 0;
@@ -4277,14 +4303,6 @@ class StoreTypeObjects {
 		return $str_text;
 	}
 	
-	public static function clearObjectDefinitionText($str_text) {
-		
-		$str_text = preg_replace('/\[object=(?:[0-9-_\|]+)\]/s', '', $str_text);
-		$str_text = preg_replace('/\[\/object(?:=[0-9-_\|]+)?\]/s', '', $str_text);
-		
-		return $str_text;
-	}
-
 	public static function appendToValue($type, $value, $value_append) {
 		
 		$format = false;
@@ -4294,7 +4312,7 @@ class StoreTypeObjects {
 			case 'text_layout':
 			case 'text_tags':
 				if ($value) {
-					$format = $value.($value_append ? PHP_EOL.$value_append : '');
+					$format = $value.($value_append ? EOL_1100CC.$value_append : '');
 				} else {
 					$format = $value_append;
 				}
@@ -5296,7 +5314,7 @@ class StoreTypeObjects {
 						$arr_media = ['url' => $arr_media];
 					}
 					
-					$filename = false;
+					$str_filename = false;
 						
 					if ($arr_media['file']) {
 						
@@ -5304,49 +5322,49 @@ class StoreTypeObjects {
 						
 						if ($arr_file['size']) {
 														
-							$filename = hash_file('md5', $arr_file['tmp_name']);
-							$extension = FileStore::getExtension($arr_file['tmp_name']);
-							if ($extension == FileStore::EXTENSION_UNKNOWN) {
-								$extension = FileStore::getExtension($arr_file['name']);
+							$str_filename = hash_file('md5', $arr_file['tmp_name']);
+							$str_extension = FileStore::getExtension($arr_file['name']);
+							if ($str_extension == FileStore::EXTENSION_UNKNOWN) {
+								$str_extension = FileStore::getExtension($arr_file['tmp_name']);
 							}
-							$filename = $filename.'.'.$extension;
+							$str_filename = $str_filename.'.'.$str_extension;
 							
-							if (!isPath(DIR_HOME_TYPE_OBJECT_MEDIA.$filename)) {
+							if (!isPath(DIR_HOME_TYPE_OBJECT_MEDIA.$str_filename)) {
 	
-								$store_file = new FileStore($arr_file, ['dir' => DIR_HOME_TYPE_OBJECT_MEDIA, 'filename' => $filename], FileStore::getSizeLimit(FileStore::STORE_FILE));
+								$store_file = new FileStore($arr_file, ['directory' => DIR_HOME_TYPE_OBJECT_MEDIA, 'filename' => $str_filename], FileStore::getSizeLimit(FileStore::STORE_FILE));
 							}
 						}
 					}
 					
-					if (!$filename && $arr_media['url']) {
+					if (!$str_filename && $arr_media['url']) {
 						
 						$file = new FileGet($arr_media['url']);
 						
 						if ($file->load()) {
 							
-							$path_file = $file->getPath();
-							$filename = hash_file('md5', $path_file);
-							$extension = FileStore::getExtension($path_file);
-							if ($extension == FileStore::EXTENSION_UNKNOWN) {
-								$extension = FileStore::getExtension($arr_media['url']);
+							$str_path_file = $file->getPath();
+							$str_filename = hash_file('md5', $str_path_file);
+							$str_extension = FileStore::getExtension($file->getSource());
+							if ($str_extension == FileStore::EXTENSION_UNKNOWN) {
+								$str_extension = FileStore::getExtension($str_path_file);
 							}
 							
-							$filename = $filename.'.'.$extension;
+							$str_filename = $str_filename.'.'.$str_extension;
 							
-							if (!isPath(DIR_HOME_TYPE_OBJECT_MEDIA.$filename)) {
+							if (!isPath(DIR_HOME_TYPE_OBJECT_MEDIA.$str_filename)) {
 								
-								$store_file = new FileStore($file, ['dir' => DIR_HOME_TYPE_OBJECT_MEDIA, 'filename' => $filename], FileStore::getSizeLimit(FileStore::STORE_FILE));
+								$store_file = new FileStore($file, ['directory' => DIR_HOME_TYPE_OBJECT_MEDIA, 'filename' => $str_filename], FileStore::getSizeLimit(FileStore::STORE_FILE));
 							} else {
 								
 								$file->abort();
 							}
 						} else {
 							
-							$filename = $arr_media['url'];
+							$str_filename = $arr_media['url'];
 						}
 					}
 					
-					$format[] = $filename;
+					$format[] = $str_filename;
 				}
 				
 				if (!$is_multi) {
@@ -5594,9 +5612,13 @@ class StoreTypeObjects {
 	
 	// Numeric
 	
-	public static function num2Integer($str) {
+	public static function num2Integer($num) {
 		
-		return bcmul($str, static::VALUE_NUMERIC_MULTIPLIER);
+		if ((int)$num >= static::VALUE_NUMERIC_MULTIPLIER && strpos((string)$num, '.') === false) { // Already converted
+			return $num;
+		}
+		
+		return bcmul($num, static::VALUE_NUMERIC_MULTIPLIER);
 	}
 	
 	public static function int2Numeric($int) {
@@ -5606,7 +5628,7 @@ class StoreTypeObjects {
 	
 	public static function sqlInt2SQLNumeric($sql_value) {
 		
-		return '('.$sql_value.' / '.(1 / static::VALUE_NUMERIC_MULTIPLIER).')'; // Convert multiplier to decimal for float precision purposes
+		return '('.$sql_value.' * '.(1 / static::VALUE_NUMERIC_MULTIPLIER).')'; // Convert multiplier to decimal for float precision purposes
 	}
 	
 	// Chronology
@@ -6062,9 +6084,14 @@ class StoreTypeObjects {
 		
 		$num_srid = static::GEOMETRY_SRID;
 		
-		if (static::GEOMETRY_SRID && $is_json) {
+		if (static::GEOMETRY_SRID) {
 			
 			$num_srid = static::geometryToSRID($value, true);
+		}
+		
+		if (strStartsWith($value, 'SRID=')) { // Clean optional SRID prefix
+			
+			$value = preg_replace('/^SRID=\d+;?/', '', $value);
 		}
 		
 		try {
@@ -6079,12 +6106,12 @@ class StoreTypeObjects {
 			$num_code = ($e_previous instanceof DBTrouble ? $e_previous->getCode() : false);
 			
 			$msg_client = '';
-			if (DB::ENGINE_IS_MYSQL && ($num_code == 3731 || $num_code == 3732 || $num_code == 3616 || $num_code == 3617)) { // Out of bounds
+			if (DB::ENGINE_IS_MYSQL && ($num_code == 3731 || $num_code == 3732 || $num_code == 3616 || $num_code == 3617) && $is_json) { // Out of bounds
 				
 				try {
 					
 					$value = static::translateToGeometry($value, $num_srid); // Try to fix the bounds
-					$value = static::formatToSQLGeometryValid($value, $num_srid, $is_json);
+					$value = static::formatToSQLGeometryValid($value, $num_srid, true);
 				} catch (Exception $e2) {
 					
 					$msg_client = getLabel('msg_malformed_geometry_bounds');
@@ -6114,7 +6141,7 @@ class StoreTypeObjects {
 			if ($is_json) {
 				$sql_value = "ST_GeomFromGeoJSON('".$value."', 2, ".$num_srid.")";
 			} else {
-				$sql_value = "ST_GeomFromText('".$value."', ".$num_srid.")";
+				$sql_value = "ST_SRID(ST_GeomFromText('".$value."'), ".$num_srid.")";
 			}
 			
 			//$sql_geojson = "ST_AsGeoJSON(@check, ".static::GEOMETRY_COORDINATE_DECIMALS.", ".($num_srid != static::GEOMETRY_SRID ? '2' : '0').")"; // MariaDB does not support the option for adding the crs
@@ -6192,9 +6219,9 @@ class StoreTypeObjects {
 				
 		if ($do_external) { // Check for SRID in non-parsed source
 			
-			if (strpos($value, 'EPSG:') !== false) {
+			if (strpos($value, 'EPSG:') !== false || strpos($value, 'epsg:') !== false) {
 				
-				preg_match('/EPSG::?(\d+)/', $value, $arr_match);
+				preg_match('/(?:EPSG|epsg)::?(\d+)/', $value, $arr_match);
 				$num_srid = (int)$arr_match[1];
 				
 				if ($num_srid) {
@@ -6202,13 +6229,21 @@ class StoreTypeObjects {
 				}
 			} else if (strpos($value, 'urn:ogc:def:crs:') !== false) {
 				
-				if (strpos($value, 'urn:ogc:def:crs:OGC:1.3:CRS84') !== false) { // CRS84 for WGS84 for 4326
+				if (strpos($value, 'OGC:1.3:CRS84') !== false || strpos($value, 'ogc:1.3:crs84') !== false) { // CRS84 for WGS84 for 4326
 					return 4326;
 				}
+			} else if (strStartsWith($value, 'SRID=')) {
+				
+				preg_match('/^SRID=(\d+);?/', $value, $arr_match);
+				$num_srid = (int)$arr_match[1];
+				
+				if ($num_srid) {
+					return $num_srid;
+				}
 			}
-		} else if (strpos($value, 'EPSG:') !== false) {
+		} else if (strpos($value, 'EPSG:') !== false || strpos($value, 'epsg:') !== false) {
 			
-			preg_match('/EPSG:(\d+)/', $value, $arr_match);
+			preg_match('/(?:EPSG|epsg):(\d+)/', $value, $arr_match);
 			$num_srid = (int)$arr_match[1];
 			
 			if ($num_srid) {

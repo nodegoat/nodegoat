@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -73,10 +73,10 @@ class header extends base_module {
 					var elms_input = $('.data_model form textarea[name], .data_model form input[type=text][name], .custom_projects form input[type=text][name], form .scenario textarea[name], form .scenario input[type=text][name], form .condition input[type=text][name$=\"[condition_label]\"], .public_interfaces form textarea[name], .public_interfaces form input[type=text][name]').not('.editor');
 					
 					elms_input.each(function() {
-						new LabelOption(this, {action: 'y:general:label_popup-0', tag: 'L'});
+						new LabelOption(this, {action: 'y:general:popup_labels-0', tag: 'L'});
 					});
 				}).on('editorloaded', '.public_interfaces form .editor', function(e) {
-					new LabelOption(e.detail.source, {action: 'y:general:label_popup-0', tag: 'L'});
+					new LabelOption(e.detail.source, {action: 'y:general:popup_labels-0', tag: 'L'});
 				});
 			");
 		}

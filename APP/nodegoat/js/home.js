@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -299,7 +299,7 @@ function TextTags(elm, arr_options) {
 
 function DateParser() {
 	
-	var SELF = this;
+	const SELF = this;
 	
 	this.time_day = 24*60*60*1000; // hours*minutes*seconds*milliseconds
 	this.calc_day = this.time_day / 1000; // Milliseconds to seconds
@@ -2567,7 +2567,7 @@ function ElementPositionWorker() {
 
 function ModelGraph(elm_overview, arr_settings) {
 	
-	var SELF = this;
+	const SELF = this;
 	
 	var arr_settings = $.extend({
 		positioning: true,

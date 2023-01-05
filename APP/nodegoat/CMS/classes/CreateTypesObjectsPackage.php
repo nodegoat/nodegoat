@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -45,6 +45,8 @@ class CreateTypesObjectsPackage {
 		foreach ($arr_objects as $object_id => &$arr_object) {
 			
 			$arr_object['object'] = ['nodegoat_id' => GenerateTypeObjects::encodeTypeObjectID($type_id, $object_id)] + $arr_object['object'];
+			
+			unset($arr_object['object']['object_locked']);
 				
 			foreach ($arr_object['object_definitions'] as $object_description_id => &$arr_object_definition) {
 									
@@ -70,6 +72,8 @@ class CreateTypesObjectsPackage {
 				}
 				$s_arr_self['object_sub_date_start'] = $this->formatToDataType('date', $s_arr_self['object_sub_date_start']);
 				$s_arr_self['object_sub_date_end'] = $this->formatToDataType('date', $s_arr_self['object_sub_date_end']);
+				
+				unset($s_arr_self['object_sub_date_all']);
 				
 				foreach ($arr_object_sub['object_sub_definitions'] as $object_sub_description_id => &$arr_object_sub_definition) {
 					

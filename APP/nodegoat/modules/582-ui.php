@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -891,7 +891,7 @@ class ui extends base_module {
 						.ui.responsive-layout-enabled > .project-dynamic-data > .data > .objects > .object-thumbnail { margin: 0 20px 20px 0; }
 						
 						.ui.responsive-layout-enabled > .project-dynamic-data > .data > .objects:empty + .object,
-						.ui.responsive-layout-enabled > .project-dynamic-data > .data > .object { border-top: 4px solid #f3f3f3; position: absolute; top: 0; right: 0; left: 0; bottom: 0; z-index: 1; max-width: 100vw; padding: 0; }																																
+						.ui.responsive-layout-enabled > .project-dynamic-data > .data > .object { border-top: 4px solid #f3f3f3; max-width: 100vw; padding: 0; }																																
 						.ui.responsive-layout-enabled > .project-dynamic-data > .data > .object-thumbnail-container { display: flex; position: fixed; right: 0; left: 0; bottom: 0; height: 80px; z-index: 1; background-color: #eee; padding: 15px; box-sizing: border-box; }																
 						.ui.responsive-layout-enabled > .project-dynamic-data > .data > .object-thumbnail-container:empty { display: none; }		
 
@@ -1081,7 +1081,7 @@ class ui extends base_module {
 			$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
 
 			toolbar::setScenario();
-			toolbar::setFilter([], false);
+			toolbar::setFilter([]);
 			
 			SiteEndVars::setFeedback('selected_type_ids', false, true);
 			SiteEndVars::setFeedback('type_id', false, true);

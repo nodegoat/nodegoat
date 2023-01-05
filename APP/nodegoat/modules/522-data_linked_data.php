@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -266,7 +266,7 @@ class data_linked_data extends base_module {
 		</div>';
 						
 		$return .= '<menu class="options">
-			<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_linked_data').' '.getLabel('lbl_resource').'" /><input type="submit" name="discard" value="'.getLabel('lbl_cancel').'" />
+			<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_linked_data').' '.getLabel('lbl_resource').'" /><input type="submit" name="do_discard" value="'.getLabel('lbl_cancel').'" />
 		</menu>';
 			
 		$this->validate = ['name' => 'required'];
@@ -325,7 +325,7 @@ class data_linked_data extends base_module {
 		</div>';
 						
 		$return .= '<menu class="options">
-			<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_linked_data').' '.getLabel('lbl_conversion').'" /><input type="submit" name="discard" value="'.getLabel('lbl_cancel').'" />
+			<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_linked_data').' '.getLabel('lbl_conversion').'" /><input type="submit" name="do_discard" value="'.getLabel('lbl_cancel').'" />
 		</menu>';
 			
 		$this->validate = ['name' => 'required', 'script' => 'required', 'output_placeholder' => 'required'];
@@ -630,7 +630,7 @@ class data_linked_data extends base_module {
 				$func_parse_arr($arr);
 			} catch (Exception $e) {
 				
-				Labels::setVariable('name', $value['name']);
+				Labels::setVariable('resource_name', $value['name']);
 				error(getLabel('msg_external_resource_error_parse'), TROUBLE_ERROR, LOG_CLIENT, false, $e); // Make notice
 			}
 			
@@ -706,13 +706,13 @@ class data_linked_data extends base_module {
 		
 		// QUERY
 		
-		if (($method == "insert" || $method == "update") && $_POST['discard']) {
+		if (($method == "insert" || $method == "update") && $this->is_discard) {
 							
 			$this->html = $this->createAddResource();
 			return;
 		}
 		
-		if (($method == "insert_conversion" || $method == "update_conversion") && $_POST['discard']) {
+		if (($method == "insert_conversion" || $method == "update_conversion") && $this->is_discard) {
 							
 			$this->html = $this->createAddResourceConversion();
 			return;

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -172,7 +172,7 @@ class data_import extends ingest_source {
 		</div>
 		
 		<menu class="options">
-			<input type="submit" value="'.getLabel('lbl_save').' CSV '.getLabel('lbl_file').'" /><input type="submit" name="discard" value="'.getLabel('lbl_cancel').'" />
+			<input type="submit" value="'.getLabel('lbl_save').' CSV '.getLabel('lbl_file').'" /><input type="submit" name="do_discard" value="'.getLabel('lbl_cancel').'" />
 		</menu>';
 			
 		$this->validate = ['name' => 'required'];
@@ -493,7 +493,7 @@ class data_import extends ingest_source {
 					'.$this->createTemplate().'
 					
 					<menu class="options">
-						<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_import_template').'" /><input type="submit" name="discard" value="'.getLabel('lbl_cancel').'" />
+						<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_import_template').'" /><input type="submit" name="do_discard" value="'.getLabel('lbl_cancel').'" />
 					</menu>
 				</form>';
 			}
@@ -514,7 +514,7 @@ class data_import extends ingest_source {
 					'.$this->createTemplate($id).'
 					
 					<menu class="options">
-						<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_import_template').'" /><input type="submit" name="discard" value="'.getLabel('lbl_cancel').'" />
+						<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_import_template').'" /><input type="submit" name="do_discard" value="'.getLabel('lbl_cancel').'" />
 					</menu>
 				</form>';
 			} else if ($what == 'file') {
@@ -533,7 +533,7 @@ class data_import extends ingest_source {
 				'.$this->createRunTemplate($id).'
 				
 				<menu>
-					<input type="submit" value="'.getLabel('lbl_exit').'" name="discard" /><input type="submit" value="'.getLabel('lbl_next').'" />
+					<input type="submit" value="'.getLabel('lbl_exit').'" name="do_discard" /><input type="submit" value="'.getLabel('lbl_next').'" />
 				</menu>
 			</form>';
 		}
@@ -543,13 +543,13 @@ class data_import extends ingest_source {
 			$this->html = '<div class="import-log-template">'.$this->createTemplateLog($id).'</div>';
 		}
 
-		if ($method == "process_template" && $_POST['discard']) {
+		if ($method == "process_template" && $this->is_discard) {
 			
 			$this->html = $this->contents(); 
 			return;
 		}
 		
-		if ($method == "process_template" && !$_POST['discard']) {
+		if ($method == "process_template" && !$this->is_discard) {
 		
 			$source_id = $_POST['source_id'];
 			$import_template_id = $id;
@@ -563,11 +563,11 @@ class data_import extends ingest_source {
 			$arr_result = $this->createProcessTemplate($arr_template, $source_id, $_POST);
 			
 			if ($arr_result['is_done']) {
-				$html_buttons = '<input type="submit" name="discard" value="'.getLabel('lbl_exit').'" />';
+				$html_buttons = '<input type="submit" name="do_discard" value="'.getLabel('lbl_exit').'" />';
 			} else if ($arr_result['has_feedback']) {
-				$html_buttons = '<input type="submit" value="'.getLabel('lbl_next').'" /><input type="submit" name="discard" value="'.getLabel('lbl_exit').'" />';
+				$html_buttons = '<input type="submit" value="'.getLabel('lbl_next').'" /><input type="submit" name="do_discard" value="'.getLabel('lbl_exit').'" />';
 			} else {
-				$html_buttons = '<input type="submit" value="'.getLabel('lbl_run').' '.strEscapeHTML(Labels::parseTextVariables($arr_type_set['type']['name'])).'" /><input type="submit" name="discard" value="'.getLabel('lbl_exit').'" />';
+				$html_buttons = '<input type="submit" value="'.getLabel('lbl_run').' '.strEscapeHTML(Labels::parseTextVariables($arr_type_set['type']['name'])).'" /><input type="submit" name="do_discard" value="'.getLabel('lbl_exit').'" />';
 			}
 			
 			$this->html = '<form id="f:data_import:process_template-'.$arr_template['id'].'">
@@ -830,7 +830,7 @@ class data_import extends ingest_source {
 
 		// QUERY
 
-		if (($method == "source_file_insert" || $method == "update_source_file" || $method == "insert_template" || $method == "update_template") && $_POST['discard']) {
+		if (($method == "source_file_insert" || $method == "update_source_file" || $method == "insert_template" || $method == "update_template") && $this->is_discard) {
 			
 			if ($method == "source_file_insert" || $method == "update_source_file") {
 				$what = 'file';

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -596,17 +596,17 @@ class MergeTypeObjects extends StoreTypeObjects {
 			}
 		}
 				
-		$func_parse_sources = function($type, $arr_sources) {
+		$func_parse_references = function($type, $arr_referencing) { // Works for both sources and dynamic references
 			
-			foreach ($arr_sources[$this->type_id] as &$arr_source) {
+			foreach ($arr_referencing[$this->type_id] as &$arr_reference) {
 				
-				if (in_array($arr_source[$type.'_source_ref_object_id'], $this->arr_merge_object_ids)) {
-					$arr_source[$type.'_source_ref_object_id'] = $this->object_id;
+				if (in_array($arr_reference[$type.'_ref_object_id'], $this->arr_merge_object_ids)) {
+					$arr_reference[$type.'_ref_object_id'] = $this->object_id;
 				}
 			}
-			unset($arr_source);
+			unset($arr_reference);
 
-			return $arr_sources;
+			return $arr_referencing;
 		};
 		
 		foreach ($arr_type_object_values as $type_id => $arr_object_values) {
@@ -646,7 +646,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 				
 				if ($arr_values['object_sources']) {
 					
-					$value = $func_parse_sources('object', $arr_object['object']['object_sources']);
+					$value = $func_parse_references('object_source', $arr_object['object']['object_sources']);
 
 					$arr_object_store['object']['object_sources'] = $value;
 				}
@@ -659,13 +659,17 @@ class MergeTypeObjects extends StoreTypeObjects {
 					if ($arr_object_definition['object_definition']) {
 						
 						if ($arr_object_description['object_description_ref_type_id']) {
-
-							if ($arr_object_description['object_description_has_multi']) {
+							
+							if ($arr_object_description['object_description_is_dynamic']) { // Not necessarily updated in storage, i.e. Processes, Reversal
+									
+								$value = $func_parse_references('object_definition', $arr_object['object_definitions'][$object_description_id]['object_definition_ref_object_id']);
+							} else if ($arr_object_description['object_description_has_multi']) {
 								
 								$value = $arr_object['object_definitions'][$object_description_id]['object_definition_ref_object_id'];
 								$value = array_diff($value, $this->arr_merge_object_ids);
 								$value[] = $this->object_id;
 							} else {
+								
 								$value = $this->object_id;
 							}
 							
@@ -682,7 +686,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 					
 					if ($arr_object_definition['object_definition_sources']) {
 						
-						$value = $func_parse_sources('object_definition', $arr_object['object_definitions'][$object_description_id]['object_definition_sources']);
+						$value = $func_parse_references('object_definition_source', $arr_object['object_definitions'][$object_description_id]['object_definition_sources']);
 
 						$arr_object_store['object_definitions'][$object_description_id]['object_definition_sources'] = $value;
 					}
@@ -759,7 +763,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 					
 					if ($arr_object_sub['object_sub_sources']) {
 					
-						$value = $func_parse_sources('object_sub', $arr_object['object_subs'][$object_sub_id]['object_sub']['object_sub_sources']);
+						$value = $func_parse_references('object_sub_source', $arr_object['object_subs'][$object_sub_id]['object_sub']['object_sub_sources']);
 
 						$arr_object_store['object_subs'][$object_sub_id]['object_sub']['object_sub_sources'] = $value;
 					}
@@ -773,12 +777,16 @@ class MergeTypeObjects extends StoreTypeObjects {
 							
 							if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
 
-								if ($arr_object_sub_description['object_sub_description_has_multi']) {
+								if ($arr_object_description['object_sub_description_is_dynamic']) {
+									
+									$value = $func_parse_references('object_sub_definition', $arr_object['object_subs'][$object_sub_id]['object_sub_definitions'][$object_sub_description_id]['object_sub_definition_ref_object_id']);
+								} else if ($arr_object_sub_description['object_sub_description_has_multi']) {
 									
 									$value = $arr_object['object_subs'][$object_sub_id]['object_sub_definitions'][$object_sub_description_id]['object_sub_definition_ref_object_id'];
 									$value = array_diff($value, $this->arr_merge_object_ids);
 									$value[] = $this->object_id;
 								} else {
+									
 									$value = $this->object_id;
 								}
 								
@@ -795,7 +803,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 						
 						if ($arr_object_sub_definition['object_sub_definition_sources']) {
 						
-							$value = $func_parse_sources('object_sub_definition', $arr_object['object_subs'][$object_sub_id]['object_sub_definitions'][$object_sub_description_id]['object_sub_definition_sources']);
+							$value = $func_parse_references('object_sub_definition_source', $arr_object['object_subs'][$object_sub_id]['object_sub_definitions'][$object_sub_description_id]['object_sub_definition_sources']);
 
 							$arr_object_store['object_subs'][$object_sub_id]['object_sub_definitions'][$object_sub_description_id]['object_sub_definition_sources'] = $value;
 						}

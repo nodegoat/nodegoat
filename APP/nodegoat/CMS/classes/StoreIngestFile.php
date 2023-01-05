@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -200,7 +200,7 @@ class StoreIngestFile {
 			$arr_file['name'] = $filename;
 			
 			if (!isPath(DIR_HOME_TYPE_IMPORT.$filename)) {
-				$store_file = new FileStore($arr_file, ['dir' => DIR_HOME_TYPE_IMPORT, 'filename' => $filename]);
+				$store_file = new FileStore($arr_file, ['directory' => DIR_HOME_TYPE_IMPORT, 'filename' => $filename]);
 			}
 		}
 			

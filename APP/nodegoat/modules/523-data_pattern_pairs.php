@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -181,7 +181,7 @@ class data_pattern_pairs extends base_module {
 		</div>
 		
 		<menu class="options">
-			<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_pattern_pair').'" /><input type="submit" name="discard" value="'.getLabel('lbl_cancel').'" />
+			<input type="submit" value="'.getLabel('lbl_save').' '.getLabel('lbl_pattern_pair').'" /><input type="submit" name="do_discard" value="'.getLabel('lbl_cancel').'" />
 		</menu>';
 		
 		$this->validate['object_id'] = 'required';
@@ -387,7 +387,7 @@ class data_pattern_pairs extends base_module {
 			$this->data = $arr_datatable['output'];
 		}
 		
-		if (($method == "insert"  || $method == "update") && $_POST['discard']) {
+		if (($method == "insert"  || $method == "update") && $this->is_discard) {
 						
 			$this->html = $this->createAddPatternTypeObjectPair();
 			return;

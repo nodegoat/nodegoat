@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -324,7 +324,7 @@ class data_api extends base_module {
 			$arr_type_network_paths = ['start' => [$type_id => ['path' => [0]]]];
 		}
 		
-		$collect = new CollectTypesObjects($arr_type_network_paths, ($output_mode == 'raw' ? GenerateTypeObjects::VIEW_STORAGE : GenerateTypeObjects::VIEW_SET));
+		$collect = new CollectTypesObjects($arr_type_network_paths, ($output_mode == 'raw' ? GenerateTypeObjects::VIEW_STORAGE : GenerateTypeObjects::VIEW_SET_EXTERNAL));
 		$collect->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids, 'project_id' => $project_id]);
 		
 		if ($output_mode != 'raw') {
@@ -383,7 +383,7 @@ class data_api extends base_module {
 						
 						if ($object_description_id) {
 							
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
 								continue;
 							}
 							
@@ -405,7 +405,7 @@ class data_api extends base_module {
 						
 						if ($object_sub_details_id) {
 
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 								continue;
 							}
 							
@@ -415,7 +415,7 @@ class data_api extends base_module {
 							
 							if ($object_sub_description_id) {
 
-								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 									continue;
 								}
 								
@@ -442,7 +442,7 @@ class data_api extends base_module {
 
 					foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, $object_description_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
@@ -451,7 +451,7 @@ class data_api extends base_module {
 								
 					foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
+						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 							continue;
 						}
 
@@ -459,7 +459,7 @@ class data_api extends base_module {
 
 						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 													
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration('view', $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 								continue;
 							}
 								
@@ -499,7 +499,7 @@ class data_api extends base_module {
 			if ($_REQUEST) {
 				$request_id = $request_id.'?'.implode('&', $_REQUEST);
 			}
-			$schema = SERVER_PROTOCOL.SERVER_NAME_1100CC.'/model/type/';
+			$schema = SERVER_SCHEME.SERVER_NAME_1100CC.'/model/type/';
 			
 			// Target and output to the Response object directly
 			
@@ -1430,7 +1430,7 @@ class data_api extends base_module {
 		$arr_filters = $this->getRequestTypeFilters();
 		$arr_scope = $arr_analysis['scope'];
 		
-		$collect = data_analysis::getTypeAnalysisCollector($type_id, $arr_filters, $arr_scope);
+		$collect = data_analysis::getTypeAnalysisCollector($type_id, $arr_analysis, $arr_filters, $arr_scope);
 			
 		$analyse = new AnalyseTypeObjects($type_id, $arr_analysis);
 			
@@ -1560,8 +1560,8 @@ class data_api extends base_module {
 	// Get Data Reconcile
 		
 	private function apiDataReconcile() {
-	
-		// Version 8.1
+		
+		// Version 8.2
 	}
 	
 	protected function getRequestTypeFilters() {

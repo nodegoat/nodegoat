@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2022 LAB1100.
+ * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  *
@@ -256,6 +256,7 @@ class IngestTypeObjects {
 			// Update objects
 			
 			$storage = new StoreTypeObjects($this->type_id, false, $this->arr_owner);
+			$storage->setVersioning(true);
 			$storage->setMode(StoreTypeObjects::MODE_UPDATE, false);
 			$storage->setAppend($this->arr_append);		
 					
