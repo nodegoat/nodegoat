@@ -5618,7 +5618,7 @@ class StoreTypeObjects {
 			return $num;
 		}
 		
-		return bcmul($num, static::VALUE_NUMERIC_MULTIPLIER);
+		return is_numeric($num) ? bcmul($num, static::VALUE_NUMERIC_MULTIPLIER) : '';
 	}
 	
 	public static function int2Numeric($int) {
