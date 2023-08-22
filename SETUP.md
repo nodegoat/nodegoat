@@ -54,7 +54,7 @@ The following services make use of the 1100CC Programs environment. Make sure yo
 
 To be able to use nodegoat's Network Analysis features, you have to build its service.
 
-Copy `./PROGRAMS/network_analysis` from this repository to the same path in your 1100CC directory.
+Copy `./PROGRAMS/graph_analysis` from this repository to the same path in your 1100CC directory.
 
 Libraries needed for inclusion:
 * no additional libraries needed.
@@ -63,14 +63,14 @@ Libraries that need to be compiled:
 * no additional libraries needed.
 * Make sure you compiled Boost with its Graph Library (BGL) included.
 
-Use the `creation_station.sh` script to build and link network_analysis.
+Use the `creation_station.sh` script to build and link graph_analysis.
 
 ```bash
 cd /var/1100CC/PROGRAMS
 ./creation_station.sh
 ```
 
-When a program is compiled successfully, the path `var/1100CC/PROGRAMS/RUN/network_analysis` is returned and is ready to be used.
+When a program is compiled successfully, the path `var/1100CC/PROGRAMS/RUN/graph_analysis` is returned and is ready to be used.
 
 Setup a Job to run the service:
 1. Login to your nodegoat CMS and go to 'Jobs' (see the [1100CC Guides](https://lab1100.com/1100cc/guides#run-jobs)).
