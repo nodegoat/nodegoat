@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -21,7 +21,7 @@ class StorePatternsTypeObjectPair extends PatternEntity {
 	protected $arr_pairs = [];
 	protected $stmt_select_pattern_type_object = false;
 	
-	protected $arr_sql_pairs = false;
+	protected $arr_sql_pairs = [];
 	
 	public function __construct() {
 
@@ -169,7 +169,7 @@ class StorePatternsTypeObjectPair extends PatternEntity {
 					AND NOT EXISTS (SELECT TRUE
 							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
 						WHERE nodegoat_to.id = ".DB::getTable('DEF_NODEGOAT_PATTERN_TYPE_OBJECT_PAIRS').".object_id
-							AND ".GenerateTypeObjects::generateVersioning('any', 'object', 'nodegoat_to')."
+							AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ANY, 'object', 'nodegoat_to')."
 					)
 					"."
 		");

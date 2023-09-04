@@ -4,7 +4,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -1911,7 +1911,7 @@ function MapSocial(elm_draw, PARENT, options) {
 				
 				weight_conditions = size_node_stop;
 			}		
-				
+			
 			arr_node.weight = weight_conditions;
 		} else {
 			
@@ -2357,7 +2357,7 @@ function MapSocial(elm_draw, PARENT, options) {
 		var arr_parts = {};
 		var arr_grouped_colors = {};
 		var num_parts_condition_referenced = 0;
-		var num_parts_condition_none = 0;
+		var num_parts_self = 0;
 		var num_weight_conditions = 0;
 		
 		// Cross referenced conditions based on referenced object definitions
@@ -2378,13 +2378,13 @@ function MapSocial(elm_draw, PARENT, options) {
 				num_parts_condition_referenced++;
 			}
 			
-			if (arr_condition.color) {
-				arr_parts['o_'+arr_condition.source_id].colors.push(arr_condition.color);
+			if (arr_condition.color !== null) {
+				arr_parts['o_'+arr_condition.source_id].colors.push({color: arr_condition.color, portion: arr_condition.weight});
 			}
 			
-			num_weight_conditions += arr_condition.weight;
+			num_weight_conditions += arr_condition.weight_style;
 			
-			if (arr_condition.icon) {
+			if (arr_condition.icon !== null) {
 				arr_condition_icons.push(arr_condition.icon);
 			}
 		}
@@ -2410,13 +2410,13 @@ function MapSocial(elm_draw, PARENT, options) {
 				num_parts_condition_referenced++;
 			}
 			
-			if (arr_condition.color) {
-				arr_parts['s_'+object_id].colors.push(arr_condition.color);
+			if (arr_condition.color !== null) {
+				arr_parts['s_'+object_id].colors.push({color: arr_condition.color, portion: arr_condition.weight});
 			}
 			
-			num_weight_conditions += arr_condition.weight;
+			num_weight_conditions += arr_condition.weight_style;
 			
-			if (arr_condition.icon) {
+			if (arr_condition.icon !== null) {
 				arr_condition_icons.push(arr_condition.icon);
 			}
 		}
@@ -2432,13 +2432,14 @@ function MapSocial(elm_draw, PARENT, options) {
 				
 				const arr_condition = arr_node.conditions.object[i];
 								
-				if (arr_condition.color) {
-					arr_parts.object.colors.push(arr_condition.color);
+				if (arr_condition.color !== null) {
+					
+					arr_parts.object.colors.push({color: arr_condition.color, portion: arr_condition.weight});
 				}
 				
-				num_weight_conditions += arr_condition.weight;
+				num_weight_conditions += arr_condition.weight_style;
 				
-				if (arr_condition.icon) {
+				if (arr_condition.icon !== null) {
 					arr_condition_icons.push(arr_condition.icon);
 				}
 			}
@@ -2454,53 +2455,60 @@ function MapSocial(elm_draw, PARENT, options) {
 				if (!arr_object_subs_children[arr_condition.source_id].is_active) {
 					continue;
 				}
-					
+				
 				str_identifier += arr_condition.source_id;
 				
-				if (arr_condition.color) {
-					arr_parts.object.colors.push(arr_condition.color);
+				if (arr_condition.color !== null) {
+
+					arr_parts.object.colors.push({color: arr_condition.color, portion: arr_condition.weight});
 				}
 				
-				num_weight_conditions += arr_condition.weight;
+				num_weight_conditions += arr_condition.weight_style;
 				
-				if (arr_condition.icon) {
+				if (arr_condition.icon !== null) {
 					arr_condition_icons.push(arr_condition.icon);
 				}
 			}
 		}
 		
-		num_parts_condition_none = (num_parts_total - num_parts_condition_referenced);
+		num_parts_self = (num_parts_total - num_parts_condition_referenced);
 		
 		for (const part_id in arr_parts) {
 			
 			const arr_part = arr_parts[part_id];
+			const num_part_portion_total = arr_part.colors.reduce(function(num_sum, arr) { return num_sum + arr.portion; }, 0);
 			
-			const num_percentage_part = (part_id == 'object' ? (num_parts_condition_none / num_parts_total) : (1 / num_parts_total));
-			const num_percentage_part_color = (num_percentage_part / arr_part.colors.length);
+			let num_part_percentage = 0;			
+			if (part_id == 'object') {
+				num_part_percentage = (num_parts_self / num_parts_total);
+			} else {
+				num_part_percentage = (1 / num_parts_total);
+			}
+			const num_part_portion_percentage = (num_part_percentage / num_part_portion_total);
 			
 			for (let i = 0, len = arr_part.colors.length; i < len; i++) {
 				
-				const str_color = arr_part.colors[i];
+				const str_color = arr_part.colors[i].color;
 				
-				if (!arr_grouped_colors[str_color]) {
+				if (arr_grouped_colors[str_color] === undefined) {
 					
 					arr_grouped_colors[str_color] = {color: str_color, portion: 0};
 					arr_condition_colors.push(arr_grouped_colors[str_color]);
 				}
 				
-				arr_grouped_colors[str_color].portion += num_percentage_part_color;
+				arr_grouped_colors[str_color].portion += (arr_part.colors[i].portion * num_part_portion_percentage);
 			}
 		}	
 
 		if (!has_part_condition_object && num_parts_total > num_parts_condition_referenced) {
 
-			if (!arr_grouped_colors[arr_node.color]) {
+			if (arr_grouped_colors[arr_node.color] === undefined) {
 				
 				arr_grouped_colors[arr_node.color] = {color: arr_node.color, portion: 0};
 				arr_condition_colors.push(arr_grouped_colors[arr_node.color]);
 			}
 			
-			arr_grouped_colors[arr_node.color].portion += (num_parts_condition_none / num_parts_total);	
+			arr_grouped_colors[arr_node.color].portion += (num_parts_self / num_parts_total);	
 		}
 
 		if (!arr_condition_colors.length) {
@@ -2745,25 +2753,70 @@ function MapSocial(elm_draw, PARENT, options) {
 		});
 		
 		elm_selected_node_container = $('<figure />').addClass('selected-node hide').appendTo(elm_legends);
-		
-		elm[0].addEventListener('mousedown', function(e) {
-
-			if (cur_node_id !== false) {
+				
+		var func_mouse_down = function(e) {
+						
+			if (cur_node_id === false) {
+				
+				elm_selected_node_container.addClass('hide');
+				
+				elm[0].arr_link = false;
+				elm[0].arr_info_box = false;
+				
 				return;
 			}
 			
-			elm_selected_node_container.addClass('hide');
-		});
+			arr_nodes[cur_node_id].fixed = (arr_nodes[cur_node_id].fixed ? 2 : 1);
+			
+			PARENT.obj_map.onInteractDown = function() {};
+						
+			PARENT.obj_map.onInteractMove = function() {
 				
-		var is_mousedown = false;
-		
-		var func_mouse_down = function(e) {
+				is_dragging_node = true;
+				
+				const pos_hover = PARENT.obj_map.getMousePosition(false);
+				const arr_node = arr_nodes[cur_node_id];
+				
+				arr_node.x = ((pos_hover.x - (stage.position ? stage.position.x : 0)) / num_scale) - pos_translation.x;
+				arr_node.y = ((pos_hover.y - (stage.position ? stage.position.y : 0)) / num_scale) - pos_translation.y;
+				
+				arr_node.fx = arr_node.x;
+				arr_node.fy = arr_node.y;
+				
+				simulation.resume();
+				do_draw = true;
+			};
 			
-			is_mousedown = true;
-			
-			if (cur_node_id !== false) {
-				arr_nodes[cur_node_id].fixed = (arr_nodes[cur_node_id].fixed ? 2 : 1);
-			}
+			PARENT.obj_map.onInteractUp = function() {
+				
+				pos_hover_poll = false;
+				
+				if (is_dragging_node) {
+					
+					const arr_node = arr_nodes[cur_node_id];
+					
+					is_dragging_node = false;
+					
+					if (arr_node.fixed == 2) {
+						
+						arr_node.fixed = 0;
+						arr_node.fx = null;
+						arr_node.fy = null;
+					}
+
+					simulation.resume();
+					do_draw = true;
+				} else {
+
+					if (cur_node_id !== false && arr_nodes[cur_node_id].fixed == 1) {
+						arr_nodes[cur_node_id].fixed = 0;
+					}
+				}
+				
+				PARENT.obj_map.onInteractDown = false;
+				PARENT.obj_map.onInteractMove = false;
+				PARENT.obj_map.onInteractUp = false;
+			};
 		};
 			
 		elm[0].addEventListener('touchstart', function(e) {
@@ -2777,81 +2830,14 @@ function MapSocial(elm_draw, PARENT, options) {
 			func_mouse_down(e);
 		});		
 		elm[0].addEventListener('mousedown',  function(e) {
-			
+						
 			if (POSITION.isTouch()) {
 				return;
 			}
 			
 			func_mouse_down(e);
 		});
-
-		var func_mouse_move = function(e) {
-
-			if (is_mousedown && cur_node_id !== false) {
-				
-				e.preventDefault();
-				e.stopPropagation();
-
-				elm[0].arr_link = false;
-				elm[0].arr_info_box = false;
-				
-				is_dragging_node = true;
-				
-				const pos_hover = PARENT.obj_map.getMousePosition();
-				const arr_node = arr_nodes[cur_node_id];
-				
-				arr_node.x = ((pos_hover.x - (stage.position ? stage.position.x : 0)) / num_scale) - pos_translation.x;
-				arr_node.y = ((pos_hover.y - (stage.position ? stage.position.y : 0)) / num_scale) - pos_translation.y;
-				
-				arr_node.fx = arr_node.x;
-				arr_node.fy = arr_node.y;
-				
-				simulation.resume();
-				do_draw = true;
-			}
-		};
 		
-		elm[0].addEventListener('mousemove', func_mouse_move);
-		elm[0].addEventListener('touchmove', func_mouse_move);
-		
-		var func_mouse_up = function(e) {
-				
-			is_mousedown = false;
-			pos_hover_poll = false;
-			
-			if (is_dragging_node) {
-				
-				const arr_node = arr_nodes[cur_node_id];
-				
-				is_dragging_node = false;
-				
-				if (arr_node.fixed == 2) {
-					
-					arr_node.fixed = 0;
-					arr_node.fx = null;
-					arr_node.fy = null;
-				}
-
-				simulation.resume();
-				do_draw = true;
-			} else {
-
-				if (cur_node_id !== false && arr_nodes[cur_node_id].fixed == 1) {
-					arr_nodes[cur_node_id].fixed = 0;
-				}
-			}
-		};
-		
-		elm[0].addEventListener('mouseup', function(e) {
-			
-			if (POSITION.isTouch()) {
-				return;
-			}
-			
-			func_mouse_up(e);
-		});
-		elm[0].addEventListener('touchend', func_mouse_up);
-	
 		if (use_metrics) {
 			metrics_process = new MapNetworkMetrics(elm_legends, PARENT);
 		}
@@ -3557,17 +3543,17 @@ function MapSocial(elm_draw, PARENT, options) {
 			return;
 		}
 
-		var arr_source_node = arr_link.source;
-		var arr_target_node = arr_link.target;
+		const arr_source_node = arr_link.source;
+		const arr_target_node = arr_link.target;
 						
-		var has_source_node = (arr_source_node.out[arr_link.id] === true);
+		const has_source_node = (arr_source_node.out[arr_link.id] === true);
 		if (has_source_node) {
 			arr_source_node.out[arr_link.id] = false;
 			arr_source_node.count_out--;
 			arr_source_node.redraw_node = true;
 		}
 		
-		var has_target_object = (arr_target_node.in[arr_link.id] === true);
+		const has_target_object = (arr_target_node.in[arr_link.id] === true);
 		if (has_target_object) {
 			arr_target_node.in[arr_link.id] = false;
 			arr_target_node.count_in--;
@@ -3581,20 +3567,20 @@ function MapSocial(elm_draw, PARENT, options) {
 				arr_link.elm.dataset.visible = 0;
 			} else {
 				
-				var offset = arr_link.count * length_geometry_lines_position;
+				const num_offset = arr_link.count * length_geometry_lines_position;
 
-				buffer_geometry_lines_position.data[offset + 0] = 0;
-				buffer_geometry_lines_position.data[offset + 1] = 0;
-				buffer_geometry_lines_position.data[offset + 2] = 0;
-				buffer_geometry_lines_position.data[offset + 3] = 0;
-				buffer_geometry_lines_position.data[offset + 4] = 0;
-				buffer_geometry_lines_position.data[offset + 5] = 0;
-				buffer_geometry_lines_position.data[offset + 6] = 0;
-				buffer_geometry_lines_position.data[offset + 7] = 0;
-				buffer_geometry_lines_position.data[offset + 8] = 0;
-				buffer_geometry_lines_position.data[offset + 9] = 0;
-				buffer_geometry_lines_position.data[offset + 10] = 0;
-				buffer_geometry_lines_position.data[offset + 11] = 0;
+				buffer_geometry_lines_position.data[num_offset + 0] = 0;
+				buffer_geometry_lines_position.data[num_offset + 1] = 0;
+				buffer_geometry_lines_position.data[num_offset + 2] = 0;
+				buffer_geometry_lines_position.data[num_offset + 3] = 0;
+				buffer_geometry_lines_position.data[num_offset + 4] = 0;
+				buffer_geometry_lines_position.data[num_offset + 5] = 0;
+				buffer_geometry_lines_position.data[num_offset + 6] = 0;
+				buffer_geometry_lines_position.data[num_offset + 7] = 0;
+				buffer_geometry_lines_position.data[num_offset + 8] = 0;
+				buffer_geometry_lines_position.data[num_offset + 9] = 0;
+				buffer_geometry_lines_position.data[num_offset + 10] = 0;
+				buffer_geometry_lines_position.data[num_offset + 11] = 0;
 			}
 		}
 		
@@ -3607,14 +3593,14 @@ function MapSocial(elm_draw, PARENT, options) {
 			return;
 		}
 		
-		var num_alpha = 0.2;
+		const num_alpha = 0.2;
 
 		if (color) {
 			
 			arr_link.color = parseColorLink(color);
 		} else {
 			
-			var num_level = Math.round((1 - (arr_link.weight / num_link_weight_max)) * 200);
+			let num_level = Math.round((1 - (arr_link.weight / num_link_weight_max)) * 200);
 			if (num_level < 10) {
 				num_level = 10;
 			}
@@ -3629,37 +3615,37 @@ function MapSocial(elm_draw, PARENT, options) {
 				arr_link.elm.setAttribute('stroke', arr_link.color);
 			} else {
 				
-				const offset = arr_link.count * length_geometry_lines_color;
+				const num_offset = arr_link.count * length_geometry_lines_color;
 				const num_r = (arr_link.color.r / 255);
 				const num_g = (arr_link.color.g / 255);
 				const num_b = (arr_link.color.b / 255);
 				const num_a = arr_link.color.a;
 				
-				buffer_geometry_lines_color.data[offset + 0] = num_r;
-				buffer_geometry_lines_color.data[offset + 1] = num_g;
-				buffer_geometry_lines_color.data[offset + 2] = num_b;
-				buffer_geometry_lines_color.data[offset + 3] = num_a;
-				buffer_geometry_lines_color.data[offset + 4] = num_r;
-				buffer_geometry_lines_color.data[offset + 5] = num_g;
-				buffer_geometry_lines_color.data[offset + 6] = num_b;
-				buffer_geometry_lines_color.data[offset + 7] = num_a;
-				buffer_geometry_lines_color.data[offset + 8] = num_r;
-				buffer_geometry_lines_color.data[offset + 9] = num_g;
-				buffer_geometry_lines_color.data[offset + 10] = num_b;
-				buffer_geometry_lines_color.data[offset + 11] = num_a;
+				buffer_geometry_lines_color.data[num_offset + 0] = num_r;
+				buffer_geometry_lines_color.data[num_offset + 1] = num_g;
+				buffer_geometry_lines_color.data[num_offset + 2] = num_b;
+				buffer_geometry_lines_color.data[num_offset + 3] = num_a;
+				buffer_geometry_lines_color.data[num_offset + 4] = num_r;
+				buffer_geometry_lines_color.data[num_offset + 5] = num_g;
+				buffer_geometry_lines_color.data[num_offset + 6] = num_b;
+				buffer_geometry_lines_color.data[num_offset + 7] = num_a;
+				buffer_geometry_lines_color.data[num_offset + 8] = num_r;
+				buffer_geometry_lines_color.data[num_offset + 9] = num_g;
+				buffer_geometry_lines_color.data[num_offset + 10] = num_b;
+				buffer_geometry_lines_color.data[num_offset + 11] = num_a;
 
-				buffer_geometry_lines_color.data[offset + 12] = num_r;
-				buffer_geometry_lines_color.data[offset + 13] = num_g;
-				buffer_geometry_lines_color.data[offset + 14] = num_b;
-				buffer_geometry_lines_color.data[offset + 15] = num_a;
-				buffer_geometry_lines_color.data[offset + 16] = num_r;
-				buffer_geometry_lines_color.data[offset + 17] = num_g;
-				buffer_geometry_lines_color.data[offset + 18] = num_b;
-				buffer_geometry_lines_color.data[offset + 19] = num_a;
-				buffer_geometry_lines_color.data[offset + 20] = num_r;
-				buffer_geometry_lines_color.data[offset + 21] = num_g;
-				buffer_geometry_lines_color.data[offset + 22] = num_b;
-				buffer_geometry_lines_color.data[offset + 23] = num_a;
+				buffer_geometry_lines_color.data[num_offset + 12] = num_r;
+				buffer_geometry_lines_color.data[num_offset + 13] = num_g;
+				buffer_geometry_lines_color.data[num_offset + 14] = num_b;
+				buffer_geometry_lines_color.data[num_offset + 15] = num_a;
+				buffer_geometry_lines_color.data[num_offset + 16] = num_r;
+				buffer_geometry_lines_color.data[num_offset + 17] = num_g;
+				buffer_geometry_lines_color.data[num_offset + 18] = num_b;
+				buffer_geometry_lines_color.data[num_offset + 19] = num_a;
+				buffer_geometry_lines_color.data[num_offset + 20] = num_r;
+				buffer_geometry_lines_color.data[num_offset + 21] = num_g;
+				buffer_geometry_lines_color.data[num_offset + 22] = num_b;
+				buffer_geometry_lines_color.data[num_offset + 23] = num_a;
 				
 				do_update_geometry_lines_color = true;
 			}
@@ -3668,16 +3654,15 @@ function MapSocial(elm_draw, PARENT, options) {
 
 	var getDataDetails = function (object_id, arr_object_parents, arr_object_sub_parents) {
 		
-		//instead of storing this in the arr we work with, we collect it when we need it
-		var inferred = false;
+		let object = null;
 		
 		if (arr_data.objects[object_id]) {
 			
-			var object = arr_data.objects[object_id];
+			object = arr_data.objects[object_id];
 			
 		} else {
 			
-			var object = {object_definitions: {}};
+			object = {object_definitions: {}};
 			
 		}
 		arr_object_parents = arrUnique(arr_object_parents),
@@ -3685,7 +3670,7 @@ function MapSocial(elm_draw, PARENT, options) {
 		details = {source: {object_definitions: {}, object_subs: {}}, target: {object_definitions: {}, object_subs: {}}};
 		
 		//count all relations FROM context object
-		for (var object_definition_id in object.object_definitions) {
+		for (const object_definition_id in object.object_definitions) {
 			
 			if (object.object_definitions[object_definition_id] && object.object_definitions[object_definition_id].ref_object_id.length) {
 				details.source.object_definitions[object_definition_id] = object.object_definitions[object_definition_id].ref_object_id.length;
@@ -3693,25 +3678,25 @@ function MapSocial(elm_draw, PARENT, options) {
 		}
 		
 		//count all relations FROM context object sub objects based on object_sub_parents
-		for (var i = 0; i < arr_object_sub_parents.length; i++) {
+		for (let i = 0; i < arr_object_sub_parents.length; i++) {
 			
 			if (arr_data.object_subs[arr_object_sub_parents[i]].object_id == object_id) {
 				
-				var object_sub = arr_data.object_subs[arr_object_sub_parents[i]];
+				const object_sub = arr_data.object_subs[arr_object_sub_parents[i]];
 				
 				if (object_sub.object_sub_definitions) {
 					
-					for (var object_sub_definition_id in object_sub.object_sub_definitions) {
+					for (const object_sub_definition_id in object_sub.object_sub_definitions) {
 						
-						var arr_object_sub_definition = object_sub.object_sub_definitions[object_sub_definition_id];
+						const arr_object_sub_definition = object_sub.object_sub_definitions[object_sub_definition_id];
 						
 						if (arr_object_sub_definition && arr_object_sub_definition.ref_object_id.length) {
 							
-							for (var j = 0; j < arr_object_sub_definition.ref_object_id.length; j++) {
+							for (let j = 0; j < arr_object_sub_definition.ref_object_id.length; j++) {
 								
 								if (arr_object_sub_definition.ref_object_id[j] != object_id) {
 									
-									var type_id = arr_data.objects[object_sub.object_id].type_id;
+									const type_id = arr_data.objects[object_sub.object_id].type_id;
 									
 									if (!details.source.object_subs[type_id]) {
 										details.source.object_subs[type_id] = {};
@@ -3737,23 +3722,25 @@ function MapSocial(elm_draw, PARENT, options) {
 		}
 								
 		//count all relations TOWARDS context object based on object_parents
-		for (var i = 0; i < arr_object_parents.length; i++) {
+		for (let i = 0; i < arr_object_parents.length; i++) {
 			
 			if (arr_object_parents[i] != object_id) {
 				
+				let ref_object = null;
+				
 				if (arr_data.objects[arr_object_parents[i]]) {
-					var ref_object = arr_data.objects[arr_object_parents[i]];
+					ref_object = arr_data.objects[arr_object_parents[i]];
 				} else {
-					var ref_object = {'object_definitions': {}};
+					ref_object = {object_definitions: {}};
 				}
 				
-				for (var object_definition_id in ref_object.object_definitions) {
+				for (const object_definition_id in ref_object.object_definitions) {
 					
-					var arr_object_definition = ref_object.object_definitions[object_definition_id];
+					const arr_object_definition = ref_object.object_definitions[object_definition_id];
 					
 					if (arr_object_definition && arr_object_definition.ref_object_id.length) {
 						
-						for (var j = 0; j < arr_object_definition.ref_object_id.length; j++) {
+						for (let j = 0; j < arr_object_definition.ref_object_id.length; j++) {
 							
 							if (arr_object_definition.ref_object_id == object_id) {
 								
@@ -3774,25 +3761,25 @@ function MapSocial(elm_draw, PARENT, options) {
 		}
 		
 		//count all relations TOWARDS context object based on object_sub_parents
-		for (var i = 0; i < arr_object_sub_parents.length; i++) {
+		for (let i = 0; i < arr_object_sub_parents.length; i++) {
 			
 			if (arr_data.object_subs[arr_object_sub_parents[i]].object_id != object_id) {
 				
-				var object_sub = arr_data.object_subs[arr_object_sub_parents[i]];
+				const object_sub = arr_data.object_subs[arr_object_sub_parents[i]];
 				
 				if (object_sub.object_sub_definitions) {
 					
-					for (var object_sub_definition_id in object_sub.object_sub_definitions) {
+					for (const object_sub_definition_id in object_sub.object_sub_definitions) {
 						
-						var arr_object_sub_definition = object_sub.object_sub_definitions[object_sub_definition_id];
+						const arr_object_sub_definition = object_sub.object_sub_definitions[object_sub_definition_id];
 						
 						if (arr_object_sub_definition && arr_object_sub_definition.ref_object_id.length) {
 							
-							for (var j = 0; j < arr_object_sub_definition.ref_object_id.length; j++) {
+							for (let j = 0; j < arr_object_sub_definition.ref_object_id.length; j++) {
 								
 								if (arr_object_sub_definition.ref_object_id[j] == object_id) {
 									
-									var type_id = arr_data.objects[arr_data.object_subs[arr_object_sub_parents[i]].object_id].type_id;
+									const type_id = arr_data.objects[arr_data.object_subs[arr_object_sub_parents[i]].object_id].type_id;
 									
 									if (!details.target.object_subs[type_id]) {
 										details.target.object_subs[type_id] = {};
@@ -3887,7 +3874,7 @@ function MapSocial(elm_draw, PARENT, options) {
 							arr_node.child_links.push(link_id);	
 
 							// Weight of object applied to target node 
-							if (arr_object_definition.style && typeof arr_object_definition.style.weight !== 'undefined') {
+							if (arr_object_definition.style && arr_object_definition.style.weight != null) {
 
 								arr_target_node.weight_conditions += arr_object_definition.style.weight;
 								arr_target_node.weight_total += arr_object_definition.style.weight;
@@ -3951,7 +3938,7 @@ function MapSocial(elm_draw, PARENT, options) {
 								arr_object_sub_children.child_links.push(link_id);
 
 								// Cross Referencing weight added to target node
-								if (arr_object_sub_definition.style && typeof arr_object_sub_definition.style.weight !== 'undefined') {
+								if (arr_object_sub_definition.style && arr_object_sub_definition.style.weight != null) {
 
 									arr_target_node.weight_conditions += arr_object_sub_definition.style.weight;
 									arr_target_node.weight_total += arr_object_sub_definition.style.weight;
@@ -3980,7 +3967,7 @@ function MapSocial(elm_draw, PARENT, options) {
 			} 
 			
 			// Weight of sub-object applied to current node
-			if (arr_object_sub.style && typeof arr_object_sub.style.weight !== 'undefined') {
+			if (arr_object_sub.style && arr_object_sub.style.weight != null) {
 	
 				arr_node.weight_conditions += arr_object_sub.style.weight;
 				arr_node.weight_total += arr_object_sub.style.weight;
@@ -4019,7 +4006,8 @@ function MapSocial(elm_draw, PARENT, options) {
 		
 		const is_array_color = (typeof arr_style.color == 'object');
 		const is_array_icon = (typeof arr_style.icon == 'object');
-		const num_weight = (typeof arr_style.weight !== 'undefined' ? arr_style.weight : false);
+		const num_weight_style = (arr_style.weight != null ? arr_style.weight : null);
+		let num_weight_conditions = 0;
 		
 		const arr_legend_conditions = arr_data.legend.conditions;
 		
@@ -4027,6 +4015,8 @@ function MapSocial(elm_draw, PARENT, options) {
 			
 			const arr_legend_condition = arr_legend_conditions[str_identifier_condition];
 			
+			let num_weight = arr_parent_style.conditions[str_identifier_condition];
+			num_weight_conditions += num_weight;
 			let color = null;
 			let icon = null;
 
@@ -4036,13 +4026,15 @@ function MapSocial(elm_draw, PARENT, options) {
 					
 					for (let i = 0, len = arr_style.color.length; i < len; i++) {
 						
-						if (arr_legend_condition.color === arr_style.color[i]) {
-							
-							color = arr_style.color[i];
-							break;
+						if (arr_legend_condition.color !== arr_style.color[i]) {
+							continue;
 						}
+							
+						color = arr_style.color[i];
+						break;
 					}
 				} else if (arr_legend_condition.color === arr_style.color) {
+					
 					color = arr_style.color;
 				}
 			}
@@ -4053,22 +4045,34 @@ function MapSocial(elm_draw, PARENT, options) {
 					
 					for (let i = 0, len = arr_style.icon.length; i < len; i++) {
 						
-						if (arr_legend_condition.icon === arr_style.icon[i]) {
-							
-							icon = arr_style.icon[i];
-							break;
+						if (arr_legend_condition.icon !== arr_style.icon[i]) {
+							continue;
 						}
+						
+						icon = arr_style.icon[i];
+						break;
 					}
 				} else if (arr_legend_condition.icon === arr_style.icon) {
 					icon = arr_style.icon;
 				}
 			}
 			
-			if (color === null && icon === null && num_weight === null) {
+			if (color === null && icon === null && num_weight_style === null) {
 				continue;
 			}
 			
-			arr_conditions.push({identifier: str_identifier_condition, source_id: source_id, color: color, icon: icon, weight: (num_weight !== null ? num_weight : 0)});
+			arr_conditions.push({identifier: str_identifier_condition, source_id: source_id, weight: num_weight, weight_style: num_weight, color: color, icon: icon});
+		}
+		
+		if (num_weight_style !== null && num_weight_conditions != num_weight_style) {
+			
+			const num_scale = (num_weight_style / num_weight_conditions);
+			
+			for (let i = 0, len = arr_conditions.length; i < len; i++) {
+				
+				const arr_condition = arr_conditions[i]
+				arr_condition.weight_style = arr_condition.weight * num_scale;
+			}
 		}
 		
 		return arr_conditions;
@@ -4143,7 +4147,7 @@ function MapSocial(elm_draw, PARENT, options) {
 				var name = arr_object.name;
 				var type_id = arr_object.type_id;
 				
-				if (arr_object.style && typeof arr_object.style.weight !== 'undefined') {
+				if (arr_object.style && arr_object.style.weight != null) {
 					
 					arr_node.weight_conditions += arr_object.style.weight;
 					arr_node.weight_total += arr_object.style.weight;

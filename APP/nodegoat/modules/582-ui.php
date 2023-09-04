@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -44,7 +44,7 @@ class ui extends base_module {
 			$arr_language_hosts = cms_language::getLanguageHosts();
 			
 			if (!$arr_language_hosts[SERVER_NAME_SITE_NAME]) {
-				SiteStartVars::$language = $arr_public_user_interface['interface']['settings']['default_language'];
+				SiteStartVars::setContext(SiteStartVars::CONTEXT_LANGUAGE, $arr_public_user_interface['interface']['settings']['default_language']);
 			}
 		}
 		
@@ -178,7 +178,7 @@ class ui extends base_module {
 			if ($do_print) {
 				
 				$print_heading = '<div>
-								<p>'.SiteStartVars::getPageUrl(false, 0, false).'.p/'.$public_user_interface_id.'/'.$project_id.'/object/'.$type_id.'-'.$object_id.'</p>
+								<p>'.SiteStartVars::getPageURL(false, 0, false).'.p/'.$public_user_interface_id.'/'.$project_id.'/object/'.$type_id.'-'.$object_id.'</p>
 								<h3>'.Labels::parseTextVariables($arr_public_user_interface['interface']['name']).'</h3>
 							</div>';
 			}
@@ -605,8 +605,8 @@ class ui extends base_module {
 					.ui > .project-dynamic-data > .data > .object.show-explore-visualisations > div.has-explore-visualisations > div:first-child { margin: 0px; }
 					.ui > .project-dynamic-data > .data > .objects:empty + .object.show-explore-visualisations { border: 0px; }
 					
-					.ui > .project-dynamic-data > .data > .object .tabs { margin: 15px; }					
-					.ui > .project-dynamic-data > .data > .object > div > div > ul > li { margin: 10px; }
+					.ui > .project-dynamic-data > .data > .object > div .tabs { margin: 15px; }
+					.ui > .project-dynamic-data > .data > .object > div > div:not(.tabs) > ul { padding: 12px;  }
 					
 					.ui .head { margin: 0px; position: relative; background-color: #777; display: flex; justify-content: space-between; width: 100%; }	
 					.ui .head > .object-thumbnail-image { display: block; margin: 0; padding: 0; height: 60px; width: 60px; min-width: 60px; background-repeat: no-repeat; background-position: center 10%; background-size: cover;  }	
@@ -892,13 +892,13 @@ class ui extends base_module {
 						
 						.ui.responsive-layout-enabled > .project-dynamic-data > .data > .objects:empty + .object,
 						.ui.responsive-layout-enabled > .project-dynamic-data > .data > .object { border-top: 4px solid #f3f3f3; max-width: 100vw; padding: 0; }																																
-						.ui.responsive-layout-enabled > .project-dynamic-data > .data > .object-thumbnail-container { display: flex; position: fixed; right: 0; left: 0; bottom: 0; height: 80px; z-index: 1; background-color: #eee; padding: 15px; box-sizing: border-box; }																
-						.ui.responsive-layout-enabled > .project-dynamic-data > .data > .object-thumbnail-container:empty { display: none; }		
+						.ui > .project-dynamic-data > .data > .object-thumbnail-container { display: flex; position: fixed; right: 0; left: 0; bottom: 0; height: 80px; z-index: 3; background-color: #eee; padding: 15px; box-sizing: border-box; }																
+						.ui > .project-dynamic-data > .data > .object-thumbnail-container:empty { display: none; }		
 
 						.ui.responsive-layout-enabled > .project-dynamic-data > .data > .object ul > li.object-subs .tabs { max-width: 90vw; }
 
-						.ui.responsive-layout-enabled > .project-dynamic-data > .data > .object-thumbnail-container > div { width: calc(100% - 60px); display: flex; box-sizing: border-box; height: 50px; background-color: #fff; }							
-						.ui.responsive-layout-enabled > .project-dynamic-data > .data > .object-thumbnail-container button { margin-left: 10px; display: inline-block; width: 50px; height: 50px; background-color: #ddd; color: #444; line-height: 25px; text-align: center; vertical-align: middle;  border: 0;}		
+						.ui > .project-dynamic-data > .data > .object-thumbnail-container > div { width: calc(100% - 60px); display: flex; box-sizing: border-box; height: 50px; background-color: #fff; }							
+						.ui > .project-dynamic-data > .data > .object-thumbnail-container button { margin-left: 10px; display: inline-block; width: 50px; height: 50px; background-color: #ddd; color: #444; line-height: 25px; text-align: center; vertical-align: middle;  border: 0;}		
 
 						.ui.responsive-layout-enabled > .project-dynamic-data > .data div.head > h1 { font-size: 17px; }		
 
@@ -967,8 +967,8 @@ class ui extends base_module {
 							
 								cur = elm_first_project;
 							}
-						}
-					
+						}					
+						
 						cur.siblings().removeClass('active');
 						
 						cur.addClass('active').quickCommand(function(arr_data) {
@@ -981,6 +981,22 @@ class ui extends base_module {
 
 							return elm_project_dynamic_nav;
 						});
+						
+						var str_title = document.title;
+						var arr_title = str_title.split(' | ');
+						
+						if (arr_title.length > 2 || arr_title.length == 1) {
+							str_title = arr_title[0];
+						} else if (arr_title.length == 2) {
+							str_title = arr_title[1];
+						} 
+						
+						document.title = str_title;
+						elm_scripter.closest('html').find('meta[property=og\\\:title]').attr('content', str_title);
+
+						setTimeout(function(){
+							elm_scripter.find('#nav-toggle').prop('checked', false);
+						},1000); 
 					});
 					
 					elm_scripter.find('[id^=y\\\:ui\\\:view_text-]').each(function() {
@@ -1091,7 +1107,7 @@ class ui extends base_module {
 			
 			if ($id == 0) {
 
-				$id = cms_nodegoat_public_interfaces::getPublicInterfaceProjectIds($public_user_interface_id, 1);
+				$id = cms_nodegoat_public_interfaces::getPublicInterfaceProjectIDs($public_user_interface_id, 1);
 			}
 			
 			self::setPublicUserInterfaceActiveCustomProjectId($id);
@@ -1161,7 +1177,7 @@ class ui extends base_module {
 			
 		} else if ($mode == 'project') {
 			
-			$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds($public_user_interface_id, $project_id, false);
+			$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id, $project_id, false);
 			
 			if ($arr_public_interface_project_types[$type_id]) {
 				$enabled = true;
@@ -1169,7 +1185,7 @@ class ui extends base_module {
 			
 		} else if ($mode == 'filter') {
 			
-			$arr_public_interface_project_filter_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds($public_user_interface_id, $project_id, true);
+			$arr_public_interface_project_filter_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id, $project_id, true);
 			
 			if ($arr_public_interface_project_filter_types[$type_id]) {
 				$enabled = true;
@@ -1186,7 +1202,7 @@ class ui extends base_module {
 		
 		if ($arr) {
 			
-			$arr_request_vars = SiteStartVars::getModVariables(0);
+			$arr_request_vars = SiteStartVars::getModuleVariables(0);
 			
 			if ($arr['display_mode'] === false && $arr_request_vars[4]) {
 				
@@ -1203,20 +1219,20 @@ class ui extends base_module {
 			}
 
 			$arr_public_user_interface_module_vars = [
-														$public_user_interface_id, 
-														$public_user_interface_active_custom_project_id,
-														($arr['set'] ?: $arr_request_vars[2]),
-														($arr['id'] ?: $arr_request_vars[3]),
-														$display_mode,
-														($arr['start'] ?: $arr_request_vars[5])
-													];
+				$public_user_interface_id, 
+				$public_user_interface_active_custom_project_id,
+				($arr['set'] ?: $arr_request_vars[2]),
+				($arr['id'] ?: $arr_request_vars[3]),
+				$display_mode,
+				($arr['start'] ?: $arr_request_vars[5])
+			];
 
 		} else {
 
 			$arr_public_user_interface_module_vars = [$public_user_interface_id, $public_user_interface_active_custom_project_id];
 		}
 
-		SiteEndVars::setModVariables(0, $arr_public_user_interface_module_vars);
+		SiteEndVars::setModuleVariables(0, $arr_public_user_interface_module_vars);
 	}
 	
 	public static function getPublicUserInterfaceModuleVars() {
@@ -1224,11 +1240,11 @@ class ui extends base_module {
 		self::setPublicUserInterfaceId();
 		self::setPublicUserInterfaceActiveCustomProjectId();
 		
-		$arr_request_vars = SiteStartVars::getModVariables(0);
+		$arr_request_vars = SiteStartVars::getModuleVariables(0);
 
 		if ($arr_request_vars[2]) {
 
-			$arr_vars = ['set' => $arr_request_vars[2], 'id' => $arr_request_vars[3], 'display_mode' => (strpos($arr_request_vars[4], 'soc') !== false ? substr($arr_request_vars[4], 0, 3) : $arr_request_vars[4]), 'start' => $arr_request_vars[5]];
+			$arr_vars = ['set' => $arr_request_vars[2], 'id' => $arr_request_vars[3], 'display_mode' => ($arr_request_vars[4] ? (strpos($arr_request_vars[4], 'soc') !== false ? substr($arr_request_vars[4], 0, 3) : $arr_request_vars[4]) : false), 'start' => $arr_request_vars[5]];
 			SiteEndVars::setFeedback('arr_public_user_interface_module_vars', $arr_vars, true);
 			
 		} else {
@@ -1275,9 +1291,9 @@ class ui extends base_module {
 		
 		if (!SiteStartVars::getFeedback('public_user_interface_id')) {
 			
-			if (SiteStartVars::getModVariables(0)[0]) {
+			if (SiteStartVars::getModuleVariables(0)[0]) {
 				
-				$url_public_user_interface_id = SiteStartVars::getModVariables(0)[0];
+				$url_public_user_interface_id = SiteStartVars::getModuleVariables(0)[0];
 			
 				if (cms_nodegoat_public_interfaces::getPublicInterfaces($url_public_user_interface_id)) {
 					$public_user_interface_id = $url_public_user_interface_id;
@@ -1286,7 +1302,7 @@ class ui extends base_module {
 			
 			if (!$public_user_interface_id) {
 				
-				$public_user_interface_id = cms_nodegoat_public_interfaces::getDefaultPublicInterfaceId();
+				$public_user_interface_id = cms_nodegoat_public_interfaces::getDefaultPublicInterfaceID();
 			}					
 
 			SiteEndVars::setFeedback('public_user_interface_id', $public_user_interface_id, true);
@@ -1297,7 +1313,7 @@ class ui extends base_module {
 		
 		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
 		$arr_public_user_interface = cms_nodegoat_public_interfaces::getPublicInterfaces($public_user_interface_id);	
-		$url_project_id = SiteStartVars::getModVariables(0)[1];
+		$url_project_id = SiteStartVars::getModuleVariables(0)[1];
 		
 		if ((int)$id) {
 			
@@ -1310,7 +1326,7 @@ class ui extends base_module {
 		} else if (SiteStartVars::getFeedback('public_user_interface_id')) {
 			
 			$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-			$public_user_interface_active_custom_project_id = cms_nodegoat_public_interfaces::getPublicInterfaceProjectIds($public_user_interface_id, 1);
+			$public_user_interface_active_custom_project_id = cms_nodegoat_public_interfaces::getPublicInterfaceProjectIDs($public_user_interface_id, 1);
 		}
 		
 		if ($public_user_interface_active_custom_project_id) {

@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -30,7 +30,7 @@ class data_view extends base_module {
 		);
 		FormatTags::addCode('entity_open', '/'.StoreTypeObjects::TAGCODE_PARSE_TEXT_ENTITY_OPEN.'/s',
 			function ($arr_match) {
-				return '<span class="a entity" title="'.htmlspecialchars($arr_match[1]).'">'; 
+				return '<span class="a entity" title="'.strEscapeHTML($arr_match[1]).'">'; 
 			}
 		);
 		FormatTags::addCode('entity_close', '/'.StoreTypeObjects::TAGCODE_PARSE_TEXT_ENTITY_CLOSE.'/s',
@@ -70,7 +70,7 @@ class data_view extends base_module {
 		}
 				
 		$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ALL, false, $arr_type_set);			
-		$filter->setVersioning('added');
+		$filter->setVersioning(GenerateTypeObjects::VERSIONING_ADDED);
 		$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => $arr_ref_type_ids, 'project_id' => $project_id]);
 		$filter->setSelection($arr_selection);
 		
@@ -102,7 +102,7 @@ class data_view extends base_module {
 		}
 		
 		$arr_source_types = $arr_object['object']['object_sources'];
-		$arr_type_object_references = FilterTypeObjects::getTypeObjectReferenced($type_id, $object_id, $arr_ref_type_ids);
+		$arr_type_object_references = FilterTypeObjects::getTypeObjectsReferenced($type_id, $object_id, $arr_ref_type_ids, ['sources' => true]);
 		$str_version = '';
 		
 		if ($_SESSION['USER_ID']) {
@@ -110,10 +110,11 @@ class data_view extends base_module {
 			$storage = new StoreTypeObjects($type_id, $object_id, $_SESSION['USER_ID']);
 			$arr_version_user = $storage->getTypeObjectVersionsUsers();
 				
-			if ($arr_version_user[-1]) {
-				Labels::setVariable('name', '['.$arr_version_user[-1]['name'].']');
-				Labels::setVariable('date', date('d-m-Y', strtotime($arr_version_user[-1]['date'])));
-				$str_version = getLabel('inf_added_by_on');
+			if ($arr_version_user[StoreTypeObjects::VERSION_NEW]) {
+				
+				Labels::setVariable('name', '<span class="user-name">'.$arr_version_user[StoreTypeObjects::VERSION_NEW]['name'].'</span>');
+				Labels::setVariable('date', date('d-m-Y', strtotime($arr_version_user[StoreTypeObjects::VERSION_NEW]['date'])));
+				$str_version = Response::addParseDelay(getLabel('inf_added_by_on'), 'strEscapeHTML');
 			}
 		}
 		
@@ -153,7 +154,7 @@ class data_view extends base_module {
 						
 						$arr_object_definition = $arr_object['object_definitions'][$object_description_id];
 						
-						if ((!$arr_object_definition['object_definition_value'] && !$arr_object_definition['object_definition_ref_object_id']) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
+						if ((!$arr_object_definition['object_definition_value'] && !$arr_object_definition['object_definition_ref_object_id']) || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, $object_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
 							continue;
 						}
 						
@@ -223,7 +224,7 @@ class data_view extends base_module {
 					
 					foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 						
-						if (!$arr_object_subs_info[$object_sub_details_id] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
+						if (!$arr_object_subs_info[$object_sub_details_id] || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, false, $object_sub_details_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 							continue;
 						}
 						
@@ -235,32 +236,32 @@ class data_view extends base_module {
 						.'</span></a></li>';
 						
 						$arr_columns = [];
-						$nr_column = 0;
+						$num_column = 0;
 						
 						if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_date']) {
 							
 							$arr_columns[] = '<th class="date" data-sort="asc-0"><span>'.getLabel('lbl_date_start').'</span></th><th class="date"><span>'.getLabel('lbl_date_end').'</span></th>';
-							$nr_column += 2;
+							$num_column += 2;
 						}
 						if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_location']) {
 							
 							$arr_columns[] = '<th class="limit disable-sort"></th><th class="max limit disable-sort"><span>'.getLabel('lbl_location').'</span></th>';
-							$nr_column += 2;
+							$num_column += 2;
 						}
 								
 						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 							
-							if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+							if (!$arr_object_sub_description['object_sub_description_in_overview'] || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 								continue;
 							}
 							
 							$str_name = Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']);
 									
-							$arr_columns[] = '<th class="limit'.($nr_column == 0 ? ' max' : '').($arr_object_sub_description['object_sub_description_value_type'] == 'date' ? ' date' : '').'">'.($arr_object_sub_description['object_sub_description_is_referenced'] ? '<span>'
+							$arr_columns[] = '<th class="limit'.($num_column == 0 ? ' max' : '').($arr_object_sub_description['object_sub_description_value_type'] == 'date' ? ' date' : '').'">'.($arr_object_sub_description['object_sub_description_is_referenced'] ? '<span>'
 								.'<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span>'
 								.'<span>'.$str_name.'</span>
 							</span>' : '<span>'.$str_name.'</span>').'</th>';
-							$nr_column++;
+							$num_column++;
 						}
 						
 						$return_content = '<div>
@@ -270,7 +271,7 @@ class data_view extends base_module {
 								.'</tr></thead>
 								<tbody>
 									<tr>
-										<td colspan="'.($nr_column).'" class="empty">'.getLabel('msg_loading_server_data').'</td>
+										<td colspan="'.($num_column).'" class="empty">'.getLabel('msg_loading_server_data').'</td>
 									</tr>
 								</tbody>
 							</table>
@@ -478,7 +479,7 @@ class data_view extends base_module {
 						$object_sub_description_id = $arr_object_sub_description['object_sub_description_id'];
 						$arr_object_sub_definition = $arr_object_sub['object_sub_definitions'][$object_sub_description_id];
 
-						if ((!$arr_object_sub_definition['object_sub_definition_value'] && !$arr_object_sub_definition['object_sub_definition_ref_object_id']) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) || $arr_object_sub_definition['object_sub_definition_style'] == 'hide') {
+						if ((!$arr_object_sub_definition['object_sub_definition_value'] && !$arr_object_sub_definition['object_sub_definition_ref_object_id']) || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) || $arr_object_sub_definition['object_sub_definition_style'] == 'hide') {
 							continue;
 						}
 						
@@ -808,7 +809,7 @@ class data_view extends base_module {
 		
 		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_ref_type_ids = StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']);
-		$arr_type_object_references = FilterTypeObjects::getTypeObjectReferenced($type_id, $object_id, $arr_ref_type_ids);
+		$arr_type_object_references = FilterTypeObjects::getTypeObjectsReferenced($type_id, $object_id, $arr_ref_type_ids, ['count' => true, 'sources' => true]);
 		
 		if (!$arr_type_object_references) {
 			return '';
@@ -843,7 +844,7 @@ class data_view extends base_module {
 							continue;
 						}
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_reference_type_set, $object_description_id)) {
+						if (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_reference_type_set, $object_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_reference_type_set, $object_description_id)) {
 							continue;
 						}
 						
@@ -875,7 +876,7 @@ class data_view extends base_module {
 							continue;
 						}
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_reference_type_set, false, $object_sub_details_id)) {
+						if (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_reference_type_set, false, $object_sub_details_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_reference_type_set, false, $object_sub_details_id)) {
 							continue;
 						}
 						
@@ -898,7 +899,7 @@ class data_view extends base_module {
 									continue;
 								}
 								
-								if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_reference_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+								if (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_reference_type_set, false, $object_sub_details_id, $object_sub_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_reference_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 									continue;
 								}
 						
@@ -942,7 +943,7 @@ class data_view extends base_module {
 								continue;
 							}
 							
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_reference_type_set, $object_description_id)) {
+							if (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_reference_type_set, $object_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_reference_type_set, $object_description_id)) {
 								continue;
 							}
 
@@ -985,7 +986,7 @@ class data_view extends base_module {
 								continue;
 							}
 							
-							if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_reference_type_set, false, $object_sub_details_id)) {
+							if (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_reference_type_set, false, $object_sub_details_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_reference_type_set, false, $object_sub_details_id)) {
 								continue;
 							}
 							
@@ -1010,7 +1011,7 @@ class data_view extends base_module {
 										continue;
 									}
 									
-									if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_reference_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+									if (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_reference_type_set, false, $object_sub_details_id, $object_sub_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_reference_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 										continue;
 									}
 
@@ -1152,7 +1153,7 @@ class data_view extends base_module {
 					
 					foreach ($arr_options['dynamic_object_descriptions'] as $object_description_id) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
+						if (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, $object_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
@@ -1160,17 +1161,17 @@ class data_view extends base_module {
 					}
 				} else {
 					
-					$nr_column = 0;
+					$num_column = 0;
 					
 					foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 					
-						if (!$arr_object_description['object_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
+						if (!$arr_object_description['object_description_in_overview'] || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, $object_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
-						$return .= '<th class="limit'.(!$arr_type_set['type']['object_name_in_overview'] && $nr_column == 0 ? ' max' : '').'"><span>'.Labels::parseTextVariables($arr_object_description['object_description_name']).'</span></th>';
+						$return .= '<th class="limit'.(!$arr_type_set['type']['object_name_in_overview'] && $num_column == 0 ? ' max' : '').'"><span>'.Labels::parseTextVariables($arr_object_description['object_description_name']).'</span></th>';
 						
-						$nr_column++;
+						$num_column++;
 					}
 				}
 
@@ -1208,7 +1209,7 @@ class data_view extends base_module {
 		$filter_reset->clearResultInfo();
 		
 		$arr_columns = [];
-		$nr_column = 0;
+		$num_column = 0;
 		
 		if ($setting == 'select') {
 			$arr_columns[] = '<th class="disable-sort"></th>';
@@ -1217,27 +1218,27 @@ class data_view extends base_module {
 		if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_date']) {
 			
 			$arr_columns[] = '<th class="date" data-sort="asc-0"><span>'.getLabel('lbl_date_start').'</span></th><th class="date"><span>'.getLabel('lbl_date_end').'</span></th>';
-			$nr_column += 2;
+			$num_column += 2;
 		}
 		if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_location']) {
 			
 			$arr_columns[] = '<th class="limit disable-sort"></th><th class="max limit disable-sort"><span>'.getLabel('lbl_location').'</span></th>';
-			$nr_column += 2;
+			$num_column += 2;
 		}
 				
 		foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 			
-			if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+			if (!$arr_object_sub_description['object_sub_description_in_overview'] || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 				continue;
 			}
 			
 			$str_name = Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']);
 					
-			$arr_columns[] = '<th class="limit'.($nr_column == 0 ? ' max' : '').($arr_object_sub_description['object_sub_description_value_type'] == 'date' ? ' date' : '').'">'.($arr_object_sub_description['object_sub_description_is_referenced'] ? '<span>'
+			$arr_columns[] = '<th class="limit'.($num_column == 0 ? ' max' : '').($arr_object_sub_description['object_sub_description_value_type'] == 'date' ? ' date' : '').'">'.($arr_object_sub_description['object_sub_description_is_referenced'] ? '<span>'
 				.'<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span>'
 				.'<span>'.$str_name.'</span>
 			</span>' : '<span>'.$str_name.'</span>').'</th>';
-			$nr_column++;
+			$num_column++;
 		}
 		
 		$return = cms_general::createDataTableHeading('d:data_view:data_object_sub_details-'.$type_id.'_'.$object_id.'_'.$object_sub_details_id.'_'.$option.'_'.$setting, ['filter' => ($filter ? 'y:data_filter:open_filter-'.$type_id : false), 'search' => false, 'pause' => $pause, 'order' => true]).'
@@ -1246,7 +1247,7 @@ class data_view extends base_module {
 			.'</tr></thead>
 			<tbody>
 				<tr>
-					<td colspan="'.($nr_column).'" class="empty">'.getLabel('msg_loading_server_data').'</td>
+					<td colspan="'.($num_column).'" class="empty">'.getLabel('msg_loading_server_data').'</td>
 				</tr>
 			</tbody>
 		</table>';
@@ -1480,12 +1481,12 @@ class data_view extends base_module {
 			$arr_project_type = $arr_project['types'][$type_id];
 			$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project_type, StoreCustomProject::ACCESS_PURPOSE_ANY);
 			
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
+			if (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, false, $object_sub_details_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id)) {
 				return;
 			}
 
 			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ALL, false, $arr_type_set); // Could be a referenced sub-object
-			$filter->setVersioning('added');
+			$filter->setVersioning(GenerateTypeObjects::VERSIONING_ADDED);
 			$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE_INCLUDE, toolbar::getTypeConditions($type_id));
 			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
 			$filter->setSelection(['object' => true, 'object_descriptions' => []]);
@@ -1571,23 +1572,17 @@ class data_view extends base_module {
 			$arr_project_type = $arr_project['types'][$type_id];
 			$arr_type_set = StoreType::getTypeSet($type_id);
 			
-			if ($arr_option_dynamic_object_descriptions) {
-								
-				$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ALL, true);
-				$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE, toolbar::getTypeConditions($type_id));
-				$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
-			} else {
-				
-				$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_OVERVIEW, true);
-				$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE, toolbar::getTypeConditions($type_id));
-				$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
-			}
+			$mode_view = ($arr_option_dynamic_object_descriptions ? GenerateTypeObjects::VIEW_ALL : GenerateTypeObjects::VIEW_OVERVIEW);
+			
+			$filter = new FilterTypeObjects($type_id, $mode_view, true);
+			$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE, toolbar::getTypeConditions($type_id));
+			$filter->setScope(['users' => $_SESSION['USER_ID'], 'types' => StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']), 'project_id' => $_SESSION['custom_projects']['project_id']]);
 			
 			$arr_selection = [['object' => true, 'object_descriptions' => [], 'object_sub_details' => []]];
 			
 			foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 				
-				if ((!$arr_object_description['object_description_in_overview'] && !$arr_option_dynamic_object_descriptions) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
+				if ((!$arr_object_description['object_description_in_overview'] && !$arr_option_dynamic_object_descriptions) || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, $object_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
 					continue;
 				}
 				
@@ -1647,8 +1642,8 @@ class data_view extends base_module {
 				$filter->setOrder($arr_ordering); // Object dating
 			}
 			
-			if (isset($_POST['nr_records_start']) && $_POST['nr_records_length'] != '-1') {
-				$filter->setLimit([$_POST['nr_records_start'], $_POST['nr_records_length']]);
+			if (isset($_POST['num_records_start']) && $_POST['num_records_length'] != '-1') {
+				$filter->setLimit([$_POST['num_records_start'], $_POST['num_records_length']]);
 			}
 
 			$arr_filter = [];
@@ -1744,7 +1739,7 @@ class data_view extends base_module {
 			}
 			if ($option_referenced_object) { // Referenced object id
 				
-				$arr_filter['referenced_object'] = ['object_id' => $option_referenced_object];
+				$arr_filter['referenced_object'] = ['object_id' => $option_referenced_object, 'type_id' => $option_referenced_type, 'options' => ['sources' => true]];
 				
 				if ($arr_option_dynamic_object_descriptions) {
 					
@@ -1754,13 +1749,13 @@ class data_view extends base_module {
 			if ($arr_filter['reference_object_filter']) {
 				
 				$arr_reference_object_filter = json_decode($arr_filter['reference_object_filter'], true);
-				$arr_reference_object_filter = (array_filter($arr_reference_object_filter) ?: 1); // Empty filter? Show nothing => 1.
+				$arr_reference_object_filter = array_filter($arr_reference_object_filter);
 				
 				$arr_filter['referenced_object']['filter'] = $arr_reference_object_filter;
 			}
 			
 			if (!$arr_filter['object_versioning'] || $arr_filter['object_versioning']['version']) {
-				$filter->setVersioning(($arr_filter['object_versioning']['version'] ? 'full' : 'added'));
+				$filter->setVersioning(($arr_filter['object_versioning']['version'] ? GenerateTypeObjects::VERSIONING_FULL : GenerateTypeObjects::VERSIONING_ADDED));
 			}
 			
 			if ($has_filter_input) {
@@ -1794,7 +1789,7 @@ class data_view extends base_module {
 			}	
 			
 			$arr_filter_search = [];
-						
+			
 			if ($_POST['search']) {
 				$arr_filter_search['search'] = $_POST['search'];
 			}
@@ -1962,7 +1957,7 @@ class data_view extends base_module {
 			$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project_type, StoreCustomProject::ACCESS_PURPOSE_ANY);
 			$arr_object_sub_details = $arr_type_set['object_sub_details'][$object_sub_details_id];
 			
-			if ($object_sub_details_id != 'all' && ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id))) {
+			if ($object_sub_details_id != 'all' && (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, false, $object_sub_details_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id))) {
 				return;
 			}
 			
@@ -1977,7 +1972,7 @@ class data_view extends base_module {
 		
 				foreach ($arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 					
-					if (!$arr_object_sub_description['object_sub_description_in_overview'] || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_sub_description['object_sub_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+					if (!$arr_object_sub_description['object_sub_description_in_overview'] || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
 						continue;
 					}
 					
@@ -2010,7 +2005,7 @@ class data_view extends base_module {
 				
 				foreach ($arr_type_set['object_sub_details'] as $cur_object_sub_details_id => $arr_cur_object_sub_details) {
 					
-					if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_cur_object_sub_details['object_sub_details']['object_sub_details_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $cur_object_sub_details_id)) {
+					if (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, false, $cur_object_sub_details_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $cur_object_sub_details_id)) {
 						continue;
 					}
 					
@@ -2051,7 +2046,7 @@ class data_view extends base_module {
 				$arr_filter['search'][] = $_POST['search'];
 			}
 			if (!$arr_filter['object_versioning'] || !empty($arr_filter['object_versioning']['version'])) {
-				$filter->setVersioning((!empty($arr_filter['object_versioning']['version']) ? 'full' : 'added'));
+				$filter->setVersioning((!empty($arr_filter['object_versioning']['version']) ? GenerateTypeObjects::VERSIONING_FULL : GenerateTypeObjects::VERSIONING_ADDED));
 			}
 			if ($arr_filter) {
 				$filter->setFilter($arr_filter, true);
@@ -2103,8 +2098,8 @@ class data_view extends base_module {
 					}
 				}
 			}
-			if (isset($_POST['nr_records_start']) && $_POST['nr_records_length'] != '-1') {
-				$filter->setLimitObjectSubs($object_sub_details_id, [$_POST['nr_records_start'], $_POST['nr_records_length']]);
+			if (isset($_POST['num_records_start']) && $_POST['num_records_length'] != '-1') {
+				$filter->setLimitObjectSubs($object_sub_details_id, [$_POST['num_records_start'], $_POST['num_records_length']]);
 			}
 			
 			if ($arr_project_type['type_filter_id']) {
@@ -2237,8 +2232,8 @@ class data_view extends base_module {
 					}
 				}
 			}
-			if (isset($_POST['nr_records_start']) && $_POST['nr_records_length'] != '-1') {
-				$external->setLimit([$_POST['nr_records_start'], $_POST['nr_records_length']]);
+			if (isset($_POST['num_records_start']) && $_POST['num_records_length'] != '-1') {
+				$external->setLimit([$_POST['num_records_start'], $_POST['num_records_length']]);
 			}
 			
 			$external->setFilter($arr_filter);
@@ -2277,11 +2272,11 @@ class data_view extends base_module {
 					$arr_data[] = '<input name="uri" value="'.strEscapeHTML($arr_result['uri']).'" type="radio" />';
 				}
 				$arr_data[] = (FormatHTML::test($arr_result['label']) ? $arr_result['label'] : strEscapeHTML($arr_result['label']));
-				$arr_data[] = FormatTags::formatUrls($arr_result['uri']);
+				$arr_data[] = FormatTags::formatURLs($arr_result['uri']);
 				
 				foreach ($arr_values as $name => $value) {
 					
-					$arr_data[] = FormatTags::formatUrls($arr_result[$name]);
+					$arr_data[] = FormatTags::formatURLs($arr_result[$name]);
 				}
 				
 				$arr_output['data'][] = $arr_data;

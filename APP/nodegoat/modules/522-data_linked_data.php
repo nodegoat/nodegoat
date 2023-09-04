@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -131,7 +131,7 @@ class data_linked_data extends base_module {
 		
 		foreach (($arr_resource['url_headers'] ?: ['']) as $key => $value) {
 						
-			$unique = uniqid('array_');
+			$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 			
 			$arr_sorter_headers[] = ['value' => '<input type="text" name="url_headers['.$unique.'][key]" value="'.strEscapeHTML(($key ?: '')).'" /><label>:</label><input type="text" name="url_headers['.$unique.'][value]" value="'.strEscapeHTML($value).'" />'];
 		}
@@ -147,7 +147,7 @@ class data_linked_data extends base_module {
 				$html_select_output_identifier = cms_general::createDropdown($arr_conversions[$arr_value['conversion_id']]['output_identifiers'], $arr_value['conversion_output_identifier'], false);
 			}
 			
-			$unique = uniqid('array_');
+			$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 			
 			$arr_sorter_values[] = ['value' => [
 				'<input type="text" name="response_values['.$unique.'][name]" value="'.strEscapeHTML(($name ?: '')).'" /><input type="text" name="response_values['.$unique.'][value]" placeholder="{}" value="'.strEscapeHTML($arr_value['value']).'" />',
@@ -354,7 +354,7 @@ class data_linked_data extends base_module {
 			.data_linked_data fieldset > ul > li > label:first-child + ul input[name^=response_values][name$="[value]"] + select { max-width: 500px; }
 			.data_linked_data fieldset > ul > li > label:first-child + div select[name$="conversion_output_identifier"]:empty,
 			.data_linked_data fieldset > ul > li > label:first-child + ul select[name$="[conversion_output_identifier]"]:empty { display: none; }
-			.data_linked_data fieldset > ul > li > label:first-child + section { margin: 0px; width: 600px; }
+			.data_linked_data fieldset > ul > li > label:first-child + section { width: 600px; }
 			
 			.data_linked_data fieldset > ul > li > label:first-child + div textarea[name=input_placeholder] { height: 120px; white-space: pre; }
 			.data_linked_data fieldset > ul > li > label:first-child + div textarea[name=output_placeholder] { height: 120px; white-space: pre; }';

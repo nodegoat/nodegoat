@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -14,6 +14,7 @@ class StoreIngestFile {
 	const POINTER_CLASS_MAP = 0;
 	const POINTER_CLASS_FILTER_OBJECT_IDENTIFIER = 1;
 	const POINTER_CLASS_FILTER_OBJECT_VALUE = 2;
+	const POINTER_CLASS_FILTER_OBJECT_SUB_IDENTIFIER = 3;
 	
 	public static function handleTemplate($template_id, $arr_template) {
 
@@ -64,7 +65,7 @@ class StoreIngestFile {
 				];
 			}
 		}
-		
+
 		foreach ($arr_template['pointers']['filter_object_value'] as $arr_pointer) {
 			
 			if (!$arr_pointer['pointer_heading']) {
@@ -77,6 +78,20 @@ class StoreIngestFile {
 				'pointer_class' => static::POINTER_CLASS_FILTER_OBJECT_VALUE,
 				'element_id' => $arr_pointer['element_id']
 			];
+		}
+		
+		if ($arr_template['pointers']['filter_object_sub_identifier']) {
+			
+			$arr_pointer = $arr_template['pointers']['filter_object_sub_identifier'];
+
+			if ($arr_pointer['pointer_heading']) {
+
+				$arr_collect[] = [
+					'id' => $arr_pointer['pointer_id'],
+					'pointer_heading' => $arr_pointer['pointer_heading'],
+					'pointer_class' => static::POINTER_CLASS_FILTER_OBJECT_SUB_IDENTIFIER
+				];
+			}
 		}
 		
 		foreach ($arr_template['pointers']['map'] as $arr_pointer) {
@@ -302,6 +317,7 @@ class StoreIngestFile {
 				$arr[$arr_row['id']]['pointers'] = [
 					'filter_object_identifier' => [],
 					'filter_object_value' => [],
+					'filter_object_sub_identifier' => [],
 					'map' => []
 				];
 			}
@@ -312,6 +328,8 @@ class StoreIngestFile {
 					$arr[$arr_row['id']]['pointers']['filter_object_identifier'] = $arr_row;
 				} else if ($arr_row['pointer_class'] == static::POINTER_CLASS_FILTER_OBJECT_VALUE) {
 					$arr[$arr_row['id']]['pointers']['filter_object_value'][$arr_row['pointer_id']] = $arr_row;
+				} else if ($arr_row['pointer_class'] == static::POINTER_CLASS_FILTER_OBJECT_SUB_IDENTIFIER) {
+					$arr[$arr_row['id']]['pointers']['filter_object_sub_identifier'] = $arr_row;
 				} else {
 					
 					$arr_row['mode_write'] = ($arr_row['overwrite'] ? 'overwrite' : 'append');
@@ -375,13 +393,23 @@ class StoreIngestFile {
 			}
 		}
 	}
+	
+	public static function setTemplateLastRun($template_id, $num_time = false) {
+		
+		$sql_time = DBFunctions::str2Date($num_time ?: time());
+		
+		$res = DB::query("UPDATE ".DB::getTable('DEF_NODEGOAT_IMPORT_TEMPLATES')." SET
+				last_run = '".$sql_time."'
+			WHERE id = ".(int)$template_id."
+		");
+	}
 		
 	public static function cleanupTemplateLogs($num_minutes) {
 		
 		if (!$num_minutes) {
 			return;
 		}
-				
+		
 		$res = DB::queryMulti("
 			".DBFunctions::deleteWith(
 				DB::getTable('DATA_NODEGOAT_IMPORT_TEMPLATE_LOG'), 'nodegoat_itl', 'template_id',
@@ -397,5 +425,16 @@ class StoreIngestFile {
 				)
 			;
 		");
+	}
+	
+	public static function getTemplateLogOptions() {
+		
+		$arr_units = [
+			1440 => ['id' => 1440, 'name' => getLabel('unit_day')],
+			1440*7 => ['id' => 1440*7, 'name' => getLabel('unit_week')],
+			1440*28 => ['id' => 1440*28, 'name' => getLabel('unit_month')]
+		];
+		
+		return $arr_units;
 	}
 }

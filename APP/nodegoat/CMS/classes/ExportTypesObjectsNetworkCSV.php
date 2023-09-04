@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -152,17 +152,17 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 				
 				if ($arr_selected['object_sub_details_id']) {
 					
-					$length_find = (!$cur_target_object_id ? 0 : count($arr_object['object_subs']));
-					$count_find = 0;
-					$found = false;
+					$num_length_find = ($cur_target_object_id && $arr_object['object_subs'] ? count($arr_object['object_subs']) : 0);
+					$num_count_find = 0;
+					$is_found = false;
 
 					foreach (($arr_object['object_subs'] ?: [[]]) as $object_sub_id => $arr_object_sub) {
 						
-						$count_find++;
+						$num_count_find++;
 						
 						if ($arr_object_sub['object_sub']['object_sub_details_id'] != $arr_selected['object_sub_details_id']) {
 							
-							if (!$length_find || ($count_find == $length_find && !$found)) { // Force a run over each selected sub-object at least once
+							if (!$num_length_find || ($num_count_find == $num_length_find && !$is_found)) { // Force a run over each selected sub-object at least once
 								$object_sub_id = '';
 								$arr_object_sub = [];
 							} else {
@@ -170,7 +170,7 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 							}
 						}
 						
-						$found = true;
+						$is_found = true;
 						
 						$arr_options['object_sub_id'] = $object_sub_id; // Use for column identification
 						
@@ -624,7 +624,7 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 		$str_separator = $arr_options['separator'];
 		$str_enclose = $arr_options['enclose'];
 		
-		$this->package = fopen('php://temp/maxmemory:'.(100 * BYTE_MULTIPLIER * BYTE_MULTIPLIER), 'w'); // Keep resource in memory until it reaches 100MB, otherwise create a temporary file
+		$this->package = getStreamMemory(false);
 		
 		$this->class_collect->force_walk = true;
 
@@ -669,7 +669,7 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 	
 	public function readPackage($str_filename) {
 		
-		$data = stream_get_contents($this->package);
+		$data = read($this->package);
 		
 		Response::setFormat(Response::OUTPUT_TEXT);
 		$data = Response::parse($data);

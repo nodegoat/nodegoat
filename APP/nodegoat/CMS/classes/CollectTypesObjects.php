@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -21,10 +21,12 @@ class CollectTypesObjects {
 	
 	protected $arr_path_objects = [];
 	protected $arr_path_objects_referenced = [];
+	protected $arr_path_objects_dates = [];
 	protected $arr_path_selection_required = [];
 	protected $arr_type_filters = [];
 	protected $arr_type_conditions = [];
 	protected $arr_path_object_connections = [];
+	protected $arr_path_object_connection_dates = [];
 	protected $arr_types = [];
 	protected $arr_paths = [];
 	
@@ -59,7 +61,7 @@ class CollectTypesObjects {
 		
 		$this->arr_type_filters = $this->arr_types = [];
 		
-		$this->arr_path_objects = $this->arr_path_objects_referenced = [];
+		$this->arr_path_objects = $this->arr_path_objects_referenced = $this->arr_path_objects_dates = [];
 		
 		$this->collectObjects($this->arr_type_network_paths, $arr_filter, false, $do_collect);
 		
@@ -143,6 +145,7 @@ class CollectTypesObjects {
 		return [
 			'types' => $this->arr_types,
 			'connections' => $this->arr_path_object_connections,
+			'connection_dates' => $this->arr_path_object_connection_dates,
 			'filters' => $this->arr_type_filters,
 			'conditions' => $this->arr_type_conditions,
 			'types_found' => $this->arr_types_found
@@ -179,11 +182,11 @@ class CollectTypesObjects {
 		if (!$this->arr_path_objects_referenced) {
 			$this->collectReferenced($this->arr_type_network_paths);
 		}
-				
+		
 		return $this->walkObject($object_id, $arr, [], $func_call, $this->arr_type_network_paths);
 	}
 		
-	private function collectReferenced($arr_type_connections) {
+	protected function collectReferenced($arr_type_connections) {
 		
 		foreach ($arr_type_connections as $in_out => $arr_in_out) {
 			
@@ -277,7 +280,7 @@ class CollectTypesObjects {
 		}
 	}
 	
-	private function &walkObject($object_id, &$arr, $arr_cur_info, $func_call, $arr_type_connections) {
+	protected function &walkObject($object_id, &$arr, $arr_source_info, $func_call, $arr_type_connections) {
 		
 		if (!$arr_type_connections) {			
 			return $arr;
@@ -295,37 +298,36 @@ class CollectTypesObjects {
 				
 				$arr_info = [];
 				
-				$path = implode('-', $arr_type_object_connections['path']);
+				$path = implode('-', $arr_type_object_connections['path']); // Source path for general use
+				
 				if ($in_out == 'start') {
-					
-					$path = '0';
 					
 					$arr_info['identifier'] = 'start';
 				} else {
 					
-					$path_new = $path.'-'.$target_type_id; // Use objects found down the tree (referenced)
-					$path_source = (count($arr_type_object_connections['path']) == 1 ? '0' : $path); // Objects found down the tree
+					$path_new = $path.'-'.$target_type_id; // Use objects found down the tree
+					$path_source = (count($arr_type_object_connections['path']) == 1 ? '0' : $path); // Use objects found back up the tree (source path for interal use)
 					
-					$collapse = ($this->arr_path_options[$path_new]['collapse'] ?: ($this->arr_type_options[$target_type_id]['collapse'] ?: false));
-					$collapsed_source = ($path_source && ($this->arr_path_options[$path_source]['collapse'] ?: ($this->arr_type_options[$arr_cur_info['type_id']]['collapse'] ?: false)));
+					$do_collapse = ($this->arr_path_options[$path_new]['collapse'] ?: ($this->arr_type_options[$target_type_id]['collapse'] ?: false));
+					$do_collapsed_source = ($path_source && ($this->arr_path_options[$path_source]['collapse'] ?: ($this->arr_type_options[$arr_source_info['type_id']]['collapse'] ?: false)));
 					
-					if ($collapse && $arr_cur_info['arr_collapse_source']) {
-						$arr_info['arr_collapse_source'] = $arr_cur_info['arr_collapse_source'];
-						$collapse_start = false;
-					} else if ($collapsed_source) {
-						$arr_info['arr_collapsed_source'] = $arr_cur_info['arr_collapse_source'];
-						$collapse_start = false;
+					if ($do_collapse && $arr_source_info['arr_collapse_source']) {
+						$arr_info['arr_collapse_source'] = $arr_source_info['arr_collapse_source'];
+						$do_collapse_start = false;
+					} else if ($do_collapsed_source) {
+						$arr_info['arr_collapsed_source'] = $arr_source_info['arr_collapse_source'];
+						$do_collapse_start = false;
 					} else {
-						$collapse_start = true;
+						$do_collapse_start = true;
 					}
 					
-					$arr_info['identifier_source'] = $arr_cur_info['identifier'];
+					$arr_info['identifier_source'] = $arr_source_info['identifier'];
 				}
 			
 				if ($in_out == 'start') {
 					
 					$arr_info['in_out'] = 'start';
-										
+					
 					$arr_new =& $func_call($object_id, $arr, $path, $path, $target_type_id, $arr_info, $this);
 					
 					$arr_new =& $this->walkObject($object_id, $arr_new, $arr_info, $func_call, $arr_type_connections['connections'][$target_type_id]);
@@ -336,23 +338,26 @@ class CollectTypesObjects {
 					if ($arr_type_object_connections['object_descriptions']) {
 						
 						foreach ($arr_type_object_connections['object_descriptions'] as $object_description_id => $arr_connection) {
+							
+							$arr_info_use = $arr_info;
 
+							$arr_ref_object_ids = [];
+															
 							if ($in_out == 'out') {
 								
-								$arr_ref_object_ids = [];
-																
-								$do_trace_check = ($arr_cur_info['in_out'] == 'in' && $arr_cur_info['object_description_id'] == $object_description_id); // If the object description is tracing back to the same object's path, and the source of this object is in/referenced, do not include this object
-
+								$do_trace_check = ($arr_source_info['in_out'] == 'in' && $arr_source_info['object_description_id'] == $object_description_id); // If the object description is tracing back to the same object's path, and the source of this object is in/referenced, do not include this object
+								
 								if ($arr_connection['dynamic']) {
 									
-									foreach ($this->arr_path_objects[$path_source] as $arr_objects) {
-										
-										$arr_object_ids = $arr_objects[$object_id]['object_definitions'][$object_description_id]['object_definition_ref_object_id'][$arr_connection['ref_type_id']];
+									foreach ($this->arr_path_objects[$path_source] as $use_in_out => $arr_objects) { // The target references are sourced from both/any previous incoming and outgoing objects
+									
+										$arr_object_ids = ($arr_objects[$object_id]['object_definitions'][$object_description_id]['object_definition_ref_object_id'][$arr_connection['ref_type_id']] ?? null);
 										
 										if ($arr_object_ids) {
+		
 											foreach ($arr_object_ids as $ref_object_id => $value) {
 												
-												if ($do_trace_check && $arr_cur_info['object_id'] == $ref_object_id) {
+												if ($do_trace_check && $arr_source_info['object_id'] == $ref_object_id) {
 													continue;
 												}
 
@@ -362,16 +367,17 @@ class CollectTypesObjects {
 									}
 								} else {
 									
-									foreach ($this->arr_path_objects[$path_source] as $arr_objects) {
-									
-										$arr_object_ids = $arr_objects[$object_id]['object_definitions'][$object_description_id]['object_definition_ref_object_id'];
+									foreach ($this->arr_path_objects[$path_source] as $use_in_out => $arr_objects) { // The target references are sourced from both/any previous incoming and outgoing objects
+										
+										$arr_object_ids = ($arr_objects[$object_id]['object_definitions'][$object_description_id]['object_definition_ref_object_id'] ?? null);
 										
 										if ($arr_object_ids) {
+
 											if (is_array($arr_object_ids)) {
 												
 												foreach ($arr_object_ids as $ref_object_id) {
 													
-													if ($do_trace_check && $arr_cur_info['object_id'] == $ref_object_id) {
+													if ($do_trace_check && $arr_source_info['object_id'] == $ref_object_id) {
 														continue;
 													}
 												
@@ -392,10 +398,34 @@ class CollectTypesObjects {
 								$type_id = $arr_connection['ref_type_id'];
 							}
 							
-							$arr_info_use = ['type_id' => $type_id, 'object_id' => $object_id, 'object_description_id' => $object_description_id, 'dynamic' => $arr_connection['dynamic'], 'in_out' => $in_out, 'identifier' => $arr_cur_info['identifier'].'_'.$arr_connection['identifier']] + $arr_info;
+							$arr_info_use += ['type_id' => $type_id, 'object_id' => $object_id, 'object_description_id' => $object_description_id, 'dynamic' => $arr_connection['dynamic'], 'in_out' => $in_out, 'identifier' => $arr_source_info['identifier'].'_'.$arr_connection['identifier']];
 							
-							if ($collapse) {
-								if ($collapse_start) {
+							$arr_info_connection = [];
+							
+							foreach ($arr_ref_object_ids as $key => $ref_object_id) {
+								
+								if ((!$ref_object_id || !isset($this->arr_path_objects[$path_new][$in_out][$ref_object_id]))) {
+									
+									unset($arr_ref_object_ids[$key]);
+									continue;
+								}
+								
+								$do_continue = $this->checkObjectConnection($arr_connection, $object_id, $ref_object_id, $path_source, $arr_source_info, $arr_info_connection);
+								
+								if (!$do_continue) {
+									
+									unset($arr_ref_object_ids[$key]);
+									continue;
+								}								
+							}
+							
+							if ($this->force_walk && !$arr_ref_object_ids) {
+								$arr_ref_object_ids[] = 0;
+							}
+							
+							if ($do_collapse) {
+								
+								if ($do_collapse_start) {
 									$arr_info_use['arr_collapse_source'] = $arr_info_use;
 									$arr_info_use['collapse_start'] = true;
 								}
@@ -404,16 +434,12 @@ class CollectTypesObjects {
 								$arr_info_use['arr_collapse_targets'] = $this->arr_collapse_paths[$path_new];
 							}
 							
-							if ($this->force_walk && !$arr_ref_object_ids) {
-								$arr_ref_object_ids[] = 0;
-							}
-							
 							foreach ($arr_ref_object_ids as $ref_object_id) {
 								
-								if ((!$ref_object_id || !$this->arr_path_objects[$path_new][$in_out][$ref_object_id]) && !$this->force_walk) {
-									continue;
-								}
-								
+								if (isset($arr_info_connection[$ref_object_id])) {
+									$arr_info_use = $arr_info_connection[$ref_object_id] + $arr_info_use;
+								}	
+															
 								$arr_new =& $func_call($ref_object_id, $arr, $path, $path_new, $target_type_id, $arr_info_use, $this);
 
 								$arr_new =& $this->walkObject($ref_object_id, $arr_new, $arr_info_use, $func_call, $arr_type_connections['connections'][$target_type_id]);
@@ -427,20 +453,22 @@ class CollectTypesObjects {
 																					
 							foreach ($arr_object_sub_connections as $object_sub_connection_id => $arr_connection) {
 								
-								$arr_object_subs_ref_object_ids = [];
+								$arr_info_use = $arr_info;
 								
+								$arr_object_subs_ref_object_ids = [];
+
 								if ($object_sub_connection_id === 'object_sub_location') {
-																	
+									
 									if ($in_out == 'out') {
-										
-										foreach ($this->arr_path_objects[$path_source] as $arr_objects) {
+																				
+										foreach ($this->arr_path_objects[$path_source] as $use_in_out => $arr_objects) { // The target references are sourced from both/any previous incoming and outgoing objects
 											
-											$arr_object_subs = $arr_objects[$object_id]['object_subs'];
+											$arr_object_subs = ($arr_objects[$object_id]['object_subs'] ?? null);
 											
-											if (!$arr_object_subs) {
+											if ($arr_object_subs === null) {
 												continue;
 											}
-											
+
 											foreach ($arr_object_subs as $object_sub_id => $arr_object_sub) {
 												
 												if ($arr_object_sub['object_sub']['object_sub_details_id'] != $object_sub_details_id || $arr_object_sub['object_sub']['object_sub_location_ref_type_id'] != $target_type_id) {
@@ -448,7 +476,7 @@ class CollectTypesObjects {
 												}
 												
 												// If the sub-object is part of the object path, and the source of this object is in/referenced, do not include sub-objects that are not part of this path (other sub-objects of the same type could be part other objects' paths)
-												if ($arr_cur_info['in_out'] == 'in' && $arr_cur_info['object_sub_details_id'] == $object_sub_details_id && !$arr_cur_info['object_sub_location'] && $arr_cur_info['object_sub_id'] != $object_sub_id) {
+												if ($arr_source_info['in_out'] == 'in' && $arr_source_info['object_sub_details_id'] == $object_sub_details_id && !$arr_source_info['object_sub_location'] && $arr_source_info['object_sub_id'] != $object_sub_id) {
 													continue;
 												}
 
@@ -462,27 +490,35 @@ class CollectTypesObjects {
 										$type_id = $arr_connection['type_id'];
 									} else {
 										
-										$arr_object_subs = ($this->arr_path_objects_referenced[$path_new][$object_id]['object_subs'][$object_sub_details_id] ?? null);
+										$arr_object_subs = ($this->arr_path_objects_referenced[$path_new][$object_id]['object_subs'][$object_sub_details_id] ?? null); // The target references are already collected as referenced from the target incoming objects
 										
-										if ($arr_object_subs) {
+										if ($arr_object_subs !== null) {
+											
 											foreach ($arr_object_subs as $object_sub_id => $arr_object_sub) {
-												$arr_object_subs_ref_object_ids[$object_sub_id] = (array)$arr_object_sub['object_sub_locations'];
+												
+												if (!isset($arr_object_sub['object_sub_locations'])) {
+													continue;
+												}
+												
+												$ref_object_id = current($arr_object_sub['object_sub_locations']);
+
+												$arr_object_subs_ref_object_ids[$object_sub_id][$ref_object_id] = $ref_object_id;
 											}
 										}
 										
 										$type_id = $arr_connection['ref_type_id'];
 									}
 									
-									$arr_info_use = ['type_id' => $type_id, 'object_id' => $object_id, 'object_sub_details_id' => $object_sub_details_id, 'object_sub_location' => true, 'in_out' => $in_out, 'identifier' => $arr_cur_info['identifier'].'_'.$arr_connection['identifier']] + $arr_info;
+									$arr_info_use += ['type_id' => $type_id, 'object_id' => $object_id, 'object_sub_details_id' => $object_sub_details_id, 'object_sub_location' => true, 'in_out' => $in_out, 'identifier' => $arr_source_info['identifier'].'_'.$arr_connection['identifier']];
 								} else {
 									
 									if ($in_out == 'out') {
 										
-										foreach ($this->arr_path_objects[$path_source] as $arr_objects) {
+										foreach ($this->arr_path_objects[$path_source] as $use_in_out => $arr_objects) { // The target references are sourced from both/any previous incoming and outgoing objects
 											
-											$arr_object_subs = $arr_objects[$object_id]['object_subs'];
+											$arr_object_subs = ($arr_objects[$object_id]['object_subs'] ?? null);
 											
-											if (!$arr_object_subs) {
+											if ($arr_object_subs === null) {
 												continue;
 											}
 											
@@ -493,10 +529,10 @@ class CollectTypesObjects {
 												}
 												
 												// If the sub-object is part of the object path, and the source of this object is in/referenced, do not include sub-objects that are not part of this path (other sub-objects of the same type could be part other objects' paths)
-												if ($arr_cur_info['in_out'] == 'in' && $arr_cur_info['object_sub_details_id'] == $object_sub_details_id && $arr_cur_info['object_sub_description_id'] != $object_sub_connection_id && $arr_cur_info['object_sub_id'] != $object_sub_id) {
+												if ($arr_source_info['in_out'] == 'in' && $arr_source_info['object_sub_details_id'] == $object_sub_details_id && $arr_source_info['object_sub_description_id'] != $object_sub_connection_id && $arr_source_info['object_sub_id'] != $object_sub_id) {
 													continue;
 												}
-												
+															
 												if ($arr_connection['dynamic']) {
 													
 													$arr_ref_object_ids = $arr_object_sub['object_sub_definitions'][$object_sub_connection_id]['object_sub_definition_ref_object_id'][$arr_connection['ref_type_id']];
@@ -521,30 +557,72 @@ class CollectTypesObjects {
 										$type_id = $arr_connection['type_id'];
 									} else {
 										
-										$arr_object_subs = ($this->arr_path_objects_referenced[$path_new][$object_id]['object_subs'][$object_sub_details_id] ?? null);
+										$arr_object_subs = ($this->arr_path_objects_referenced[$path_new][$object_id]['object_subs'][$object_sub_details_id] ?? null); // The target references are already collected as referenced from the target incoming objects
 										
-										if ($arr_object_subs) {
+										if ($arr_object_subs !== null) {
+											
 											foreach ($arr_object_subs as $object_sub_id => $arr_object_sub) {
-												$arr_object_subs_ref_object_ids[$object_sub_id] = (array)$arr_object_sub['object_sub_definitions'][$object_sub_connection_id];
+												
+												if (!isset($arr_object_sub['object_sub_definitions'][$object_sub_connection_id])) {
+													continue;
+												}
+												
+												$ref_object_id = current($arr_object_sub['object_sub_definitions'][$object_sub_connection_id]);
+												
+												$arr_object_subs_ref_object_ids[$object_sub_id][$ref_object_id] = $ref_object_id;
 											}
 										}
 										
 										$type_id = $arr_connection['ref_type_id'];
 									}
 									
-									$arr_info_use = ['type_id' => $type_id, 'object_id' => $object_id, 'object_sub_details_id' => $object_sub_details_id, 'object_sub_description_id' => $object_sub_connection_id, 'dynamic' => $arr_connection['dynamic'], 'in_out' => $in_out, 'identifier' => $arr_cur_info['identifier'].'_'.$arr_connection['identifier']] + $arr_info;
+									$arr_info_use += ['type_id' => $type_id, 'object_id' => $object_id, 'object_sub_details_id' => $object_sub_details_id, 'object_sub_description_id' => $object_sub_connection_id, 'dynamic' => $arr_connection['dynamic'], 'in_out' => $in_out, 'identifier' => $arr_source_info['identifier'].'_'.$arr_connection['identifier']];
 								}
 								
+								$arr_info_connection = [];
+								
+								foreach ($arr_object_subs_ref_object_ids as $object_sub_id => &$arr_ref_object_ids) {
+												
+									foreach ($arr_ref_object_ids as $key => $ref_object_id) {
+										
+										if (!$ref_object_id || !isset($this->arr_path_objects[$path_new][$in_out][$ref_object_id])) {
+											
+											unset($arr_ref_object_ids[$key]);
+											continue;
+										}
+										
+										$do_continue = $this->checkObjectSubConnection($arr_connection, $object_id, $ref_object_id, $object_sub_id, $path_source, $path_new, $arr_source_info, $arr_info_connection);
+
+										if (!$do_continue) {
+											
+											unset($arr_ref_object_ids[$key]);
+											continue;
+										}
+									}
+									
+									if ($arr_ref_object_ids) {
+										continue;
+									}
+									
+									if ($this->force_walk) {
+										$arr_ref_object_ids = [0];
+									} else {
+										unset($arr_object_subs_ref_object_ids[$object_sub_id]);
+									}
+								}
+								unset($arr_ref_object_ids);
+								
 								if ($this->force_walk && !$arr_object_subs_ref_object_ids) {
-									$arr_object_subs_ref_object_ids[] = 0;
+									$arr_object_subs_ref_object_ids[] = [0];
 								}
 								
 								foreach ($arr_object_subs_ref_object_ids as $object_sub_id => $arr_ref_object_ids) {
 								
 									$arr_info_use['object_sub_id'] = $object_sub_id;
 									
-									if ($collapse) {
-										if ($collapse_start) {
+									if ($do_collapse) {
+										
+										if ($do_collapse_start) {
 											$arr_info_use['arr_collapse_source'] = $arr_info_use;
 											$arr_info_use['collapse_start'] = true;
 										}
@@ -552,15 +630,11 @@ class CollectTypesObjects {
 									if ($arr_info_use['arr_collapse_source']) {
 										$arr_info_use['arr_collapse_targets'] = $this->arr_collapse_paths[$path_new];
 									}
-									
-									if ($this->force_walk && !$arr_ref_object_ids) {
-										$arr_ref_object_ids = [0];
-									}
 
 									foreach ($arr_ref_object_ids as $ref_object_id) {
 										
-										if ((!$ref_object_id || !$this->arr_path_objects[$path_new][$in_out][$ref_object_id]) && !$this->force_walk) {
-											continue;
+										if (isset($arr_info_connection[$object_sub_id][$ref_object_id])) {
+											$arr_info_use = $arr_info_connection[$object_sub_id][$ref_object_id] + $arr_info_use;
 										}
 										
 										$arr_new =& $func_call($ref_object_id, $arr, $path, $path_new, $target_type_id, $arr_info_use, $this);
@@ -577,10 +651,164 @@ class CollectTypesObjects {
 		
 		return $arr_new; // Return the reference of the created array by $func_call and ascendant walkObject()s to the descendant walkObject()
 	}
+	
+	protected function checkObjectConnection($arr_connection, $source_object_id, $target_object_id, $path_source, $arr_source_info, &$arr_info_connection) {
+		
+		if (isset($arr_connection['date'])) {  // Process new time window
+									
+			$do_continue = $this->processObjectConnectionDate($arr_connection, $source_object_id, $target_object_id, false, $path_source, $arr_source_info, $arr_info_connection);
+			
+			if (!$do_continue) {
+				return false;
+			}
+		} else if (isset($arr_source_info['date'])) { // Pass time window
+			
+			$arr_info_connection[$target_object_id]['date'] = $arr_source_info['date'];
+		}
+		
+		return true;
+	}
+	
+	protected function checkObjectSubConnection($arr_connection, $source_object_id, $target_object_id, $object_sub_id, $path_source, $path_new, $arr_source_info, &$arr_info_connection) {
+		
+		if (isset($arr_connection['date'])) { // Process new time window
+			
+			$do_continue = $this->processObjectConnectionDate($arr_connection, $source_object_id, $target_object_id, $object_sub_id, $path_source, $arr_source_info, $arr_info_connection);
+						
+			if (!$do_continue) {			
+				return false;
+			}
+			/*
+			if ($arr_connection['in_out'] == 'out') {
+				$use_in_out = ($arr_source_info['in_out'] == 'start' ? 'start' : 'out');
+				$arr_object_sub = $this->arr_path_objects[$path_source][$use_in_out][$source_object_id]['object_subs'][$object_sub_id]['object_sub'];
+			} else {
+				$arr_object_sub = $this->arr_path_objects[$path_new]['in'][$target_object_id]['object_subs'][$object_sub_id]['object_sub'];
+			}
+			$num_date_start = ($arr_object_sub['object_sub_date_start'] ?: StoreTypeObjects::DATE_INT_MIN);
+			$num_date_end = ($arr_object_sub['object_sub_date_end'] ?: StoreTypeObjects::DATE_INT_MAX);
+			
+			foreach ($arr_info_connection['date'] as $arr_new_window_date) {
 				
-	private function collectObjects($arr_type_connections, $arr_source_filters, $filter_source, $do_collect = true) {
+				if (($num_date_start <= $arr_new_window_date['end']) && ($num_date_end >= $arr_new_window_date['start'])) {
+
+					$do_continue = true;
+					break;
+				}
+			}
+			
+			return $do_continue;
+			*/
+		} else if (isset($arr_source_info['date'])) { // Pass time window
+			
+			$arr_info_connection[$object_sub_id][$target_object_id]['date'] = $arr_source_info['date'];
+		}
+		
+		return true;
+	}
+	
+	protected function processObjectConnectionDate($arr_connection, $source_object_id, $target_object_id, $object_sub_id, $path_source, $arr_source_info, &$arr_info_connection) {
+								
+		if (isset($arr_connection['date']['start'])) {
+			
+			$source_target = $arr_connection['date']['start']['source_target'];
+			$object_id = ($source_target == 'source' ? $source_object_id : $target_object_id);
+			$start_object_sub_details_id = ($arr_connection['date']['start']['object_sub_details_id'] ?? false);
+			$do_start_filter_object_sub = ($arr_connection['date']['start']['filter_object_sub'] ?? false);
+			$arr_date_start = ($this->arr_path_objects_dates[$path_source][$source_target][$object_id][$arr_connection['date']['start']['identifier']] ?? null);
+		}
+		if (isset($arr_connection['date']['end'])) {
+			
+			$source_target = $arr_connection['date']['end']['source_target'];
+			$object_id = ($source_target == 'source' ? $source_object_id : $target_object_id);
+			$end_object_sub_details_id = ($arr_connection['date']['end']['object_sub_details_id'] ?? false);
+			$do_end_filter_object_sub = ($arr_connection['date']['end']['filter_object_sub'] ?? false);
+			$arr_date_end = ($this->arr_path_objects_dates[$path_source][$source_target][$object_id][$arr_connection['date']['end']['identifier']] ?? null);
+		}
+					
+		$arr_date = [];
+		
+		if ($object_sub_id && ($do_start_filter_object_sub || $do_end_filter_object_sub)) {
+			
+			if ($arr_date_start !== null && $do_start_filter_object_sub && $do_end_filter_object_sub) { // Sub-object self
+			
+				$arr_date[$object_sub_id] = ['start' => $arr_date_start[$object_sub_id], 'end' => $arr_date_end[$object_sub_id]];
+			} else if ($arr_date_start !== null && $do_start_filter_object_sub) { // Sub-object ranges using a single start date
+				
+				$arr_date[] = [
+					'start' => $arr_date_start[$object_sub_id],
+					'end' => (is_array($arr_date_end) ? max($arr_date_end) : ($arr_date_end ?? StoreTypeObjects::DATE_INT_MAX))
+				];
+			} else if ($arr_date_end !== null && $do_end_filter_object_sub) { // Sub-object ranges using a single end date
+				
+				$arr_date[] = [
+					'start' => (is_array($arr_date_start) ? min($arr_date_start) : ($arr_date_start ?? StoreTypeObjects::DATE_INT_MIN)),
+					'end' => $arr_date_end[$object_sub_id]
+				];
+			} else {
+				
+				$arr_date[] = [
+					'start' => (is_array($arr_date_start) ? min($arr_date_start) : ($arr_date_start ?? StoreTypeObjects::DATE_INT_MIN)),
+					'end' => (is_array($arr_date_end) ? max($arr_date_end) : ($arr_date_end ?? StoreTypeObjects::DATE_INT_MAX))
+				];
+			}
+		} else {
+			
+			if ($arr_date_start !== null && $start_object_sub_details_id && $start_object_sub_details_id == $end_object_sub_details_id) { // Sub-object ranges
+			
+				foreach ($arr_date_start as $date_object_sub_id => $num_date) {
+					$arr_date[$date_object_sub_id] = ['start' => $num_date, 'end' => $arr_date_end[$date_object_sub_id]];
+				}
+			} else {
+				
+				$arr_date[] = [
+					'start' => (is_array($arr_date_start) ? min($arr_date_start) : ($arr_date_start ?? StoreTypeObjects::DATE_INT_MIN)),
+					'end' => (is_array($arr_date_end) ? max($arr_date_end) : ($arr_date_end ?? StoreTypeObjects::DATE_INT_MAX))
+				];
+			}
+		}
+
+		if (isset($arr_source_info['date'])) { // Check active window
+						
+			$do_continue = false;
+			
+			foreach ($arr_date as $arr_check_date) {
+				foreach ($arr_source_info['date'] as $arr_window_date) {
+					
+					if (($arr_check_date['start'] <= $arr_window_date['end']) && ($arr_check_date['end'] >= $arr_window_date['start'])) {
+						
+						$do_continue = true;
+						break 2;
+					}
+				}
+			}
+			
+			// Indicate the connection is filtered, can be used for object Packaging
+			if ($object_sub_id) {
+				$arr_info_connection[$object_sub_id][$target_object_id]['filtered'] = true;
+			} else {
+				$arr_info_connection[$target_object_id]['filtered'] = true;
+			}
+			
+			if (!$do_continue) {
+				return false;
+			}
+		}
+		
+		if ($object_sub_id) {
+			$arr_info_connection[$object_sub_id][$target_object_id]['date'] = $arr_date;
+		} else {
+			$arr_info_connection[$target_object_id]['date'] = $arr_date;
+		}
+		
+		return true;
+	}
+					
+	protected function collectObjects($arr_type_connections, $arr_source_filters, $filter_source, $do_collect = true) {
 		
 		$arr = [];
+		
+		$path_source = false;
 
 		foreach ($arr_type_connections as $in_out => $arr_in_out) {
 			
@@ -590,13 +818,15 @@ class CollectTypesObjects {
 			
 			foreach ($arr_in_out as $target_type_id => $arr_type_object_connections) {
 
-				$path = implode('-', $arr_type_object_connections['path']);
+				$path = implode('-', $arr_type_object_connections['path']); // Source path for general use
+				$source_type_id = end($arr_type_object_connections['path']);
+				
 				if ($in_out == 'start') {
 					$path_new = $path;
 					$path_source = false;
 				} else {
-					$path_new = $path.'-'.$target_type_id;
-					$path_source = (count($arr_type_object_connections['path']) == 1 ? '0' : $path);
+					$path_new = $path.'-'.$target_type_id; // Use objects found down the tree
+					$path_source = (count($arr_type_object_connections['path']) == 1 ? '0' : $path); // Use objects found back up the tree (source path for interal use)
 				}
 				
 				if (!isset($this->arr_path_objects[$path_new][$in_out])) {
@@ -615,13 +845,32 @@ class CollectTypesObjects {
 					
 						$this->arr_path_objects[$path_new][$in_out] += $arr_objects;
 					
-						if ($arr_objects) {
-
-							$arr_result = $filter_generating->getProcessedResultInfo();
-							$this->arr_types_found = array_merge_recursive($this->arr_types_found, $arr_result['types_found']);
-							
-							$has_objects = true;
+						if (!$arr_objects) {
+							continue;
 						}
+						
+						if ($in_out != 'start' && isset($this->arr_path_object_connection_dates[$path_source])) {
+							
+							foreach ($this->arr_path_object_connection_dates[$path_source] as $source_target => $arr_date_statements) {
+
+								if ($source_target == 'source') {
+									$arr_object_dates = $this->collectObjectConnectionDates($arr_date_statements, $source_type_id, $filter_source);
+								} else {
+									$arr_object_dates = $this->collectObjectConnectionDates($arr_date_statements, $target_type_id, $filter_generating);
+								}
+								
+								if (isset($this->arr_path_objects_dates[$path_source][$source_target])) {
+									$this->arr_path_objects_dates[$path_source][$source_target] += $arr_object_dates;
+								} else {
+									$this->arr_path_objects_dates[$path_source][$source_target] = $arr_object_dates;
+								}
+							}
+						}
+
+						$arr_result = $filter_generating->getProcessedResultInfo();
+						$this->arr_types_found = array_merge_recursive($this->arr_types_found, $arr_result['types_found']);
+							
+						$has_objects = true;
 					}
 					
 					if ($has_objects && isset($arr_type_connections['connections'][$target_type_id])) {
@@ -637,9 +886,10 @@ class CollectTypesObjects {
 					$arr_selection = ($this->arr_path_options[$path_new]['arr_selection'] ?? ($this->arr_type_options[$target_type_id]['arr_selection'] ?? []));
 					$arr_selection_required = [];
 					
-					$collapse = ($this->arr_path_options[$path_new]['collapse'] ?? null ?: ($this->arr_type_options[$target_type_id]['collapse'] ?? null ?: false));
-					$collapsed_source = ($path_source && ($this->arr_path_options[$path_source]['collapse'] ?? null ?: ($this->arr_type_options[$arr_cur_info['type_id']]['collapse'] ?? null ?: false)));
-
+					$do_collapse = ($this->arr_path_options[$path_new]['collapse'] ?? null ?: ($this->arr_type_options[$target_type_id]['collapse'] ?? null ?: false));
+					$do_collapsed_source = ($path_source && ($this->arr_path_options[$path_source]['collapse'] ?? null ?: ($this->arr_type_options[$source_type_id]['collapse'] ?? null ?: false)));
+					
+					$arr_date_required = [];
 					$arr_path_filter = [];
 					
 					if ($do_collect) {
@@ -680,9 +930,9 @@ class CollectTypesObjects {
 									}
 								}
 								
-								if ($collapse) {
+								if ($do_collapse) {
 									$this->arr_collapse_paths[$path_source]['object_descriptions'][$object_description_id] = true;
-								} else if ($collapsed_source) {
+								} else if ($do_collapsed_source) {
 									$this->arr_collapse_paths[$path_source]['object_descriptions'][$object_description_id] = false;
 								}
 							} else {
@@ -707,11 +957,15 @@ class CollectTypesObjects {
 									$arr_selection_required['object_descriptions'][$object_description_id]['object_description_reference'] = $object_description_id;
 								}
 								
-								if ($collapse) {
+								if ($do_collapse) {
 									$this->arr_collapse_paths[$path_new]['object_descriptions'][$object_description_id] = true;
 								}
-							}	
-												
+							}
+							
+							if (isset($arr_connection['date'])) {
+								$arr_date_required[] = $arr_connection['date'];
+							}
+							
 							$this->arr_path_object_connections[$path_new]['object_descriptions'][$object_description_id] = $object_description_id;
 						}
 						
@@ -739,9 +993,9 @@ class CollectTypesObjects {
 											}
 										}
 										
-										if ($collapse) {
+										if ($do_collapse) {
 											$this->arr_collapse_paths[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_location'] = true;
-										} else if ($collapsed_source) {
+										} else if ($do_collapsed_source) {
 											$this->arr_collapse_paths[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_location'] = false;
 										}
 									} else {
@@ -777,7 +1031,7 @@ class CollectTypesObjects {
 											}
 										}
 										
-										if ($collapse) {
+										if ($do_collapse) {
 											$this->arr_collapse_paths[$path_new]['object_sub_details'][$object_sub_details_id]['object_sub_location'] = true;
 										}
 									}
@@ -803,9 +1057,9 @@ class CollectTypesObjects {
 											}
 										}
 										
-										if ($collapse) {
+										if ($do_collapse) {
 											$this->arr_collapse_paths[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = true;
-										} else if ($collapsed_source) {
+										} else if ($do_collapsed_source) {
 											$this->arr_collapse_paths[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = false;
 										}
 									} else {
@@ -833,12 +1087,16 @@ class CollectTypesObjects {
 											$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id]['object_sub_description_reference'] = $object_sub_connection_id;
 										}
 										
-										if ($collapse) {
+										if ($do_collapse) {
 											$this->arr_collapse_paths[$path_new]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = true;
 										}
 									}
 									
 									$this->arr_path_object_connections[$path_new]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = $object_sub_connection_id;
+								}
+								
+								if (isset($arr_connection['date'])) {
+									$arr_date_required[] = $arr_connection['date'];
 								}
 								
 								$cur_use = ($this->arr_path_object_connections[$path_new]['object_sub_details'][$object_sub_details_id]['use'] ?? null);
@@ -948,14 +1206,27 @@ class CollectTypesObjects {
 							$this->arr_type_conditions[$target_type_id] = $arr_conditions;
 						}
 					}
+														
+					foreach ($arr_date_required as $arr_date_statements) {
+						foreach ($arr_date_statements as $date_start_end => $arr_date_statement) {
+
+							$arr_date_statement['start_end'] = ($date_start_end == 'start' ? StoreType::DATE_START_START : StoreType::DATE_END_END);
+							
+							$this->arr_path_object_connection_dates[$path_source][$arr_date_statement['source_target']][$arr_date_statement['identifier']] = $arr_date_statement;
+						}
+					}
 					
 					if ($filter) {
-
+						
+						// Prepare selection
+						
 						if ($arr_selection_required) {
 							
 							$this->arr_path_selection_required[$path_new] = $arr_selection_required;
 							$arr_selection = array_replace_recursive($arr_selection_required, $arr_selection);
 						}
+						
+						// Prepare filter/query or filtering
 						
 						$arr_filtering = ($this->arr_path_options[$path_new]['arr_filtering'] ?? ($this->arr_type_options[$target_type_id]['arr_filtering'] ?? []));
 						$has_filtering = (array_filter(arrValuesRecursive('arr_filtering', array_merge($this->arr_path_options, $this->arr_type_options))) ? true : false);
@@ -1025,6 +1296,8 @@ class CollectTypesObjects {
 							}
 						}
 						
+						// Apply to the instance
+						
 						$filter->setScope($this->arr_scope, $path);
 						$filter->setSelection($arr_selection);
 						$filter->setFiltering($arr_filtering, $arr_filtering_filters, $filter_source);
@@ -1078,7 +1351,29 @@ class CollectTypesObjects {
 						
 						$arr_result = $filter->getProcessedResultInfo();
 						$this->arr_types_found = array_merge_recursive($this->arr_types_found, $arr_result['types_found']);
+					
+						// Post-collect source connection values
+
+						if ($in_out != 'start' && isset($this->arr_path_object_connection_dates[$path_source])) {
+
+							foreach ($this->arr_path_object_connection_dates[$path_source] as $source_target => $arr_date_statements) {
+								
+								if ($source_target == 'source') {
+									$arr_object_dates = $this->collectObjectConnectionDates($arr_date_statements, $source_type_id, $filter_source);
+								} else {
+									$arr_object_dates = $this->collectObjectConnectionDates($arr_date_statements, $target_type_id, $filter);
+								}
+								
+								if (isset($this->arr_path_objects_dates[$path_source][$source_target])) {
+									$this->arr_path_objects_dates[$path_source][$source_target] += $arr_object_dates;
+								} else {
+									$this->arr_path_objects_dates[$path_source][$source_target] = $arr_object_dates;
+								}
+							}
+						}
 					}
+					
+					// Next round of connections
 					
 					if (isset($arr_type_connections['connections'][$target_type_id])) {
 						$this->collectObjects($arr_type_connections['connections'][$target_type_id], $arr_collect_filters['all'], $filter, $do_collect);
@@ -1086,11 +1381,59 @@ class CollectTypesObjects {
 				}
 			}
 		}
-		
+				
 		return $arr;
 	}
 	
-	private function collectFilters($arr_type_connections) {
+	protected function collectObjectConnectionDates($arr_date_collect, $type_id, $filter) {
+		
+		$arr_type_set_date_flat = StoreType::getTypeSetFlat($type_id, ['object_sub_details_date' => true, 'object_sub_details_location' => false]);
+
+		$arr_object_dates = [];
+		
+		$mode_view = $filter->getView();
+		$filter->setView(GenerateTypeObjects::VIEW_STORAGE);
+		
+		foreach ($arr_date_collect as $str_identifier => $arr_date_statement) {
+			
+			$arr_object_description = $arr_type_set_date_flat[$arr_date_statement['id']];
+			
+			if (!$arr_object_description) {
+				continue;
+			}
+			
+			$sql_parse_date = FilterTypeObjects::format2SQLDateStatementValue('[X]', $arr_date_statement, $arr_date_statement['start_end']);
+			
+			if ($arr_object_description['object_description_id']) {
+				
+				$res = DB::query($filter->format2SQLOutputObjectDescription($arr_object_description['object_description_id'], $sql_parse_date));
+				
+				while ($arr_row = $res->fetchAssoc()) {
+					$arr_object_dates[$arr_row['id']][$str_identifier] = (int)$arr_row['select_value'];
+				}
+			} else if ($arr_object_description['object_sub_description_id']) {
+				
+				$res = DB::query($filter->format2SQLOutputObjectSubDescription($arr_object_description['object_sub_details_id'], $arr_object_description['object_sub_description_id'], $sql_parse_date));
+				
+				while ($arr_row = $res->fetchAssoc()) {
+					$arr_object_dates[$arr_row['object_id']][$str_identifier][$arr_row['id']] = (int)$arr_row['select_value'];
+				}
+			} else {
+				
+				$res = DB::query($filter->format2SQLOutputObjectSubDate($arr_object_description['object_sub_details_id'], ($arr_object_description['identifier'] == 'date_start' ? StoreType::DATE_START_START : StoreType::DATE_END_END), $sql_parse_date));
+				
+				while ($arr_row = $res->fetchAssoc()) {
+					$arr_object_dates[$arr_row['object_id']][$str_identifier][$arr_row['id']] = (int)$arr_row['date'];
+				}
+			}
+		}
+		
+		$filter->setView($mode_view);
+		
+		return $arr_object_dates;
+	}
+	
+	protected function collectFilters($arr_type_connections) {
 		
 		$arr = [];
 

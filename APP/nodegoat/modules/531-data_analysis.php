@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -238,7 +238,7 @@ class data_analysis extends base_module {
 							
 							foreach ($arr_analysis_context_includes as $key => $arr_include) {
 
-								$unique = uniqid('array_');
+								$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 								
 								$arr_sorter[] = [
 									'value' => '<div>'
@@ -758,9 +758,10 @@ class data_analysis extends base_module {
 		$do_weighted = ($arr_algorithm['weighted'] && $arr_analysis['settings']['weighted']['mode'] != 'unweighted');
 		
 		if ($arr_scope['paths']) {
+			
 			$trace = new TraceTypesNetwork(array_keys($arr_project['types']), true, true);
 			$trace->filterTypesNetwork($arr_scope['paths']);
-			$trace->run($type_id, false, 3);
+			$trace->run($type_id, false, cms_nodegoat_details::$num_network_trace_depth);
 			$arr_type_network_paths = $trace->getTypeNetworkPaths(true);
 		} else {
 			$arr_type_network_paths = ['start' => [$type_id => ['path' => [0]]]];

@@ -4,7 +4,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -962,7 +962,7 @@ function MapGeo(elm_draw, PARENT, options) {
 			
 			var arr_object_sub = arr_data.object_subs[object_sub_id];
 			
-			if (display == DISPLAY_PIXEL && info_condition && (!arr_object_sub.style.conditions || !arr_object_sub.style.conditions[info_condition])) {
+			if (display == DISPLAY_PIXEL && info_condition && (!arr_object_sub.style.conditions || arr_object_sub.style.conditions[info_condition] === undefined)) {
 				continue;
 			}
 			
@@ -1005,7 +1005,7 @@ function MapGeo(elm_draw, PARENT, options) {
 			
 			var arr_connect_object_sub = arr_data.object_subs[connect_object_sub_id];
 			
-			if (display == DISPLAY_PIXEL && info_condition && (!arr_connect_object_sub.style.conditions || !arr_connect_object_sub.style.conditions[info_condition])) {
+			if (display == DISPLAY_PIXEL && info_condition && (!arr_connect_object_sub.style.conditions || arr_connect_object_sub.style.conditions[info_condition] === undefined)) {
 				continue;
 			}
 			
@@ -1078,7 +1078,7 @@ function MapGeo(elm_draw, PARENT, options) {
 						
 			var arr_object_sub = arr_data.object_subs[object_sub_id];
 
-			if (display == DISPLAY_PIXEL && info_condition && (!arr_object_sub.style.conditions || !arr_object_sub.style.conditions[info_condition])) {
+			if (display == DISPLAY_PIXEL && info_condition && (!arr_object_sub.style.conditions || arr_object_sub.style.conditions[info_condition] === undefined)) {
 				continue;
 			}
 			
@@ -2117,7 +2117,7 @@ function MapGeo(elm_draw, PARENT, options) {
 
 					for (let i = 0; i < len; i++) {
 						
-						if (arr_conditions[PARENT.obj_data.arr_loop_inactive_conditions[i]]) {
+						if (arr_conditions[PARENT.obj_data.arr_loop_inactive_conditions[i]] !== undefined) {
 							return false;
 						}
 					}
@@ -2129,7 +2129,7 @@ function MapGeo(elm_draw, PARENT, options) {
 					
 					for (let i = 0; i < len; i++) {
 						
-						if (arr_conditions[PARENT.obj_data.arr_loop_inactive_conditions[i]]) {
+						if (arr_conditions[PARENT.obj_data.arr_loop_inactive_conditions[i]] !== undefined) {
 							return false;
 						}
 					}
@@ -5308,7 +5308,7 @@ function MapGeo(elm_draw, PARENT, options) {
 				const arr_object_sub = arr_data.object_subs[object_sub_id];
 				const arr_object_sub_style = arr_object_sub.style;
 
-				if (!do_override_color && color_dot && dot_color_condition && arr_object_sub_style.conditions && arr_object_sub_style.conditions[dot_color_condition]) {
+				if (!do_override_color && color_dot && dot_color_condition && arr_object_sub_style.conditions && arr_object_sub_style.conditions[dot_color_condition] !== undefined) {
 					do_override_color = true;
 				}
 				
@@ -5407,10 +5407,10 @@ function MapGeo(elm_draw, PARENT, options) {
 					}
 				}
 				
-				if (location_condition && arr_object_sub_style.conditions && arr_object_sub_style.conditions[location_condition]) {
+				if (location_condition && arr_object_sub_style.conditions && arr_object_sub_style.conditions[location_condition] !== undefined) {
 					do_show_location = true;
 				}
-				if (info_condition && arr_object_sub_style.conditions && arr_object_sub_style.conditions[info_condition]) {
+				if (info_condition && arr_object_sub_style.conditions && arr_object_sub_style.conditions[info_condition] !== undefined) {
 					do_show_info = true;
 				}
 				
@@ -6617,7 +6617,7 @@ function MapGeo(elm_draw, PARENT, options) {
 				}
 				if (info_condition && !do_show_info && arr_object_sub_style.conditions) {
 					
-					do_show_info = (arr_object_sub_style.conditions[info_condition] ? true : false);
+					do_show_info = (arr_object_sub_style.conditions[info_condition] !== undefined ? true : false);
 				}
 				if (svg_style !== false && arr_object_sub_style.conditions) {
 					

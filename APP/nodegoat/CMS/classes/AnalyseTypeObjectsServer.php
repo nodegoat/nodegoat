@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -18,7 +18,7 @@ class AnalyseTypeObjectsServer extends AnalyseTypeObjects {
 	/*
 	protected function openInputResource() {
 			
-		$this->path = tempnam(Settings::get('path_temporary'), 'nodegoat');
+		$this->path = getPathTemporary('nodegoat');
 		chmod($this->path, 0666); // Allow other processes to open the file
 		
 		$this->resource = fopen($this->path, 'w');
@@ -52,7 +52,7 @@ class AnalyseTypeObjectsServer extends AnalyseTypeObjects {
 		
 	protected function doAnalysis($name, $arr) {
 		
-		$arr['data'] = stream_get_contents($this->resource);
+		$arr['data'] = read($this->resource);
 		$str_data = value2JSON($arr);
 		
 		$arr = null;

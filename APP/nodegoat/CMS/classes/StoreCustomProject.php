@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -47,7 +47,7 @@ class StoreCustomProject {
 		if (!$this->project_id) {
 			
 			$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')."
-				("."name, full_scope_enable, source_referencing_enable, discussion_enable, system_date_cycle_enable, system_ingestion_enable".", visual_settings_id)
+				("."name, full_scope_enable, source_referencing_enable, discussion_enable, system_date_cycle_enable, system_ingestion_enable, system_reconciliation_enable, visual_settings_id)
 					VALUES
 				(
 					"."
@@ -57,6 +57,7 @@ class StoreCustomProject {
 					".DBFunctions::escapeAs($arr['discussion_enable'], DBFunctions::TYPE_BOOLEAN).",
 					".DBFunctions::escapeAs($arr['system_date_cycle_enable'], DBFunctions::TYPE_BOOLEAN).",
 					".DBFunctions::escapeAs($arr['system_ingestion_enable'], DBFunctions::TYPE_BOOLEAN).",
+					".DBFunctions::escapeAs($arr['system_reconciliation_enable'], DBFunctions::TYPE_BOOLEAN).",
 					".(int)$arr['visual_settings_id']."
 				)
 			");
@@ -72,6 +73,7 @@ class StoreCustomProject {
 					discussion_enable = ".DBFunctions::escapeAs($arr['discussion_enable'], DBFunctions::TYPE_BOOLEAN).",
 					system_date_cycle_enable = ".DBFunctions::escapeAs($arr['system_date_cycle_enable'], DBFunctions::TYPE_BOOLEAN).",
 					system_ingestion_enable = ".DBFunctions::escapeAs($arr['system_ingestion_enable'], DBFunctions::TYPE_BOOLEAN).",
+					system_reconciliation_enable = ".DBFunctions::escapeAs($arr['system_reconciliation_enable'], DBFunctions::TYPE_BOOLEAN).",
 					visual_settings_id = ".(int)$arr['visual_settings_id']."
 				WHERE id = ".$this->project_id."
 			");
@@ -654,6 +656,11 @@ class StoreCustomProject {
 				$type_id = StoreType::getSystemTypeID('ingestion');
 				$arr_project['types'][$type_id] = ['type_id' => $type_id];
 			}
+			if ($arr_project['project']['system_reconciliation_enable']) {
+				
+				$type_id = StoreType::getSystemTypeID('reconciliation');
+				$arr_project['types'][$type_id] = ['type_id' => $type_id];
+			}
 		}
 		unset($arr_project);
 				
@@ -785,6 +792,8 @@ class StoreCustomProject {
 				$found = $arr_project['project']['system_date_cycle_enable'];
 			} else if ($type_id == StoreType::getSystemTypeID('ingestion')) {
 				$found = $arr_project['project']['system_ingestion_enable'];
+			} else if ($type_id == StoreType::getSystemTypeID('reconciliation')) {
+				$found = $arr_project['project']['system_reconciliation_enable'];
 			}
 		} else {
 			
@@ -817,7 +826,7 @@ class StoreCustomProject {
 		return $found;
 	}
 	
-	public static function checkTypeConfigurationAccess($arr_project_types, $arr_type_set, $object_description_id, $object_sub_details_id, $object_sub_description_id, $type) {
+	public static function checkTypeConfigurationAccess($arr_project_types, $arr_type_set, $object_description_id, $object_sub_details_id, $object_sub_description_id, $type = self::ACCESS_PURPOSE_VIEW) {
 		
 		$type_id = $arr_type_set['type']['id'];
 		
@@ -880,7 +889,7 @@ class StoreCustomProject {
 	
 	public static function getTypeRelatedProjectTypes($arr_type_ids) {
 		
-		$sql_type_ids = (is_array($arr_type_ids) ? implode(',', arrParseRecursive($arr_type_ids, 'int')) : (int)$arr_type_ids);
+		$sql_type_ids = (is_array($arr_type_ids) ? implode(',', arrParseRecursive($arr_type_ids, TYPE_INTEGER)) : (int)$arr_type_ids);
 		$arr = [];
 		
 		$res = DB::query("SELECT prt.type_id
@@ -980,7 +989,7 @@ class StoreCustomProject {
 	
 	public static function getWorkspaceMedia($project_id) {
 		
-		$sql_project_id = ($project_id && is_array($project_id) ? "IN (".implode(',', arrParseRecursive($project_id, 'int')).")" : "= ".(int)$project_id);
+		$sql_project_id = ($project_id && is_array($project_id) ? "IN (".implode(',', arrParseRecursive($project_id, TYPE_INTEGER)).")" : "= ".(int)$project_id);
 		
 		$arr = [];
 		

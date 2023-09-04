@@ -243,11 +243,11 @@ Update 1100CC to 10.4 ([1100CC UPDATE](https://github.com/LAB1100/1100CC/blob/ma
 
 Update nodegoat [nodegoat_cms.cms_labels.sql](/setup/nodegoat_cms.cms_labels.sql).
 
-Install the GDAL library (Debian & Ubunutu: gdal-bin)
+Install the GDAL library (Debian & Ubunutu: gdal-bin).
 
 Create the directory `./SAFE/nodegoat` with restrictive clearance.
 
-Empty the directory `./APP/CACHE/nodegoat/scenarios/`
+Empty the directory `./APP/CACHE/nodegoat/scenarios/`.
 
 ---
 
@@ -461,7 +461,7 @@ ALTER TABLE `data_type_object_definitions_module_status`
 
 ---
 
-Create and edit `./APP/SETTINGS/nodegoat/update.php` with the following and navigate to /cms_admin and Run 'Update 100CC'.
+Create and edit `./APP/SETTINGS/nodegoat/update.php` with the following and navigate to /cms_admin and Run 'Update 1100CC'.
 
 ```php
 <?php
@@ -553,3 +553,27 @@ ALTER TABLE `data_type_object_sub_definitions_modules` ADD `state` SMALLINT NOT 
 Update 1100CC to 10.5 ([1100CC UPDATE](https://github.com/LAB1100/1100CC/blob/master/UPDATE.md)).
 
 Optionally, use the `creation_station.sh` script to rebuild and link network_analysis. See [Programs - Network Analysis](SETUP.md#network-analysis).
+
+## VERSION 8.2
+
+Update 1100CC to 10.6 ([1100CC UPDATE](https://github.com/LAB1100/1100CC/blob/master/UPDATE.md)).
+
+Empty the directory `./APP/CACHE/nodegoat/scenarios/`.
+
+Update nodegoat [nodegoat_cms.cms_labels.sql](/setup/nodegoat_cms.cms_labels.sql).
+
+---
+
+Run SQL queries in database nodegoat_home:
+
+```sql
+ALTER TABLE `def_nodegoat_custom_projects` ADD `system_reconciliation_enable` BOOLEAN NOT NULL AFTER `system_ingestion_enable`;
+```
+
+---
+
+Run SQL queries in database nodegoat_content:
+
+```sql
+ALTER TABLE `data_type_object_definition_version` DROP PRIMARY KEY, ADD PRIMARY KEY (`object_id`, `object_description_id`, `version`, `user_id`, `date`) USING BTREE;
+```

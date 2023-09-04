@@ -3,6 +3,7 @@
 :root {
 	--nodegoat-green: #a3ce6c;
 	--nodegoat-highlight: #009cff;
+	--nodegoat-dark: #131617;
 }
 
 body { background-color: #a3ce6c; }
@@ -42,20 +43,20 @@ hr { border-bottom-width: 1px; }
 .header > a + span + span { display: none; }
 
 .navigation { position: absolute; top: 55px; left: 200px; }
-.navigation > nav ul li { display: inline-block; padding: 10px 20px; font-weight: bold; border-radius: 2px; background-color: rgba(255, 255, 255, 0.6);}
+.navigation > nav ul li { display: inline-block; padding: 10px 20px; font-weight: 800; border-radius: 2px; background-color: rgba(255, 255, 255, 0.6);}
 .navigation > nav ul li a:hover,
 .navigation ul li.active a:hover {  }
 .navigation > nav > ul {  }
 .navigation > nav > ul > li { font-size: 16px;   }
 .navigation > nav > ul > li:hover { background-color: #ffffff; }
 .navigation > nav > ul > li + li { margin-left: 45px; }
-.navigation > nav > ul > li a { display: inline-block; text-align: center; color: #131617; text-decoration:none; }
+.navigation > nav > ul > li a { display: inline-block; text-align: center; color: var(--nodegoat-dark); text-decoration:none; }
 .navigation > nav > ul > li.active { background-color: #009cff; }
 .navigation > nav > ul > li.active a { color: #fff; }
 .navigation > nav > ul > li a[href] { background-repeat: no-repeat; }
 .navigation > nav > ul > li a[href="/login/data"],
 .navigation > nav > ul > li a[href="/login/model/"],
-.navigation > nav > ul > li a[href="/login/management/"] { background-size: 20px 20px; padding-left: 30px; }
+.navigation > nav > ul > li a[href="/login/management/"] { background-size: 18px 18px; background-position: left center; padding-left: 28px; }
 .navigation > nav > ul > li a[href="/login/data"] { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><g fill="rgb(19,22,23)"><path d="M0 16v14l14-7z"/><path d="M0 0v14l14-7z"/><path d="M16 8v14l14-7z"/></g></svg>'); }
 .navigation > nav > ul > li.active a[href="/login/data"] { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><g fill="rgb(255,255,255)"><path d="M0 16v14l14-7z"/><path d="M0 0v14l14-7z"/><path d="M16 8v14l14-7z"/></g></svg>'); }
 .navigation > nav > ul > li a[href="/login/management/"] { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><g fill="rgb(19,22,23)"><path d="M21.43613349 6.4358621a6.4361376 6.43586113 0 1 1-12.8722752 0 6.4361376 6.43586113 0 1 1 12.8722752 0z"/><path d="M12.87227708 23.5641391a6.4361376 6.43586113 0 1 1-12.8722752 0 6.4361376 6.43586113 0 1 1 12.8722752 0z"/><path d="M30.00000172 23.5641391a6.4361376 6.43586113 0 1 1-12.8722752 0 6.4361376 6.43586113 0 1 1 12.8722752 0z"/></g></svg>'); }
@@ -64,7 +65,7 @@ hr { border-bottom-width: 1px; }
 .navigation > nav > ul > li.active a[href="/login/model/"] { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><g fill="rgb(255,255,255)"><path d="M-.00000137 15.96856546h14.03141294v14.0314354H-.00000137z"/><path d="M15.96858771 15.96856546h14.03141294v14.0314354H15.9685877z"/><path d="M15.96858771 4e-7h14.03141294v14.0314354H15.9685877z"/><path d="M-.00000137 15.96856546h14.03141294v14.0314354H-.00000137z"/><path d="M15.96858771 15.96856546h14.03141294v14.0314354H15.9685877z"/><path d="M15.96858771 4e-7h14.03141294v14.0314354H15.9685877z"/></g></svg>'); }
 
 .navigation > nav > ul + ul { margin-top: 14px;  }			
-.navigation > nav > ul + ul > li { font-size: 14px; font-weight:bold; padding: 4px 16px; }
+.navigation > nav > ul + ul > li { font-size: 14px; font-weight: 800; padding: 4px 16px; }
 .navigation > nav > ul + ul > li + li { margin-left: 22px; }
 .navigation > nav > ul + ul > li a[href] { height: auto; padding: 0px; }
 
@@ -75,9 +76,9 @@ hr { border-bottom-width: 1px; }
 .toolbar a:not(:hover),
 .toolbar .a:not(:hover),
 .logout a:not(:hover),
-.logout .a:not(:hover) { color: #131617; }
+.logout .a:not(:hover) { color: var(--nodegoat-dark); }
 
-.logout { position: absolute; top: 0px; right: 0px; padding: 0px 30px; color: #131617; background-color: rgba(255, 255, 255, 0.6);  border-radius: 0 0 2px 2px;}	
+.logout { position: absolute; top: 0px; right: 0px; padding: 0px 30px; color: var(--nodegoat-dark); background-color: rgba(255, 255, 255, 0.6);  border-radius: 0 0 2px 2px;}	
 
 .toolbar { position: absolute; right: 0px; bottom: 0px; }
 .toolbar > div.project { }
@@ -88,21 +89,21 @@ hr { border-bottom-width: 1px; }
 .toolbar li.time,
 .toolbar li.export,
 .toolbar li.analyse { background-color: rgba(255, 255, 255, 0.6); }
-.toolbar li.pulse { background-color: #66cbff; color: #131617; }
-.toolbar li.settings { background-color: #ffffff; color: #131617; }
+.toolbar li.pulse { background-color: #66cbff; color: var(--nodegoat-dark); }
+.toolbar li.settings { background-color: #ffffff; color: var(--nodegoat-dark); }
 .toolbar li.settings:not(:first-child) { border-left: 2px solid #fff; }
 .toolbar li.settings.pulse { background-color: #0096e4;  }
 .toolbar li.settings.pulse-from { background-color: #66cbff; } /* #006498 */
-.toolbar li.settings > .a { color: #131617; }
+.toolbar li.settings > .a { color: var(--nodegoat-dark); }
 
-.toolbar li.settings > span:not(:hover) { color: #131617; }
+.toolbar li.settings > span:not(:hover) { color: var(--nodegoat-dark); }
 .toolbar li.settings.pulse > span,
 .toolbar li.settings.pulse-from > span { color: #ffffff;  }
 .toolbar li.settings sup,
 .toolbar li.settings sub { background-color: #009cff; color: #ffffff; }					
 
 span.icon ~ sup,
-span.icon ~ sub { background-color: #fafafa; color: #131617; }
+span.icon ~ sub { background-color: #fafafa; color: var(--nodegoat-dark); }
 
 .images { background-color: #fafafa; }
 	
@@ -117,7 +118,7 @@ span.icon ~ sub { background-color: #fafafa; color: #131617; }
 .filter .fieldsets > div > fieldset,
 .data_import .rows > div > div > fieldset > fieldset,
 .data_model .object-sub-details > .sorter > li > div > fieldset,
-.data_model .import_confirm .options #tab-object-sub .options > fieldset { background-color: #e1e1e1; padding: 5px 10px 10px 10px; }
+.data_model .import_confirm .options #tab-object-sub .options > fieldset { background-color: var(--back-nested); padding: 5px 10px 10px 10px; }
 .entry.object-various > fieldset,
 .filter .object-descriptions.fieldsets > div > fieldset,
 .filter .object-sub-descriptions.fieldsets > div > fieldset,
@@ -127,7 +128,7 @@ span.icon ~ sub { background-color: #fafafa; color: #131617; }
 .entry.object-subs > fieldset > legend,
 .filter .object-sub-details.fieldsets > div > fieldset > legend,
 .data_model .object-sub-details > .sorter > li > div > fieldset > legend,
-.data_model .import_confirm .options #tab-object-sub .options > fieldset > legend { background-color: #e1e1e1; padding: 0.5em 10px 0.5em 10px; margin-left: -10px; margin-bottom: 0px; line-height: 1; }
+.data_model .import_confirm .options #tab-object-sub .options > fieldset > legend { background-color: var(--back-nested); padding: 0.5em 10px 0.5em 10px; margin-left: -10px; margin-bottom: 0px; line-height: 1; }
 .data_import .rows > div > div > fieldset > fieldset > legend + *,
 .entry.object-subs div > fieldset > legend + *,
 .entry.object-subs > fieldset > legend + *,
@@ -155,11 +156,13 @@ span.icon ~ sub { background-color: #fafafa; color: #131617; }
 .view_type_object.object-sub .record,
 .view_type_object .referenced .statistics > ul > li > .record { background-color: #f5f5f5; margin: 0px; padding: 8px 10px; }
 
-.network .node > h4 { background-color: #e1e1e1; padding: 4px 6px; }
-.network .node > h4.pulse { background-color: #66cbff; }
-.network.type .node > h4 + div { background-color: #e1e1e1; padding: 0px 12px 12px 12px; }
+.network .node > h4.pulse,
+.network.type .node > h4 + div.pulse { background-color: #66cbff; }
+.network.type .node > h4 + div { background-color: var(--back-nested); padding: 0px 12px 12px 12px; }
 .network.type .node > h4 + div > fieldset > legend { margin-bottom: 8px; }
-.network.type .node div > label > .icon[data-category="direction"] svg { height: 5px; }
+.network.type .node > div + div > div > label > .icon[data-category="direction"] svg { height: 5px; }
+.network.type .node > h4 > span:first-child { display: none; margin-right: 0.5em; height: inherit; vertical-align: top; }
+.network.type .node > h4 > span:first-child::before { content: ''; display: block; width: 1.1em; height: 1.1em; box-sizing: border-box; background-color: currentColor; border: 0.2em solid #ffffff; border-radius: 50%; position: relative; top: calc(50% - (1.1em / 2)); }
 
 .tabs > ul li > a .icon[data-category="direction"] { color: #ffffff; }
 .tabs > ul li.selected > a .icon[data-category="direction"],
@@ -194,15 +197,15 @@ div.analysis-object > span + span::before { content: "|"; padding: 0px 4px; }
 
 .data_entry > .tabs { margin-bottom: 20px; }
 
-.data_viewer .record > dl > li > dd { max-width: 800px; }
+.data_viewer .record > dl > li > dd { max-width: 800px; overflow-wrap: break-word; }
 .data_viewer .record > dl > li > dd > span.icon,
-.data_viewer .record > dl > li > dd ul > li span.icon { display: inline-block; color: #444444; margin-left: 4px; margin-right: 2px; }
+.data_viewer .record > dl > li > dd ul > li span.icon { display: inline-block; color: var(--text); margin-left: 4px; margin-right: 2px; }
 .data_viewer .record > dl > li > dd > span.icon svg,
 .data_viewer .record > dl > li > dd ul > li span.icon svg { height: 12px; }
 .data_viewer .record > dl > li > dd > span.a,
 .data_viewer .record > dl > li > dd ul > li span.a { text-decoration: underline currentColor dashed 1px; text-underline-offset: 4px; display: inline-block; padding-bottom: 2px; }
 .data_viewer .record > dl > li > dd > span.a:not(:hover),
-.data_viewer .record > dl > li > dd ul > li span.a:not(:hover) { text-decoration-color: #444444; }
+.data_viewer .record > dl > li > dd ul > li span.a:not(:hover) { text-decoration-color: var(--text); }
 .data_viewer .record > dl > li > dd > span.a:hover > span[style] { color: inherit !important; }
 .data_viewer .record > dl > li > dd > ul ul { margin-left: 20px; }
 .data_viewer .record > dl > li > dd > div { display: inline-block; }
@@ -236,7 +239,7 @@ div.analysis-object > span + span::before { content: "|"; padding: 0px 4px; }
 
 *[type=button], *[type=submit],
 .tabs > ul li,
-section.info { background-color: #131617; }
+section.info { background-color: var(--nodegoat-dark); }
 
 *[type=button].pulse, *[type=submit].pulse,
 a.pulse, .a.pulse,
@@ -246,12 +249,13 @@ a.pulse-from, .a.pulse-from { background-color: #006498; }
 *[type=button].pulse, *[type=submit].pulse { border-color: #008ed7; }
 *[type=button].pulse-from, *[type=submit].pulse-from { border-color: #005885; }
 
-input[type=hidden]:not([value=""]):not([value="null"]):not([value="[]"]) + *[type=button]::after { margin-left: 4px; content: "●"; font-size: 1.1em; line-height: 0; }
+input[type=hidden]:not([value=""]):not([value="null"]):not([value="[]"]) + *[type=button]::after { margin-left: 4px; content: "●"; font-size: 0.7em; position: relative; bottom: 0.1em; line-height: 0; }
 
 input[type=text].colorpicker,
 fieldset > ul > li > label:first-child + * input[type=text].colorpicker,
 .options fieldset > ul > li > label:first-child + * input[type=text].colorpicker { width: 65px; margin-right: 4px; }
 
+.user-name { font-style: italic; }
 .sub-name::before { content: "["; padding-right: 0.14em; }
 .sub-name::after { content: "]"; padding-left: 0.14em; }
 .dynamic-references-name { font-style: italic; }
@@ -290,7 +294,7 @@ fieldset > ul > li > label:first-child + * input[type=text].colorpicker,
 .popup > form[data-method="handle_filter_storage"] > h2 > small::after,
 .popup > form[data-method="handle_condition_storage"] > h2 > small::after { content: ")"; margin-left: 0.14em; }
 
-.display td > img.enlarge { background-color: #e1e1e1; border: 2px solid #e1e1e1; }
+.display td > img.enlarge { background-color: var(--back-nested); border: 2px solid var(--back-nested); }
 .display td > img.enlarge + img.enlarge { margin-left: 2px; }
 
 .tschuifje > div:first-child { height: 22px; }

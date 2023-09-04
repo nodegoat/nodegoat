@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -119,15 +119,15 @@ class CreateVisualisationPackage {
 					
 					$arr_object = $collect->getPathObject($cur_path, $arr_info['in_out'], $cur_target_object_id, $arr_info['object_id']);
 					
-					$collapse = ($arr_info['arr_collapse_source'] ? true : false);
-					$collapsed = ($arr_info['arr_collapsed_source'] ? true : false);
-					$arr_collapsing_source = ($collapsed ? $arr_info['arr_collapsed_source'] : $arr_info['arr_collapse_source']);
+					$do_collapse = ($arr_info['arr_collapse_source'] ? true : false);
+					$is_collapsed = ($arr_info['arr_collapsed_source'] ? true : false);
+					$arr_collapsing_source = ($is_collapsed ? $arr_info['arr_collapsed_source'] : $arr_info['arr_collapse_source']);
 				
 					$num_depth = ($source_path == '0' ? 0 : 1 + substr_count($source_path, '-'));
 					
 					$s_arr_object =& $this->arr_pack_data['objects'][$cur_target_object_id];
 					
-					if (!$collapse) { // Object is not needed when it is collapsed
+					if (!$do_collapse) { // Object is not needed when it is collapsed
 						
 						if (!$s_arr_object || !isset($s_arr_object['name'])) { // Object can exist in multiple paths
 							
@@ -141,10 +141,10 @@ class CreateVisualisationPackage {
 							$num_sort++;
 						}
 						
-						static::parseStyle($s_arr_object['style'], $arr_object['object']['object_style'], $num_depth);
+						static::parseStyle($s_arr_object['style'], $arr_object['object']['object_style'], $num_depth); // Add to the object style on every encounter
 						
-						if (!isset($arr_check[$cur_path.$arr_info['in_out'].'_objects_'.$cur_target_object_id])) { // Objects can exist in multiple paths, update descriptions (in case of filtering) once in every path
-							
+						if (!isset($arr_check[$cur_path.$arr_info['in_out'].'_objects_'.$cur_target_object_id])) { // Objects can exist in multiple paths, update object and its descriptions (in case of filtering) once in every path
+
 							$s_arr_object_definitions =& $s_arr_object['object_definitions'];
 							
 							foreach ($arr_object['object_definitions'] as $object_description_id => $arr_object_definition) {
@@ -224,9 +224,11 @@ class CreateVisualisationPackage {
 								'style' => [],
 								'type_id' => $cur_target_type_id
 							];
-							
-							static::parseStyle($s_arr_object['style'], $arr_object['object']['object_style'], $num_depth);
 						}
+							
+						$s_arr_object =& $this->arr_pack_data['objects'][$arr_collapsing_source['object_id']];
+						
+						static::parseStyle($s_arr_object['style'], $arr_object['object']['object_style'], $num_depth); // Add to the object style on every encounter, and collapse
 					}
 					
 					$s_arr_object_connect_object_sub_ids =& $this->arr_pack_data['objects'][$object_id]['connect_object_sub_ids'];
@@ -234,10 +236,14 @@ class CreateVisualisationPackage {
 					if (!$s_arr_object_connect_object_sub_ids) {
 						$s_arr_object_connect_object_sub_ids = [];
 					}
-					
+										
 					foreach ($arr_object['object_subs'] as $object_sub_id => $arr_object_sub) {
 						
-						if ($collapse && $arr_collapsing_source['object_sub_id'] != $object_sub_id) { // Subobject is not needed when it is collapsed and not needed as source of the collapse (i.e. has a referenced sub object description) 
+						if (isset($arr_info['filtered']) && isset($arr_info['object_sub_details_id']) && $arr_object_sub['object_sub']['object_sub_details_id'] == $arr_info['object_sub_details_id'] && $object_sub_id != $arr_info['object_sub_id']) { // Subobjects can be skipped/dropped in the collection, make sure subobjects only add themselves
+							continue;
+						}
+						
+						if ($do_collapse && $arr_collapsing_source['object_sub_id'] != $object_sub_id) { // Sub-object is not needed when it is collapsed and not needed as source of the collapse (i.e. has a referenced sub-object description) 
 							continue;
 						}
 									
@@ -247,7 +253,7 @@ class CreateVisualisationPackage {
 						
 						$s_arr_object_sub =& $this->arr_pack_data['object_subs'][$object_sub_id];
 						
-						if (!$s_arr_object_sub) { // Subobjects can exist in multiple paths
+						if (!isset($s_arr_object_sub)) { // Sub-objects can exist in multiple paths
 
 							// Return *ymmdd
 							$date_raw_start = ($arr_object_sub['object_sub']['object_sub_date_start'] ?: $arr_object_sub['object_sub']['object_sub_date_end']);
@@ -298,13 +304,13 @@ class CreateVisualisationPackage {
 							}
 						}
 						
-						static::parseStyle($s_arr_object_sub['style'], $arr_object_sub['object_sub']['object_sub_style'], $num_depth);
+						static::parseStyle($s_arr_object_sub['style'], $arr_object_sub['object_sub']['object_sub_style'], $num_depth); // Add to the sub-object style on every encounter,
 						
 						$s_arr_object_connect_object_sub_ids['_'.$object_sub_id] = $object_sub_id; // Make sure the key is not numeric to prevent potential sorting by client
 						
 						if (!isset($arr_check[$cur_path.$arr_info['in_out'].'_object_subs_'.$object_sub_id])) { // Subobjects can exist in multiple paths, update descriptions (in case of filtering) once in every path
-							
-							if (!$collapse) { // Subobject description is not needed when it is collapsed
+
+							if (!$do_collapse) { // Sub-object description is not needed when it is collapsed
 								
 								$arr_object_sub_details = $arr_object_subs_details[$arr_object_sub['object_sub']['object_sub_details_id']];
 								
@@ -382,16 +388,18 @@ class CreateVisualisationPackage {
 						}
 					}
 
-					if ($collapse) {
+					if ($do_collapse) {
 
 						$source_object_id = $arr_collapsing_source['object_id'];
 						$source_object_sub_id = $arr_collapsing_source['object_sub_id'];
 						
-						if ($source_object_sub_id) { // Relocate incomming subobjects (if applicable) to the collapse source subobject
+						$has_data = ($arr_object['object_definitions'] || $arr_object['object_subs']); // Not 'object only'
+						
+						if ($source_object_sub_id && $has_data) { // Relocate incomming sub-objects (if applicable) to the collapse source sub-object
 							
 							$s_arr_object_sub =& $this->arr_pack_data['object_subs'][$source_object_sub_id];
 							
-							if (!isset($s_arr_object_sub)) { // sub-object could be missing when the sub-object itself is collapsed and not part of the selection
+							if (!isset($s_arr_object_sub)) { // Sub-object could be missing when the sub-object itself is collapsed and not part of the selection
 								
 								$s_arr_object_sub['object_sub_details_id'] = false;
 								$s_arr_object_sub['original_object_id'] = ($arr_info['in_out'] == 'in' ? $cur_target_object_id : $arr_info['object_id']);
@@ -490,7 +498,7 @@ class CreateVisualisationPackage {
 							
 							}
 						}
-					} else if ($collapsed && $arr_info['in_out'] == 'in') { // If source was part of a collapse, but the current object is not, reconfigure the reference to that source
+					} else if ($is_collapsed && $arr_info['in_out'] == 'in') { // If source was part of a collapse, but the current object is not, reconfigure the reference to that source
 						
 						$source_object_id = $arr_collapsing_source['object_id'];
 						$source_type_id = $arr_collapsing_source['type_id'];
@@ -696,7 +704,7 @@ class CreateVisualisationPackage {
 					
 					foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view']) {
+						if (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
@@ -965,8 +973,10 @@ class CreateVisualisationPackage {
 		foreach ($arr_style_add as $key => $value) {
 			
 			if ($key === 'conditions') {
-				
-				$arr_style_target['conditions'] = (array)$arr_style_target['conditions'] + $value;
+								
+				foreach ($value as $str_identifier => $num_condition) {
+					$arr_style_target['conditions'][$str_identifier] += $num_condition;
+				};
 			} else {
 				
 				if (is_array($value)) {

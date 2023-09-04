@@ -4,7 +4,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -278,13 +278,17 @@ function MapData(element, PARENT, arr_settings_options) {
 						}
 						if (arr_object_style.conditions) {
 							
+							if (typeof arr_object_sub_style.conditions == 'undefined') {
+								arr_object_sub_style.conditions = {};
+							}
+							
 							for (const str_identifier_condition in arr_object_style.conditions) {
 								
-								if (typeof arr_object_sub_style.conditions == 'undefined') {
-									arr_object_sub_style.conditions = {};
+								if (typeof arr_object_sub_style.conditions[str_identifier_condition] != 'undefined') {
+									continue;
 								}
-								
-								arr_object_sub_style.conditions[str_identifier_condition] = str_identifier_condition;
+
+								arr_object_sub_style.conditions[str_identifier_condition] = arr_object_style.conditions[str_identifier_condition];
 							}
 						}
 

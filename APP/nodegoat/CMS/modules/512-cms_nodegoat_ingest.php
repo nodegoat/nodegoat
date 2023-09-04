@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -36,13 +36,12 @@ class cms_nodegoat_ingest extends base_module {
 		return [
 			'cleanupImportTemplateLogs' => [
 				'label' => 'nodegoat '.getLabel('lbl_import_cleanup_import_template_logs'),
-				'options' => function($options) {
-					$arr_units = [
-						['id' => 1440, 'name' => getLabel('unit_day')],
-						['id' => 10080, 'name' => getLabel('unit_week')],
-						['id' => 40320, 'name' => getLabel('unit_month')]
-					];
-					return '<label>'.getLabel('lbl_age').'</label><input type="text" name="options[age_amount]" value="'.$options['age_amount'].'" /><select name="options[age_unit]">'.cms_general::createDropdown($arr_units, $options['age_unit']).'</select>';
+				'options' => function($arr_options) {
+					
+					$arr_units = StoreIngestFile::getTemplateLogOptions();
+					
+					return '<label>'.getLabel('lbl_age').'</label><input type="text" name="options[age_amount]" value="'.$arr_options['age_amount'].'" />'
+						.'<select name="options[age_unit]">'.cms_general::createDropdown($arr_units, $arr_options['age_unit']).'</select>';
 				}
 			]
 		];
@@ -61,7 +60,7 @@ class cms_nodegoat_ingest extends base_module {
 		if ($arr_options['age_amount'] && $arr_options['age_unit']) {
 			
 			$num_minutes = $arr_options['age_amount'] * $arr_options['age_unit'];
-					
+			
 			StoreIngestFile::cleanupTemplateLogs($num_minutes);
 		} else {
 			

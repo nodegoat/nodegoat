@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -71,6 +71,7 @@ class IngestTypeObjects {
 			'filter_value' => ($arr_template_pointers['filter_value'] ?: []),
 			'filter_object_identifier' => ($arr_template_pointers['filter_object_identifier'] ?: []),
 			'filter_object_value' => ($arr_template_pointers['filter_object_value'] ?: []),
+			'filter_object_sub_identifier' => ($arr_template_pointers['filter_object_sub_identifier'] ?: []),
 			'map' => ($arr_template_pointers['map'] ?: [])
 		];
 		
@@ -188,9 +189,9 @@ class IngestTypeObjects {
 		$count_buffer = 0;
 		$str_error = false;
 	
-		foreach ($this->arr_objects as $key => $arr_object) {
+		foreach ($this->arr_objects as $object_id => $arr_object) {
 			
-			$arr_objects_buffers[$count_buffer][] = $key;
+			$arr_objects_buffers[$count_buffer][] = $object_id;
 			$count++;
 			
 			if ($count == static::$nr_store_objects_buffer) {
@@ -258,8 +259,10 @@ class IngestTypeObjects {
 			$storage = new StoreTypeObjects($this->type_id, false, $this->arr_owner);
 			$storage->setVersioning(true);
 			$storage->setMode(StoreTypeObjects::MODE_UPDATE, false);
-			$storage->setAppend($this->arr_append);		
-					
+			$storage->setAppend($this->arr_append);
+			
+			$num_row = 0;
+			
 			DB::startTransaction('ingest_store');
 			
 			try {
@@ -273,7 +276,7 @@ class IngestTypeObjects {
 
 						$storage->setObjectID($object_id);
 						
-						$storage->store((array)$arr_object['object'], $arr_object['object_definitions'], $arr_object['object_subs']);
+						$storage->store((array)$arr_object['object'], (array)$arr_object['object_definitions'], (array)$arr_object['object_subs']);
 						
 						$arr_object_ids[] = $object_id;
 					}
@@ -313,7 +316,9 @@ class IngestTypeObjects {
 			$storage = new StoreTypeObjects($this->type_id, false, $this->arr_owner);
 			$storage->setVersioning();
 			$storage->setMode(null, false);
-					
+			
+			$num_row = 0;
+			
 			DB::startTransaction('ingest_store');
 
 			try {
@@ -327,11 +332,11 @@ class IngestTypeObjects {
 					foreach ($arr_buffer as $key) {
 							
 						$arr_object = $this->arr_objects[$key];
-							
+						
 						$storage->setObjectID(false);
-							
+						
 						$object_id_processing = $storage->store((array)$arr_object['object'], (array)$arr_object['object_definitions'], (array)$arr_object['object_subs']);
-												
+						
 						$arr_object_ids[] = $object_id_processing;
 						$arr_buffer_stored_objects[$num_row] = $object_id_processing;
 						
@@ -599,7 +604,7 @@ class IngestTypeObjects {
 				$arr_pattern_value = $arr_identifiers_filters[$str_identifier]['pattern_value'];
 
 				$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ID);
-				$filter->setVersioning('added');
+				$filter->setVersioning(GenerateTypeObjects::VERSIONING_ADDED);
 				$filter->setFilter($arr_filter);
 
 				$arr_filter_error = [];
@@ -707,26 +712,39 @@ class IngestTypeObjects {
 		
 		$this->initLog();
 
-		$stmt_check = false;
+		$stmt_check_object = false;
+		$stmt_check_object_sub = false;
 		
-		if (($this->mode == self::MODE_UPDATE || $this->mode == self::MODE_OVERWRITE_IF_NOT_EXISTS) && $this->arr_filter_objects) {
+		if ($this->mode == self::MODE_UPDATE || $this->mode == self::MODE_OVERWRITE_IF_NOT_EXISTS) {
 			
-			$filter = new FilterTypeObjects($this->type_id, GenerateTypeObjects::VIEW_ID);			
-			$filter->setVersioning('added');
-			$filter->setFilter($this->arr_filter_objects);
+			if ($this->arr_filter_objects) {
 			
-			$table_name = $filter->storeResultTemporarily(uniqid(), true);
+				$filter = new FilterTypeObjects($this->type_id, GenerateTypeObjects::VIEW_ID);			
+				$filter->setVersioning(GenerateTypeObjects::VERSIONING_ADDED);
+				$filter->setFilter($this->arr_filter_objects);
+				
+				$table_name = $filter->storeResultTemporarily(uniqid(), true);
+				
+				$stmt_check_object = DB::prepare("SELECT TRUE
+						FROM ".$table_name."
+					WHERE id = ".DBStatement::assign('object_id', 'i')."
+					LIMIT 1
+				");
+			}
 			
-			$stmt_check = DB::prepare("SELECT TRUE
-					FROM ".$table_name."
-				WHERE id = ".DBStatement::assign('object_id', 'i')."
-				LIMIT 1
-			");
+			if (isset($this->arr_template_pointers['filter_object_sub_identifier'])) {
+				
+				$stmt_check_object_sub = DB::prepare("SELECT object_id, object_sub_details_id
+						FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')."
+					WHERE id = ".DBStatement::assign('object_sub_id', 'i')."
+					LIMIT 1
+				");
+			}
 		}
 		
 		$this->arr_objects = [];
 		$time_process = microtime(true);
-		$check_identical = false;
+		$do_check_identical = false;
 		
 		list($num_start, $num_offset, $num_end) = $this->getLimit();
 		
@@ -735,6 +753,8 @@ class IngestTypeObjects {
 			$arr_object = ['object' => [], 'object_definitions' => [], 'object_subs' => []];
 			$arr_collected_filter = [];
 			$object_id = false;
+			$object_sub_id = false;
+			$str_identifier = false;
 			
 			foreach ($this->arr_template_pointers as $type => $arr_type_pointers) {
 				
@@ -757,6 +777,12 @@ class IngestTypeObjects {
 						
 						$object_id = GenerateTypeObjects::parseTypeObjectID($value_pointer);
 					}
+				} else if ($type == 'filter_object_sub_identifier') {
+											
+					$pointer_heading = $arr_type_pointers['pointer_heading'];
+					$value_pointer = $this->getPointerData($i, $pointer_heading);
+						
+					$object_sub_id = (int)$value_pointer;
 				} else {
 									
 					foreach ($arr_type_pointers as $arr_pointer) {
@@ -779,7 +805,7 @@ class IngestTypeObjects {
 							$arr_options = ['overwrite' => ($arr_pointer['mode_write'] == 'overwrite'), 'ignore_empty' => $arr_pointer['ignore_empty'], 'ignore_identical' => $arr_pointer['ignore_identical'], 'row_identifier' => $i, 'pointer_heading' => $pointer_heading];
 										
 							if ($arr_options['ignore_identical']) {
-								$check_identical = true;
+								$do_check_identical = true;
 							}
 									
 							$arr_values = [];
@@ -835,202 +861,27 @@ class IngestTypeObjects {
 					continue;
 				}
 				
-				if ($stmt_check !== false) {
+				if ($stmt_check_object !== false) {
 					
-					$stmt_check->bindParameters(['object_id' => $object_id]);
-					$res = $stmt_check->execute();
+					$stmt_check_object->bindParameters(['object_id' => $object_id]);
+					$res = $stmt_check_object->execute();
 					
 					if (!$res->getRowCount()) {
 						continue;
 					}
 				}
 
-				if ($check_identical) {
-			
-					$arr_selection = ['object_descriptions' => (array)$arr_object['object_definitions'], 'object_sub_details' => (array)$arr_object['object_subs']];
-					$filter = new FilterTypeObjects($this->type_id, GenerateTypeObjects::VIEW_STORAGE);			
-					$filter->setVersioning('added');
-					$filter->setSelection($arr_selection);
-					$filter->setFilter(['objects' => $object_id]);	
-					$arr_stored_object = current($filter->init());
-		
-					foreach ($arr_object['object_definitions'] as $object_description_id => $arr_object_definitions) {
-						
-						$arr_options = $this->arr_options[$this->type_id][$object_description_id];
-						
-						if (!$arr_options['ignore_identical']) {
-							continue;
-						}
-					
-						$is_identical = false;
-					
-						if ($arr_stored_object['object_definitions'][$object_description_id]) {
-						
-							if ($arr_object_definitions['object_definition_ref_object_id']) {
-
-								if ($arr_stored_object['object_definitions'][$object_description_id]['object_definition_ref_object_id'] == $arr_object_definitions['object_definition_ref_object_id']) {
-									
-									$is_identical = true;
-									unset($arr_object['object_definitions'][$object_description_id]);
-								}
-								
-							} else if ($arr_object_definitions['object_definition_value']) {
-								
-								if ($arr_stored_object['object_definitions'][$object_description_id]['object_definition_value'] == $arr_object_definitions['object_definition_value']) {
-									
-									$is_identical = true;
-									unset($arr_object['object_definitions'][$object_description_id]);
-								}
-							}
-						}
-						
-						if ($is_identical) {
-							
-							if ($this->use_log) {
-								$this->arr_log['rows'][$i]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
-							}
-						}		
-					}
-									 				 
-					foreach ($arr_object['object_subs'] as $object_sub_details_id => $arr_object_sub) {
-
-						// Non-single sub-objects cannot be checked for identical values
-						if (!$this->arr_type_sets[$this->type_id]['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_is_single']) {
-							continue;
-						}
-						
-						$arr_stored_object_sub = false;
-						
-						foreach ($arr_stored_object['object_subs'] as $object_sub_id => $arr_object_sub_loop) {
-
-							if ($arr_object_sub_loop['object_sub']['object_sub_details_id'] == $object_sub_details_id) {
-								$arr_stored_object_sub = $arr_object_sub_loop;
-							}
-						}
-
-						if (!$arr_stored_object_sub) {
-							continue;
-						}
-						
-						if ($arr_object_sub['object_sub']['object_sub_date_chronology']) {
-							
-							$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id]['date_chronology'];
-							
-							if ($arr_options['ignore_identical'] && $arr_stored_object_sub['object_sub']['object_sub_date_chronology'] == $arr_object_sub['object_sub']['object_sub_date_chronology']) {
-
-								unset($arr_object_sub['object_sub']['object_sub_date_chronology']);
-								
-								if ($this->use_log) {
-									$this->arr_log['rows'][$i]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
-								}								
-							}
-						} else if ($arr_object_sub['object_sub']['object_sub_date_start'] || $arr_object_sub['object_sub']['object_sub_date_end']) {
-							
-							$arr_stored_date_chronology = StoreTypeObjects::formatToChronology($arr_stored_object_sub['object_sub']['object_sub_date_chronology']);
-							
-							if ($arr_object_sub['object_sub']['object_sub_date_start']) {
-								
-								$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id]['date_start'];
-								
-								if ($arr_options['ignore_identical'] && $arr_stored_date_chronology['start']['start']['date_value'] == StoreTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub']['object_sub_date_start'])) {
-
-									unset($arr_object_sub['object_sub']['object_sub_date_start']);
-									
-									if ($this->use_log) {
-										$this->arr_log['rows'][$i]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
-									}								
-								}
-							}
-							
-							if ($arr_object_sub['object_sub']['object_sub_date_end']) {
-								
-								$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id]['date_end'];
-								
-								if ($arr_options['ignore_identical'] && $arr_stored_date_chronology['end']['end']['date_value'] == StoreTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub']['object_sub_date_end'])) {
-
-									unset($arr_object_sub['object_sub']['object_sub_date_end']);
-									
-									if ($this->use_log) {
-										$this->arr_log['rows'][$i]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
-									}								
-								}
-							}
-						}
-						
-						if ($arr_object_sub['object_sub']['object_sub_location_geometry']) {
-							
-							$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id]['location_geometry'];
-							
-							if ($arr_options['ignore_identical'] && $arr_stored_object_sub['object_sub']['object_sub_location_geometry'] == $arr_object_sub['object_sub']['object_sub_location_geometry']) {
-
-								unset($arr_object_sub['object_sub']['object_sub_location_geometry']);
-								
-								if ($this->use_log) {
-									$this->arr_log['rows'][$i]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
-								}								
-							}
-						}
-						
-						if ($arr_object_sub['object_sub']['object_sub_location_ref_object_id']) {
-							
-							$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id]['location_ref_type_id'];
-							
-							if ($arr_options['ignore_identical'] && $arr_stored_object_sub['object_sub']['object_sub_location_ref_object_id'] == $arr_object_sub['object_sub']['object_sub_location_ref_object_id']) {
-
-								unset($arr_object_sub['object_sub']['object_sub_location_ref_object_id']);
-								
-								if ($this->use_log) {
-									$this->arr_log['rows'][$i]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
-								}								
-							}
-						}
-						
-						foreach ($arr_object_sub['object_sub_definitions'] as $object_sub_description_id => $arr_object_sub_definitions) {
-
-							$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id][$object_sub_description_id];
-							
-							if (!$arr_options['ignore_identical']) {
-								continue;
-							}
-						
-							$is_identical = false;
-							
-							$arr_stored_object_sub_definition = $arr_stored_object_sub['object_sub_definitions'][$object_sub_description_id];
-							
-							if ($arr_object_sub_definitions['object_sub_definition_ref_object_id']) {
-
-								if ($arr_stored_object_sub_definition['object_sub_definition_ref_object_id'] == $arr_object_sub_definitions['object_sub_definition_ref_object_id']) {
-									
-									$is_identical = true;
-								}
-								
-							} else if ($arr_object_sub_definitions['object_sub_definition_value']) {
-
-								if ($arr_stored_object_sub_definition['object_sub_definition_value'] == $arr_object_sub_definitions['object_sub_definition_value']) {
-				
-									$is_identical = true;
-								}
-							}
-								
-							if ($is_identical) {
-								
-								unset($arr_object['object_subs'][$object_sub_details_id]['object_sub_definitions'][$object_sub_description_id]);
-								
-								if ($this->use_log) {
-									$this->arr_log['rows'][$i]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
-								}
-							}	
-						}
-					}
+				if ($do_check_identical) {
+					$arr_object = $this->checkTypeObjectIdenticalValues($object_id, $arr_object, $i);
 				}
 			
-				// Merge data with data that has been assigned to this object, same OD, in a previous run
+				// Merge data with data that has been assigned to this object in a previous run
 				
-				if ($this->arr_objects[$object_id]) {
+				if (isset($this->arr_objects[$object_id])) {
 					
 					foreach ($arr_object['object_definitions'] as $object_description_id => $arr_object_definitions) {
 						
-						if ($this->arr_objects[$object_id]['object_definitions'][$object_description_id]) {
+						if (isset($this->arr_objects[$object_id]['object_definitions'][$object_description_id])) {
 							
 							if ($arr_object_definitions['object_definition_ref_object_id'] && is_array($arr_object_definitions['object_definition_ref_object_id'])) {
 								
@@ -1048,28 +899,73 @@ class IngestTypeObjects {
 						}
 					}
 					
-					foreach ($arr_object['object_subs'] as $object_sub_details_id => $arr_object_sub) {
-						
-						$this->arr_objects[$object_id]['object_subs'][uniqid()] = $arr_object_sub;
-					}
-					
 				} else {
 					
-					$this->arr_objects[$object_id] = $arr_object;
+					$this->arr_objects[$object_id]['object_definitions'] = $arr_object['object_definitions'];
+				}
+				
+				$has_match_object_sub_id = null;
+				
+				if ($stmt_check_object_sub !== false && $object_sub_id) {
+					
+					$stmt_check_object_sub->bindParameters(['object_sub_id' => $object_sub_id]);
+					$res = $stmt_check_object_sub->execute();
+					
+					$has_match_object_sub_id = false;
+					
+					if ($res->getRowCount()) {
+						
+						$arr_object_sub_info = $res->fetchAssoc();
+						
+						if ($arr_object_sub_info['object_id'] == $object_id) {
+							
+							foreach ($arr_object['object_subs'] as $key => $arr_object_sub) {
+								
+								if ($arr_object_sub['object_sub']['object_sub_details_id'] != $arr_object_sub_info['object_sub_details_id']) {
+									continue;
+								}
+								
+								$has_match_object_sub_id = true;
+							
+								$arr_object_sub['object_sub']['object_sub_id'] = $object_sub_id;
+								unset($arr_object['object_subs'][$key]);
+							
+								$this->arr_objects[$object_id]['object_subs'][$object_sub_id] = $arr_object_sub;
+								
+								break;
+							}
+						}
+					}
+					
+					if (!$has_match_object_sub_id) {
+						
+						$this->arr_log['rows'][$i]['results']['filter_object_sub_identifier']['no_object_sub'] = true;
+					}
+				}
+				
+				if ($has_match_object_sub_id === null || $has_match_object_sub_id === true) { // Do not store sub-object when a wanted match has not succeeded
+					
+					foreach ($arr_object['object_subs'] as $key => $arr_object_sub) {
+						
+						$use_key = (isset($this->arr_objects[$object_id]['object_subs'][$key]) ? uniqid() : $key);
+					
+						$this->arr_objects[$object_id]['object_subs'][$use_key] = $arr_object_sub;
+					}
 				}
 			} else if ($this->mode == self::MODE_OVERWRITE_IF_NOT_EXISTS) {
 				
 				if ($object_id) {
 					
-					if ($stmt_check !== false) {
+					if ($stmt_check_object !== false) {
 						
-						$stmt_check->bindParameters(['object_id' => $object_id]);
-						$res = $stmt_check->execute();
+						$stmt_check_object->bindParameters(['object_id' => $object_id]);
+						$res = $stmt_check_object->execute();
 						
 						if ($res->getRowCount()) {
 							continue;
 						}
 						
+						$str_identifier = $object_id;
 						$object_id = false;
 					} else {
 						
@@ -1077,7 +973,7 @@ class IngestTypeObjects {
 					}
 				}
 				
-				$this->arr_objects[] = $arr_object;
+				$this->arr_objects[$str_identifier] = $arr_object;
 			} else {
 				
 				$this->arr_objects[] = $arr_object;
@@ -1234,7 +1130,7 @@ class IngestTypeObjects {
 		$pointer_heading = $arr_options['pointer_heading'];
 		
 		// Return if no value and option set to ignore empty values
-		if (!$str_value_decoded && $arr_options['ignore_empty']) {
+		if ($str_value_decoded === '' && $arr_options['ignore_empty']) {
 		
 			if ($this->use_log && $num_row !== false && $pointer_heading) {
 				$this->arr_log['rows'][$num_row]['results'][$pointer_heading]['options']['ignore_empty'] = true;
@@ -1279,8 +1175,13 @@ class IngestTypeObjects {
 				}
 				
 				$arr_object['object_definitions'][$object_description_id]['object_description_id'] = $object_description_id;
-				$arr_object['object_definitions'][$object_description_id]['object_definition_ref_object_id'][] = $object_id;
-
+				
+				if ($arr_type_set['object_descriptions'][$object_description_id]['object_description_has_multi']) {
+					$arr_object['object_definitions'][$object_description_id]['object_definition_ref_object_id'][] = $object_id;
+				} else {
+					$arr_object['object_definitions'][$object_description_id]['object_definition_ref_object_id'] = $object_id;
+				}
+				
 				if ($object_id) {
 					
 					if ($this->use_log && $num_row !== false && $pointer_heading) {
@@ -1298,10 +1199,8 @@ class IngestTypeObjects {
 				$arr_object['object_definitions'][$object_description_id]['object_description_id'] = $object_description_id;
 					
 				if ($arr_type_set['object_descriptions'][$object_description_id]['object_description_has_multi']) {
-						
 					$arr_object['object_definitions'][$object_description_id]['object_definition_value'][] = $str_value_decoded;
 				} else {
-						
 					$arr_object['object_definitions'][$object_description_id]['object_definition_value'] = $str_value_decoded;
 				}
 			}			
@@ -1436,6 +1335,186 @@ class IngestTypeObjects {
 			
 		return $arr_object;	
 	}
+	
+	protected function checkTypeObjectIdenticalValues($object_id, $arr_object, $num_row) {
+	
+		$arr_selection = ['object_descriptions' => (array)$arr_object['object_definitions'], 'object_sub_details' => (array)$arr_object['object_subs']];
+		$filter = new FilterTypeObjects($this->type_id, GenerateTypeObjects::VIEW_STORAGE);			
+		$filter->setVersioning(GenerateTypeObjects::VERSIONING_ADDED);
+		$filter->setSelection($arr_selection);
+		$filter->setFilter(['objects' => $object_id]);	
+		$arr_stored_object = current($filter->init());
+	
+		foreach ($arr_object['object_definitions'] as $object_description_id => $arr_object_definitions) {
+			
+			$arr_options = $this->arr_options[$this->type_id][$object_description_id];
+			
+			if (!$arr_options['ignore_identical']) {
+				continue;
+			}
+		
+			$is_identical = false;
+		
+			if ($arr_stored_object['object_definitions'][$object_description_id]) {
+			
+				if ($arr_object_definitions['object_definition_ref_object_id']) {
+
+					if ($arr_stored_object['object_definitions'][$object_description_id]['object_definition_ref_object_id'] == $arr_object_definitions['object_definition_ref_object_id']) {
+						
+						$is_identical = true;
+						unset($arr_object['object_definitions'][$object_description_id]);
+					}
+					
+				} else if ($arr_object_definitions['object_definition_value']) {
+					
+					if ($arr_stored_object['object_definitions'][$object_description_id]['object_definition_value'] == $arr_object_definitions['object_definition_value']) {
+						
+						$is_identical = true;
+						unset($arr_object['object_definitions'][$object_description_id]);
+					}
+				}
+			}
+			
+			if ($is_identical) {
+				
+				if ($this->use_log) {
+					$this->arr_log['rows'][$num_row]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
+				}
+			}		
+		}
+						 				 
+		foreach ($arr_object['object_subs'] as $object_sub_details_id => $arr_object_sub) {
+
+			// Non-single sub-objects cannot be checked for identical values
+			if (!$this->arr_type_sets[$this->type_id]['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_is_single']) {
+				continue;
+			}
+			
+			$arr_stored_object_sub = false;
+			
+			foreach ($arr_stored_object['object_subs'] as $check_object_sub_id => $arr_object_sub_loop) {
+
+				if ($arr_object_sub_loop['object_sub']['object_sub_details_id'] == $object_sub_details_id) {
+					$arr_stored_object_sub = $arr_object_sub_loop;
+				}
+			}
+
+			if (!$arr_stored_object_sub) {
+				continue;
+			}
+			
+			if ($arr_object_sub['object_sub']['object_sub_date_chronology']) {
+				
+				$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id]['date_chronology'];
+				
+				if ($arr_options['ignore_identical'] && $arr_stored_object_sub['object_sub']['object_sub_date_chronology'] == $arr_object_sub['object_sub']['object_sub_date_chronology']) {
+
+					unset($arr_object_sub['object_sub']['object_sub_date_chronology']);
+					
+					if ($this->use_log) {
+						$this->arr_log['rows'][$num_row]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
+					}								
+				}
+			} else if ($arr_object_sub['object_sub']['object_sub_date_start'] || $arr_object_sub['object_sub']['object_sub_date_end']) {
+				
+				$arr_stored_date_chronology = StoreTypeObjects::formatToChronology($arr_stored_object_sub['object_sub']['object_sub_date_chronology']);
+				
+				if ($arr_object_sub['object_sub']['object_sub_date_start']) {
+					
+					$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id]['date_start'];
+					
+					if ($arr_options['ignore_identical'] && $arr_stored_date_chronology['start']['start']['date_value'] == StoreTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub']['object_sub_date_start'])) {
+
+						unset($arr_object_sub['object_sub']['object_sub_date_start']);
+						
+						if ($this->use_log) {
+							$this->arr_log['rows'][$num_row]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
+						}								
+					}
+				}
+				
+				if ($arr_object_sub['object_sub']['object_sub_date_end']) {
+					
+					$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id]['date_end'];
+					
+					if ($arr_options['ignore_identical'] && $arr_stored_date_chronology['end']['end']['date_value'] == StoreTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub']['object_sub_date_end'])) {
+
+						unset($arr_object_sub['object_sub']['object_sub_date_end']);
+						
+						if ($this->use_log) {
+							$this->arr_log['rows'][$num_row]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
+						}								
+					}
+				}
+			}
+			
+			if ($arr_object_sub['object_sub']['object_sub_location_geometry']) {
+				
+				$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id]['location_geometry'];
+				
+				if ($arr_options['ignore_identical'] && $arr_stored_object_sub['object_sub']['object_sub_location_geometry'] == $arr_object_sub['object_sub']['object_sub_location_geometry']) {
+
+					unset($arr_object_sub['object_sub']['object_sub_location_geometry']);
+					
+					if ($this->use_log) {
+						$this->arr_log['rows'][$num_row]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
+					}								
+				}
+			}
+			
+			if ($arr_object_sub['object_sub']['object_sub_location_ref_object_id']) {
+				
+				$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id]['location_ref_type_id'];
+				
+				if ($arr_options['ignore_identical'] && $arr_stored_object_sub['object_sub']['object_sub_location_ref_object_id'] == $arr_object_sub['object_sub']['object_sub_location_ref_object_id']) {
+
+					unset($arr_object_sub['object_sub']['object_sub_location_ref_object_id']);
+					
+					if ($this->use_log) {
+						$this->arr_log['rows'][$num_row]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
+					}								
+				}
+			}
+			
+			foreach ($arr_object_sub['object_sub_definitions'] as $object_sub_description_id => $arr_object_sub_definitions) {
+
+				$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id][$object_sub_description_id];
+				
+				if (!$arr_options['ignore_identical']) {
+					continue;
+				}
+			
+				$is_identical = false;
+				
+				$arr_stored_object_sub_definition = $arr_stored_object_sub['object_sub_definitions'][$object_sub_description_id];
+				
+				if ($arr_object_sub_definitions['object_sub_definition_ref_object_id']) {
+
+					if ($arr_stored_object_sub_definition['object_sub_definition_ref_object_id'] == $arr_object_sub_definitions['object_sub_definition_ref_object_id']) {
+						
+						$is_identical = true;
+					}
+				} else if ($arr_object_sub_definitions['object_sub_definition_value']) {
+
+					if ($arr_stored_object_sub_definition['object_sub_definition_value'] == $arr_object_sub_definitions['object_sub_definition_value']) {
+	
+						$is_identical = true;
+					}
+				}
+					
+				if ($is_identical) {
+					
+					unset($arr_object['object_subs'][$object_sub_details_id]['object_sub_definitions'][$object_sub_description_id]);
+					
+					if ($this->use_log) {
+						$this->arr_log['rows'][$num_row]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
+					}
+				}	
+			}
+		}
+		
+		return $arr_object;
+	}
 		
 	protected function getTypeObjectIDByIdentifier($identifier, $object_description_id) {
 		
@@ -1531,11 +1610,13 @@ class IngestTypeObjects {
 		return $arr_row;
 	}
 	
-	public function clearLog() {
+	public function resetLog() {
 		
 		$res = DB::query("DELETE FROM ".DB::getTable('DATA_NODEGOAT_IMPORT_TEMPLATE_LOG')."
 			WHERE template_id = ".(int)$this->template_id."
 		");
+		
+		StoreIngestFile::setTemplateLastRun($this->template_id);
 	}
 		
 	public static function getValueIndexOptions() {

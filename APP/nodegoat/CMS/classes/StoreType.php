@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -15,6 +15,9 @@ class StoreType {
 	const MODE_OVERWRITE = 2;
 	const CHECK_ALL = 1;
 	const CHECK_CONFIRMED = 2;
+	
+	const CLEARANCE_PURPOSE_VIEW = 'view';
+	const CLEARANCE_PURPOSE_EDIT = 'edit';
 	
 	protected $type_id = false;
 	protected $user_id = false;
@@ -102,10 +105,22 @@ class StoreType {
     		
 	public function store($arr_details, $arr_definitions, $arr_object_descriptions, $arr_object_subs_details) {
 		
-		$arr_details = arrParseRecursive($arr_details, 'trim');
-		$arr_definitions = ($arr_definitions ? arrParseRecursive($arr_definitions, 'trim') : []);
-		$arr_object_descriptions = ($arr_object_descriptions ? arrParseRecursive($arr_object_descriptions, 'trim', ['separator' => true], false) : []);
-		$arr_object_subs_details = ($arr_object_subs_details ? arrParseRecursive($arr_object_subs_details, 'trim', ['separator' => true], false) : []);
+		$func_parse = function($value) {
+			
+			if ($value === null) {
+				return null;
+			}
+			if (is_string($value)) {
+				return parseValue($value, TYPE_TEXT);
+			}
+			
+			return $value;
+		};
+		
+		$arr_details = arrParseRecursive($arr_details, $func_parse);
+		$arr_definitions = ($arr_definitions ? arrParseRecursive($arr_definitions, $func_parse) : []);
+		$arr_object_descriptions = ($arr_object_descriptions ? arrParseRecursive($arr_object_descriptions, $func_parse, ['separator' => true], false) : []);
+		$arr_object_subs_details = ($arr_object_subs_details ? arrParseRecursive($arr_object_subs_details, $func_parse, ['separator' => true], false) : []);
 		
 		$this->mode = (!$this->type_id ? self::MODE_OVERWRITE : $this->mode);
 		
@@ -804,7 +819,7 @@ class StoreType {
 		if ($arr_touched_cache_object_sub_details_ids) { // Update the state of the objects when there could be cache-related changes to their sub-objects
 			
 			$filter = new FilterTypeObjects($this->type_id, GenerateTypeObjects::VIEW_ID);
-			$filter->setVersioning('added');
+			$filter->setVersioning(GenerateTypeObjects::VERSIONING_ADDED);
 			$filter->setFilter(['object_sub_details' => $arr_touched_cache_object_sub_details_ids]);
 			
 			$sql_table_name = $filter->storeResultTemporarily();
@@ -985,39 +1000,41 @@ class StoreType {
 			return;
 		}
 		
-		$convert = false;
+		$do_convert = false;
 		
 		switch ($to_value_type_base) {
 			case 'media';
-				$convert = true;
+				if ($value_type_base == '') {
+					$do_convert = true;
+				}
 				break;
 			case 'text';
 			case 'text_layout';
 			case 'text_tags';
 				if ($value_type_base == '' || $value_type_base == 'int' || $value_type_base == 'numeric') {
-					$convert = true;
+					$do_convert = true;
 				}
 				break;
 			case '';
 				if ($value_type_base == 'text' || $value_type_base == 'text_layout' || $value_type_base == 'text_tags' || $value_type_base == 'int' || $value_type_base == 'numeric') {
-					$convert = true;
+					$do_convert = true;
 				}
 				break;
 			case 'int';
 			case 'numeric';
 				if ($value_type_base == 'int' || $value_type_base == 'numeric') {
-					$convert = true;
+					$do_convert = true;
 				}
 				break;
 		}
 		
-		if (!$convert) {
+		if (!$do_convert) {
 			return;
 		}
 	
 		$filter = new FilterTypeObjects($this->type_id, GenerateTypeObjects::VIEW_ALL);
 		$filter->setSelection(['object' => [], 'object_sub_details' => [], 'object_descriptions' => [$object_description_id => $object_description_id]]);
-		$filter->setVersioning('added');
+		$filter->setVersioning(GenerateTypeObjects::VERSIONING_ADDED);
 		$filter->setFilter(['object_filter' => [
 			'object_definitions' => [
 				$object_description_id => ['transcension' => ['value' => 'not_empty']]
@@ -1037,19 +1054,23 @@ class StoreType {
 			return;
 		}
 		
+		$do_convert = false;
+		
 		switch ($to_value_type_base) {
 			case 'media';
-				$convert = true;
+				if ($value_type_base == '') {
+					$do_convert = true;
+				}
 				break;
 		}
 		
-		if (!$convert) {
+		if (!$do_convert) {
 			return;
 		}
 	
 		$filter = new FilterTypeObjects($this->type_id, GenerateTypeObjects::VIEW_ALL);
 		$filter->setSelection(['object' => [], 'object_sub_details' => [$object_sub_details_id => ['object_sub_details' => [], 'object_sub_descriptions' => [$object_sub_description_id => $object_sub_description_id]]], 'object_descriptions' => []]);
-		$filter->setVersioning('added');
+		$filter->setVersioning(GenerateTypeObjects::VERSIONING_ADDED);
 		$filter->setFilter(['object_filter' => [
 			'object_subs' => [
 				$object_sub_details_id => [
@@ -1718,6 +1739,14 @@ class StoreType {
 				'mode' => static::TYPE_MODE_DEFAULT,
 				'use_object_name' => true,
 				'object_name_in_overview' => true
+			],
+			-3 => [
+				'id' => -3,
+				'name' => getLabel('lbl_system_reconciliation'),
+				'class' => static::TYPE_CLASS_SYSTEM,
+				'mode' => static::TYPE_MODE_DEFAULT,
+				'use_object_name' => true,
+				'object_name_in_overview' => true
 			]
 		];
 		
@@ -1815,6 +1844,9 @@ class StoreType {
 			
 			if (!$arr['type']) {
 				
+				$arr_row['class'] = (int)$arr_row['class'];
+				$arr_row['mode'] = (int)$arr_row['mode'];
+				
 				if (Settings::get('domain_administrator_mode')) {
 					
 					$arr_row['name_raw'] = $arr_row['name'];
@@ -1825,7 +1857,7 @@ class StoreType {
 				
 				$arr_row['use_object_name'] = DBFunctions::unescapeAs($arr_row['use_object_name'], DBFunctions::TYPE_BOOLEAN);
 				$arr_row['object_name_in_overview'] = DBFunctions::unescapeAs($arr_row['object_name_in_overview'], DBFunctions::TYPE_BOOLEAN);
-								
+
 				$arr['type'] = $arr_row;
 			}
 			
@@ -2002,6 +2034,41 @@ class StoreType {
 				];
 				
 				break;
+			case -3: // Reconcile
+				
+				$arr['object_descriptions'] = [
+					-6 => [
+						'object_description_id' => -6,
+						'object_description_name' => getLabel('lbl_reconcile'),
+						'object_description_value_type_base' => 'external',
+						'object_description_value_type' => 'reconcile_module',
+						'object_description_has_multi' => false,
+						'object_description_in_name' => false,
+						'object_description_is_required' => true
+					],
+					-7 => [
+						'object_description_id' => -7,
+						'object_description_name' => getLabel('lbl_attribution'),
+						'object_description_value_type_base' => 'text',
+						'object_description_value_type' => 'text',
+						'object_description_has_multi' => false,
+						'object_description_in_name' => false,
+						'object_description_is_required' => false
+					],
+					-8 => [ // Store processing state
+						'object_description_id' => -8,
+						'object_description_name' => false,
+						'object_description_value_type_base' => 'int',
+						'object_description_value_type' => 'int',
+						'object_description_has_multi' => false,
+						'object_description_in_name' => false,
+						'object_description_is_required' => false,
+						'object_description_clearance_edit' => NODEGOAT_CLEARANCE_SYSTEM,
+						'object_description_clearance_view' => NODEGOAT_CLEARANCE_SYSTEM
+					]
+				];
+				
+				break;
 			case -4: // Reversal prototype
 				
 				$arr['object_descriptions'] = [
@@ -2043,6 +2110,7 @@ class StoreType {
 		$arr_types = [
 			'cycle' => -1,
 			'ingestion' => -2,
+			'reconciliation' => -3,
 			'reversal' => -4
 		];
 		
@@ -2095,7 +2163,8 @@ class StoreType {
 	public static function getSystemTypeModuleClassEntry($type_id) {
 						
 		$arr_types = [
-			-2 => 'data_ingest'
+			-2 => 'data_ingest', // Ingestion
+			-3 => 'data_reconcile' // Reconciliation
 		];		
 		
 		return $arr_types[$type_id];
@@ -2114,28 +2183,28 @@ class StoreType {
 			$arr['name'] = ['id' => 'name', 'name' => getLabel('lbl_name')]; 
 		}
 		foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
-			$arr['object_description_'.$object_description_id] = ['id' => 'object_description_'.$object_description_id, 'name' => $arr_object_description['object_description_name']]; 
+			$arr['object_description_'.$object_description_id] = ['id' => 'object_description_'.$object_description_id, 'name' => $arr_object_description['object_description_name'], 'object_description_id' => $object_description_id]; 
 		}
-		foreach ($arr_type_set['object_sub_details'] as $arr_object_sub_details_id => $arr_object_sub_details) {
+		foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 			
-			$arr['object_sub_details_'.$arr_object_sub_details_id.'_id'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_id', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).']']; 
+			$arr['object_sub_details_'.$object_sub_details_id.'_id'] = ['id' => 'object_sub_details_'.$object_sub_details_id.'_id', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).']', 'object_sub_details_id' => $object_sub_details_id]; 
 			
 			if (keyIsUncontested('object_sub_details_date', $arr_options)) {
 				
 				if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_date'] && !$arr_object_sub_details['object_sub_details']['object_sub_details_date_use_object_sub_details_id'] && !$arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_sub_description_id'] && !$arr_object_sub_details['object_sub_details']['object_sub_details_date_start_use_object_description_id']) {
 					
 					if ($arr_options['purpose'] == 'select' || $arr_options['purpose'] == 'filter') {
-						$arr['object_sub_details_'.$arr_object_sub_details_id.'_date'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_date', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_date')];
+						$arr['object_sub_details_'.$object_sub_details_id.'_date'] = ['id' => 'object_sub_details_'.$object_sub_details_id.'_date', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_date'), 'object_sub_details_id' => $object_sub_details_id, 'identifier' => 'date'];
 						if ($arr_options['purpose'] == 'select' && $arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period']) {
-							$arr['object_sub_details_'.$arr_object_sub_details_id.'_date_start'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_date_start', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_date_start')]; 
-							$arr['object_sub_details_'.$arr_object_sub_details_id.'_date_end'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_date_end', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_date_end')];
+							$arr['object_sub_details_'.$object_sub_details_id.'_date_start'] = ['id' => 'object_sub_details_'.$object_sub_details_id.'_date_start', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_date_start'), 'object_sub_details_id' => $object_sub_details_id, 'identifier' => 'date_start']; 
+							$arr['object_sub_details_'.$object_sub_details_id.'_date_end'] = ['id' => 'object_sub_details_'.$object_sub_details_id.'_date_end', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_date_end'), 'object_sub_details_id' => $object_sub_details_id, 'identifier' => 'date_end'];
 						}
 					} else {
-						$arr['object_sub_details_'.$arr_object_sub_details_id.'_date_start'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_date_start', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_date_start')]; 
+						$arr['object_sub_details_'.$object_sub_details_id.'_date_start'] = ['id' => 'object_sub_details_'.$object_sub_details_id.'_date_start', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_date_start'), 'object_sub_details_id' => $object_sub_details_id, 'identifier' => 'date_start']; 
 						if ($arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period']) {
-							$arr['object_sub_details_'.$arr_object_sub_details_id.'_date_end'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_date_end', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_date_end')];
+							$arr['object_sub_details_'.$object_sub_details_id.'_date_end'] = ['id' => 'object_sub_details_'.$object_sub_details_id.'_date_end', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_date_end'), 'object_sub_details_id' => $object_sub_details_id, 'identifier' => 'date_end'];
 						}
-						$arr['object_sub_details_'.$arr_object_sub_details_id.'_date_chronology'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_date_chronology', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_date').' '.getLabel('lbl_chronology')];
+						$arr['object_sub_details_'.$object_sub_details_id.'_date_chronology'] = ['id' => 'object_sub_details_'.$object_sub_details_id.'_date_chronology', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_date').' '.getLabel('lbl_chronology'), 'object_sub_details_id' => $object_sub_details_id, 'identifier' => 'date_chronology'];
 					}
 				}
 			}
@@ -2144,15 +2213,15 @@ class StoreType {
 				if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_location'] && !$arr_object_sub_details['object_sub_details']['object_sub_details_location_use_object_sub_details_id'] && !$arr_object_sub_details['object_sub_details']['object_sub_details_location_use_object_sub_description_id'] && !$arr_object_sub_details['object_sub_details']['object_sub_details_location_use_object_description_id']) {
 					
 					if ($arr_options['purpose'] == 'select') {
-						$arr['object_sub_details_'.$arr_object_sub_details_id.'_location'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_location', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_location')]; 
+						$arr['object_sub_details_'.$object_sub_details_id.'_location'] = ['id' => 'object_sub_details_'.$object_sub_details_id.'_location', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_location'), 'object_sub_details_id' => $object_sub_details_id, 'identifier' => 'location']; 
 					} else {
 						if ($arr_options['purpose'] == 'filter') {
-							$arr['object_sub_details_'.$arr_object_sub_details_id.'_location_reference'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_location_reference', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_location_reference')]; 
+							$arr['object_sub_details_'.$object_sub_details_id.'_location_reference'] = ['id' => 'object_sub_details_'.$object_sub_details_id.'_location_reference', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_location_reference'), 'object_sub_details_id' => $object_sub_details_id, 'identifier' => 'location_reference']; 
 						} else {
-							$arr['object_sub_details_'.$arr_object_sub_details_id.'_location_ref_type_id'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_location_ref_type_id', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_location_reference')]; 
+							$arr['object_sub_details_'.$object_sub_details_id.'_location_ref_type_id'] = ['id' => 'object_sub_details_'.$object_sub_details_id.'_location_ref_type_id', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_location_reference'), 'object_sub_details_id' => $object_sub_details_id, 'identifier' => 'location_ref_type_id']; 
 						}
 						if ($arr_object_sub_details['object_sub_details']['object_sub_details_location_setting'] != StoreType::VALUE_TYPE_LOCATION_REFERENCE_LOCK) { // Not reference only
-							$arr['object_sub_details_'.$arr_object_sub_details_id.'_location_geometry'] = ['id' => 'object_sub_details_'.$arr_object_sub_details_id.'_location_geometry', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_location').' '.getLabel('lbl_geometry')];
+							$arr['object_sub_details_'.$object_sub_details_id.'_location_geometry'] = ['id' => 'object_sub_details_'.$object_sub_details_id.'_location_geometry', 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.getLabel('lbl_location').' '.getLabel('lbl_geometry'), 'object_sub_details_id' => $object_sub_details_id, 'identifier' => 'location_geometry'];
 						}
 					}
 				}
@@ -2160,7 +2229,7 @@ class StoreType {
 			
 			foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 				
-				$arr['object_sub_description_'.$object_sub_description_id] = ['id' => 'object_sub_description_'.$object_sub_description_id, 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.$arr_object_sub_description['object_sub_description_name']]; 
+				$arr['object_sub_description_'.$object_sub_description_id] = ['id' => 'object_sub_description_'.$object_sub_description_id, 'name' => '['.Labels::addContainer($arr_object_sub_details['object_sub_details']['object_sub_details_name']).'] '.$arr_object_sub_description['object_sub_description_name'], 'object_sub_details_id' => $object_sub_details_id, 'object_sub_description_id' => $object_sub_description_id]; 
 			}
 		}
 
@@ -2747,6 +2816,7 @@ class StoreType {
 			'external' => ['id' => 'external', 'name' => getLabel('lbl_external'), 'table' => '', 'value' => 'value'],
 			'external_module' => ['id' => 'external_module', 'name' => '', 'table' => '_modules', 'value' => 'object', 'is_module' => true, 'module_class' => 'data_ingest'],
 			'object_description' => ['id' => 'object_description', 'name' => getLabel('lbl_object_description'), 'table' => '', 'value' => 'value'],
+			'reconcile_module' => ['id' => 'reconcile_module', 'name' => '', 'table' => '_modules', 'value' => 'object', 'is_module' => true, 'module_class' => 'data_reconcile'],
 			'reversal_module' => ['id' => 'reversal_module', 'name' => '', 'table' => '_modules', 'value' => 'object', 'is_module' => true]
 		];
 		
@@ -2755,20 +2825,20 @@ class StoreType {
 	
 	public static function getValueTypeValue($str_type, $str_purpose = false) {
 		
-		return static::getValueTypeProperty($str_type, 'value', $str_purpose);
+		return static::getValueType($str_type, 'value', $str_purpose);
 	}
 	
 	public static function getValueTypeTable($str_type, $str_purpose = false) {
 		
-		return static::getValueTypeProperty($str_type, 'table', $str_purpose);
+		return static::getValueType($str_type, 'table', $str_purpose);
 	}
 	
 	public static function isValueTypeModule($str_type, $str_purpose = false) {
 		
-		return static::getValueTypeProperty($str_type, 'is_module', $str_purpose);
+		return static::getValueType($str_type, 'is_module', $str_purpose);
 	}
 	
-	public static function getValueTypeProperty($str_type, $str_property, $str_purpose = false) {
+	public static function getValueType($str_type, $str_property = false, $str_purpose = false) {
 		
 		if (!self::$arr_value_types) {
 			self::getValueTypes();
@@ -2776,7 +2846,12 @@ class StoreType {
 		
 		$arr_value_type = self::$arr_value_types[$str_type];
 		
-		return ($str_purpose && isset($arr_value_type['purpose'][$str_purpose][$str_property]) ? $arr_value_type['purpose'][$str_purpose][$str_property] : $arr_value_type[$str_property]);
+		if ($str_purpose && isset($arr_value_type['purpose'][$str_purpose])) {
+
+			$arr_value_type = $arr_value_type['purpose'][$str_purpose];
+		}
+				
+		return ($str_property ? $arr_value_type[$str_property] : $arr_value_type);
 	}
 	
 	public static function getValueTypeTables() {
@@ -2902,5 +2977,466 @@ class StoreType {
 			static::VALUE_TYPE_LOCATION_POINT => ['id' => 'point', 'name' => 'Point'],
 			static::VALUE_TYPE_LOCATION_REFERENCE_LOCK => ['id' => 'reference_lock', 'name' => 'Reference Only']
 		]);	
+	}
+	
+	public static function checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, $object_description_id, $object_sub_details_id, $object_sub_description_id, $type = self::CLEARANCE_PURPOSE_VIEW) {
+		
+		if ($object_description_id) {
+			
+			$num_clearance = $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_'.$type];
+			
+			if ($num_user_clearance < $num_clearance) {
+				return false;
+			}
+		} else if ($object_sub_details_id) {
+			
+			$num_clearance = $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_'.$type];
+			
+			if ($num_user_clearance < $num_clearance) {
+				return false;
+			}
+		
+			if ($object_sub_description_id) {
+				
+				$num_clearance = $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_'.$type];
+				
+				if ($num_user_clearance < $num_clearance) {
+					return false;
+				}
+			}
+		}
+		
+		return true;
+	}
+	
+	public static function parseTypeNetwork($arr, $value_type = false, $num_user_clearance = 0) {
+		
+		$arr = ['paths' => ($arr['paths'] ?: []), 'types' => ($arr['types'] ?: [])];
+		
+		$arr['paths'] = static::parseTypeNetworkPaths($arr['paths']);
+			
+		foreach ($arr['types'] as $source_path => $arr_source_type) {
+			
+			foreach ($arr_source_type as $type_id => $arr_type) {
+
+				$s_arr = &$arr['types'][$source_path][$type_id];
+				
+				$arr_selection = [];
+				
+				if ($s_arr['selection']) {
+					
+					$arr_type_set = static::getTypeSet($type_id);
+
+					// Pre-parse selection
+					
+					foreach ($s_arr['selection'] as $id => $arr_selected) {
+						
+						if (isset($arr_selected['id'])) { // Form
+							
+							if (is_array($arr_selected['id'])) {
+								$str_id = current($arr_selected['id']);
+							} else {
+								$str_id = $arr_selected['id'];
+							}
+							
+							if (!$str_id) {
+								continue;
+							}
+							
+							$pos_dynamic_reference = strpos($str_id, '_reference_');
+						
+							if ($pos_dynamic_reference !== false) {
+								
+								$ref_type_id = (int)substr($str_id, $pos_dynamic_reference + 11);
+								$str_id = substr($str_id, 0, $pos_dynamic_reference + 10);
+								
+								if ($ref_type_id) {
+									
+									$arr_selection[$str_id]['ref_type_ids'][$ref_type_id] = $ref_type_id;
+									continue;
+								}
+							}
+						} else { // Already parsed previously
+							
+							$str_id = $id;
+							
+							if (!$str_id) {
+								continue;
+							}
+							
+							$arr_ref_type_ids = ($arr_selected['object_description_reference'] ?: $arr_selected['object_sub_description_reference']);
+							
+							if ($arr_ref_type_ids) {
+								
+								$arr_selection[$str_id]['ref_type_ids'] = $arr_ref_type_ids;
+								continue;
+							}
+						}
+
+						if ($arr_selection[$str_id] === null) {
+							$arr_selection[$str_id] = [];
+						}
+					}
+					
+					// Amend selection
+					
+					foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
+						
+						$str_id = 'object_description_'.$object_description_id;
+						$is_dynamic = $arr_object_description['object_description_is_dynamic'];
+						$in_selection = ($arr_selection[$str_id] !== null || ($is_dynamic && ($arr_selection[$str_id.'_reference'] !== null || $arr_selection[$str_id.'_value'] !== null)));
+						
+						if ($in_selection && !static::checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, $object_description_id, false, false, self::CLEARANCE_PURPOSE_VIEW)) {
+						
+							unset($arr_selection[$str_id]);
+							if ($is_dynamic) {
+								unset($arr_selection[$str_id.'_reference'], $arr_selection[$str_id.'_value']);
+							}
+						} else if ($in_selection) {
+							
+							if ($arr_selection[$str_id] !== null) {
+								$arr_selection[$str_id]['object_description_id'] = $object_description_id;
+							}
+							
+							if ($is_dynamic) {
+								
+								if ($arr_selection[$str_id.'_reference'] !== null) {
+									
+									$arr_selection[$str_id.'_reference']['object_description_id'] = $object_description_id;
+									$arr_selection[$str_id.'_reference']['object_description_reference'] = ($arr_selection[$str_id.'_reference']['ref_type_ids'] ?: true);
+									$arr_selection[$str_id.'_reference']['object_description_reference_value'] = true;
+									
+									unset($arr_selection[$str_id.'_reference']['ref_type_ids']);
+								}
+								if ($arr_selection[$str_id.'_value'] !== null) {
+									
+									$arr_selection[$str_id.'_value']['object_description_id'] = $object_description_id;
+									$arr_selection[$str_id.'_value']['object_description_value'] = true;
+								}
+							}
+						}
+					}
+					
+					foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
+						
+						$str_id = 'object_sub_details_'.$object_sub_details_id.'_id';
+						if ($arr_selection[$str_id] !== null) {
+							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+						}
+						
+						// For specific date selection purposes
+						$str_id = 'object_sub_details_'.$object_sub_details_id.'_date_start';
+						if ($arr_selection[$str_id] !== null) {
+							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+							$arr_selection[$str_id]['object_sub_details_date_start'] = true;
+						}
+						$str_id = 'object_sub_details_'.$object_sub_details_id.'_date_end';
+						if ($arr_selection[$str_id] !== null) {
+							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+							$arr_selection[$str_id]['object_sub_details_date_end'] = true;
+						}
+						
+						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
+							
+							$str_id = 'object_sub_description_'.$object_sub_description_id;
+							$is_dynamic = $arr_object_sub_description['object_sub_description_is_dynamic'];
+							$in_selection = ($arr_selection[$str_id] !== null || ($is_dynamic && ($arr_selection[$str_id.'_reference'] !== null || $arr_selection[$str_id.'_value'] !== null)));
+							
+							if ($in_selection && !static::checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, false, $object_sub_details_id, $object_sub_description_id, self::CLEARANCE_PURPOSE_VIEW)) {
+								
+								unset($arr_selection[$str_id]);
+								if ($is_dynamic) {
+									unset($arr_selection[$str_id.'_reference'], $arr_selection[$str_id.'_value']);
+								}
+							} else if ($in_selection) {
+								
+								if ($arr_selection[$str_id] !== null) {
+									
+									$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+									$arr_selection[$str_id]['object_sub_description_id'] = $object_sub_description_id;
+								}
+								
+								if ($is_dynamic) {
+									
+									if ($arr_selection[$str_id.'_reference'] !== null) {
+										
+										$arr_selection[$str_id.'_reference']['object_sub_details_id'] = $object_sub_details_id;
+										$arr_selection[$str_id.'_reference']['object_sub_description_id'] = $object_sub_description_id;
+										$arr_selection[$str_id.'_reference']['object_sub_description_reference'] = ($arr_selection[$str_id.'_reference']['ref_type_ids'] ?: true);
+										$arr_selection[$str_id.'_reference']['object_sub_description_reference_value'] = true;
+										
+										unset($arr_selection[$str_id.'_reference']['ref_type_ids']);
+									}
+									if ($arr_selection[$str_id.'_value'] !== null) {
+										
+										$arr_selection[$str_id.'_value']['object_sub_details_id'] = $object_sub_details_id;
+										$arr_selection[$str_id.'_value']['object_sub_description_id'] = $object_sub_description_id;
+										$arr_selection[$str_id.'_value']['object_sub_description_value'] = true;
+									}
+								}
+							}			
+						}				
+					}
+				}
+				
+				$s_arr = [
+					'filter' => ($s_arr ? (bool)$s_arr['filter'] : false),
+					'collapse' => ($s_arr ? (bool)$s_arr['collapse'] : false),
+					'object_only' => ($s_arr ? (bool)$s_arr['object_only'] : false)
+				];
+				$s_arr['selection'] = ($s_arr['object_only'] ? [] : $arr_selection);
+				
+				if (!$s_arr['selection'] && !$s_arr['filter'] && !$s_arr['collapse'] && !$s_arr['object_only']) {
+					unset($arr['types'][$source_path][$type_id]);
+				}
+			}
+			
+			if (!$arr['types'][$source_path]) {
+				unset($arr['types'][$source_path]);
+			}
+		}
+		
+		return $arr;
+	}
+	
+	public static function parseTypeNetworkModePick($arr, $num_user_clearance = 0) {
+		
+		$arr = ['paths' => ($arr['paths'] ?: []), 'types' => ($arr['types'] ?: [])];
+		
+		$arr['paths'] = static::parseTypeNetworkPaths($arr['paths']);
+
+		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
+		
+		foreach ($arr['types'] as $source_path => $arr_source_type) {
+			
+			foreach ($arr_source_type as $type_id => $arr_type) {
+				
+				$s_arr = &$arr['types'][$source_path][$type_id];
+				
+				$arr_selection = [];
+				
+				if ($s_arr['selection']) {
+					
+					$arr_type_set = static::getTypeSet($type_id);
+
+					foreach ($s_arr['selection'] as $key => $value) {
+						
+						if ($value['id']) { // Form
+							$str_id = $value['id'];
+						} else if ($value && $value['object_description_id'] !== null) { // Already parsed previously
+							$str_id = $key;
+						} else {
+							continue;
+						}
+						
+						$arr_selection[$str_id] = [
+							'object_description_id' => 0,
+							'object_sub_details_id' => 0,
+							'object_sub_description_id' => 0
+						];
+					}
+					
+					foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
+						
+						$str_id = 'object_description_'.$object_description_id;
+						
+						if (($arr_selection[$str_id] || $arr_selection[$str_id.'_id'] || $arr_selection[$str_id.'_text']) && (!static::checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, $object_description_id, false, false, self::CLEARANCE_PURPOSE_VIEW) || !StoreCustomProject::checkTypeConfigurationAccess($arr_project['types'], $arr_type_set, $object_description_id, false, false, StoreCustomProject::ACCESS_PURPOSE_VIEW))) {
+							unset($arr_selection[$str_id], $arr_selection[$str_id.'_id'], $arr_selection[$str_id.'_text']);
+							continue;
+						}
+						
+						if ($arr_selection[$str_id]) {
+							$arr_selection[$str_id]['object_description_id'] = $object_description_id;
+						}
+						if ($arr_selection[$str_id.'_id']) {
+							$arr_selection[$str_id.'_id']['object_description_id'] = $object_description_id;
+							$arr_selection[$str_id.'_id']['use_id'] = true;
+						}
+						if ($arr_selection[$str_id.'_text']) {
+							$arr_selection[$str_id.'_text']['object_description_id'] = $object_description_id;
+							$arr_selection[$str_id.'_text']['use_text'] = true;
+						}
+					}
+					
+					foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
+						
+						if (!static::checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, false, $object_sub_details_id, false, self::CLEARANCE_PURPOSE_VIEW) || !StoreCustomProject::checkTypeConfigurationAccess($arr_project['types'], $arr_type_set, false, $object_sub_details_id, false, StoreCustomProject::ACCESS_PURPOSE_VIEW)) {
+							
+							$str_id = 'object_sub_details_'.$object_sub_details_id.'_';
+							
+							foreach ($arr_selection as $key => $value) {
+								if (strpos($key, $str_id) !== false) {
+									unset($arr_selection[$key]);
+								}
+							}									
+						}
+						
+						$str_id = 'object_sub_details_'.$object_sub_details_id.'_id';
+						if ($arr_selection[$str_id]) {
+							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+						}
+						$str_id = 'object_sub_details_'.$object_sub_details_id.'_date_start';
+						if ($arr_selection[$str_id]) {
+							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+						}
+						$str_id = 'object_sub_details_'.$object_sub_details_id.'_date_end';
+						if ($arr_selection[$str_id]) {
+							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+						}
+						$str_id = 'object_sub_details_'.$object_sub_details_id.'_date_chronology';
+						if ($arr_selection[$str_id]) {
+							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+						}
+						$str_id = 'object_sub_details_'.$object_sub_details_id.'_location_ref_type_id';
+						if ($arr_selection[$str_id]) {
+							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+						}
+						if ($arr_selection[$str_id.'_id']) {
+							$arr_selection[$str_id.'_id']['object_sub_details_id'] = $object_sub_details_id;
+							$arr_selection[$str_id.'_id']['use_id'] = true;
+						}
+						$str_id = 'object_sub_details_'.$object_sub_details_id.'_location_geometry';
+						if ($arr_selection[$str_id]) {
+							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+						}	
+						
+						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
+							
+							$str_id = 'object_sub_description_'.$object_sub_description_id;
+							if (($arr_selection[$str_id] || $arr_selection[$str_id.'_id'] || $arr_selection[$str_id.'_text']) && (!static::checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, false, $object_sub_details_id, $object_sub_description_id, self::CLEARANCE_PURPOSE_VIEW) || !StoreCustomProject::checkTypeConfigurationAccess($arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id, StoreCustomProject::ACCESS_PURPOSE_VIEW))) {
+								unset($arr_selection[$str_id], $arr_selection[$str_id.'_id'], $arr_selection[$str_id.'_text']);
+								continue;
+							}
+							
+							if ($arr_selection[$str_id]) {
+								$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+								$arr_selection[$str_id]['object_sub_description_id'] = $object_sub_description_id;
+							}
+							if ($arr_selection[$str_id.'_id']) {
+								$arr_selection[$str_id.'_id']['object_sub_details_id'] = $object_sub_details_id;
+								$arr_selection[$str_id.'_id']['object_sub_description_id'] = $object_sub_description_id;
+								$arr_selection[$str_id.'_id']['use_id'] = true;
+							}
+							if ($arr_selection[$str_id.'_text']) {
+								$arr_selection[$str_id.'_text']['object_sub_details_id'] = $object_sub_details_id;
+								$arr_selection[$str_id.'_text']['object_sub_description_id'] = $object_sub_description_id;
+								$arr_selection[$str_id.'_text']['use_text'] = true;
+							}
+						}
+					}
+				}
+				
+				$s_arr = [
+					'filter' => ($s_arr ? (bool)$s_arr['filter'] : false),
+					'nodegoat_id' => ($s_arr ? (bool)$s_arr['nodegoat_id'] : false),
+					'id' => ($s_arr ? (bool)$s_arr['id'] : false),
+					'name' => ($s_arr ? (bool)$s_arr['name'] : false),
+					'sources' => ($s_arr ? (bool)$s_arr['sources'] : false),
+					'analysis' => ($s_arr ? (bool)$s_arr['analysis'] : false),
+					'selection' => $arr_selection
+				];
+				
+				if (!$s_arr['nodegoat_id'] && !$s_arr['id'] && !$s_arr['name'] && !$s_arr['sources'] && !$s_arr['selection']) {
+					unset($arr['types'][$source_path][$type_id]);
+				}
+			}
+			
+			if (!$arr_source_type) {
+				unset($arr['types'][$source_path]);
+			}
+		}
+		
+		return $arr;
+	}
+
+	public static function parseTypeNetworkPaths($arr_paths) {
+		
+		if (!$arr_paths) {
+			return [];
+		}
+		
+		if (arrHasKeysRecursive('connection', $arr_paths)) {
+			
+			foreach ($arr_paths as $source_path => &$arr_value) {
+
+				$arr_parsed = [];
+
+				foreach ($arr_value as $str_key => $arr_settings) {
+									
+					if (!$arr_settings['connection']) {
+						continue;
+					}
+					
+					$arr_connection = str2Array($arr_settings['connection'], '-');
+
+					if (isset($arr_connection[3])) {
+						$s_arr_parsed =& $arr_parsed[$arr_connection[0]][$arr_connection[1]][$arr_connection[2]][$arr_connection[3]];
+					} else {
+						$s_arr_parsed =& $arr_parsed[$arr_connection[0]][$arr_connection[1]][$arr_connection[2]];
+					}
+					$s_arr_parsed = true;
+					
+					if (!$arr_settings['use_date']) {
+						continue;
+					}
+					
+					$s_arr_parsed = ['date' => []];
+					
+					$func_parse_chronology_statement = function($arr_date_settings) {
+						
+						$arr_date_settings['date_value'] = 1; // Use a fictive date for a viable parse
+						
+						$arr_chronology_statement = [];
+						StoreTypeObjects::parseChronologyStatementJSON($arr_chronology_statement, $arr_date_settings);
+						
+						if ($arr_chronology_statement) {
+							
+							unset($arr_chronology_statement['date_value']);
+							$arr_chronology_statement['id'] = $arr_date_settings['id'];
+						}
+						
+						$arr_chronology_statement['source_target'] = ($arr_date_settings['source_target'] ?? null);
+						
+						if (!$arr_chronology_statement['source_target']) {
+							
+							$arr_split = str2Array($arr_chronology_statement['id'], '-');
+							$arr_chronology_statement['source_target'] = $arr_split[0];
+							$arr_chronology_statement['id'] = $arr_split[1];
+						}
+						
+						return $arr_chronology_statement;
+					};
+					
+					if ($arr_settings['date']['start']['id']) {
+						
+						$s_arr_parsed['date']['start'] = $func_parse_chronology_statement($arr_settings['date']['start']);
+					}
+					if ($arr_settings['date']['end']['id']) {
+						
+						$s_arr_parsed['date']['end'] = $func_parse_chronology_statement($arr_settings['date']['end']);
+					}
+				}
+				unset($s_arr_parsed);
+				
+				if (!$arr_parsed) {
+					
+					unset($arr_paths[$source_path]);
+					continue;
+				}
+				
+				$arr_value = $arr_parsed;
+			}
+			unset($arr_value);
+		} else {
+			
+			foreach ($arr_paths as $source_path => $arr_value) {
+			
+				if (!$arr_value) {
+					unset($arr_paths[$source_path]);
+				}
+			}
+		}
+
+		return $arr_paths;
 	}
 }

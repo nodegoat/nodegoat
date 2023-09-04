@@ -1,24 +1,17 @@
 <?php
 
 /**
- * 1100CC - web application framework.
+ * nodegoat - web-based data management, network analysis & visualisation environment.
  * Copyright (C) 2023 LAB1100.
- *
- * See http://lab1100.com/1100cc/release for the latest version of 1100CC and its license.
+ * 
+ * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
+ * 
+ * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
 class WebServiceTaskIngestSource Extends WebServiceTask {
 	
 	public static $name = 'ingest_source';
-
-	protected static $conversion_passkey = false;
-	protected static $stmt_has_conversions = false;
-	protected static $stmt_add_conversion = false;
-	protected static $stmt_get_conversion = false;
-	protected static $stmt_claim_conversion = false;
-	protected static $stmt_add_conversion_result = false;
-	protected static $stmt_get_conversion_result = false;
-	protected static $stmt_delete_conversion = false;
 	
 	protected $timeout_claimed = 5; // Seconds
 	

@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -96,7 +96,7 @@ class toolbar extends base_module {
 					
 			<div>
 				<div class="options">
-				'.data_model::createTypeNetwork($type_id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'descriptions' => 'pick', 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_settings['scope'], 'name' => 'export_settings[scope]']).'
+				'.data_model::createTypeNetwork($type_id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'descriptions' => 'flat', 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_settings['scope'], 'name' => 'export_settings[scope]']).'
 				</div>
 			</div>
 			
@@ -163,7 +163,7 @@ class toolbar extends base_module {
 				<li><label>'.getLabel('lbl_scenario').'</label>
 					<ul class="sorter" id="x:custom_projects:scenario_storage-'.(int)$type_id.'">'
 						.'<li><div>'
-							.'<select name="scenario_id">'.Labels::parseTextVariables(cms_general::createDropdown($arr_scenarios, false, true, 'label')).'</select>'
+							.'<select name="scenario_id" placeholder="'.getLabel('lbl_new').'">'.Labels::parseTextVariables(cms_general::createDropdown($arr_scenarios, false, true, 'label')).'</select>'
 							.'<input type="button" class="data add popup add_scenario_storage" value="store" />'
 							.'<input type="button" class="data del msg del_scenario_storage" value="del" />'
 						.'</div></li>
@@ -605,7 +605,7 @@ class toolbar extends base_module {
 		
 		if ($method == "select_scenario") {
 			
-			$scenario_id = ($_POST['scenario_id'] ?: $value['scenario_id']);
+			$scenario_id = (($_POST['scenario_id'] ?: $value['scenario_id']) ?? '');
 			
 			self::setScenario($scenario_id);
 		}
@@ -1025,7 +1025,7 @@ class toolbar extends base_module {
 				continue;
 			}
 			
-			$arr_object_ids = arrParseRecursive($arr_object_ids, 'int');
+			$arr_object_ids = arrParseRecursive($arr_object_ids, TYPE_INTEGER);
 		}
 		unset($arr_object_ids);
 		
@@ -1379,7 +1379,7 @@ class toolbar extends base_module {
 			
 			$trace = new TraceTypesNetwork(array_keys($arr_project['types']), true, true);
 			$trace->filterTypesNetwork($arr_scope['paths']);
-			$trace->run($type_id, false, 3);
+			$trace->run($type_id, false, cms_nodegoat_details::$num_network_trace_depth);
 			$arr_type_network_paths = $trace->getTypeNetworkPaths(true);
 		} else {
 			
@@ -1571,7 +1571,7 @@ class toolbar extends base_module {
 			'flow' => ($s_arr['flow'] ?: 'break')
 		];
 		
-		$arr['scope'] = data_model::parseTypeNetworkPick($arr['scope']);
+		$arr['scope'] = data_model::parseTypeNetworkModePick($arr['scope']);
 
 		return $arr;
 	}

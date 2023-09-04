@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -91,7 +91,7 @@ class header extends base_module {
 		$toolbar = new toolbar;
 		$toolbar = $toolbar->contents();
 
-		$return = '<a href="'.(SiteStartVars::$login_dir ? SiteStartVars::$login_dir['path'].'/' : '/').'" alt="'.getLabel('name', 'D').'"></a>';
+		$return = '<a href="'.(SiteStartVars::getDirectory(false, SiteStartVars::DIRECTORY_LOGIN) ? SiteStartVars::getDirectory('path', SiteStartVars::DIRECTORY_LOGIN).'/' : '/').'" alt="'.getLabel('name', 'D').'"></a>';
 		$return .= '<span></span><span></span>'; // Helpers
 		$return .= '<div class="navigation">'.$navigation.'</div>'.($logout ? '<div class="logout">'.$logout.'</div>' : '').($toolbar ? '<div class="toolbar">'.$toolbar.'</div>' : '');
 		

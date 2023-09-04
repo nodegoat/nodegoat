@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -26,6 +26,8 @@ class IndexTypeObjectsInformationRetrieval {
 	
 	protected static $num_buffer_size = 100000;
 	
+	const INDEX_FIELD_SEPARATOR = '$|$';
+	
     public function __construct($str_host) {
 		
 		$this->str_host = $str_host;
@@ -33,7 +35,7 @@ class IndexTypeObjectsInformationRetrieval {
     
 	protected function openInputResource() {
 		
-		$this->resource = fopen('php://temp/maxmemory:'.(100 * BYTE_MULTIPLIER * BYTE_MULTIPLIER), 'w'); // Keep resource in memory until it reaches 100MB, otherwise create a temporary file
+		$this->resource = getStreamMemory(false);
 	}
 	
 	protected function closeInputResource() {
@@ -73,7 +75,7 @@ class IndexTypeObjectsInformationRetrieval {
 				nodegoat_to.id
 					FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
 					JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')." nodegoat_to_status ON (nodegoat_to_status.object_id = nodegoat_to.id AND nodegoat_to_status.date > '".DBFunctions::str2Date($date_after)."' AND nodegoat_to_status.date <= '".DBFunctions::str2Date($date_to)."')
-				WHERE ".GenerateTypeObjects::generateVersioning('active', 'object', 'nodegoat_to')."
+				WHERE ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ACTIVE, 'object', 'nodegoat_to')."
 		";
 		
 		$sql_query_deleted = "
@@ -90,7 +92,7 @@ class IndexTypeObjectsInformationRetrieval {
 					AND NOT EXISTS (SELECT TRUE
 						FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
 						WHERE nodegoat_to.id = nodegoat_to_status.object_id
-							AND ".GenerateTypeObjects::generateVersioning('any', 'object', 'nodegoat_to')."
+							AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ANY, 'object', 'nodegoat_to')."
 					)
 		";
 		
@@ -293,7 +295,7 @@ class IndexTypeObjectsInformationRetrieval {
 					continue;
 				}
 
-				$process->writeInput($arr_row[0].'$|$'.$arr_row[1].'$|$$|$'.$arr_row[2].PHP_EOL);
+				$process->writeInput($arr_row[0].static::INDEX_FIELD_SEPARATOR.$arr_row[1].static::INDEX_FIELD_SEPARATOR.static::INDEX_FIELD_SEPARATOR.$arr_row[2].PHP_EOL);
 			}
 			
 			$count += static::$num_buffer_size;
@@ -371,7 +373,7 @@ class IndexTypeObjectsInformationRetrieval {
 					continue;
 				}
 
-				$process->writeInput($arr_row[0].'$|$'.$arr_row[1].'$|$'.$arr_row[2].'$|$'.str_replace(PHP_EOL, ' ', $arr_row[3]).PHP_EOL);
+				$process->writeInput($arr_row[0].static::INDEX_FIELD_SEPARATOR.$arr_row[1].static::INDEX_FIELD_SEPARATOR.$arr_row[2].static::INDEX_FIELD_SEPARATOR.str_replace(PHP_EOL, ' ', $arr_row[3]).PHP_EOL);
 			}
 			
 			$count += static::$num_buffer_size;
@@ -453,7 +455,7 @@ class IndexTypeObjectsInformationRetrieval {
 					continue;
 				}
 
-				$process->writeInput($arr_row[0].'$|$'.$arr_row[1].'$|$'.$arr_row[2].'_'.$arr_row[3].'$|$'.str_replace(PHP_EOL, ' ', $arr_row[4]).PHP_EOL);
+				$process->writeInput($arr_row[0].static::INDEX_FIELD_SEPARATOR.$arr_row[1].static::INDEX_FIELD_SEPARATOR.$arr_row[2].'_'.$arr_row[3].static::INDEX_FIELD_SEPARATOR.str_replace(PHP_EOL, ' ', $arr_row[4]).PHP_EOL);
 			}
 			
 			$count += static::$num_buffer_size;
@@ -490,7 +492,7 @@ class IndexTypeObjectsInformationRetrieval {
 			
 			while ($arr_row = $res->fetchRow()) {
 				
-				$process->writeInput($arr_row[0].'$|$'.$arr_row[1].PHP_EOL);
+				$process->writeInput($arr_row[0].static::INDEX_FIELD_SEPARATOR.$arr_row[1].PHP_EOL);
 			}
 			
 			$count += static::$num_buffer_size;

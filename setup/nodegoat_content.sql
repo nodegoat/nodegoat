@@ -473,7 +473,7 @@ ALTER TABLE `data_type_object_definition_sources`
   ADD KEY `ref_object_id` (`ref_object_id`) USING BTREE;
 
 ALTER TABLE `data_type_object_definition_version`
-  ADD PRIMARY KEY (`object_description_id`,`object_id`,`version`,`user_id`,`date`),
+  ADD PRIMARY KEY (`object_id`,`object_description_id`,`version`,`user_id`,`date`) USING BTREE,
   ADD KEY `user_id` (`user_id`),
   ADD KEY `user_id_audited` (`user_id_audited`),
   ADD KEY `object_id` (`object_id`,`object_description_id`,`date_audited`),

@@ -5,26 +5,33 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
 class TraceTypesNetwork {
 	
-	private $type_id = false;
-	private $to_type_id = false;
-	private $num_steps = false;
-	private $do_in = true;
-	private $do_out = true;
+	protected $type_id = false;
+	protected $to_type_id = false;
+	protected $num_steps = false;
+	protected $do_in = true;
+	protected $do_out = true;
 	
-	private $arr_prefilter_object_connections = [];
+	protected $stmt_object = [];
+	protected $stmt_object_sub = [];
+	protected $stmt_object_dynamic = [];
+	protected $stmt_object_sub_dynamic = [];
+	protected $stmt_object_sub_location = [];
+	protected $stmt_object_sub_location_dynamic = [];
+	
+	protected $arr_filter_object_connections = [];
 
-    private $arr_types_match = [];
-	private $arr_step = [];
-	private $num_count_step = false;
-	private $num_steps_total = false;
-	private $stmt = false;
-	private $arr_type_network_paths = [];
+    protected $arr_types_match = [];
+	protected $arr_step = [];
+	protected $num_count_step = false;
+	protected $num_steps_total = false;
+	protected $stmt = false;
+	protected $arr_type_network_paths = [];
 	
 	const RUN_MODE_REFERENCING = 1;
 	const RUN_MODE_REFERENCED = 2;
@@ -35,9 +42,9 @@ class TraceTypesNetwork {
 		
 		$sql_type_ids = implode(',', arrParseRecursive($arr_type_ids));
 		
-		$version_select_to = GenerateTypeObjects::generateVersioning('active', 'object', 'nodegoat_to');
-		$version_select_tos = GenerateTypeObjects::generateVersioning('active', 'object_sub', 'nodegoat_tos');
-		$version_select_to2 = GenerateTypeObjects::generateVersioning('active', 'object', 'nodegoat_to2');
+		$version_select_to = GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ACTIVE, 'object', 'nodegoat_to');
+		$version_select_tos = GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ACTIVE, 'object_sub', 'nodegoat_tos');
+		$version_select_to2 = GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ACTIVE, 'object', 'nodegoat_to2');
 		
 		$this->stmt_object['in'] = DB::prepare("SELECT
 			nodegoat_to_des.type_id, nodegoat_to_des.id AS object_description_id
@@ -240,9 +247,9 @@ class TraceTypesNetwork {
 	
 	public function run($type_id, $to_type_id, $num_steps, $mode_run = self::RUN_MODE_BOTH) {
 		
-		$this->type_id = $type_id;
-		$this->to_type_id = $to_type_id;
-		$this->num_steps = $num_steps;
+		$this->type_id = (int)$type_id;
+		$this->to_type_id = (int)$to_type_id;
+		$this->num_steps = (int)$num_steps;
 		$this->do_out = bitHasMode($mode_run, static::RUN_MODE_REFERENCING);
 		$this->do_in = bitHasMode($mode_run, static::RUN_MODE_REFERENCED);
 		$do_shortest = bitHasMode($mode_run, static::RUN_MODE_SHORTEST);
@@ -289,10 +296,10 @@ class TraceTypesNetwork {
 					
 					if ($arr_object_connection['object_description_id']) {
 						
-						if ($this->arr_prefilter_object_connections) {
+						if ($this->arr_filter_object_connections) {
 							
 							$path = implode('-', $cur_list['path']);
-							$arr_prefilter = ($this->arr_prefilter_object_connections[$path]['object_descriptions'][$arr_object_connection['object_description_id']] ?? null);
+							$arr_prefilter = ($this->arr_filter_object_connections[$path]['object_descriptions'][$arr_object_connection['object_description_id']] ?? null);
 							
 							if (!$arr_prefilter || (is_array($arr_prefilter) && !$arr_prefilter[$arr_object_connection['in_out']]) || ($arr_object_connection['dynamic'] && !$arr_prefilter[$arr_object_connection['in_out']][$cur_type_id])) {
 								$arr_object_connection = false;
@@ -311,10 +318,10 @@ class TraceTypesNetwork {
 						}
 					} else if ($arr_object_connection['object_sub_description_id']) {
 						
-						if ($this->arr_prefilter_object_connections) {
+						if ($this->arr_filter_object_connections) {
 							
 							$path = implode('-', $cur_list['path']);
-							$arr_prefilter = ($this->arr_prefilter_object_connections[$path]['object_sub_descriptions'][$arr_object_connection['object_sub_description_id']] ?? null);
+							$arr_prefilter = ($this->arr_filter_object_connections[$path]['object_sub_descriptions'][$arr_object_connection['object_sub_description_id']] ?? null);
 							
 							if (!$arr_prefilter || (is_array($arr_prefilter) && !$arr_prefilter[$arr_object_connection['in_out']]) || ($arr_object_connection['dynamic'] && !$arr_prefilter[$arr_object_connection['in_out']][$cur_type_id])) {
 								$arr_object_connection = false;
@@ -333,10 +340,10 @@ class TraceTypesNetwork {
 						}
 					} else if ($arr_object_connection['object_sub_location']) {
 					
-						if ($this->arr_prefilter_object_connections) {
+						if ($this->arr_filter_object_connections) {
 							
 							$path = implode('-', $cur_list['path']);
-							$arr_prefilter = ($this->arr_prefilter_object_connections[$path]['object_sub_locations'][$arr_object_connection['object_sub_details_id']] ?? null);
+							$arr_prefilter = ($this->arr_filter_object_connections[$path]['object_sub_locations'][$arr_object_connection['object_sub_details_id']] ?? null);
 							
 							if (!$arr_prefilter || (is_array($arr_prefilter) && !$arr_prefilter[$arr_object_connection['in_out']]) || ($arr_object_connection['dynamic'] && !$arr_prefilter[$arr_object_connection['in_out']][$cur_type_id])) {
 								$arr_object_connection = false;
@@ -570,10 +577,9 @@ class TraceTypesNetwork {
 		
 		// $arr_object_connections = array("type_id-type_id-n" => array("object_descriptions" => object_description_ids) OR array("object_sub_descriptions" => object_sub_description_ids))
 		
-		if (!$this->type_id) { // Trace not yet performed, filter during trace
-			
-			$this->arr_prefilter_object_connections = $arr_object_connections;
-		} else { // Filter after trace
+		$this->arr_filter_object_connections = $arr_object_connections;
+		
+		if ($this->type_id) { // Trace is already performed, filter after trace
 	
 			$arr_type_network_filtered = [];
 			foreach ($this->arr_types_match as $arr_network_list) {
@@ -625,7 +631,7 @@ class TraceTypesNetwork {
 			}
 			
 			$this->arr_types_match = $arr_type_network_filtered;
-			
+
 			return $this->arr_types_match;
 		}
 	}
@@ -656,23 +662,58 @@ class TraceTypesNetwork {
 			foreach ($arr_network_list as $step => $arr_network_list_step) {
 				
 				$cur_entry = &$cur_entry['connections'];
+				$source_type_id = false; // Does not change in this loop, it's the same in/out source
 				
 				foreach ($arr_network_list_step as $value) {
 					
 					$source_type_id = ($value['in_out'] == 'out' ? $value['type_id'] : $value['ref_type_id']); // Switch type origin (in or out) accordingly
 					$target_type_id = ($value['in_out'] == 'out' ? $value['ref_type_id'] : $value['type_id']); // Switch type reference (in or out) accordingly
-				
+					$path = implode('-', $value['path']);
+					
 					if ($value['object_description_id']) {
+
+						if ($this->arr_filter_object_connections) { // Add-back additional optional connection information
+							
+							if ($value['dynamic']) {
+								$arr_connection_settings = ($this->arr_filter_object_connections[$path]['object_descriptions'][$value['object_description_id']][$value['in_out']][$target_type_id] ?? false);
+							} else {
+								$arr_connection_settings = ($this->arr_filter_object_connections[$path]['object_descriptions'][$value['object_description_id']][$value['in_out']] ?? false);
+							}
+							$this->parseTypeNetworkPathConnection($value, $arr_connection_settings);
+						}
+						
 						$cur_entry[$source_type_id][$value['in_out']][$target_type_id]['object_descriptions'][$value['object_description_id']] = $value;
 					} else if ($value['object_sub_description_id']) {
+						
+						if ($this->arr_filter_object_connections) { // Add-back additional optional connection information
+								
+							if ($value['dynamic']) {
+								$arr_connection_settings = ($this->arr_filter_object_connections[$path]['object_sub_descriptions'][$value['object_sub_description_id']][$value['in_out']][$target_type_id] ?? false);
+							} else {
+								$arr_connection_settings = ($this->arr_filter_object_connections[$path]['object_sub_descriptions'][$value['object_sub_description_id']][$value['in_out']] ?? false);
+							}
+							$this->parseTypeNetworkPathConnection($value, $arr_connection_settings);
+						}
+						
 						$cur_entry[$source_type_id][$value['in_out']][$target_type_id]['object_sub_details'][$value['object_sub_details_id']][$value['object_sub_description_id']] = $value;
 					} else if ($value['object_sub_location']) {
+						
+						if ($this->arr_filter_object_connections) { // Add-back additional optional connection information
+							
+							if ($value['dynamic']) {
+								$arr_connection_settings = ($this->arr_filter_object_connections[$path]['object_sub_locations'][$value['object_sub_details_id']][$value['in_out']][$target_type_id] ?? false);
+							} else {
+								$arr_connection_settings = ($this->arr_filter_object_connections[$path]['object_sub_locations'][$value['object_sub_details_id']][$value['in_out']] ?? false);
+							}
+							$this->parseTypeNetworkPathConnection($value, $arr_connection_settings);
+						}
+						
 						$cur_entry[$source_type_id][$value['in_out']][$target_type_id]['object_sub_details'][$value['object_sub_details_id']]['object_sub_location'] = $value;
 					}
 					
 					$cur_entry[$source_type_id][$value['in_out']][$target_type_id]['path'] = $value['path'];
 				}
-				
+								
 				$cur_entry = &$cur_entry[$source_type_id];
 			}
 		}
@@ -682,6 +723,37 @@ class TraceTypesNetwork {
 		}
 		
 		return $this->arr_type_network_paths;
+	}
+	
+	public function parseTypeNetworkPathConnection(&$arr_path, $arr_connection_settings) {
+		
+		if (!isset($arr_connection_settings['date'])) {
+			return;
+		}
+		
+		$arr_path['date'] = $arr_connection_settings['date'];
+		
+		foreach ($arr_path['date'] as $str_date_start_end => &$arr_date_statement) {
+			
+			$arr_date_statement['identifier'] = $str_date_start_end.'_'.arr2String($arr_date_statement, '_'); // Needed for grouping identical statements
+			
+			if ($arr_path['object_sub_details_id']) {
+							
+				if (strStartsWith($arr_date_statement['id'], 'object_sub_details_')) {
+
+					$arr_date_statement['object_sub_details_id'] = $arr_path['object_sub_details_id'];
+					
+					if (
+						strStartsWith($arr_date_statement['id'], 'object_sub_details_'.$arr_path['object_sub_details_id'])
+							&&
+						(($arr_path['in_out'] == 'out' && $arr_date_statement['source_target'] == 'source') || ($arr_path['in_out'] == 'in' && $arr_date_statement['source_target'] == 'target'))
+					) {
+					
+						$arr_date_statement['filter_object_sub'] = true; // Indicate if the connection is sourcing its own sub-object date
+					}
+				}
+			}
+		}
 	}
 	
 	public function getTotalSteps() {

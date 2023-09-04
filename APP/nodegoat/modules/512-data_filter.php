@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -104,10 +104,13 @@ class data_filter extends base_module {
 		$cache = self::getCache($str_identifier);
 		
 		if ($cache) {
+			
 			$arr_type_referenced = $cache;
 		} else {
+			
 			$arr_ref_type_ids = StoreCustomProject::getScopeTypes($_SESSION['custom_projects']['project_id']);
 			$arr_type_referenced = FilterTypeObjects::getTypesReferenced($type_id, $arr_ref_type_ids, ['object_sub_locations' => true, 'dynamic_is_used' => true]);
+			$arr_type_referenced = arrSortByArray($arr_type_referenced, $arr_ref_type_ids);
 			self::setCache($str_identifier, $arr_type_referenced);
 		}
 				
@@ -116,11 +119,14 @@ class data_filter extends base_module {
 		$is_new = (!$arr_filter['filter_code']);
 		
 		if ($arr_source['type_id']) {
+			
 			if ($arr_source['object_description_id']) {
-				$referenced = ($arr_source['direction'] == 'in' || (!$arr_source['direction'] && $arr_type_set['object_descriptions'][$arr_source['object_description_id']]) ? true : false); // If the source object description does not exist in the filtering type, it is a referenced one
+				
+				$is_referenced = ($arr_source['direction'] == 'in' || (!$arr_source['direction'] && $arr_type_set['object_descriptions'][$arr_source['object_description_id']]) ? true : false); // If the source object description does not exist in the filtering type, it is a referenced one
 				$filter_name = Labels::parseTextVariables($arr_source_type_set['object_descriptions'][$arr_source['object_description_id']]['object_description_name']);
 			} else if ($arr_source['object_sub_description_id']) {
-				$referenced = ($arr_source['direction'] == 'in' || (!$arr_source['direction'] && $arr_type_set['object_sub_details'][$arr_source['object_sub_details_id']]['object_sub_descriptions'][$arr_source['object_sub_description_id']]) ? true : false); // If the source object sub description does not exist in the filtering type, it is a referenced one
+				
+				$is_referenced = ($arr_source['direction'] == 'in' || (!$arr_source['direction'] && $arr_type_set['object_sub_details'][$arr_source['object_sub_details_id']]['object_sub_descriptions'][$arr_source['object_sub_description_id']]) ? true : false); // If the source object sub description does not exist in the filtering type, it is a referenced one
 				$object_sub_details_name = Labels::parseTextVariables($arr_source_type_set['object_sub_details'][$arr_source['object_sub_details_id']]['object_sub_details']['object_sub_details_name']);
 				$object_sub_description_name = Labels::parseTextVariables($arr_source_type_set['object_sub_details'][$arr_source['object_sub_details_id']]['object_sub_descriptions'][$arr_source['object_sub_description_id']]['object_sub_description_name']);
 				if ($arr_source['object_sub_description_id'] == 'date' || $arr_source['object_sub_description_id'] == 'location') { // Filter on subobject date/location
@@ -131,18 +137,23 @@ class data_filter extends base_module {
 				}
 				$filter_name = '<span class="sub-name">'.$object_sub_details_name.'</span> <span>'.$object_sub_description_name.'</span>';
 			} else {
-				$referenced = true; // If the source specification only contains a type id, it's referenced
+				
+				$is_referenced = true; // If the source specification only contains a type id, it's referenced
 			}
-			if ($referenced) {
+			
+			if ($is_referenced) {
+				
 				if ($filter_name) {
 					$filter_name = '<span><span class="icon" data-category="direction">'.getIcon('updown-up').'</span><span>'.$filter_name.'</span></span><span>'.Labels::parseTextVariables($arr_source_type_set['type']['name']).'</span>';
 				} else {
 					$filter_name = '<span><span class="icon" data-category="direction">'.getIcon('updown-up').'</span><span>'.Labels::parseTextVariables($arr_source_type_set['type']['name']).'</span></span>';
 				}
 			} else {
+
 				$filter_name = '<span><span class="icon" data-category="direction">'.getIcon('updown-down').'</span><span>'.$filter_name.'</span></span><span>'.Labels::parseTextVariables($arr_type_set['type']['name']).'</span>';
 			}
 		} else {
+			
 			$filter_name = '<span><span class="source"></span>'.Labels::parseTextVariables($arr_type_set['type']['name']).'</span>';
 		}
 		
@@ -172,18 +183,18 @@ class data_filter extends base_module {
 							}
 						
 							$return .= cms_general::createSelectorRadio([
-								['id' => 'object_or_sub_or', 'name' => '<span title="'.getLabel('inf_filter_object_or_sub_or').'">'.getLabel('lbl_filter_object_or_sub_or').'</span>'],
-								['id' => 'object_and_sub_or', 'name' => '<span title="'.getLabel('inf_filter_object_and_sub_or').'">'.getLabel('lbl_filter_object_and_sub_or').'</span>'],
-								['id' => 'object_and_sub_and', 'name' => '<span title="'.getLabel('inf_filter_object_and_sub_and').'">'.getLabel('lbl_filter_object_and_sub_and').'</span>'],
-								['id' => 'object_optional_sub_optional', 'name' => '<span title="'.getLabel('inf_filter_object_optional_sub_optional').'">'.getLabel('lbl_filter_object_optional_sub_optional').'</span>']
+								['id' => 'object_or_sub_or', 'name' => getLabel('lbl_filter_object_or_sub_or'), 'title' => getLabel('inf_filter_object_or_sub_or')],
+								['id' => 'object_and_sub_or', 'name' => getLabel('lbl_filter_object_and_sub_or'), 'title' => getLabel('inf_filter_object_and_sub_or')],
+								['id' => 'object_and_sub_and', 'name' => getLabel('lbl_filter_object_and_sub_and'), 'title' => getLabel('inf_filter_object_and_sub_and')],
+								['id' => 'object_optional_sub_optional', 'name' => getLabel('lbl_filter_object_optional_sub_optional'), 'title' => getLabel('inf_filter_object_optional_sub_optional')]
 							], $name.'[options][operator]', $str_operator)
 							.'<span class="split"></span>'
-							.'<label><em>n</em> <span>=</span><input type="number" name="'.$name.'[options][operator_extra]" value="'.((int)$arr_filter['options']['operator_extra'] ?: 1).'"/></label>'
+							.'<label><span class="input"><em>n</em> <span>=</span></span><input type="number" name="'.$name.'[options][operator_extra]" step="1" min="1" value="'.((int)$arr_filter['options']['operator_extra'] ?: 1).'"/></label>'
 						.'</span></li>
 						<li><label>'.getLabel('lbl_exclude').'</label><span>'.cms_general::createSelectorRadio([
 							['id' => '', 'name' => getLabel('lbl_no')],
-							['id' => 'soft', 'name' => '<span title="'.getLabel('inf_filter_exclude').' '.getLabel('inf_filter_exclude_soft').'">'.getLabel('lbl_filter_exclude_soft').'</span>'],
-							['id' => 'hard', 'name' => '<span title="'.getLabel('inf_filter_exclude').' '.getLabel('inf_filter_exclude_hard').'">'.getLabel('lbl_filter_exclude_hard').'</span>']
+							['id' => 'soft', 'name' => getLabel('lbl_filter_exclude_soft'), 'title' => getLabel('inf_filter_exclude').' '.getLabel('inf_filter_exclude_soft')],
+							['id' => 'hard', 'name' => getLabel('lbl_filter_exclude_hard'), 'title' => getLabel('inf_filter_exclude').' '.getLabel('inf_filter_exclude_hard')]
 						], $name.'[options][exclude]', $arr_filter['options']['exclude']).'</span></li>
 					</ul>
 				</fieldset>
@@ -207,7 +218,7 @@ class data_filter extends base_module {
 									
 									foreach (($arr_filter['object_name'] ?: ['']) as $value) {
 										
-										$unique = uniqid('array_');
+										$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 										
 										$arr_sorter[] = ['value' => StoreTypeObjects::formatToFormValueFilter('', $value, $name.'[object_name]['.$unique.']')];
 									}
@@ -236,7 +247,7 @@ class data_filter extends base_module {
 										
 									foreach (($arr_filter['object_analyses'] ?: [[]]) as $arr_filter_object_analysis) {
 										
-										$unique = uniqid('array_');
+										$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 										
 										$arr_sorter[] = ['value' => [
 											'<select name="'.$name.'[object_analyses]['.$unique.'][object_analysis_id]"'.($info ? ' title="'.strEscapeHTML($info).'"' : '').'>'.Labels::parseTextVariables(cms_general::createDropdown($arr_object_analyses_selection, $arr_filter_object_analysis['object_analysis_id'], true, 'label')).'</select>',
@@ -541,27 +552,27 @@ class data_filter extends base_module {
 		return ($has_object_subs_details ? $return : '');
 	}
 	
-	private function createFilterTypeObjectDefinition($type_id, $object_description_id, $filter_code, $arr_object_definition = [], $referenced = false) {
+	private function createFilterTypeObjectDefinition($type_id, $object_description_id, $filter_code, $arr_object_definition = [], $is_referenced = false) {
 		
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		$arr_object_description = $arr_type_set['object_descriptions'][$object_description_id];
-		if ($referenced) {
+		if ($is_referenced) {
 			$arr_object_description['object_description_ref_type_id'] = $type_id;
 		}
-		$arr_options = ['source_direction' => ($referenced ? 'in' : 'out'), 'source_type_id' => $type_id, 'source_object_description_id' => $object_description_id, 'type' => $arr_object_description['object_description_value_type']];
+		$arr_options = ['source_direction' => ($is_referenced ? 'in' : 'out'), 'source_type_id' => $type_id, 'source_object_description_id' => $object_description_id, 'type' => $arr_object_description['object_description_value_type']];
 		
-		$name = $this->form_name.'[form]['.$filter_code.']'.($referenced ? '[referenced_types]['.$type_id.']' : '').'[object_definitions]['.$arr_object_description['object_description_id'].']';
+		$name = $this->form_name.'[form]['.$filter_code.']'.($is_referenced ? '[referenced_types]['.$type_id.']' : '').'[object_definitions]['.$arr_object_description['object_description_id'].']';
 		
-		if (!$referenced) {
+		if (!$is_referenced) {
 			$arr_options['transcension'] = $arr_object_definition['transcension'];
 			unset($arr_object_definition['transcension']);
 		}
 		
-		if ($arr_object_description['object_description_ref_type_id'] && (!$arr_object_description['object_description_is_dynamic'] || $referenced)) {
+		if ($arr_object_description['object_description_ref_type_id'] && (!$arr_object_description['object_description_is_dynamic'] || $is_referenced)) {
 			
-			if ($arr_object_description['object_description_has_multi'] || $referenced) {
+			if ($arr_object_description['object_description_has_multi'] || $is_referenced) {
 				$arr_options['relationality'] = $arr_object_definition['relationality'];
-				if ($arr_object_description['object_description_has_multi'] && !$referenced) {
+				if ($arr_object_description['object_description_has_multi'] && !$is_referenced) {
 					$arr_options['relationality_options']['filter'] = true;
 				}
 			}
@@ -576,7 +587,7 @@ class data_filter extends base_module {
 		return $return;
 	}
 	
-	private function createFilterTypeObjectSubDefinition($type_id, $object_sub_details_id, $object_sub_description_id, $filter_code, $arr_object_sub_definition = [], $referenced = false) {
+	private function createFilterTypeObjectSubDefinition($type_id, $object_sub_details_id, $object_sub_description_id, $filter_code, $arr_object_sub_definition = [], $is_referenced = false) {
 		
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		$arr_object_sub_description = $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
@@ -587,25 +598,25 @@ class data_filter extends base_module {
 			
 		} else {
 		
-			if ($referenced) {
+			if ($is_referenced) {
 				$arr_object_sub_description['object_sub_description_ref_type_id'] = $type_id;
 			}
 			
-			$arr_options = ['source_direction' => ($referenced ? 'in' : 'out'), 'source_type_id' => $type_id, 'source_object_sub_details_id' => $object_sub_details_id, 'source_object_sub_description_id' => $object_sub_description_id, 'type' => $arr_object_sub_description['object_sub_description_value_type']];
+			$arr_options = ['source_direction' => ($is_referenced ? 'in' : 'out'), 'source_type_id' => $type_id, 'source_object_sub_details_id' => $object_sub_details_id, 'source_object_sub_description_id' => $object_sub_description_id, 'type' => $arr_object_sub_description['object_sub_description_value_type']];
 			
-			$name = $this->form_name.'[form]['.$filter_code.']'.($referenced ? '[referenced_types]['.$type_id.']' : '').'[object_subs]['.$object_sub_details_id.'][object_sub_definitions]['.$object_sub_description_id.']';
+			$name = $this->form_name.'[form]['.$filter_code.']'.($is_referenced ? '[referenced_types]['.$type_id.']' : '').'[object_subs]['.$object_sub_details_id.'][object_sub_definitions]['.$object_sub_description_id.']';
 						
-			if (!$referenced) {
+			if (!$is_referenced) {
 				$arr_options['transcension'] = $arr_object_sub_definition['transcension'];
 				unset($arr_object_sub_definition['transcension']);
 			}
 			
-			if ($arr_object_sub_description['object_sub_description_ref_type_id'] && (!$arr_object_sub_description['object_sub_description_is_dynamic'] || $referenced)) {
+			if ($arr_object_sub_description['object_sub_description_ref_type_id'] && (!$arr_object_sub_description['object_sub_description_is_dynamic'] || $is_referenced)) {
 				
-				if ($arr_object_sub_description['object_sub_description_has_multi'] || !$arr_object_sub_details['object_sub_details_is_single'] || $referenced) {
+				if ($arr_object_sub_description['object_sub_description_has_multi'] || !$arr_object_sub_details['object_sub_details_is_single'] || $is_referenced) {
 					$arr_options['relationality'] = $arr_object_sub_definition['relationality'];
 					$arr_options['relationality_options']['filter'] = true;
-					if ($referenced) {
+					if ($is_referenced) {
 						$arr_options['relationality_options']['group'] = true;
 					}
 				}
@@ -692,7 +703,7 @@ class data_filter extends base_module {
 						
 						foreach (($arr_object_sub['object_sub_dates'] ?: [[]]) as $arr_object_sub_date) {
 							
-							$unique_date = uniqid('array_');
+							$unique_date = uniqid(cms_general::NAME_GROUP_ITERATOR);
 								
 							$return .= '<li class="date-section start">
 								<label></label>
@@ -775,7 +786,7 @@ class data_filter extends base_module {
 							
 						foreach (($arr_object_sub['object_sub_locations'] ?: [[]]) as $arr_object_sub_location) {
 								
-								$unique_location = uniqid('array_');
+								$unique_location = uniqid(cms_general::NAME_GROUP_ITERATOR);
 								
 								$return .= '<li class="location-section start">
 									<label></label>
@@ -1036,7 +1047,7 @@ class data_filter extends base_module {
 				
 				foreach (($arr_values['type_tags'] ?: [[]]) as $type_id => $arr_tags) {
 					
-					$unique = uniqid('array_');
+					$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 					$arr_options_extra = ['relationality' => $arr_tags['objects']['relationality'], 'transcension' => $arr_tags['objects']['transcension'], 'selectable_type_id' => true, 'type' => ''] + $arr_options;
 					unset($arr_tags['objects']['relationality'], $arr_tags['objects']['transcension']);
 					
@@ -1086,7 +1097,7 @@ class data_filter extends base_module {
 				$arr_sorter = [];
 				
 				foreach (($arr_values ?: ['']) as $value) {
-					$unique = uniqid('array_');
+					$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 					$arr_sorter[] = ['value' => StoreTypeObjects::formatToFormValueFilter($type, $value, $name.'['.$unique.']', $arr_type_options)];
 				}
 				
@@ -1161,7 +1172,7 @@ class data_filter extends base_module {
 		}
 		
 		foreach (($arr_type_object_names ?: ['']) as $object_id => $value) {
-			$unique = uniqid('array_');
+			$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 			$arr_sorter[] = ['value' => '<span><input type="hidden" id="y:data_filter:lookup_type_object_pick-'.(int)($arr_options['selectable_type_id'] ? 0 : $type_id).'" name="'.$name.$name_extra.'['.$unique.']" value="'.$object_id.'" /><input type="search" id="y:data_filter:lookup_type_object-'.(int)($arr_options['selectable_type_id'] ? 0 : $type_id).'" class="autocomplete" value="'.$value.'" /></span>'];
 		}
 		
@@ -1274,7 +1285,7 @@ class data_filter extends base_module {
 					<fieldset>
 						<ul>
 							<li><label>'.getLabel('lbl_filter').'</label><div id="x:custom_projects:filter_storage-'.(int)$type_id.'">'
-								.'<select name="filter_id">'.cms_general::createDropdown(cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN ? true : false), $arr_use_project_ids), false, true, 'label').'</select>'
+								.'<select name="filter_id" placeholder="'.getLabel(($arr_type_filter === false ? 'lbl_empty' : 'lbl_new')).'">'.cms_general::createDropdown(cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN ? true : false), $arr_use_project_ids), false, true, 'label').'</select>'
 								.($arr_type_filter !== false ? '<input type="button" class="data add popup add_filter_storage" value="save" />'
 								.'<input type="button" class="data del msg del_filter_storage" value="del" />' : '')
 							.'</div></li>
@@ -1287,7 +1298,7 @@ class data_filter extends base_module {
 					<fieldset>
 						<ul>
 							<li><label>'.getLabel('lbl_form').'</label><div>'
-								.'<textarea name="plain">'.($arr_type_filter ? value2JSON($arr_type_filter, JSON_PRETTY_PRINT) : '').'</textarea>'
+								.'<textarea name="plain" placeholder="'.getLabel('lbl_filter_advanced_input').'">'.($arr_type_filter ? value2JSON($arr_type_filter, JSON_PRETTY_PRINT) : '').'</textarea>'
 							.'</div></li>
 						</ul>
 					</fieldset>
@@ -1295,7 +1306,7 @@ class data_filter extends base_module {
 			</div>
 		</div>';
 		
-		// SiteStartVars::getModUrl($this->mod_id, false, false, true, array('project.v', $_SESSION['custom_projects']['project_id'])).'filter.v/';
+		// SiteStartVars::getModuleURL($this->mod_id, false, false, true, array('project.v', $_SESSION['custom_projects']['project_id'])).'filter.v/';
 		
 		return $return;
 	}
@@ -1396,7 +1407,7 @@ class data_filter extends base_module {
 			.filter fieldset ul > li.extra > div > input[type=number],
 			.filter fieldset ul > li.extra > div > ul > li > input[type=number],
 			.filter fieldset input[type=number][name*="[object_sub][relationality]"] { width: 50px; }
-			.filter fieldset input[type=number][name*="[operator_extra]"] { margin-left: 6px; width: 35px; }
+			.filter fieldset input[type=number][name*="[operator_extra]"] { width: 50px; }
 			.filter .tags li.general {  }
 			.filter .object-descriptions > div:empty,
 			.filter .object-sub-details > div:empty,
@@ -1521,7 +1532,7 @@ class data_filter extends base_module {
 					return;
 				}
 			
-				runElementsSelectorFunction(e.detail.elm, '[name*=object_sub_date_type], [name*=\"chronology[start][type]\"], [name*=\"chronology[end][type]\"], [name*=\"_infinite]\"]', function(elm_found) {
+				runElementsSelectorFunction(e.detail.elm, '[name*=object_sub_date_type], [name*=\"chronology[start][type]\"], [name*=\"chronology[end][type]\"]', function(elm_found) {
 					SCRIPTER.triggerEvent(elm_found, 'update_date_type');
 				});
 				runElementsSelectorFunction(e.detail.elm, '[name*=object_sub_location_type]', function(elm_found) {
@@ -1581,24 +1592,27 @@ class data_filter extends base_module {
 				}
 			}).on('change update_date_type', '[name*=\"chronology[start][type]\"], [name*=\"chronology[end][type]\"]', function() {
 			
-				var cur = $(this);
-				var elm_target = cur.closest('.date-section');
+				const cur = $(this);
+				let elm_target = cur.closest('.date-section');
 				
 				elm_target = elm_target.add(elm_target.nextUntil('.start, :not(.date-section)'));
-				var elm_target_point = elm_target.find('[name*=\"[date][start]\"], [name*=\"[date][end]\"]').closest('.date-section');
-				var elm_target_statement = elm_target.find('[name*=\"[start][start]\"], [name*=\"[end][end]\"]').closest('.date-section');
-				var elm_target_statement_between = elm_target_statement.add(elm_target.find('[name*=\"[start][end]\"], [name*=\"[end][start]\"]').closest('.date-section'));
-				var elm_target_statement_inifite = elm_target_statement_between.find('[name*=\"[date_infinite]\"]');
+				const elm_target_point = elm_target.find('[name*=\"[date][start]\"], [name*=\"[date][end]\"]').closest('.date-section');
+				const elm_target_point_inifite = elm_target_point.find('[name*=\"[start_infinite]\"], [name*=\"[end_infinite]\"]');
+				const elm_target_statement = elm_target.find('[name*=\"[start][start]\"], [name*=\"[end][end]\"]').closest('.date-section');
+				const elm_target_statement_between = elm_target_statement.add(elm_target.find('[name*=\"[start][end]\"], [name*=\"[end][start]\"]').closest('.date-section'));
+				const elm_target_statement_inifite = elm_target_statement_between.find('[name*=\"[date_infinite]\"]');
 					
 				if (this.value == 'point') {
 					elm_target_point.removeClass('hide');
 					elm_target_statement_between.addClass('hide');
+					SCRIPTER.triggerEvent(elm_target_point_inifite, 'update_date_type');
 				} else if (this.value == 'statement') {
 					elm_target_point.addClass('hide');
 					elm_target_statement_between.addClass('hide');
 					elm_target_statement.removeClass('hide');
 					SCRIPTER.triggerEvent(elm_target_statement.find('[name$=\"[date_value_type]\"]'), 'update_date_value_type');
 					elm_target_statement_inifite.addClass('hide');
+					SCRIPTER.triggerEvent(elm_target_statement_inifite, 'update_date_type');
 				} else if (this.value == 'statement_between') {
 					elm_target_point.addClass('hide');
 					elm_target_statement_between.removeClass('hide');
@@ -1606,11 +1620,13 @@ class data_filter extends base_module {
 						SCRIPTER.triggerEvent(elm_found, 'update_date_value_type');
 					});
 					elm_target_statement_inifite.removeClass('hide');
+					SCRIPTER.triggerEvent(elm_target_statement_inifite, 'update_date_type');
 				}
 			}).on('change update_date_type', '[name*=\"[start_infinite]\"], [name*=\"[end_infinite]\"]', function() {
 				$(this).prevAll('input, select').prop('disabled', this.checked);
 			}).on('change update_date_type', '[name*=\"[date_infinite]\"]', function() { // Date infinite in chronology
-				$(this).closest('.date-section').find('input, select').not(this).prop('disabled', this.checked);
+				const is_active = (this.checked && !isHidden(this));
+				$(this).closest('.date-section').find('input, select').not(this).prop('disabled', is_active);
 			}).on('change update_date_value_type', '[name$=\"[date_value_type]\"]', function() {
 				
 				var cur = $(this);
@@ -1867,7 +1883,7 @@ class data_filter extends base_module {
 					cur[0].elm_source = clone;
 				}
 				var elm = cur[0].elm_source.clone();
-				replaceArrayInName(elm);
+				replaceGroupIteratorInName(elm);
 				elm.insertAfter(elm_li);
 				SCRIPTER.triggerEvent(elm_scripter, 'ajaxloaded', {elm: elm});
 			}).on('click', '.filter > div .del[data-section]', function() {
@@ -2238,6 +2254,7 @@ class data_filter extends base_module {
 			$html_versioning = '';
 			
 			$arr_type_filter = [];
+			$arr_type_objects = [];
 			
 			if ($_POST['select']) {
 				
@@ -2245,9 +2262,36 @@ class data_filter extends base_module {
 					
 					$arr_type_filter = self::getFilterSet($_POST['filter_id']);
 				}
-			} else {
+			} else if ($_POST['plain']) {
 				
-				$arr_type_filter = json_decode($_POST['plain'], true);
+				$str_plain = $_POST['plain'];
+								
+				if (substr($str_plain, 0, 1) == '{') {
+					
+					$arr_type_filter = JSON2Value($str_plain);
+				} else {
+					
+					$str_plain = str_replace([',', ';', ':', ' '], EOL_1100CC, $str_plain);
+					$arr_values = str2Array($str_plain, EOL_1100CC);
+					$arr_values = array_filter(array_unique($arr_values));
+					
+					$arr_type_objects = [];
+					
+					foreach ($arr_values as $str_value) {
+
+						if ((int)$str_value) {
+
+							$arr_type_objects[] = (int)$str_value;
+							continue;
+						}
+						
+						$arr_object_id = GenerateTypeObjects::decodeTypeObjectID($str_value);
+						
+						if ($arr_object_id && $arr_object_id['type_id'] == $type_id) {
+							$arr_type_objects[] = $arr_object_id['object_id'];
+						}
+					}
+				}
 			}
 			
 			if ($arr_type_filter) {
@@ -2270,6 +2314,11 @@ class data_filter extends base_module {
 				if ($arr_type_filter['versioning'] && !$arr_source['filter_code']) {
 					$html_versioning = $this->createFilterVersioning($type_id, $arr_type_filter['versioning']);
 				}
+			} else if ($arr_type_objects) {
+				
+				$arr_type_filter = ['objects' => $arr_type_objects];
+				
+				$arr_filter_tabs[] = $this->createFilterTypeObjectTab($type_id, $arr_source, $arr_type_filter);
 			} else {
 				
 				$arr_filter_tabs[] = $this->createFilterTypeObjectTab($type_id, $arr_source);
@@ -2452,7 +2501,7 @@ class data_filter extends base_module {
 			$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_OVERVIEW, true);
 			$filter->setLimit(20);
 			$filter->setOrder(['object_name' => 'asc']);
-			$filter->setVersioning('added');
+			$filter->setVersioning(GenerateTypeObjects::VERSIONING_ADDED);
 			$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE_INCLUDE, toolbar::getTypeConditions($type_id));
 						
 			if ($arr_project['types'][$type_id]['type_filter_id']) {

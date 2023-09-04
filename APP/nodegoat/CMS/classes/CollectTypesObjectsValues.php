@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -45,7 +45,7 @@ class CollectTypesObjectsValues extends CollectTypesObjects {
 		
 			$trace = new TraceTypesNetwork($this->arr_scope['types'], true, true);
 			$trace->filterTypesNetwork($arr_type_network['paths']);
-			$trace->run($this->type_id, false, 3);
+			$trace->run($this->type_id, false, cms_nodegoat_details::$num_network_trace_depth);
 			$arr_type_network_paths = $trace->getTypeNetworkPaths(true);
 		} else {
 			

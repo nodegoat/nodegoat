@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -31,8 +31,6 @@ class IngestTypeObjectsFile extends IngestTypeObjects {
 		$arr_output = [$stream->getStream('', '')];
 		
 		$stream->open($arr_output);
-
-		ini_set('auto_detect_line_endings', true);
 		
 		$count_rows = 0;
 		$arr_row = fgetcsv($file_source, 0, $str_delimiter, $str_enclosure, CSV_ESCAPE);
@@ -72,9 +70,7 @@ class IngestTypeObjectsFile extends IngestTypeObjects {
 			$count_rows++;
 			$arr_row = fgetcsv($file_source, 0, $str_delimiter, $str_enclosure, CSV_ESCAPE);
 		}
-		
-		ini_set('auto_detect_line_endings', false);
-		
+				
 		fclose($file_source);
 
 		$num_objects = ($count_rows - 1); // -1 for the heading
@@ -209,7 +205,7 @@ class IngestTypeObjectsFile extends IngestTypeObjects {
 				continue;
 			}
 			
-			if ($type == 'filter_object_identifier') {
+			if ($type == 'filter_object_identifier' || $type == 'filter_object_sub_identifier') {
 				$arr_type_pointers = [$arr_type_pointers];
 			}
 			

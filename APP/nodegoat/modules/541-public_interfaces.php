@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -142,7 +142,7 @@ class public_interfaces extends base_module {
 								<li><a href="#">'.getLabel('lbl_object').' '.getLabel('lbl_type').' '.getLabel('lbl_settings').'</a></li>
 								<li><a href="#">'.getLabel('lbl_label').' '.getLabel('lbl_settings').'</a></li>
 								<li><a href="#">'.getLabel('lbl_cite_as').'</a></li>
-								<li><a href="#">PDF</a></li>
+								<li><a href="#">'.getLabel('lbl_selection').' PDF</a></li>
 								<li><a href="#">'.getLabel('lbl_technical').'</a></li>
 							</ul>
 							<div>
@@ -155,8 +155,9 @@ class public_interfaces extends base_module {
 											<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_url').'</label><input name="settings[share_object_url]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['share_object_url'] ? 'checked="checked"' : '').' /></li>
 											<li><label>'.getLabel('lbl_share').' '.getLabel('lbl_url').'</label><input name="settings[show_object_url]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_object_url'] ? 'checked="checked"' : '').' /></li>
 											<li><label>'.getLabel('lbl_print').' '.getLabel('lbl_object').'</label><input name="settings[print_object]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['print_object'] ? 'checked="checked"' : '').' /></li>
-											<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_objects').' '.getLabel('lbl_list').'</label><input name="settings[show_objects_list]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_objects_list'] ? 'checked="checked"' : '').' /></li>
+											<li><label>PDF '.getLabel('lbl_object'). '</label><input name="settings[pdf_object]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['pdf_object'] ? 'checked="checked"' : '').' /></li>
 											<li><label>'.getLabel('lbl_object').' '.getLabel('lbl_selection').'</label><input name="settings[selection]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['selection'] ? 'checked="checked"' : '').' /></li>
+											<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_objects').' '.getLabel('lbl_list').'</label><input name="settings[show_objects_list]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_objects_list'] ? 'checked="checked"' : '').' /></li>
 											<li><label>'.getLabel('lbl_object').' '.getLabel('lbl_references').'</label><input name="settings[object_references]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['object_references'] ? 'checked="checked"' : '').' /></li>
 											<li><label>'.getLabel('lbl_public_interface_use_combined_references_as_filters').'</label><input name="settings[use_combined_references_as_filters]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['use_combined_references_as_filters'] ? 'checked="checked"' : '').' /></li>
 											<li><label>'.getLabel('lbl_object').' '.getLabel('lbl_geo_visualisation').'</label><input name="settings[object_geo]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['object_geo'] ? 'checked="checked"' : '').' /></li>
@@ -166,6 +167,8 @@ class public_interfaces extends base_module {
 											<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_media').' as '.getLabel('lbl_thumbnail').'</label><input name="settings[show_media_thumbnails]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_media_thumbnails'] ? 'checked="checked"' : '').' /></li>
 											<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_references').' in '.getLabel('lbl_object').' '.getLabel('lbl_view').'</label><input name="settings[show_references_in_object_view]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_references_in_object_view'] ? 'checked="checked"' : '').' /></li>
 											<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_object_descriptions').' in '.getLabel('lbl_object').' '.getLabel('lbl_view').'</label><input name="settings[show_object_descriptions_in_object_view]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_object_descriptions_in_object_view'] ? 'checked="checked"' : '').' /></li>
+											<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_object').' in '.getLabel('lbl_project').'</label><input name="settings[show_object_in_project]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_object_in_project'] ? 'checked="checked"' : '').' /></li>
+											<li><label>'.getLabel('lbl_hide').' '.getLabel('lbl_object_subs').' '.getLabel('lbl_overview').'</label><input name="settings[hide_object_subs_overview]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['hide_object_subs_overview'] ? 'checked="checked"' : '').' /></li>
 										</ul></fieldset></div>';		
 					
 								$return .= '<div class="options"><fieldset><legend>'.getLabel('lbl_type').' '.getLabel('lbl_settings').'</legend><ul>							
@@ -184,7 +187,7 @@ class public_interfaces extends base_module {
 																Labels::parseTextVariables(cms_general::createDropdown($arr_types, $type_id, true)).
 															'</select>
 															<span id="y:public_interfaces:create_type_settings_options-0">'.
-																self::createTypeSettingsOptions($type_id, $arr_selected_types, $arr, $arr_public_interface['projects']).
+																($type_id ? self::createTypeSettingsOptions($type_id, $arr_selected_types, $arr, $arr_public_interface['projects']) : '').
 															'</span>'
 														]];
 													}
@@ -249,7 +252,7 @@ class public_interfaces extends base_module {
 							<div>
 								<div class="options fieldsets"><div>';
 		
-								$return .= '<fieldset><legend>PDF</legend><ul>
+								$return .= '<fieldset><legend>'.getLabel('lbl_selection').' PDF</legend><ul>
 											<li><label>'.getLabel('lbl_title').'</label><input name="settings[pdf][title]" type="text" value="'.$arr_public_interface['interface']['settings']['pdf']['title'].'" /></li>
 											<li><label>'.getLabel('lbl_subtitle').'</label><input name="settings[pdf][subtitle]" type="text" value="'.$arr_public_interface['interface']['settings']['pdf']['subtitle'].'" /></li>
 											<li><label>'.getLabel('lbl_public_interface_colophon').'</label><textarea name="settings[pdf][colofon]">'.$arr_public_interface['interface']['settings']['pdf']['colofon'].'</textarea></li>
@@ -262,8 +265,9 @@ class public_interfaces extends base_module {
 								<div class="options fieldsets"><div>';
 
 								$return .= '<fieldset><ul>
-											<li><label>'.getLabel('lbl_url').' '.getLabel('lbl_server_host').'</label><input name="settings[short_url_host]" type="text" value="'.$arr_public_interface['interface']['settings']['short_url_host'].'" /></li>
-											<li><label>'.getLabel('lbl_open_site').' '.getLabel('lbl_url').'</label><input name="settings[return_url]" type="text" value="'.$arr_public_interface['interface']['settings']['return_url'].'" /></li>
+											<li><label>'.getLabel('lbl_url').' '.getLabel('lbl_server_host').'</label><div><input name="settings[short_url_host]" type="text" value="'.$arr_public_interface['interface']['settings']['short_url_host'].'" /></div></li>
+											<li><label>'.getLabel('lbl_use').' '.getLabel('lbl_nodegoat_id').' for URI</label><div><input name="settings[uri_nodegoat_id]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['uri_nodegoat_id'] ? 'checked="checked"' : '').' /></div></li>
+											<li><label>'.getLabel('lbl_open_site').' '.getLabel('lbl_url').'</label><div><input name="settings[return_url]" type="text" value="'.$arr_public_interface['interface']['settings']['return_url'].'" /></div></li>
 										</ul></fieldset>';
 																				
 								$return .= '</div></div>
@@ -418,7 +422,7 @@ class public_interfaces extends base_module {
 												
 												foreach ($arr_type_scopes as $display_mode => $scope_id) {
 													
-													$unique_scope = uniqid('array_');
+													$unique_scope = uniqid(cms_general::NAME_GROUP_ITERATOR);
 													$str_name = 'settings[projects]['.$project_id.'][scope]['.$scope.']['.$unique_scope.']';
 		
 													$arr_scope_sorter[] = ['source' => $is_source, 'value' => [
@@ -465,7 +469,7 @@ class public_interfaces extends base_module {
 									
 										foreach ($arr_scenarios as $key => $arr_scenario) {
 											
-											$unique_scenario = uniqid('array_');
+											$unique_scenario = uniqid(cms_general::NAME_GROUP_ITERATOR);
 											
 											$arr_filter_sorter[] = ['source' => ($key == 0 ? true : false), 'value' => [
 												'<select name="project_scenarios['.$project_id.']['.$unique_scenario.'][id]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_project_scenarios, $arr_scenario['scenario_id'], true)).'</select>'.
@@ -518,7 +522,7 @@ class public_interfaces extends base_module {
 																cms_general::createDropdown($arr_project_types, $random_type_id, true).
 															'</select>
 															<span id="y:public_interfaces:create_start_random_type_filter-0">'.
-																self::createStartRandomTypeFilter($project_id, $random_type_id, $arr_value['filter_id']).
+																($random_type_id ? self::createStartRandomTypeFilter($project_id, $random_type_id, $arr_value['filter_id']) : '').
 															'</span>'
 														]];
 													}
@@ -540,7 +544,6 @@ class public_interfaces extends base_module {
 							<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_grid_overlay').'</label><input name="settings[projects]['.$project_id.'][show_grid_overlay]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['show_grid_overlay'] ? 'checked="checked"' : '').' /></li>
 							<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_object').' Fullscreen</label><input name="settings[projects]['.$project_id.'][show_object_fullscreen]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['show_object_fullscreen'] ? 'checked="checked"' : '').' /></li>
 							<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_explore').' '.getLabel('lbl_visualisations').'</label><input name="settings[projects]['.$project_id.'][show_explore_visualisations]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['show_explore_visualisations'] ? 'checked="checked"' : '').' /></li>
-							<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_references').' '.getLabel('lbl_first').'</label><input name="settings[projects]['.$project_id.'][list_cross_references_first]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['projects'][$project_id]['list_cross_references_first'] ? 'checked="checked"' : '').' /></li>
 							<li>
 								<label>'.getLabel('lbl_order_by').'</label>
 								<div><menu class="sorter"><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></menu></div>
@@ -826,7 +829,7 @@ class public_interfaces extends base_module {
 	private static function createStartRandomTypeFilter($project_id, $type_id, $filter_id = false) {
 		
 		$arr_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($project_id, $_SESSION['USER_ID'], $type_id, false, ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN ? true : false));
-		
+
 		$return = '<select name="settings[projects]['.$project_id.'][start][random][types]['.$type_id.'][filter_id]" title="'.getLabel('lbl_filter').'">'.
 			cms_general::createDropdown($arr_filters, $filter_id).
 			'</select>';
@@ -910,7 +913,7 @@ class public_interfaces extends base_module {
 		$arr_sorter = [];
 		foreach ($arr as $arr_value) {
 			
-			$unique_form = uniqid('array_');
+			$unique_form = uniqid(cms_general::NAME_GROUP_ITERATOR);
 			
 			$arr_sorter[] = ['value' => [
 				'<select name="project_filter_form['.$project_id.']['.$unique_form.'][form_element]">'.

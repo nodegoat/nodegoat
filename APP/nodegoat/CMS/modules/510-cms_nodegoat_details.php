@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -25,6 +25,8 @@ define('NODEGOAT_CLEARANCE_SYSTEM', 6);
 define('DIR_CACHE_SCENARIOS', DIR_ROOT_CACHE.SITE_NAME.'/scenarios/');
 
 class cms_nodegoat_details extends base_module {
+	
+	public static $num_network_trace_depth = 5;
 
 	public static function moduleProperties() {
 		static::$label = getLabel('ttl_details');

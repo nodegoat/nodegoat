@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -40,7 +40,7 @@ class ui_selection extends base_module {
 									'. ($selection_id && $print && !$arr_external_selection ? '
 											data-print_selection_id="'.$selection_id.'"
 										' : '').' 
-									data-url="'.SiteStartVars::getBasePath(0, false).SiteStartVars::$page['name'].'.p/'.$public_user_interface_id.'/'.$public_user_interface_active_custom_project_id.'"></div>';
+									data-url="'.SiteStartVars::getBasePath(0, false).SiteStartVars::getPage('name').'.p/'.$public_user_interface_id.'/'.$public_user_interface_active_custom_project_id.'"></div>';
 		
 		SiteEndVars::setFeedback('active_type_object_id', false, true);
 		
@@ -103,14 +103,22 @@ class ui_selection extends base_module {
 		$create_data = new ui_data();
 		$arr_elms = [];
 		
-		$arr_elms[] = ['elm_type' => 'selection_title', 'content' => Labels::parseTextVariables(($arr_public_user_interface['interface']['settings']['pdf']['title'] ? $arr_public_user_interface['interface']['settings']['pdf']['title'] : $arr_public_user_interface['interface']['name'])), 'style' => 'heading'];
-		($arr_public_user_interface['interface']['settings']['pdf']['subtitle'] ? $arr_elms[] = ['elm_type' => 'selection_subtitle', 'content' => Labels::parseTextVariables($arr_public_user_interface['interface']['settings']['pdf']['subtitle']), 'style' => 'subheading'] : '');
-		$arr_elms[] = ['elm_type' => 'selection_title', 'content' => $arr_selection['selection_title'], 'style' => 'title'];
-		$arr_elms[] = ['elm_type' => 'selection_editor', 'content' => $arr_selection['selection_editor'], 'style' => 'heading', 'pagebreak' => 'after'];
-		($arr_public_user_interface['interface']['settings']['pdf']['colofon'] ? $arr_elms[] = ['elm_type' => 'selection_note', 'content' => Labels::parseTextVariables($arr_public_user_interface['interface']['settings']['pdf']['colofon']), 'style' => 'note'] : '');
-		($arr_public_user_interface['interface']['settings']['pdf']['license'] ? $arr_elms[] = ['elm_type' => 'selection_note', 'content' => Labels::parseTextVariables($arr_public_user_interface['interface']['settings']['pdf']['license']), 'style' => 'note', 'pagebreak' => 'after'] : '');
-		$arr_elms[] = ['elm_type' => 'selection_note', 'content' => $arr_selection['selection_notes'], 'style' => 'note'];
+		if ($selection_id) {
+		
+			$arr_elms[] = ['elm_type' => 'selection_title', 'content' => Labels::parseTextVariables(($arr_public_user_interface['interface']['settings']['pdf']['title'] ? $arr_public_user_interface['interface']['settings']['pdf']['title'] : $arr_public_user_interface['interface']['name'])), 'style' => 'heading'];
+			($arr_public_user_interface['interface']['settings']['pdf']['subtitle'] ? $arr_elms[] = ['elm_type' => 'selection_subtitle', 'content' => Labels::parseTextVariables($arr_public_user_interface['interface']['settings']['pdf']['subtitle']), 'style' => 'subheading'] : '');
+			$arr_elms[] = ['elm_type' => 'selection_title', 'content' => $arr_selection['selection_title'], 'style' => 'title'];
+			$arr_elms[] = ['elm_type' => 'selection_editor', 'content' => $arr_selection['selection_editor'], 'style' => 'heading', 'pagebreak' => 'after'];
+			($arr_public_user_interface['interface']['settings']['pdf']['colofon'] ? $arr_elms[] = ['elm_type' => 'selection_note', 'content' => Labels::parseTextVariables($arr_public_user_interface['interface']['settings']['pdf']['colofon']), 'style' => 'note'] : '');
+			($arr_public_user_interface['interface']['settings']['pdf']['license'] ? $arr_elms[] = ['elm_type' => 'selection_note', 'content' => Labels::parseTextVariables($arr_public_user_interface['interface']['settings']['pdf']['license']), 'style' => 'note', 'pagebreak' => 'after'] : '');
+			$arr_elms[] = ['elm_type' => 'selection_note', 'content' => $arr_selection['selection_notes'], 'style' => 'note'];
+		
+		} else {
+			
+			$arr_elms[] = ['elm_type' => 'object_value', 'content' => $arr_public_user_interface['interface']['name'], 'style' => 'text'];
 
+		}
+		
 		foreach ((array)$arr_elements as $arr_selection_elm) {
 			
 			if ($arr_selection_elm['elm_type'] == 'heading') {
@@ -130,7 +138,7 @@ class ui_selection extends base_module {
 				
 				$arr_pdf_object = $create_data->createViewTypeObject($arr_id[0], $arr_id[1], 'pdf');
 
-				$arr_article = ['title' => ['elm_type' => 'heading', 'content' => strip_tags($arr_pdf_object['name']), 'style' => 'heading', 'pagebreak' => ($arr_elms[count($arr_elms) - 1]['pagebreak'] == 'after' ? false : 'before')], 'section_1' => [], 'section_2' => []];
+				$arr_article = ['title' => ['elm_type' => 'heading', 'content' => strip_tags($arr_pdf_object['name']), 'style' => 'heading', 'pagebreak' => ($arr_elms[count($arr_elms) - 1]['pagebreak'] == 'after' || !$selection_id ? false : 'before')], 'section_1' => [], 'section_2' => []];
 				
 				// in media type, allow image to take up complete width of page, otherwise show note in sideline (section 2)
 				if (!$arr_public_user_interface['interface']['settings']['types'][$type_id]['media'] && $arr_selection_elm['elm_notes']) {
@@ -150,34 +158,9 @@ class ui_selection extends base_module {
 					}
 				}
 			
-				foreach ((array)$arr_pdf_object['types'] as $object_description_id => $arr_object_descriptions) {
+				foreach ((array)$arr_pdf_object['object_descriptions'] as $object_description_id => $arr_object_descriptions) {
 						
 					$elm = $arr_type_set['object_descriptions'][$object_description_id]['object_description_name'].': ';
-					
-					$elm .= Response::addParseDelay('', function($foo) use ($arr_object_descriptions) {
-					
-						foreach ($arr_object_descriptions as $key => $arr_object_description) {
-							$arr_object_descriptions[$key] = GenerateTypeObjects::printSharedTypeObjectNames($arr_object_description);
-						}
-						
-						usort($arr_object_descriptions, function($a, $b) { return strcmp($a, $b); });
-						
-						$return = false;
-						
-						foreach ($arr_object_descriptions as $key => $arr_object_description) {
-							
-							$return .= ($return ? ', ' : '') . trim($arr_object_description);
-						}				
-						
-						return $return;
-					});	
-					
-					$arr_article['section_1'][] = ['elm_type' => 'object_value', 'content' => $elm, 'style' => 'text'];			
-				}
-				
-				foreach ((array)$arr_pdf_object['values'] as $object_description_id => $arr_object_descriptions) {
-					
-					$elm = '';
 					
 					foreach ((array)$arr_object_descriptions as $arr_object_description) {
 						
@@ -407,7 +390,7 @@ class ui_selection extends base_module {
 			
 			$arr_shares = cms_nodegoat_public_interfaces::getPublicInterfaceShareOptions($public_interface_name.' - '.$arr_selection['selection_title']);
 			
-			$url = SiteStartVars::getBasePath(0, false).SiteStartVars::$page['name'].'.p/'.$public_user_interface_id.'/'.$public_user_interface_active_custom_project_id.'/selection/'.$selection_url_id;
+			$url = SiteStartVars::getBasePath(0, false).SiteStartVars::getPage('name').'.p/'.$public_user_interface_id.'/'.$public_user_interface_active_custom_project_id.'/selection/'.$selection_url_id;
 	
 			$this->html = ['id' => $selection_url_id, 'url' => $url, 'arr_shares' => $arr_shares];
 		}
@@ -435,7 +418,15 @@ class ui_selection extends base_module {
 			$arr_data = self::createViewPdfSelection($selection_id, $arr_selection);
 
 			$this->html = $arr_data;
-		}	
+		}
+		
+		if ($method == "get_object_data") {
+			
+			$arr_selection = ['elements' => [$id => ['elm_id' => $id, 'elm_type' => 'object']]];
+			$arr_data = self::createViewPdfSelection(false, $arr_selection);
+
+			$this->html = $arr_data;
+		}
 		
 	}
 	

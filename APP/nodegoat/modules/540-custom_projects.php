@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -22,9 +22,9 @@ class custom_projects extends base_module {
 	
 	public static function modulePreload() {
 		
-		if (SiteStartVars::$page['name'] == 'viewer') {
+		if (SiteStartVars::getPage('name') == 'viewer') {
 
-			$arr_request_vars = SiteStartVars::getModVariables(0);
+			$arr_request_vars = SiteStartVars::getModuleVariables(0);
 
 			if ($arr_request_vars[0]) {
 				
@@ -32,7 +32,7 @@ class custom_projects extends base_module {
 				
 			} else {
 				
-				$public_user_interface_id = cms_nodegoat_public_interfaces::getDefaultPublicInterfaceId();
+				$public_user_interface_id = cms_nodegoat_public_interfaces::getDefaultPublicInterfaceID();
 			}
 			
 			toolbar::setActionSpace('viewer_'.(int)$public_user_interface_id);
@@ -59,8 +59,7 @@ class custom_projects extends base_module {
 				
 				$arr_types_all = StoreType::getTypes(); // Source can be any type
 				$arr_style_type = [];
-				
-				
+
 				foreach ($arr_types_all as $type_id => $arr_type) {
 					
 					if (!$arr_type['color']) {
@@ -74,7 +73,7 @@ class custom_projects extends base_module {
 						.ui li[class~="type-'.$type_id.'"], .ui div[class~="type-'.$type_id.'"], .ui .keywords span[class~="type-'.$type_id.'"] { background-color: '.$arr_type['color'].'; } ';
 				}
 				
-				$arr_public_interface_projects = cms_nodegoat_public_interfaces::getPublicInterfaceProjectIds($public_user_interface_id);
+				$arr_public_interface_projects = cms_nodegoat_public_interfaces::getPublicInterfaceProjectIDs($public_user_interface_id);
 
 				foreach ((array)$arr_public_interface_projects as $public_interface_project_id) {
 					
@@ -106,9 +105,9 @@ class custom_projects extends base_module {
 			$_SESSION['custom_projects']['project_id'] = false;
 			toolbar::setActionSpace('api');
 			
-			$arr_request_vars = SiteStartVars::getModVariables(0);
+			$arr_request_vars = SiteStartVars::getModuleVariables(0);
 				
-			$arr_api_configuration = cms_nodegoat_api::getConfiguration(SiteStartVars::$api['id']);
+			$arr_api_configuration = cms_nodegoat_api::getConfiguration(SiteStartVars::getAPI('id'));
 			$arr_projects = StoreCustomProject::getProjects();
 			
 			$is_data_model = ($arr_request_vars[0] == 'model');
@@ -145,11 +144,12 @@ class custom_projects extends base_module {
 			} else if (!$_SESSION['custom_projects']['project_id']) {
 
 				error(getLabel('msg_missing_information').' No valid project provided.', TROUBLE_INVALID_REQUEST, LOG_CLIENT);
-			} else {
-			
-				if ($arr_api_configuration['projects'][$_SESSION['custom_projects']['project_id']]['require_authentication'] && !$_SESSION['USER_ID']) {
-					error(getLabel('msg_access_denied'), TROUBLE_ACCESS_DENIED, LOG_CLIENT);
-				}
+			} else if ($_SESSION['USER_ID'] && !isset($_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']])) {
+						
+				error(getLabel('msg_access_denied').' No valid project provided.', TROUBLE_ACCESS_DENIED, LOG_CLIENT);
+			} else if (!$_SESSION['USER_ID'] && $arr_api_configuration['projects'][$_SESSION['custom_projects']['project_id']]['require_authentication']) {
+					
+				error(getLabel('msg_access_denied'), TROUBLE_ACCESS_DENIED, LOG_CLIENT);
 			}
 		} else {
 		
@@ -173,11 +173,11 @@ class custom_projects extends base_module {
 					$_SESSION['custom_projects']['project_id'] = (!$_SESSION['custom_projects']['project_id'] || $arr_project_link['is_active'] ? $project_id : $_SESSION['custom_projects']['project_id']);
 				}
 				
-				$arr_request_vars = SiteStartVars::getModVariables(0);
+				$arr_request_vars = SiteStartVars::getModuleVariables(0);
 				
 				if (!empty($arr_request_vars['project'][0])) {
 					
-					SiteEndVars::setModVariables(0, ['project' => false]);
+					SiteEndVars::setModuleVariables(0, ['project' => false]);
 					
 					if ($arr_request_vars['project'][0] != $_SESSION['custom_projects']['project_id'] && !empty($_SESSION['CUR_USER'][DB::getTableName('USER_LINK_NODEGOAT_CUSTOM_PROJECTS')][$arr_request_vars['project'][0]])) {
 						
@@ -205,12 +205,13 @@ class custom_projects extends base_module {
 							
 							$str_color = ($arr_project['types'][$type_id]['color'] ?? null ?: $arr_type['color']);
 							
-							$arr_style_type[] = '.body span.a[data-id^="'.$type_id.'_"], .body span.a[id*="-'.$type_id.'_"] { color: '.$str_color.'; }
-								.body span.tag-active[id*="-'.$type_id.'_"], .view_type_object .marginalia p[class^="'.$type_id.'"].tag-active span { color: #fff; background-color: '.$str_color.'; border-color: '.$str_color.';}
-								.labmap.soc g[class~="type-'.$type_id.'"] > circle { fill: '.$str_color.'; }';
+							$arr_style_type[] = '.network.type .node[data-type_id="'.$type_id.'"] > h4 > span:first-child { display: inline-block; color: '.$str_color.'; }'
+								.' .body span.a[data-id^="'.$type_id.'_"], .body span.a[id*="-'.$type_id.'_"] { color: '.$str_color.'; }'
+								.' .body span.tag-active[id*="-'.$type_id.'_"], .view_type_object .marginalia p[class^="'.$type_id.'"].tag-active span { color: #fff; background-color: '.$str_color.'; border-color: '.$str_color.';}'
+								.' .labmap.soc g[class~="type-'.$type_id.'"] > circle { fill: '.$str_color.'; }';
 						}
 					}
-					
+
 					if ($arr_style_type) {
 						
 						SiteEndVars::addHeadTag('<style>
@@ -226,6 +227,8 @@ class custom_projects extends base_module {
 				}
 			}
 		}
+		
+		Settings::get('hook_custom_project');
 		
 		if ($_SESSION['custom_projects']['project_id']) {
 						
@@ -266,7 +269,7 @@ class custom_projects extends base_module {
 						
 						foreach (($arr_source_filter_names ?: [[]]) as $source => $arr_filter_names) {
 						
-							$unique = uniqid('array_');
+							$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 							
 							$arr_sorter[] = ['value' => [
 									'<select>'.Labels::parseTextVariables(cms_general::createDropdown($arr_project_types, $type_id, true)).'</select>',
@@ -289,7 +292,7 @@ class custom_projects extends base_module {
 						
 					$return .= '<fieldset><legend>'.strEscapeHTML(Labels::parseTextVariables($arr_project['name'])).'</legend><ul>
 						<li>
-							<label></label><span><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></span>
+							<label></label><div><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></div>
 						</li>
 						<li>
 							<label></label>'.cms_general::createSorter($arr_sorter, false).'
@@ -317,7 +320,7 @@ class custom_projects extends base_module {
 		
 		parent::__construct();
 		
-		$arr_users_link = pages::getClosestMod('register_by_user');
+		$arr_users_link = pages::getClosestModule('register_by_user');
 		$this->show_user_settings = ($arr_users_link && pages::filterClearance([$arr_users_link], $_SESSION['USER_GROUP'], $_SESSION['CUR_USER'][DB::getTableName('TABLE_USER_PAGE_CLEARANCE')]));
 	}
 	
@@ -400,11 +403,11 @@ class custom_projects extends base_module {
 					<div class="fieldsets"><div>
 				
 						<fieldset><legend>'.getLabel('lbl_project').'</legend><ul>
-							<li><label>'.getLabel('lbl_name').'</label><input name="name" type="text" value="'.strEscapeHTML($arr_project['project']['name']).'" /></li>
-							<li><label>'.getLabel('lbl_project_full_scope').'</label><input name="full_scope_enable" type="checkbox" title="'.getLabel('inf_project_full_scope').'" value="1"'.(!$id || $arr_project['project']['full_scope_enable'] ? ' checked="checked"' : '').' /></li>
-							<li><label>'.getLabel('lbl_source_referencing').'</label><input name="source_referencing_enable" type="checkbox" value="1"'.(!$id || $arr_project['project']['source_referencing_enable'] ? ' checked="checked"' : '').' /></li>
-							<li><label>'.getLabel('lbl_discussion_objects').'</label><input name="discussion_enable" type="checkbox" value="1"'.($arr_project['project']['discussion_enable'] ? ' checked="checked"' : '').' /></li>
-							<li><label>'.getLabel('lbl_visual_settings').'</label><select name="visual_settings_id">'.($id ? Labels::parseTextVariables(cms_general::createDropdown(arrParseRecursive(cms_nodegoat_custom_projects::getProjectVisualSettings($id, false, false, $arr_use_project_ids), 'strEscapeHTML'), $arr_project['project']['visual_settings_id'], true, 'label')) : '').'</select></li>
+							<li><label>'.getLabel('lbl_name').'</label><div><input name="name" type="text" value="'.strEscapeHTML($arr_project['project']['name']).'" /></div></li>
+							<li><label>'.getLabel('lbl_project_full_scope').'</label><div><input name="full_scope_enable" type="checkbox" title="'.getLabel('inf_project_full_scope').'" value="1"'.(!$id || $arr_project['project']['full_scope_enable'] ? ' checked="checked"' : '').' /></div></li>
+							<li><label>'.getLabel('lbl_source_referencing').'</label><div><input name="source_referencing_enable" type="checkbox" value="1"'.(!$id || $arr_project['project']['source_referencing_enable'] ? ' checked="checked"' : '').' /></div></li>
+							<li><label>'.getLabel('lbl_discussion_objects').'</label><div><input name="discussion_enable" type="checkbox" value="1"'.($arr_project['project']['discussion_enable'] ? ' checked="checked"' : '').' /></div></li>
+							<li><label>'.getLabel('lbl_visual_settings').'</label><div><select name="visual_settings_id">'.($id ? Labels::parseTextVariables(cms_general::createDropdown(arrParseRecursive(cms_nodegoat_custom_projects::getProjectVisualSettings($id, false, false, $arr_use_project_ids), 'strEscapeHTML'), $arr_project['project']['visual_settings_id'], true, 'label')) : '').'</select></div></li>
 						</ul></fieldset>
 								
 					</div></div>
@@ -436,7 +439,8 @@ class custom_projects extends base_module {
 								
 								$arr_system_types = [
 									['id' => 'system_date_cycle_enable', 'name' => getLabel('lbl_date_cycle')],
-									['id' => 'system_ingestion_enable', 'name' => getLabel('lbl_system_ingestion')]
+									['id' => 'system_ingestion_enable', 'name' => getLabel('lbl_system_ingestion')],
+									['id' => 'system_reconciliation_enable', 'name' => getLabel('lbl_system_reconciliation')]
 								];
 								$arr_system_types_selected = [];
 								
@@ -445,6 +449,9 @@ class custom_projects extends base_module {
 								}
 								if ($arr_project['project']['system_ingestion_enable']) {
 									$arr_system_types_selected[] = 'system_ingestion_enable';
+								}
+								if ($arr_project['project']['system_reconciliation_enable']) {
+									$arr_system_types_selected[] = 'system_reconciliation_enable';
 								}
 								
 								$return .= '<fieldset><legend>'.getLabel('lbl_system').'</legend><ul>
@@ -1503,7 +1510,7 @@ class custom_projects extends base_module {
 		if ($method == "data") {
 			
 			$arr_sql_columns = ['p.name'];
-			$arr_sql_columns_as = ['p.name', DBFunctions::sqlImplode(DBFunctions::castAs('pt.type_id', DBFunctions::CAST_TYPE_STRING), '$|$', 'ORDER BY pt.type_id DESC').' AS types', 'p.id'];
+			$arr_sql_columns_as = ['p.name', DBFunctions::sqlImplode(DBFunctions::castAs('pt.type_id', DBFunctions::CAST_TYPE_STRING), DBFunctions::SQL_GROUP_SEPERATOR, 'ORDER BY pt.type_id DESC').' AS types', 'p.id'];
 
 			$sql_table = DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS').' AS p';
 									
@@ -1530,7 +1537,7 @@ class custom_projects extends base_module {
 				
 				$arr_classes_types = [StoreType::TYPE_CLASS_TYPE => [], StoreType::TYPE_CLASS_CLASSIFICATION => [], StoreType::TYPE_CLASS_REVERSAL => []];
 				
-				foreach (array_filter(explode('$|$', $arr_row['types'])) as $type_id) {
+				foreach (array_filter(str2Array($arr_row['types'], DBFunctions::SQL_GROUP_SEPERATOR)) as $type_id) {
 					
 					$arr_classes_types[$arr_types[$type_id]['class']][$type_id] = $arr_types[$type_id]['name'];
 				}
@@ -1953,7 +1960,7 @@ class custom_projects extends base_module {
 		
 			self::setUserProjectID($project_id);
 			
-			Response::location(SiteStartVars::getPageUrl());
+			Response::location(SiteStartVars::getPageURL());
 		}
 	}
 	

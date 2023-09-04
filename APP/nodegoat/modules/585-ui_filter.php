@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -65,10 +65,10 @@ class ui_filter extends base_module {
 		
 		if ($arr_module_vars['set'] == 'filter' && $arr_module_vars['id']) {
 						
-			$arr_filters = self::parseUrlFilter($arr_filters, $arr_module_vars['id']);
+			$arr_filters = self::parseURLFilter($arr_filters, $arr_module_vars['id']);
 		}
 		
-		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds($public_user_interface_id, $project_id, false);
+		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id, $project_id, false);
 		$arr_types = StoreType::getTypes();
 		
 		if ($arr_settings['select_types'] && count($arr_public_interface_project_types) > 1) {
@@ -233,7 +233,7 @@ class ui_filter extends base_module {
 		
 		if ($arr_module_vars['set'] == 'filter' && $arr_module_vars['id']) {
 			
-			$arr_filters = self::parseUrlFilter($arr_filters, $arr_module_vars['id']);
+			$arr_filters = self::parseURLFilter($arr_filters, $arr_module_vars['id']);
 		}
 
 		foreach ($arr_filters as $arr_filter) {	
@@ -315,7 +315,7 @@ class ui_filter extends base_module {
 		
 	}
 	
-	private static function parseUrlFilter($arr_filters, $url_filter_string) {
+	private static function parseURLFilter($arr_filters, $url_filter_string) {
 	
 		$arr_dates = [];
 		if (preg_match_all("/\[([\d-]*)\]/", $url_filter_string, $arr_dates)) {
@@ -428,7 +428,7 @@ class ui_filter extends base_module {
 					.ui nav li.project-filters.search > div .select-types > ul > li > input:not(:checked) + label > span.icon { display: none; } 
 
 					.ui nav li.project-filters.search > div .form-element { flex: 1 1 10px; min-width: 10px; max-width: 80vw; margin: 0 5px;  }
-					.ui nav li.project-filters.search > div .form-element .input { box-sizing: border-box; display: inline-block; width: 100%; min-width: 200px; height: 50px; padding: 0 0 0 50px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 20px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
+					.ui nav li.project-filters.search > div .form-element .input { box-sizing: border-box; display: inline-block; width: 100%; min-width: 200px; vertical-align: top; height: 50px; padding: 0 0 0 50px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 20px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
 					.ui nav li.project-filters.search > div .form-element .input .active-input { display: flex; overflow: hidden; max-width: 70%; box-sizing: border-box; margin: 0px; padding: 0px; height: 50px; float: left; }
 					.ui nav li.project-filters.search > div .form-element .input .active-input > div { display: inline-block; min-width: 30px; box-sizing: border-box; white-space: nowrap; margin: 10px 3px; padding: 0px 5px; height: 30px; font-size: 16px; line-height: 30px; vertical-align: middle;}
 					.ui nav li.project-filters.search > div .form-element .input .active-input > div.string { background-color: #ccc; }
@@ -1180,7 +1180,7 @@ class ui_filter extends base_module {
 			$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
 			$project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
 	
-			$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds($public_user_interface_id, $project_id);
+			$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id, $project_id);
 			$arr_public_interface_settings = cms_nodegoat_public_interfaces::getPublicInterfaceSettings($public_user_interface_id);
 			$arr_selected_types = SiteStartVars::getFeedback('selected_type_ids');
 
@@ -1391,7 +1391,7 @@ class ui_filter extends base_module {
 
 			$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
 			$project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
-			$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds($public_user_interface_id, $project_id);
+			$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id, $project_id);
 	
 			foreach ((array)$arr_public_interface_project_types as $type_id) {
 			
@@ -1450,7 +1450,7 @@ class ui_filter extends base_module {
 		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
 		$project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
 
-		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds($public_user_interface_id, $project_id, false);		
+		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id, $project_id, false);		
 
 		$arr_type_filter = [];
 		$quicksearch_strings = $arr_filter['quicksearch_strings'];
@@ -1486,8 +1486,8 @@ class ui_filter extends base_module {
 		$project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
 		
 		$arr_public_interface_settings = cms_nodegoat_public_interfaces::getPublicInterfaceSettings($public_user_interface_id);
-		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds($public_user_interface_id);
-		$arr_public_interface_project_filter_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds($public_user_interface_id, false, true);
+		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id);
+		$arr_public_interface_project_filter_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id, false, true);
 				
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		$arr_object_description_ref_type_ids = arrValuesRecursive('object_description_ref_type_id', $arr_type_set['object_descriptions']);
@@ -1497,7 +1497,7 @@ class ui_filter extends base_module {
 
 		$arr_primary_types = [];
 		
-		foreach ($arr_public_interface_settings['types'] as $setting_type_id => $arr_type_settings) {
+		foreach ((array)$arr_public_interface_settings['types'] as $setting_type_id => $arr_type_settings) {
 			
 			if ($arr_type_settings['primary']) {
 				
@@ -1536,7 +1536,7 @@ class ui_filter extends base_module {
 				
 			} else {
 				
-				$arr_type_filter[$ref_type_id]['referenced_object'] = ['object_id' => $arr_object_ids];
+				$arr_type_filter[$ref_type_id]['referenced_object'] = ['object_id' => $arr_object_ids, 'type_id' => $ref_type_id];
 			}
 			
 		}
@@ -1550,7 +1550,7 @@ class ui_filter extends base_module {
 		
 		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
 		$public_user_interface_active_custom_project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
-		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIds($public_user_interface_id, $public_user_interface_active_custom_project_id, false);
+		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id, $public_user_interface_active_custom_project_id, false);
 		$arr_project = StoreCustomProject::getProjects($public_user_interface_active_custom_project_id);
 		$arr_public_interface_settings = cms_nodegoat_public_interfaces::getPublicInterfaceSettings($public_user_interface_id);
 		$filter_is_active = false;		

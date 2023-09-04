@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -88,10 +88,10 @@ class cms_nodegoat_definitions extends base_module {
 			],
 			'runCleanupOrphans' => [
 				'label' => 'nodegoat '.getLabel('lbl_cleanup_orphans'),
-				'options' => function($options) {
-					return '<label>'.getLabel('lbl_model').'</label><input type="checkbox" name="options[model]" value="1"'.($options['model'] ? ' checked="checked"' :'').' />'
-						.'<label>'.getLabel('lbl_data').'</label><input type="checkbox" name="options[data]" value="1"'.($options['data'] ? ' checked="checked"' :'').' />'
-						.'<label>'.getLabel('lbl_media').'</label><input type="checkbox" name="options[media]" value="1"'.($options['media'] ? ' checked="checked"' :'').' />';
+				'options' => function($arr_options) {
+					return '<label>'.getLabel('lbl_model').'</label><input type="checkbox" name="options[model]" value="1"'.($arr_options['model'] ? ' checked="checked"' :'').' />'
+						.'<label>'.getLabel('lbl_data').'</label><input type="checkbox" name="options[data]" value="1"'.($arr_options['data'] ? ' checked="checked"' :'').' />'
+						.'<label>'.getLabel('lbl_media').'</label><input type="checkbox" name="options[media]" value="1"'.($arr_options['media'] ? ' checked="checked"' :'').' />';
 				}
 			],
 			'buildTypeObjectCache' => [
@@ -100,8 +100,8 @@ class cms_nodegoat_definitions extends base_module {
 			],
 			'runTypeObjectCaching' => [
 				'label' => 'nodegoat '.getLabel('lbl_cache_objects'),
-				'options' => function($options) {
-					return '<label>'.getLabel('lbl_reset').'</label><input type="checkbox" name="options[reset]" value="1"'.($options['reset'] ? ' checked="checked"' :'').' />';
+				'options' => function($arr_options) {
+					return '<label>'.getLabel('lbl_reset').'</label><input type="checkbox" name="options[reset]" value="1"'.($arr_options['reset'] ? ' checked="checked"' :'').' />';
 				}
 			],
 			'runReversals' => [
@@ -110,13 +110,13 @@ class cms_nodegoat_definitions extends base_module {
 			],
 			'runReversalsSelection' => [
 				'label' => 'nodegoat '.getLabel('lbl_reversals').' ('.getLabel('lbl_select').')',
-				'options' => function($options) {
+				'options' => function($arr_options) {
 					
 					$arr_values = [];
 					
-					if ($options['type_ids']) {
+					if ($arr_options['type_ids']) {
 						
-						$arr_types = StoreType::getTypes(false, $options['type_ids'], StoreType::TYPE_CLASS_REVERSAL);
+						$arr_types = StoreType::getTypes(false, $arr_options['type_ids'], StoreType::TYPE_CLASS_REVERSAL);
 						
 						$arr_values = [];
 						
@@ -136,18 +136,18 @@ class cms_nodegoat_definitions extends base_module {
 			'runGraphAnalysisService' => [
 				'label' => 'nodegoat '.getLabel('lbl_analysis').' '.getLabel('lbl_service'),
 				'service' => true,
-				'options' => function($options) {
+				'options' => function($arr_options) {
 					return '<fieldset><ul>
-						<li><label>'.getLabel('lbl_server_host_port').'</label><input type="text" name="options[port]" value="'.$options['port'].'" /></li>
+						<li><label>'.getLabel('lbl_server_host_port').'</label><input type="text" name="options[port]" value="'.$arr_options['port'].'" /></li>
 					</ul></fieldset>';
 				}
 			],
 			'runInformationRetrievalService' => [
 				'label' => 'nodegoat '.getLabel('lbl_information_retrieval').' '.getLabel('lbl_service'),
 				'service' => true,
-				'options' => function($options) {
+				'options' => function($arr_options) {
 					return '<fieldset><ul>
-						<li><label>'.getLabel('lbl_server_host_port').'</label><input type="text" name="options[port]" value="'.$options['port'].'" /></li>
+						<li><label>'.getLabel('lbl_server_host_port').'</label><input type="text" name="options[port]" value="'.$arr_options['port'].'" /></li>
 					</ul></fieldset>';
 				}
 			],
@@ -157,8 +157,8 @@ class cms_nodegoat_definitions extends base_module {
 			],
 			'runInformationRetrievalIndexing' => [
 				'label' => 'nodegoat '.getLabel('lbl_information_retrieval').' Index',
-				'options' => function($options) {
-					return '<label>'.getLabel('lbl_reset').'</label><input type="checkbox" name="options[reset]" value="1"'.($options['reset'] ? ' checked="checked"' :'').' />';
+				'options' => function($arr_options) {
+					return '<label>'.getLabel('lbl_reset').'</label><input type="checkbox" name="options[reset]" value="1"'.($arr_options['reset'] ? ' checked="checked"' :'').' />';
 				}
 			],
 		];

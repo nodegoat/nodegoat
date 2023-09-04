@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -51,6 +51,7 @@ abstract class ingest_source extends base_module {
 		'inf_pointer_query' => 'Value in external source',
 		'inf_template' => false,
 		'inf_pointer_filter_value' => false,
+		'inf_pointer_filter_object_sub_identifier' => false,
 		'inf_pointer_query_value' => false,
 		'inf_pointer_link_object' => false,
 		'inf_pointer_map' => false,
@@ -91,6 +92,7 @@ abstract class ingest_source extends base_module {
 		$type_id = false;
 		$has_filter_object_value = false;
 		$has_filter_object_identifier = false;
+		$has_filter_object_sub_identifier = false;
 		$has_query_object_value = false;
 		$has_query_type_object_value = false;
 		
@@ -102,6 +104,7 @@ abstract class ingest_source extends base_module {
 			
 			$has_filter_object_value = (bool)$arr_template['pointers']['filter_object_value'];
 			$has_filter_object_identifier = (bool)$arr_template['pointers']['filter_object_identifier'];
+			$has_filter_object_sub_identifier = ((bool)$arr_template['pointers']['filter_object_sub_identifier'] && $has_filter_object_identifier);
 			$has_query_object_value = (bool)$arr_template['pointers']['query_object_value'];
 			$has_query_type_object_value = (bool)$arr_template['pointers']['query_type_object_value'];
 			
@@ -233,11 +236,14 @@ abstract class ingest_source extends base_module {
 						$html_filter_value .= '</div>
 					</li>';
 					
-					$html_filter_value = (static::$arr_labels['inf_pointer_filter_value'] ? '<li>
-						<label></label>
-						<div><section class="info attention">'.parseBody(getLabel(static::$arr_labels['inf_pointer_filter_value'])).'</section></div>
-					</li>' : '').'
-					'.$html_filter_value;
+					if (static::$arr_labels['inf_pointer_filter_value']) {
+						
+						$html_filter_value = '<li>
+							<label></label>
+							<div><section class="info attention">'.parseBody(getLabel(static::$arr_labels['inf_pointer_filter_value'])).'</section></div>
+						</li>'
+						.$html_filter_value;
+					}
 				}
 				
 				$return .= '<div class="options filter-value query-value">
@@ -279,6 +285,34 @@ abstract class ingest_source extends base_module {
 					
 					$html_filter_object_identifier .= '</div>
 				</li>';
+				
+				if (!static::$use_object_identifier_uri) {
+
+					$html_filter_object_sub_identifier .= '<li>
+						<label>'.getLabel('lbl_object_sub_id').'</label>
+						<div id="y:ingest_source:set_pointers-filter_object_sub_identifier">';
+						
+							if ($arr_template) {
+								
+								$arr_pointer = ($arr_template['pointers']['filter_object_sub_identifier'] ?: []);
+								
+								$html_filter_object_sub_identifier .= $this->createPointerFilterTypeObjectSubID($source_id, $arr_pointer);
+							}
+						
+						$html_filter_object_sub_identifier .= '</div>
+					</li>';
+					
+					if (static::$arr_labels['inf_pointer_filter_object_sub_identifier']) {
+						
+						$html_filter_object_sub_identifier = '<li>
+							<label></label>
+							<section class="info attention body">'.parseBody(getLabel(static::$arr_labels['inf_pointer_filter_object_sub_identifier'])).'</section>
+						</li>'
+						.$html_filter_object_sub_identifier;
+					}
+					
+					$html_filter_object_identifier .= $html_filter_object_sub_identifier;
+				}
 				
 				if (static::$use_filter_object_value) {
 					
@@ -453,7 +487,7 @@ abstract class ingest_source extends base_module {
 		
 		$arr_pointer_headings = static::getPointerFilterHeadings($source_id, $pointer_heading);
 		
-		$unique = uniqid('array_');
+		$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 		
 		$html_pointer = '<select name="'.$this->form_name.'[pointers][filter_value]['.$unique.'][pointer_heading]" title="'.getLabel(static::$arr_labels['inf_pointer_filter']).'">'.cms_general::createDropdown($arr_pointer_headings, $pointer_heading, true).'</select>'
 			.'<input type="text" name="'.$this->form_name.'[pointers][filter_value]['.$unique.'][value]" title="'.getLabel('inf_ingest_filter_value').'" value="'.strEscapeHTML($arr_pointer['value']).'" />'
@@ -475,7 +509,7 @@ abstract class ingest_source extends base_module {
 		
 		$arr_pointer_headings = static::getPointerQueryHeadings($source_id, $pointer_heading);
 		
-		$unique = uniqid('array_');
+		$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 		
 		$html_pointer = '<select name="'.$this->form_name.'[pointers][query_value]['.$unique.'][pointer_heading]" title="'.getLabel(static::$arr_labels['inf_pointer_query']).'">'.cms_general::createDropdown($arr_pointer_headings, $pointer_heading, true).'</select>'
 			.'<input type="text" name="'.$this->form_name.'[pointers][query_value]['.$unique.'][value]" title="'.getLabel('inf_ingest_query_value').'" value="'.strEscapeHTML($arr_pointer['value']).'" />'
@@ -497,10 +531,25 @@ abstract class ingest_source extends base_module {
 
 		$arr_pointer_headings = static::getPointerDataHeadings($source_id, $pointer_heading);
 
-		$unique = uniqid('array_');
+		$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 		
 		$html_pointer = '<select name="'.$this->form_name.'[pointers][filter_object_identifier][pointer_heading]" title="'.getLabel(static::$arr_labels['inf_pointer_data']).'">'.cms_general::createDropdown($arr_pointer_headings, $pointer_heading, false).'</select>'
 			.($arr_pointer['pointer_id'] ? '<input name="'.$this->form_name.'[pointers][filter_object_identifier][pointer_id]" type="hidden" value="'.$arr_pointer['pointer_id'].'" />' : '')
+		;
+			
+		return $html_pointer;
+	}
+	
+	private function createPointerFilterTypeObjectSubID($source_id, $arr_pointer = []) {
+
+		$pointer_heading = $arr_pointer['pointer_heading'];
+
+		$arr_pointer_headings = static::getPointerDataHeadings($source_id, $pointer_heading);
+
+		$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
+		
+		$html_pointer = '<select name="'.$this->form_name.'[pointers][filter_object_sub_identifier][pointer_heading]" title="'.getLabel(static::$arr_labels['inf_pointer_data']).'">'.cms_general::createDropdown($arr_pointer_headings, $pointer_heading, true).'</select>'
+			.($arr_pointer['pointer_id'] ? '<input name="'.$this->form_name.'[pointers][filter_object_sub_identifier][pointer_id]" type="hidden" value="'.$arr_pointer['pointer_id'].'" />' : '')
 		;
 			
 		return $html_pointer;
@@ -524,7 +573,7 @@ abstract class ingest_source extends base_module {
 		
 		$object_description_id = $arr_pointer['object_description_id'];
 
-		$unique = uniqid('array_');
+		$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 		
 		$html_pointer = '<select name="'.$this->form_name.'[pointers][filter_object_identifier][object_description_id]" title="'.getLabel('inf_ingest_target_element').'">'.cms_general::createDropdown($arr_object_descriptions, $object_description_id, false).'</select>'
 			.($arr_pointer['pointer_id'] ? '<input name="'.$this->form_name.'[pointers][filter_object_identifier][pointer_id]" type="hidden" value="'.$arr_pointer['pointer_id'].'" />' : '')
@@ -549,7 +598,7 @@ abstract class ingest_source extends base_module {
 		
 		$arr_element_id = explode('_', $element_id);
 
-		$unique = uniqid('array_');
+		$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 		
 		$html_pointer = '<select name="'.$this->form_name.'[pointers][filter_object_value]['.$unique.'][pointer_heading]" title="'.getLabel(static::$arr_labels['inf_pointer_filter']).'">'.cms_general::createDropdown($arr_pointer_headings, $pointer_heading, true).'</select>'
 			.'<select name="'.$this->form_name.'[pointers][filter_object_value]['.$unique.'][element_id]" title="'.getLabel('inf_ingest_target_element').'">'.cms_general::createDropdown($arr_type_set, $element_id, false).'</select>'
@@ -581,7 +630,7 @@ abstract class ingest_source extends base_module {
 		
 		$arr_element_id = explode('_', $element_id);
 
-		$unique = uniqid('array_');
+		$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 		
 		$html_pointer = '<select name="'.$this->form_name.'[pointers]['.$str_name.']['.$unique.'][pointer_heading]" title="'.getLabel(static::$arr_labels['inf_pointer_query']).'">'.cms_general::createDropdown($arr_pointer_headings, $pointer_heading, true).'</select>'
 			.'<select name="'.$this->form_name.'[pointers]['.$str_name.']['.$unique.'][element_id]" title="'.getLabel('inf_ingest_target_element').'">'.cms_general::createDropdown($arr_type_set, $element_id, false).'</select>'
@@ -613,7 +662,7 @@ abstract class ingest_source extends base_module {
 		
 		$arr_element_id = explode('_', $element_id);
 
-		$unique = uniqid('array_');
+		$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 		
 		$html_pointer = '<select name="'.$this->form_name.'[pointers][map]['.$unique.'][pointer_heading]" title="'.getLabel(static::$arr_labels['inf_pointer_data']).'">'.cms_general::createDropdown($arr_pointer_headings, $pointer_heading, true).'</select>'
 			.'<input name="'.$this->form_name.'[pointers][map]['.$unique.'][value_split]" type="text" value="'.$arr_pointer['value_split'].'" title="'.getLabel('inf_ingest_pointer_value_split').'" />'
@@ -934,7 +983,7 @@ abstract class ingest_source extends base_module {
 			.ingest-source.template-process .options > fieldset > ul.results > li > label:before { display: none; } 
 			.ingest-source.template-process .options > fieldset > ul.results > li > label { padding: 0 8px; text-align: right; vertical-align: middle;} 
 			.ingest-source.template-process .options > fieldset > ul.results > li > .fieldsets > div { margin: -4px !important; } 
-			.ingest-source.template-process .options > fieldset > ul.results > li > .fieldsets > div > fieldset { background-color: #e1e1e1; padding: 4px 8px; margin: 4px !important;} 
+			.ingest-source.template-process .options > fieldset > ul.results > li > .fieldsets > div > fieldset { background-color: var(--back-nested); padding: 4px 8px; margin: 4px !important;} 
 			.ingest-source.template-process .options > fieldset > ul.results > li > .fieldsets > div > fieldset label { line-height: 26px; }
 		';
 
@@ -1123,7 +1172,7 @@ abstract class ingest_source extends base_module {
 			
 				var cur = $(this);
 				cur.closest('.filter-value, .query-value').removeClass('hide');
-			}).on('ajaxloaded', '[id^=y\\\:ingest_source\\\:set_pointers-filter_object]', function() {
+			}).on('ajaxloaded', '[id=y\\\:ingest_source\\\:set_pointers-filter_object_identifier], [id=y\\\:ingest_source\\\:set_pointers-filter_object_value]', function() {
 			
 				var cur = $(this);
 				var elm_form = cur.closest('form');
@@ -1148,7 +1197,7 @@ abstract class ingest_source extends base_module {
 				if (str_name) {
 					arr_data = arrValueByKeyPath(str_name, arr_data);
 					arr_data = arr_data.pointers;
-					arr_data = arr_data[Object.keys(arr_data)[0]]; // Select map, filter_object_identifier, filter_object_value, query_object_value
+					arr_data = arr_data[Object.keys(arr_data)[0]]; // Select map/filter_object_value/query_object_value
 					arr_data = arr_data[Object.keys(arr_data)[0]]; // Select first (this) pointer
 					arr_data = {pointer: arr_data};
 				}
@@ -1199,6 +1248,8 @@ abstract class ingest_source extends base_module {
 					
 					var template_mode = elm_template_mode.val();
 					
+					FEEDBACK.mergeRequests(true);
+					
 					runElementSelectorFunction(elm_form, '[id^=y\\\:ingest_source\\\:set_pointers-]:not([id$=query_type_object_value])', function(elm_found) {
 						
 						COMMANDS.setData(elm_found, {source_id: source_id, type_id: type_id, template_mode: template_mode, form_name: FORMMANAGING.getElementNameBase(elm_found)});
@@ -1207,6 +1258,8 @@ abstract class ingest_source extends base_module {
 							$(elm_found).html(elm);
 						});
 					});
+					
+					FEEDBACK.mergeRequests(false);
 				}
 			}).on('change init_data_template', '[name$=\"[source_id]\"], [name$=\"[query_type_id]\"]', function(e) {
 
@@ -1280,33 +1333,50 @@ abstract class ingest_source extends base_module {
 				var elms_link_object_mode = cur.closest('li').find('[name$=\"[link_object_mode]\"]');
 				var elm_link_object_mode_query = elms_link_object_mode.filter('[value=query_object_value]');
 				
-				if (num_mode == '".IngestTypeObjects::MODE_OVERWRITE_IF_NOT_EXISTS."') {
-
-					elm_link_object_mode_query.parent('label').addClass('hide');
+				if (elm_link_object_mode_query.length) {
 					
-					if (elm_link_object_mode_query[0].checked) {
+					if (num_mode == '".IngestTypeObjects::MODE_OVERWRITE_IF_NOT_EXISTS."') {
+
+						elm_link_object_mode_query.parent('label').addClass('hide');
 						
-						elm_link_object_mode_query[0].checked = false;
-						elms_link_object_mode.first()[0].checked = true;
+						if (elm_link_object_mode_query[0].checked) {
+							
+							elm_link_object_mode_query[0].checked = false;
+							elms_link_object_mode.first()[0].checked = true;
+						}
+					} else {
+					
+						elm_link_object_mode_query.parent('label').removeClass('hide');
 					}
-				} else {
-				
-					elm_link_object_mode_query.parent('label').removeClass('hide');
 				}
 				
-				var cur = elms_link_object_mode.filter(':checked');
-				var str_link_object_mode = cur.val();
+				var elm_selected = elms_link_object_mode.filter(':checked');
+				var str_link_object_mode = elm_selected.val();
 				
-				cur.closest('li').nextAll('li').addClass('hide');
-				var elm_ul = cur.closest('ul');
+				elm_selected.closest('li').nextAll('li').addClass('hide');
+				var elm_ul = elm_selected.closest('ul');
 				
 				if (str_link_object_mode == 'filter_object_identifier') {
-					var elms_target = elm_ul.find('[name*=\"[filter_object_identifier]\"]').closest('li');
+					
+					let elms_target = elm_ul.find('[name*=\"[filter_object_identifier]\"]').closest('li');
+					elms_target.removeClass('hide');
+					
+					if (num_mode == '".IngestTypeObjects::MODE_UPDATE."') {
+						
+						elms_target = elm_ul.find('[name*=\"[filter_object_sub_identifier]\"]').closest('li');
+						if (elms_target.length) {
+							elms_target.removeClass('hide');
+							elms_target = elms_target.prev('li').children('section');
+							if (elms_target.length) {
+								elms_target.parent().removeClass('hide');
+							}
+						}
+					}
 				} else {
-					var elms_target = elm_ul.find('[name*=\"['+str_link_object_mode+']\"]').first().closest('.sorter').closest('li');
+					let elms_target = elm_ul.find('[name*=\"['+str_link_object_mode+']\"]').first().closest('.sorter').closest('li');
 					elms_target = elms_target.add(elms_target.prev('li'));
+					elms_target.removeClass('hide');
 				}
-				elms_target.removeClass('hide');
 			}).on('keyup', '[name*=value_split]', function() {
 				if($(this).val()) {
 					$(this).next('select').removeClass('hide');
@@ -1382,11 +1452,14 @@ abstract class ingest_source extends base_module {
 				
 				if (static::$use_object_identifier_uri) {
 					if ($value['type_id']) {
-						$this->html = $this->createPointerFilterTypeObjectURI($value['type_id'], $arr_pointer);
+						$this->html = $this->createPointerFilterTypeObjectURI($value['type_id']);
 					}
 				} else {
-					$this->html = $this->createPointerFilterTypeObjectID($value['source_id'], $arr_pointer);
+					$this->html = $this->createPointerFilterTypeObjectID($value['source_id']);
 				}
+			} else if ($id == 'filter_object_sub_identifier') {
+				
+				$this->html = $this->createPointerFilterTypeObjectSubID($value['source_id']);
 			} else {
 				
 				$arr_sorter = [];
@@ -1460,8 +1533,8 @@ abstract class ingest_source extends base_module {
 			'mode' => $template_mode,
 			'source_id' => (int)$arr_template_raw['source_id'],
 			'type_id' => (int)$arr_template_raw['type_id'],
-			'type_filter' => (($template_mode == IngestTypeObjects::MODE_UPDATE || $template_mode == IngestTypeObjects::MODE_OVERWRITE_IF_NOT_EXISTS) ? json_decode($arr_template_raw['type_filter'], true) : ''),
-			'pointers' => ['filter_object_identifier' => [], 'map' => [], 'filter_object_value' => [], 'query_object_value' => [], 'query_type_object_value' => [], 'filter_value' => [], 'query_value' => []]
+			'type_filter' => (($template_mode == IngestTypeObjects::MODE_UPDATE || $template_mode == IngestTypeObjects::MODE_OVERWRITE_IF_NOT_EXISTS) && $arr_template_raw['type_filter'] ? JSON2Value($arr_template_raw['type_filter']) : ''),
+			'pointers' => ['filter_object_identifier' => [], 'filter_object_sub_identifier' => [], 'map' => [], 'filter_object_value' => [], 'query_object_value' => [], 'query_type_object_value' => [], 'filter_value' => [], 'query_value' => []]
 		];
 		
 		if ($arr_template['type_id']) {
@@ -1488,11 +1561,15 @@ abstract class ingest_source extends base_module {
 				
 				$arr_template['pointers']['filter_object_identifier'] = $arr_type_pointers;
 				continue;
+			} else if ($template_mode == IngestTypeObjects::MODE_UPDATE && $type == 'filter_object_sub_identifier' && $template_link_object_mode == 'filter_object_identifier') {
+				
+				$arr_template['pointers']['filter_object_sub_identifier'] = $arr_type_pointers;
+				continue;
 			} else if ($template_mode == IngestTypeObjects::MODE_UPDATE && (($type == 'filter_object_value' && $template_link_object_mode == 'filter_object_value' && static::$use_filter_object_value) || ($type == 'query_object_value' && $template_link_object_mode == 'query_object_value' && static::$use_query_object_value))) {
 				// pass
 			} else if ($template_mode == IngestTypeObjects::MODE_OVERWRITE_IF_NOT_EXISTS && (($type == 'filter_object_value' && $template_link_object_mode == 'filter_object_value' && static::$use_filter_object_value))) {
 				// pass
-			} else if (($template_mode == IngestTypeObjects::MODE_OVERWRITE || $template_mode == IngestTypeObjects::MODE_OVERWRITE_IF_NOT_EXISTS) &&  ($type == 'query_type_object_value' && static::$use_query_type_object_value) && $arr_template_raw['query_type_id']) {
+			} else if (($template_mode == IngestTypeObjects::MODE_OVERWRITE || $template_mode == IngestTypeObjects::MODE_OVERWRITE_IF_NOT_EXISTS) && ($type == 'query_type_object_value' && static::$use_query_type_object_value) && $arr_template_raw['query_type_id']) {
 				// pass
 				$arr_template['query_type_id'] = (int)$arr_template_raw['query_type_id'];
 				$arr_template['query_type_filter'] = json_decode($arr_template_raw['query_type_filter'], true);

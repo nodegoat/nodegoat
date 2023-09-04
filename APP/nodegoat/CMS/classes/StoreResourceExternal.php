@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -274,7 +274,7 @@ class StoreResourceExternal {
 	
 	public static function getResourceConversions($arr_conversion_ids = false) {
 				
-		$sql_conversion_ids = (is_array($arr_conversion_ids) ? implode(',', arrParseRecursive($arr_conversion_ids, 'int')) : (int)$arr_conversion_ids);
+		$sql_conversion_ids = (is_array($arr_conversion_ids) ? implode(',', arrParseRecursive($arr_conversion_ids, TYPE_INTEGER)) : (int)$arr_conversion_ids);
 				
 		$arr = [];
 		

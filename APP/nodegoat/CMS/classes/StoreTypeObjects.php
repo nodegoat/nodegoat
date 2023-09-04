@@ -5,14 +5,18 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
 class StoreTypeObjects {
 	
+	const VERSION_NEW = -1;
+	const VERSION_DELETED = 0;
+	const VERSION_NONE = -2;
 	const VERSION_OFFSET_ALTERNATE_ACTIVE = -10;
 	const VERSION_OFFSET_ALTERNATE = -20;
+	
 	const DATE_INT_MIN = -9000000000000000000;
 	const DATE_INT_MAX = 9000000000000000000;
 	const DATE_INT_CALC = 200000000000000000; // DATE_INT_MAX + DATE_INT_CALC is just within 64-bit margin.
@@ -30,6 +34,7 @@ class StoreTypeObjects {
 	const TAGCODE_TEST_SERIAL_VARCHAR = '\[\[#(?:=[\d]*)?\]\]';
 	const TAGCODE_PARSE_SERIAL_VARCHAR = '\[\[#(?:=([\d]*))?\]\]';
 	const PIXEL_TO_CENTIMETER = 0.026458333;
+	const LAST_OBJECT_ID = 'last';
 	
 	const FORMAT_DATE_YMD = 1;
 	/*const FORMAT_X = 2;
@@ -93,7 +98,7 @@ class StoreTypeObjects {
 	public static $num_media_preview_height = 50;
 	
 	public static $last_object_id = 0;
-	
+		
     public function __construct($type_id, $object_id, $arr_owner, $identifier = false, $arr_type_set = false) {
 	
 		$this->type_id = $type_id;
@@ -175,10 +180,10 @@ class StoreTypeObjects {
 		-19: Not used
 		-18: Relates to alternate record of record with no regard to versioning (VERSION_OFFSET_ALTERNATE)
 		-10 / -17: Relates to an alternate record based on active record (VERSION_OFFSET_ALTERNATE_ACTIVE)
-		-2: Relates to records with no regard to versioning
-		-1: Translates to version 1 in version log, indicates a new record
-		0: Object is set to be deleted
-		1+: Relates to an existing record, record version is changed 
+		-2: Relates to records with no regard to versioning (VERSION_NONE)
+		-1: Translates to version 1 in version log, indicates a new record (VERSION_NEW)
+		0: Object is set to be deleted (VERSION_DELETED)
+		1+: Relates to an existing record, record version is changed
 		
 		Status - status:
 		-1: Record is deleted, and had its previous state as active (applicable only to forced deletion (no versioning) of objects)
@@ -190,9 +195,21 @@ class StoreTypeObjects {
 		
 	public function store($arr_object_self, $arr_object_definitions, $arr_object_subs) {
 		
-		$arr_object_self = arrParseRecursive($arr_object_self, 'trim');
-		$arr_object_definitions = arrParseRecursive($arr_object_definitions, 'trim');
-		$arr_object_subs = arrParseRecursive($arr_object_subs, 'trim');
+		$func_parse = function($value) {
+			
+			if ($value === null) {
+				return null;
+			}
+			if (is_string($value)) {
+				return parseValue($value, TYPE_TEXT);
+			}
+			
+			return $value;
+		};
+		
+		$arr_object_self = arrParseRecursive($arr_object_self, $func_parse);
+		$arr_object_definitions = arrParseRecursive($arr_object_definitions, $func_parse);
+		$arr_object_subs = arrParseRecursive($arr_object_subs, $func_parse);
 		
 		if ($this->object_id && $this->versioning) {
 			
@@ -252,10 +269,14 @@ class StoreTypeObjects {
 		
 		if ($this->do_check) {
 			
-			$version_select = GenerateTypeObjects::generateVersioning('active', 'record', 'nodegoat_to_def');
-			$version_select_to = GenerateTypeObjects::generateVersioning('active', 'object', 'nodegoat_to');
+			$version_select = GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ACTIVE, 'record', 'nodegoat_to_def');
+			$version_select_to = GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ACTIVE, 'object', 'nodegoat_to');
 
 			foreach ($this->arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
+				
+				if (isset($this->arr_type_set['type']['include_referenced']['object_descriptions'][$object_description_id])) {
+					continue;
+				}
 			
 				$arr_object_definition = ($arr_object_definitions[$object_description_id] ?? null);
 	
@@ -344,7 +365,7 @@ class StoreTypeObjects {
 				}
 			}
 
-			if (!$object_sub_details_id) {
+			if (!$object_sub_details_id || isset($this->arr_type_set['type']['include_referenced']['object_sub_details'][$object_sub_details_id])) {
 				
 				unset($arr_object_subs[$key]);
 				continue;
@@ -420,7 +441,7 @@ class StoreTypeObjects {
 				$version = ($arr_version['object_version'] > 0 ? $arr_version['object_version'] : 0) + 1;
 			} else {
 				
-				$version = ($this->versioning ? 1 : -2);
+				$version = ($this->versioning ? 1 : static::VERSION_NONE);
 			}
 				
 			$this->addTypeObjectVersion($version, $arr_object_self['object_name_plain']);
@@ -428,7 +449,7 @@ class StoreTypeObjects {
 		
 		if ($action_object) {
 			
-			$version_log = ($this->versioning && $this->insert ? -1 : $version);
+			$version_log = ($this->versioning && $this->insert ? static::VERSION_NEW : $version);
 			
 			$this->addTypeObjectVersionUser($version_log);
 		}
@@ -438,6 +459,10 @@ class StoreTypeObjects {
 		// Object definitions
 		
 		foreach ($this->arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
+			
+			if (isset($this->arr_type_set['type']['include_referenced']['object_descriptions'][$object_description_id])) {
+				continue;
+			}
 			
 			$arr_object_definition = ($arr_object_definitions[$object_description_id] ?? null);
 			
@@ -561,7 +586,7 @@ class StoreTypeObjects {
 									}
 								} else {
 									
-									if ($arr_compare_object_definition != 'last') {
+									if ($arr_compare_object_definition != static::LAST_OBJECT_ID) {
 										
 										$arr_compare_object_definition = (int)$arr_compare_object_definition;
 										
@@ -684,7 +709,7 @@ class StoreTypeObjects {
 							$version = ($arr_version['object_definition_version'] > 0 ? $arr_version['object_definition_version'] : 0) + 1;
 						} else {
 							
-							$version = ($this->versioning ? 1 : -2);
+							$version = ($this->versioning ? 1 : static::VERSION_NONE);
 						}
 						
 						if ($is_ref_type_id) {
@@ -703,7 +728,7 @@ class StoreTypeObjects {
 								SET active = FALSE, status = 0
 								WHERE object_description_id = ".$object_description_id."
 									AND object_id = ".$this->object_id."
-									AND version >= -2
+									AND version >= ".static::VERSION_NONE."
 							";
 						}
 						
@@ -747,7 +772,7 @@ class StoreTypeObjects {
 							}
 						}
 						
-						$version_log = ($this->versioning && $this->insert ? -1 : $version);
+						$version_log = ($this->versioning && $this->insert ? static::VERSION_NEW : $version);
 						
 						$this->addTypeObjectDescriptionVersionUser($object_description_id, $version_log);
 					}
@@ -795,7 +820,7 @@ class StoreTypeObjects {
 					$this->stmt_object_sub_ids = DB::prepare("SELECT nodegoat_tos.id, nodegoat_tos.object_sub_details_id
 							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos
 						WHERE nodegoat_tos.object_id = ".DBStatement::assign('object_id', 'i')."
-							AND ".GenerateTypeObjects::generateVersioning('full', 'object_sub', 'nodegoat_tos')."
+							AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_FULL, 'object_sub', 'nodegoat_tos')."
 					");
 				}
 				
@@ -824,7 +849,7 @@ class StoreTypeObjects {
 		foreach ($arr_object_subs as $arr_object_sub) {
 			
 			$object_sub_details_id = $arr_object_sub['object_sub']['object_sub_details_id'];
-			
+
 			$parse_object_sub = isset($arr_object_sub['object_sub']['object_sub_date_chronology']);
 			$action_object_sub = false;
 			$object_sub_id = false;
@@ -958,7 +983,7 @@ class StoreTypeObjects {
 					}
 				} else {
 					
-					$version = ($this->versioning ? 1 : -2);
+					$version = ($this->versioning ? 1 : static::VERSION_NONE);
 					
 					if ($arr_object_sub['object_sub']['object_sub_location_geometry']) {
 						
@@ -974,7 +999,7 @@ class StoreTypeObjects {
 							$this->arr_sql_delete['object_sub_date_chronology_version'][] = "UPDATE ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE_CHRONOLOGY')."
 								SET active = FALSE
 								WHERE object_sub_id = ".$object_sub_id."
-									AND version = -2
+									AND version = ".static::VERSION_NONE."
 							";
 						}
 					}
@@ -990,7 +1015,7 @@ class StoreTypeObjects {
 						SET active = FALSE, status = 0
 						WHERE id = ".$object_sub_id."
 							AND object_id = ".$this->object_id."
-							AND version >= -2
+							AND version >= ".static::VERSION_NONE."
 					";
 				}
 				
@@ -1018,7 +1043,7 @@ class StoreTypeObjects {
 					
 				}
 				
-				$version_log = ($this->versioning && $this->insert_sub ? -1 : $version);
+				$version_log = ($this->versioning && $this->insert_sub ? static::VERSION_NEW : $version);
 			
 				$this->addTypeObjectSubVersionUser($object_sub_id, $version_log);
 			}
@@ -1120,7 +1145,7 @@ class StoreTypeObjects {
 									
 									$arr_compare_object_sub_definition = $arr_object_sub_definition['object_sub_definition_ref_object_id'];
 
-									if ($arr_compare_object_sub_definition != 'last') {
+									if ($arr_compare_object_sub_definition != static::LAST_OBJECT_ID) {
 										
 										$arr_compare_object_sub_definition = (int)$arr_object_sub_definition['object_sub_definition_ref_object_id'];
 										
@@ -1236,11 +1261,11 @@ class StoreTypeObjects {
 								$version = ($arr_version['object_sub_definition_version'] > 0 ? $arr_version['object_sub_definition_version'] : 0) + 1;
 							} else {
 								
-								$version = ($this->versioning ? 1 : -2);
+								$version = ($this->versioning ? 1 : static::VERSION_NONE);
 							}
 							
 							if ($is_ref_type_id) {
-								$value = (int)$arr_object_sub_definition['object_sub_definition_ref_object_id'];
+								$value = $arr_object_sub_definition['object_sub_definition_ref_object_id'];
 							} else {
 								$value = $arr_object_sub_definition['object_sub_definition_value'];
 							}
@@ -1255,7 +1280,7 @@ class StoreTypeObjects {
 									SET active = FALSE, status = 0
 									WHERE object_sub_description_id = ".$object_sub_description_id."
 										AND object_sub_id = ".$object_sub_id."
-										AND version >= -2
+										AND version >= ".static::VERSION_NONE."
 								";
 							}
 							
@@ -1299,7 +1324,7 @@ class StoreTypeObjects {
 								}
 							}
 							
-							$version_log = ($this->versioning && $this->insert_sub ? -1 : $version);
+							$version_log = ($this->versioning && $this->insert_sub ? static::VERSION_NEW : $version);
 							
 							$this->addTypeObjectSubDescriptionVersionUser($object_sub_id, $object_sub_description_id, $version_log);
 						}
@@ -1375,7 +1400,7 @@ class StoreTypeObjects {
 				
 				$arr_chronology = [];
 				
-				if ($object_sub_id && (is_array($arr_object_sub['object_sub']['object_sub_date_start']) || is_array($arr_object_sub['object_sub']['object_sub_date_end']))) { // Update existing Chronology
+				if ($object_sub_id && $arr_cur_object_sub['object_sub']['object_sub_date_chronology'] && (is_array($arr_object_sub['object_sub']['object_sub_date_start']) || is_array($arr_object_sub['object_sub']['object_sub_date_end']))) { // Update existing Chronology
 					
 					$arr_chronology = self::formatToChronology($arr_cur_object_sub['object_sub']['object_sub_date_chronology']);
 					
@@ -1853,7 +1878,7 @@ class StoreTypeObjects {
 			");
 		}
 		
-		$this->stmt_object_sub_details_id->bindParameters(['object_sub_id' => $object_sub_id]);
+		$this->stmt_object_sub_details_id->bindParameters(['object_sub_id' => (int)$object_sub_id]);
 		
 		$res = $this->stmt_object_sub_details_id->execute();
 		$arr_row = $res->fetchRow();
@@ -2072,7 +2097,7 @@ class StoreTypeObjects {
 			
 			foreach ($value as $object_definition_ref_object_id) {
 				
-				$arr_sql_insert[] = "(".$object_description_id.", ".$this->object_id.", ".$version.", ".(int)($object_definition_ref_object_id == 'last' ? self::$last_object_id : $object_definition_ref_object_id).", ".$count.", ".($this->versioning ? '0' : '1').")";
+				$arr_sql_insert[] = "(".$object_description_id.", ".$this->object_id.", ".$version.", ".(int)($object_definition_ref_object_id === static::LAST_OBJECT_ID ? self::$last_object_id : $object_definition_ref_object_id).", ".$count.", ".($this->versioning ? '0' : '1').")";
 				
 				$count++;
 			}
@@ -2210,7 +2235,7 @@ class StoreTypeObjects {
 		$is_alternate = ($version <= static::VERSION_OFFSET_ALTERNATE_ACTIVE);
 		
 		$value_type = $arr_object_sub_description['object_sub_description_value_type'];
-		$this->arr_sql_insert['object_sub_definition_version'][$value_type][] = "(".$object_sub_description_id.", ".$object_sub_id.", ".$version.", ".($arr_object_sub_description['object_sub_description_ref_type_id'] ? (int)($value == 'last' ? self::$last_object_id : $value) : "'".DBFunctions::strEscape($value)."'").", ".($this->versioning || $is_alternate ? '0' : '1').")";
+		$this->arr_sql_insert['object_sub_definition_version'][$value_type][] = "(".$object_sub_description_id.", ".$object_sub_id.", ".$version.", ".($arr_object_sub_description['object_sub_description_ref_type_id'] ? (int)($value === static::LAST_OBJECT_ID ? self::$last_object_id : $value) : "'".DBFunctions::strEscape($value)."'").", ".($this->versioning || $is_alternate ? '0' : '1').")";
 	}
 	
 	protected function addTypeObjectSubDescriptionVersionUser($object_sub_id, $object_sub_description_id, $version, $user_id = false, $date = false, $system_object_id = false) {
@@ -2735,7 +2760,7 @@ class StoreTypeObjects {
 			FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS_MODULES')." AS nodegoat_to_def_modules
 			WHERE nodegoat_to_def_modules.object_id = ".$this->object_id."
 				AND nodegoat_to_def_modules.object_description_id = ".(int)$object_description_id."
-				AND ".GenerateTypeObjects::generateVersioning('active', 'record', 'nodegoat_to_def_modules')."
+				AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ACTIVE, 'record', 'nodegoat_to_def_modules')."
 		");
 		
 		$arr = [];
@@ -2765,7 +2790,7 @@ class StoreTypeObjects {
 				['state' => $sql_state]
 			)."
 				AND nodegoat_to_def_modules.object_description_id = ".(int)$object_description_id."
-				AND ".GenerateTypeObjects::generateVersioning('active', 'record', 'nodegoat_to_def_modules')."
+				AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ACTIVE, 'record', 'nodegoat_to_def_modules')."
 		");
 	}
 		
@@ -2980,8 +3005,8 @@ class StoreTypeObjects {
 		if (!$this->stmt_object_sub_versions) {
 			
 			$this->stmt_object_sub_versions = DB::prepare("SELECT
-				CASE WHEN nodegoat_tos_date.object_sub_id IS NOT NULL THEN ".StoreTypeObjects::formatFromSQLValue('chronology', 'nodegoat_tos_date')." ELSE '' END AS date_chronology, nodegoat_tos.date_version,
-				nodegoat_tos.location_ref_object_id, nodegoat_tos.location_ref_type_id, nodegoat_tos.location_ref_object_sub_details_id, CASE WHEN nodegoat_tos_geo.object_sub_id IS NOT NULL THEN ".StoreTypeObjects::formatFromSQLValue('geometry', 'nodegoat_tos_geo.geometry')." ELSE '' END AS location_geometry, nodegoat_tos.location_geometry_version,
+				CASE WHEN nodegoat_tos_date.object_sub_id IS NOT NULL THEN ".static::formatFromSQLValue('chronology', 'nodegoat_tos_date')." ELSE '' END AS date_chronology, nodegoat_tos.date_version,
+				nodegoat_tos.location_ref_object_id, nodegoat_tos.location_ref_type_id, nodegoat_tos.location_ref_object_sub_details_id, CASE WHEN nodegoat_tos_geo.object_sub_id IS NOT NULL THEN ".static::formatFromSQLValue('geometry', 'nodegoat_tos_geo.geometry')." ELSE '' END AS location_geometry, nodegoat_tos.location_geometry_version,
 				nodegoat_tos.version, nodegoat_tos.active
 					FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos
 					LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE')." nodegoat_tos_date ON (nodegoat_tos_date.object_sub_id = nodegoat_tos.id AND nodegoat_tos_date.version = nodegoat_tos.date_version)
@@ -3192,18 +3217,20 @@ class StoreTypeObjects {
 								LEFT JOIN ".DB::getTable('TABLE_USERS')." u ON (u.id = nodegoat_to_ver.user_id)
 							WHERE nodegoat_to_ver.object_id = ".$this->object_id."
 							ORDER BY CASE
-								WHEN nodegoat_to_ver.version = -1 THEN 1
+								WHEN nodegoat_to_ver.version = ".static::VERSION_NEW." THEN 1
 								ELSE nodegoat_to_ver.version
 							END DESC, nodegoat_to_ver.date
 		");
 		
-		while ($row = $res->fetchAssoc()) {
-			if ($row['version'] == -1) {
-				$arr[-1] = $row;
-				$row['version'] = 1;
+		while ($arr_row = $res->fetchAssoc()) {
+			
+			if ($arr_row['version'] == static::VERSION_NEW) {
+				$arr[static::VERSION_NEW] = $arr_row;
+				$arr_row['version'] = 1;
 			}
-			$row['name'] = ($row['id'] ? $row['name'] : 'System');
-			$arr[$row['version']][] = $row;
+			
+			$arr_row['name'] = ($arr_row['id'] ? $arr_row['name'] : 'System');
+			$arr[$arr_row['version']][] = $arr_row;
 		}
 		
 		return $arr;
@@ -3218,18 +3245,20 @@ class StoreTypeObjects {
 								LEFT JOIN ".DB::getTable('TABLE_USERS')." u ON (u.id = nodegoat_to_def_ver.user_id)
 							WHERE nodegoat_to_def_ver.object_id = ".$this->object_id." AND nodegoat_to_def_ver.object_description_id = ".$object_description_id."
 							ORDER BY CASE
-								WHEN nodegoat_to_def_ver.version = -1 THEN 1
+								WHEN nodegoat_to_def_ver.version = ".static::VERSION_NEW." THEN 1
 								ELSE nodegoat_to_def_ver.version
 							END DESC, nodegoat_to_def_ver.date
 		");
 		
-		while ($row = $res->fetchAssoc()) {
-			if ($row['version'] == -1) {
-				$arr[-1] = $row;
-				$row['version'] = 1;
+		while ($arr_row = $res->fetchAssoc()) {
+			
+			if ($arr_row['version'] == static::VERSION_NEW) {
+				$arr[static::VERSION_NEW] = $arr_row;
+				$arr_row['version'] = 1;
 			}
-			$row['name'] = ($row['id'] ? $row['name'] : 'System');
-			$arr[$row['version']][] = $row;
+			
+			$arr_row['name'] = ($arr_row['id'] ? $arr_row['name'] : 'System');
+			$arr[$arr_row['version']][] = $arr_row;
 		}
 		
 		return $arr;
@@ -3244,18 +3273,20 @@ class StoreTypeObjects {
 								LEFT JOIN ".DB::getTable('TABLE_USERS')." u ON (u.id = nodegoat_tos_ver.user_id)
 							WHERE nodegoat_tos_ver.object_sub_id = ".$object_sub_id."
 							ORDER BY CASE
-								WHEN nodegoat_tos_ver.version = -1 THEN 1
+								WHEN nodegoat_tos_ver.version = ".static::VERSION_NEW." THEN 1
 								ELSE nodegoat_tos_ver.version
 							END DESC, nodegoat_tos_ver.date
 		");
 		
-		while ($row = $res->fetchAssoc()) {
-			if ($row['version'] == -1) {
-				$arr[-1] = $row;
-				$row['version'] = 1;
+		while ($arr_row = $res->fetchAssoc()) {
+			
+			if ($arr_row['version'] == static::VERSION_NEW) {
+				$arr[static::VERSION_NEW] = $arr_row;
+				$arr_row['version'] = 1;
 			}
-			$row['name'] = ($row['id'] ? $row['name'] : 'System');
-			$arr[$row['version']][] = $row;
+			
+			$arr_row['name'] = ($arr_row['id'] ? $arr_row['name'] : 'System');
+			$arr[$arr_row['version']][] = $arr_row;
 		}
 		
 		return $arr;
@@ -3270,20 +3301,20 @@ class StoreTypeObjects {
 								LEFT JOIN ".DB::getTable('TABLE_USERS')." u ON (u.id = nodegoat_tos_def_ver.user_id)
 							WHERE nodegoat_tos_def_ver.object_sub_id = ".$object_sub_id." AND nodegoat_tos_def_ver.object_sub_description_id = ".$object_sub_description_id."
 							ORDER BY CASE
-								WHEN nodegoat_tos_def_ver.version = -1 THEN 1
+								WHEN nodegoat_tos_def_ver.version = ".static::VERSION_NEW." THEN 1
 								ELSE nodegoat_tos_def_ver.version
 							END DESC, nodegoat_tos_def_ver.date
 		");
 		
-		while ($row = $res->fetchAssoc()) {
+		while ($arr_row = $res->fetchAssoc()) {
 			
-			if ($row['version'] == -1) {
-				$arr[-1] = $row;
-				$row['version'] = 1;
+			if ($arr_row['version'] == static::VERSION_NEW) {
+				$arr[static::VERSION_NEW] = $arr_row;
+				$arr_row['version'] = 1;
 			}
 			
-			$row['name'] = ($row['id'] ? $row['name'] : 'System');
-			$arr[$row['version']][] = $row;
+			$arr_row['name'] = ($arr_row['id'] ? $arr_row['name'] : 'System');
+			$arr[$arr_row['version']][] = $arr_row;
 		}
 		
 		return $arr;
@@ -3310,7 +3341,7 @@ class StoreTypeObjects {
 					(SELECT nodegoat_to.id AS id, 0 AS description_id
 						FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
 							JOIN ".$this->table_name_object_updates." nodegoat_to_updates ON (nodegoat_to_updates.id = nodegoat_to.id)
-						WHERE nodegoat_to.version = -2
+						WHERE nodegoat_to.version = ".static::VERSION_NONE."
 							AND nodegoat_to.status = 1
 					)
 				;
@@ -3319,12 +3350,12 @@ class StoreTypeObjects {
 					DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'nodegoat_to', 'id',
 					"JOIN ".$table_name_object_updates_changed." ON (".$table_name_object_updates_changed.".id = nodegoat_to.id)",
 					['active' => "CASE 
-						WHEN nodegoat_to.version = -2 THEN TRUE
+						WHEN nodegoat_to.version = ".static::VERSION_NONE." THEN TRUE
 						ELSE FALSE
 					END",
 					'status' => '0']
 				)."
-					AND nodegoat_to.version >= -2
+					AND nodegoat_to.version >= ".static::VERSION_NONE."
 				;
 			");
 		} else {
@@ -3350,7 +3381,7 @@ class StoreTypeObjects {
 				)."
 					AND nodegoat_to.version = (SELECT
 						CASE
-							WHEN version = -1 THEN 1
+							WHEN version = ".static::VERSION_NEW." THEN 1
 							ELSE version
 						END AS version
 							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_VERSION')."
@@ -3388,7 +3419,7 @@ class StoreTypeObjects {
 						(SELECT nodegoat_to_def.object_id AS id, nodegoat_to_def.object_description_id AS description_id
 							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').$table." nodegoat_to_def
 								JOIN ".$this->table_name_object_updates." nodegoat_to_updates ON (nodegoat_to_updates.id = nodegoat_to_def.object_id)
-							WHERE nodegoat_to_def.version = -2
+							WHERE nodegoat_to_def.version = ".static::VERSION_NONE."
 								AND nodegoat_to_def.status = 1
 						)
 						".DBFunctions::onConflict('id, description_id', ['id'])."
@@ -3398,12 +3429,12 @@ class StoreTypeObjects {
 						DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').$table, 'nodegoat_to_def', ['object_id', 'object_description_id'],
 						"JOIN ".$table_name_object_updates_changed." ON (".$table_name_object_updates_changed.".id = nodegoat_to_def.object_id AND ".$table_name_object_updates_changed.".description_id = nodegoat_to_def.object_description_id)",
 						['active' => "CASE 
-							WHEN nodegoat_to_def.version = -2 THEN TRUE
+							WHEN nodegoat_to_def.version = ".static::VERSION_NONE." THEN TRUE
 							ELSE FALSE
 						END",
 						'status' => '0']
 					)."
-						AND nodegoat_to_def.version >= -2
+						AND nodegoat_to_def.version >= ".static::VERSION_NONE."
 					;
 				";
 			}
@@ -3432,7 +3463,7 @@ class StoreTypeObjects {
 					)."
 						AND nodegoat_to_def.version = (SELECT
 							CASE
-								WHEN version = -1 THEN 1
+								WHEN version = ".static::VERSION_NEW." THEN 1
 								ELSE version
 							END AS version
 								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_VERSION')."
@@ -3471,7 +3502,7 @@ class StoreTypeObjects {
 					(SELECT nodegoat_tos.id AS id, 0 AS description_id
 						FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos
 							JOIN ".$this->table_name_object_updates." nodegoat_to_updates ON (nodegoat_to_updates.id = nodegoat_tos.object_id)
-						WHERE nodegoat_tos.version = -2
+						WHERE nodegoat_tos.version = ".static::VERSION_NONE."
 							AND nodegoat_tos.status = 1
 					)
 				;
@@ -3480,12 +3511,12 @@ class StoreTypeObjects {
 					DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS'), 'nodegoat_tos', 'id',
 					"JOIN ".$table_name_object_updates_changed." ON (".$table_name_object_updates_changed.".id = nodegoat_tos.id)",
 					['active' => "CASE 
-						WHEN nodegoat_tos.version = -2 THEN TRUE
+						WHEN nodegoat_tos.version = ".static::VERSION_NONE." THEN TRUE
 						ELSE FALSE
 					END",
 					'status' => '0']
 				)."
-					AND nodegoat_tos.version >= -2
+					AND nodegoat_tos.version >= ".static::VERSION_NONE."
 				;
 			");
 		} else {
@@ -3511,7 +3542,7 @@ class StoreTypeObjects {
 				)."
 					AND nodegoat_tos.version = (SELECT
 						CASE
-							WHEN version = -1 THEN 1
+							WHEN version = ".static::VERSION_NEW." THEN 1
 							ELSE version
 						END AS version
 							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_VERSION')."
@@ -3551,7 +3582,7 @@ class StoreTypeObjects {
 							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').$table." nodegoat_tos_def
 								JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.id = nodegoat_tos_def.object_sub_id)
 								JOIN ".$this->table_name_object_updates." nodegoat_to_updates ON (nodegoat_to_updates.id = nodegoat_tos.object_id)
-							WHERE nodegoat_tos_def.version = -2
+							WHERE nodegoat_tos_def.version = ".static::VERSION_NONE."
 								AND nodegoat_tos_def.status = 1
 						)
 					;
@@ -3560,12 +3591,12 @@ class StoreTypeObjects {
 						DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').$table, 'nodegoat_tos_def', ['object_sub_id', 'object_sub_description_id'],
 						"JOIN ".$table_name_object_updates_changed." ON (".$table_name_object_updates_changed.".id = nodegoat_tos_def.object_sub_id AND ".$table_name_object_updates_changed.".description_id = nodegoat_tos_def.object_sub_description_id)",
 						['active' => "CASE 
-							WHEN nodegoat_tos_def.version = -2 THEN TRUE
+							WHEN nodegoat_tos_def.version = ".static::VERSION_NONE." THEN TRUE
 							ELSE FALSE
 						END",
 						'status' => '0']
 					)."
-						AND nodegoat_tos_def.version >= -2
+						AND nodegoat_tos_def.version >= ".static::VERSION_NONE."
 					;
 				";
 			}
@@ -3596,7 +3627,7 @@ class StoreTypeObjects {
 					)."
 						AND nodegoat_tos_def.version = (SELECT
 							CASE
-								WHEN version = -1 THEN 1
+								WHEN version = ".static::VERSION_NEW." THEN 1
 								ELSE version
 							END AS version
 								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_VERSION')."
@@ -3633,7 +3664,7 @@ class StoreTypeObjects {
 						nodegoat_to_updates.id,
 						(SELECT
 							CASE
-								WHEN nodegoat_to_ver_last.version = -1 THEN 1
+								WHEN nodegoat_to_ver_last.version = ".static::VERSION_NEW." THEN 1
 								ELSE nodegoat_to_ver_last.version
 							END AS version
 								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_VERSION')." nodegoat_to_ver_last
@@ -3676,7 +3707,7 @@ class StoreTypeObjects {
 							nodegoat_to_def.object_description_id,
 							(SELECT
 								CASE
-									WHEN nodegoat_to_def_ver_last.version = -1 THEN 1
+									WHEN nodegoat_to_def_ver_last.version = ".static::VERSION_NEW." THEN 1
 									ELSE nodegoat_to_def_ver_last.version
 								END AS version
 									FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITION_VERSION')." nodegoat_to_def_ver_last
@@ -3720,7 +3751,7 @@ class StoreTypeObjects {
 						nodegoat_tos.id AS object_sub_id,
 						(SELECT
 							CASE
-								WHEN nodegoat_tos_ver_last.version = -1 THEN 1
+								WHEN nodegoat_tos_ver_last.version = ".static::VERSION_NEW." THEN 1
 								ELSE nodegoat_tos_ver_last.version
 							END AS version
 								FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_VERSION')." nodegoat_tos_ver_last
@@ -3764,7 +3795,7 @@ class StoreTypeObjects {
 							nodegoat_tos_def.object_sub_description_id,
 							(SELECT
 								CASE
-									WHEN nodegoat_tos_def_ver_last.version = -1 THEN 1
+									WHEN nodegoat_tos_def_ver_last.version = ".static::VERSION_NEW." THEN 1
 									ELSE nodegoat_tos_def_ver_last.version
 								END AS version
 									FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITION_VERSION')." nodegoat_tos_def_ver_last
@@ -3848,7 +3879,7 @@ class StoreTypeObjects {
 								LIMIT 1
 							) AS last_version
 							FROM ".$this->table_name_object_updates." nodegoat_to_updates
-							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').$table." nodegoat_to_def ON (nodegoat_to_def.object_id = nodegoat_to_updates.id AND ".GenerateTypeObjects::generateVersioning('full', 'record', 'nodegoat_to_def').")
+							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').$table." nodegoat_to_def ON (nodegoat_to_def.object_id = nodegoat_to_updates.id AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_FULL, 'record', 'nodegoat_to_def').")
 						) nodegoat_to_updates ON (nodegoat_to_updates.id = nodegoat_to_def_ver.object_id AND nodegoat_to_updates.object_description_id = nodegoat_to_def_ver.object_description_id)",
 						'nodegoat_to_updates.last_version'
 					],
@@ -3881,7 +3912,7 @@ class StoreTypeObjects {
 							LIMIT 1
 						) AS last_version
 						FROM ".$this->table_name_object_updates." nodegoat_to_updates 
-						JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.object_id = nodegoat_to_updates.id AND ".GenerateTypeObjects::generateVersioning('full', 'object_sub', 'nodegoat_tos').")
+						JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.object_id = nodegoat_to_updates.id AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_FULL, 'object_sub', 'nodegoat_tos').")
 					) nodegoat_to_updates ON (nodegoat_to_updates.object_sub_id = nodegoat_tos_ver.object_sub_id)",
 					'nodegoat_to_updates.last_version'
 				],
@@ -3917,7 +3948,7 @@ class StoreTypeObjects {
 							) AS last_version
 							FROM ".$this->table_name_object_updates." nodegoat_to_updates 
 							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.object_id = nodegoat_to_updates.id)
-							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').$table." nodegoat_tos_def ON (nodegoat_tos_def.object_sub_id = nodegoat_tos.id AND ".GenerateTypeObjects::generateVersioning('full', 'record', 'nodegoat_tos_def').")
+							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').$table." nodegoat_tos_def ON (nodegoat_tos_def.object_sub_id = nodegoat_tos.id AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_FULL, 'record', 'nodegoat_tos_def').")
 						) nodegoat_to_updates ON (nodegoat_to_updates.object_sub_id = nodegoat_tos_def_ver.object_sub_id AND nodegoat_to_updates.object_sub_description_id = nodegoat_tos_def_ver.object_sub_description_id)",
 						'nodegoat_to_updates.last_version'
 					],
@@ -4075,7 +4106,7 @@ class StoreTypeObjects {
 	
 	public static function getActiveUsers($arr_users) {
 		
-		$sql_users = "IN (".implode(',', arrParseRecursive($arr_users, 'int')).")";
+		$sql_users = "IN (".implode(',', arrParseRecursive($arr_users, TYPE_INTEGER)).")";
 				
 		$arr = [];
 
@@ -4336,6 +4367,7 @@ class StoreTypeObjects {
 		switch ($type) {
 			case 'module':
 			case 'external_module':
+			case 'reconcile_module':
 			case 'reversal_module':
 			
 				if ($value_1 == $value_2) {
@@ -4378,12 +4410,13 @@ class StoreTypeObjects {
 			case 'module':
 				
 				$module = EnucleateValueTypeModule::init($arr_type_options['type']);
-				$module->setValue(json_decode($value, true));
+				$module->setValue(JSON2Value($value));
 				
 				$format = $module->enucleate(EnucleateValueTypeModule::VIEW_TEXT);
 
 				break;
 			case 'external_module':
+			case 'reconcile_module':
 			case 'reversal_module':
 				$format = $value;
 				break;
@@ -4427,11 +4460,11 @@ class StoreTypeObjects {
 							
 						foreach ($value as $media) {
 							
-							$media = new EnucleateValueTypeMedia($media);
-							$media->setSize(false, static::$num_media_preview_height);
+							$media = new EnucleateMedia($media, DIR_HOME_TYPE_OBJECT_MEDIA, '/'.DIR_TYPE_OBJECT_MEDIA);
+							$media->setSizing(false, static::$num_media_preview_height);
 							
 							if ($show_url) {
-								$str_url = $media->enucleate(true);
+								$str_url = $media->enucleate(EnucleateMedia::VIEW_URL);
 								$str_url = strEscapeHTML($str_url);
 								$arr_html[] = '<a href="'.$str_url.'" target="_blank">'.$str_url.'</a>';
 							} else {
@@ -4442,11 +4475,11 @@ class StoreTypeObjects {
 						$format = implode(($show_url ? ($arr_type_options['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR_LIST) : ''), $arr_html);
 					} else {
 								
-						$media = new EnucleateValueTypeMedia($value, true);
-						$media->setSize(false, static::$num_media_preview_height);
+						$media = new EnucleateMedia($value, DIR_HOME_TYPE_OBJECT_MEDIA, '/'.DIR_TYPE_OBJECT_MEDIA);
+						$media->setSizing(false, static::$num_media_preview_height);
 						
 						if ($show_url) {
-							$str_url = $media->enucleate(true);
+							$str_url = $media->enucleate(EnucleateMedia::VIEW_URL);
 							$str_url = strEscapeHTML($str_url);
 							$format = '<a href="'.$str_url.'" target="_blank">'.$str_url.'</a>';
 						} else {
@@ -4457,12 +4490,14 @@ class StoreTypeObjects {
 				break;
 			case 'module':
 				
-				$module = EnucleateValueTypeModule::init($arr_type_options['type']);
-				$module->setConfiguration(($extra ?: []) + ['size' => ['height' => static::$num_media_preview_height]]);
-				$module->setValue(json_decode($value, true));
-				
-				$format = $module->enucleate();
-
+				if ($value) {
+						
+					$module = EnucleateValueTypeModule::init($arr_type_options['type']);
+					$module->setConfiguration(($extra ?: []) + ['size' => ['height' => static::$num_media_preview_height]]);
+					$module->setValue(JSON2Value($value));
+					
+					$format = $module->enucleate();
+				}
 				break;
 			case 'external':
 				
@@ -4480,26 +4515,32 @@ class StoreTypeObjects {
 					
 					$format = $value;
 				}
-				
 				break;
 			case 'text':
-			
-				if (mb_strlen($value) > 500) {
-					$value = mb_substr($value, 0, 500).' [...]';
-				}
 				
-				$format = parseBody($value);
+				if ($value) {
+					
+					if (mb_strlen($value) > 500) {
+						$value = mb_substr($value, 0, 500).' [...]';
+					}
+					
+					$format = parseBody($value);
+				}
+				break;
 			case 'text_layout':
 			case 'text_tags':
-			
-				if (mb_strlen($value) > 500) {
-					$value = mb_substr($value, 0, 500).' [...]';
-				}
 				
-				$format = parseBody($value);
-				
-				if ($format) {
-					$format = Response::addParsePost($format, ['strip' => true]);
+				if ($value) {
+					
+					if (mb_strlen($value) > 500) {
+						$value = mb_substr($value, 0, 500).' [...]';
+					}
+					
+					$format = parseBody($value);
+					
+					if ($format) {
+						$format = Response::addParsePost($format, ['strip' => true]);
+					}
 				}
 				break;
 			default:
@@ -4667,10 +4708,10 @@ class StoreTypeObjects {
 							
 						foreach ($value as $media) {
 							
-							$media = new EnucleateValueTypeMedia($media);
+							$media = new EnucleateMedia($media, DIR_HOME_TYPE_OBJECT_MEDIA, '/'.DIR_TYPE_OBJECT_MEDIA);
 							
 							if ($show_url) {
-								$str_url = $media->enucleate(true);
+								$str_url = $media->enucleate(EnucleateMedia::VIEW_URL);
 								$str_url = strEscapeHTML($str_url);
 								$arr_html[] = '<a href="'.$str_url.'" target="_blank">'.$str_url.'</a>';
 							} else {
@@ -4686,10 +4727,10 @@ class StoreTypeObjects {
 						}
 					} else {
 								
-						$media = new EnucleateValueTypeMedia($value);
+						$media = new EnucleateMedia($value, DIR_HOME_TYPE_OBJECT_MEDIA, '/'.DIR_TYPE_OBJECT_MEDIA);
 						
 						if ($show_url) {
-							$str_url = $media->enucleate(true);
+							$str_url = $media->enucleate(EnucleateMedia::VIEW_URL);
 							$str_url = strEscapeHTML($str_url);
 							$format = '<a href="'.$str_url.'" target="_blank">'.$str_url.'</a>';
 						} else {
@@ -4697,7 +4738,6 @@ class StoreTypeObjects {
 						}
 					}
 				}
-
 				break;
 			case 'external':
 				
@@ -4717,18 +4757,18 @@ class StoreTypeObjects {
 					$reference = new ResourceExternal(StoreResourceExternal::getResources($arr_type_options['id']), $value);
 					$format = $reference->getURL();
 				}
-				
 				break;
 			case 'module':
 				
 				$module = EnucleateValueTypeModule::init($arr_type_options['type']);
 				$module->setConfiguration($extra);
-				$module->setValue(json_decode($value, true));
+				$module->setValue(JSON2Value($value));
 				
 				$format = $module->enucleate();
 
 				break;
 			case 'external_module':
+			case 'reconcile_module':
 			case 'reversal_module':
 			
 				$format = strEscapeHTML($value);
@@ -4787,35 +4827,35 @@ class StoreTypeObjects {
 				
 				foreach ($value as $media) {
 					
-					$media = new EnucleateValueTypeMedia($media);
+					$media = new EnucleateMedia($media, DIR_HOME_TYPE_OBJECT_MEDIA, '/'.DIR_TYPE_OBJECT_MEDIA);
 
 					if ($show_url) {
 						
-						$media->setPath(rtrim(URL_BASE_HOME, '/'));
-						$str_url = $media->enucleate(true);
+						$media->setPath(rtrim(URL_BASE_HOME, '/'), true);
+						$str_url = $media->enucleate(EnucleateMedia::VIEW_URL);
 						$str_url = strEscapeHTML($str_url);
 						
 						$arr_html[] = '<a href="'.$str_url.'" target="_blank">'.$str_url.'</a>';
 					} else {
 						
-						$media->setSize('15cm', '10cm', false);
+						$media->setSizing('15cm', '10cm', false);
 
 						if (!$media->isExternal()) {
 							
-							$arr_size = $media->getSize();
+							$arr_size = $media->getSizing();
 							
 							if ($arr_size) {
 									
 								$width = $arr_size['width'] * static::PIXEL_TO_CENTIMETER;
 								$width = ($width > 15 ? 15 : $width);
 								$height = ($width * ($arr_size['height'] / $arr_size['width']));
-								$media->setSize($width.'cm', $height.'cm', false);
+								$media->setSizing($width.'cm', $height.'cm', false);
 							}
 							
-							$str_url = $media->enucleate(true);
+							$str_url = $media->enucleate(EnucleateMedia::VIEW_URL);
 						
 							$media->setPath('Pictures/', false);
-							$str_url_new = $media->enucleate(true);
+							$str_url_new = $media->enucleate(EnucleateMedia::VIEW_URL);
 							
 							if ($extra && is_array($extra['arr_path_media'])) {
 								$extra['arr_path_media'][$str_url_new] = rtrim(DIR_ROOT_STORAGE.DIR_HOME, '/').$str_url;
@@ -4833,7 +4873,7 @@ class StoreTypeObjects {
 				
 				$module = EnucleateValueTypeModule::init($arr_type_options['type']);
 				$module->setConfiguration($extra);
-				$module->setValue(json_decode($value, true));
+				$module->setValue(JSON2Value($value));
 				
 				$format = $module->enucleate();
 
@@ -4953,13 +4993,13 @@ class StoreTypeObjects {
 					
 					foreach ($value as $key => $str_url) {
 						
-						$unique = uniqid('array_');
+						$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 						
 						$html_media = '';
 						
 						if ($str_url) {
 							
-							$media = new EnucleateValueTypeMedia($str_url, true);
+							$media = new EnucleateMedia($str_url, DIR_HOME_TYPE_OBJECT_MEDIA, '/'.DIR_TYPE_OBJECT_MEDIA);
 							
 							$html_media = '<div class="media-preview">'.$media->enucleate().'</div>';
 						}
@@ -4982,7 +5022,7 @@ class StoreTypeObjects {
 						
 					if ($value) {
 						
-						$media = new EnucleateValueTypeMedia($value, true);
+						$media = new EnucleateMedia($value, DIR_HOME_TYPE_OBJECT_MEDIA, '/'.DIR_TYPE_OBJECT_MEDIA);
 						
 						$html_media = '<div class="media-preview">'.$media->enucleate().'</div>';
 					}
@@ -5010,7 +5050,8 @@ class StoreTypeObjects {
 				$html_menu = '';
 				break;
 			case 'boolean':
-				$format = '<span class="input">'.cms_general::createSelectorRadio([['id' => 'yes', 'name' => getLabel('lbl_yes')], ['id' => 'no', 'name' => getLabel('lbl_no')], ['id' => '', 'name' => getLabel('lbl_none')]], $name, ($value !== '' && $value !== null ? ($value == 1 || $value === 'yes' ? 'yes' : 'no') : '')).'</span>';
+				$arr_boolean = [['id' => 'yes', 'name' => getLabel('lbl_yes')], ['id' => 'no', 'name' => getLabel('lbl_no')], ['id' => '', 'name' => getLabel('lbl_none')]];
+				$format = '<span class="input">'.cms_general::createSelectorRadio($arr_boolean, $name, ($value !== '' && $value !== null ? ($value == 1 || $value === 'yes' ? 'yes' : 'no') : '')).'</span>';
 				break;
 			case 'date':
 				$format = '<input type="text" class="date" name="'.$name.'" value="'.($value ? self::int2Date($value) : '').'" />';
@@ -5088,6 +5129,7 @@ class StoreTypeObjects {
 				break;
 			case 'module':
 			case 'external_module':
+			case 'reconcile_module':
 			case 'reversal_module':
 				// Handled by data entry module
 			default:
@@ -5119,6 +5161,10 @@ class StoreTypeObjects {
 		$format = false;
 	
 		switch ($type) {
+			case 'boolean':
+				$arr_boolean = [['id' => 'yes', 'name' => getLabel('lbl_yes')], ['id' => 'no', 'name' => getLabel('lbl_no')], ['id' => '', 'name' => getLabel('lbl_any')]];
+				$format = '<span class="input">'.cms_general::createSelectorRadio($arr_boolean, $name, ($value !== '' && $value !== null ? ($value == 1 || $value === 'yes' ? 'yes' : 'no') : '')).'</span>';
+				break;
 			case 'date':
 				$value = (is_array($value) ? $value : ['equality' => '=', 'value' => $value]);
 				$arr_equality = FilterTypeObjects::getEqualityValues();
@@ -5149,7 +5195,7 @@ class StoreTypeObjects {
 				$arr_equality = FilterTypeObjects::getEqualityStringValues();
 				unset($arr_equality['≠']);
 				$format = '<select name="'.$name.'[equality]">'.cms_general::createDropdown($arr_equality, $value['equality']).'</select>'
-					.'<input type="text" name="'.$name.'[value]" value="'.$value['value'].'" />';
+					.'<input type="text" name="'.$name.'[value]" value="'.strEscapeHTML($value['value']).'" />';
 				break;
 			default:
 				$format = self::formatToFormValue($type, $value, $name, $arr_type_options);
@@ -5372,27 +5418,28 @@ class StoreTypeObjects {
 				}
 				break;
 			case 'int':
-				$format = ($value !== '' && $value !== null ? arrParseRecursive($value, 'int') : '');
+				$format = ($value !== '' && $value !== null ? arrParseRecursive($value, TYPE_INTEGER) : '');
 				break;
 			case 'numeric':
 				$format = ($value !== '' && $value !== null ? arrParseRecursive($value, __CLASS__.'::num2Integer') : '');
 				break;
 			case 'float':
-				$format = ($value !== '' && $value !== null ? arrParseRecursive($value, 'float') : '');
+				$format = ($value !== '' && $value !== null ? arrParseRecursive($value, TYPE_FLOAT) : '');
 				break;
 			case 'text':
 			case 'text_layout':
 			case 'text_tags':
-				$format = arrParseRecursive($value, 'text');
+				$format = arrParseRecursive($value, TYPE_TEXT);
 				break;
 			case 'media_external':
 			case 'external':
 			case 'serial_varchar':
 			case '':
-				$format = arrParseRecursive($value, 'string');
+				$format = arrParseRecursive($value, TYPE_STRING);
 				break;
 			case 'module':
 			case 'external_module':
+			case 'reconcile_module':
 			case 'reversal_module':
 				$do_unique = false;
 				$format = (!empty($value) ? (is_array($value) ? value2JSON($value) : $value) : '');
@@ -5491,20 +5538,20 @@ class StoreTypeObjects {
 			case '':
 			
 				$value = (is_array($value) ? $value : ['equality' => '*', 'value' => $value]);
-				$search = DBFunctions::str2Search(self::formatToSQLValue($type, $value['value']));
+				$sql_value = self::formatToSQLValue($type, $value['value']);
 
 				switch ($value['equality']) {
 					case '*':
-						$format = $name." LIKE '%".$search."%'";
+						$format = $name." LIKE '%".DBFunctions::str2Search($sql_value)."%'";
 						break;
 					case '^':
-						$format = $name." LIKE '".$search."%'";
+						$format = $name." LIKE '".DBFunctions::str2Search($sql_value)."%'";
 						break;
 					case '$':
-						$format = $name." LIKE '%".$search."'";
+						$format = $name." LIKE '%".DBFunctions::str2Search($sql_value)."'";
 						break;
 					case '=':
-						$format = $name." LIKE '".$search."'";
+						$format = $name." LIKE '".DBFunctions::str2Search($sql_value)."'";
 						break;
 				}
 				break;
@@ -5513,7 +5560,7 @@ class StoreTypeObjects {
 				$format = ($format !== '' ? $name." = ".$format : 'TRUE');
 				break;
 			default:
-				$format = $name." LIKE '%".DBFunctions::str2Search(self::formatToSQLValue($type, $value_plain))."%'";
+				$format = DBFunctions::searchMatch($name, self::formatToSQLValue($type, $value_plain));
 				break;
 		}
 		
@@ -5617,8 +5664,11 @@ class StoreTypeObjects {
 		if ((int)$num >= static::VALUE_NUMERIC_MULTIPLIER && strpos((string)$num, '.') === false) { // Already converted
 			return $num;
 		}
+		if (!is_numeric($num)) {
+			return '';
+		}
 		
-		return is_numeric($num) ? bcmul($num, static::VALUE_NUMERIC_MULTIPLIER) : '';
+		return bcmul($num, static::VALUE_NUMERIC_MULTIPLIER);
 	}
 	
 	public static function int2Numeric($int) {
@@ -5754,7 +5804,7 @@ class StoreTypeObjects {
 			return false;
 		}
 		
-		if (is_array($value) || substr($value, 0, 1) == '{') { // chronoJSON
+		if (is_array($value) || substr($value, 0, 1) == '{') { // ChronoJSON
 			
 			if (is_array($value)) {
 				$arr_source = $value;
@@ -5779,70 +5829,13 @@ class StoreTypeObjects {
 				]
 			];
 			
-			$func_parse_statement = function(&$arr, $arr_source) {
-				
-				if (!$arr_source) {
-					return;
-				}
-				
-				// date_value takes precedent (more specific)
-				if ($arr_source['date_value_type']) {
-					if ($arr_source['date_value_type'] == 'object_sub') {
-						$arr_source['date_value'] = null;
-						$arr_source['date_path'] = null;
-						$arr_source['date_object_sub_id'] = (int)$arr_source['date_object_sub_id'];
-					} else if ($arr_source['date_value_type'] == 'path') {
-						$arr_source['date_value'] = null;
-						$arr_source['date_object_sub_id'] = null;
-					} else {
-						$arr_source['date_object_sub_id'] = null;
-						$arr_source['date_path'] = null;
-					}
-				} else if ($arr_source['date_value']) {
-					
-					$arr_source['date_object_sub_id'] = null;
-					$arr_source['date_path'] = null;
-											
-					if ($arr_source['date_value'] == '∞' || $arr_source['date_value'] == '-∞') {
-						
-						$arr_source = [
-							'date_value' => $arr_source['date_value']
-						];
-					}
-				}
-				
-				if (!$arr_source['date_value'] && !$arr_source['date_object_sub_id'] && !$arr_source['date_path']) {
-					return;
-				}
-				
-				$arr = [
-					'offset_amount' => (int)$arr_source['offset_amount'],
-					'offset_unit' => ($arr_source['offset_amount'] ? $arr_source['offset_unit'] : null),
-					'cycle_object_id' => (int)$arr_source['cycle_object_id'],
-					'cycle_direction' => ($arr_source['cycle_object_id'] ? $arr_source['cycle_direction'] : null),
-					'date_value' => $arr_source['date_value'],
-					'date_object_sub_id' => $arr_source['date_object_sub_id'],
-					'date_direction' => $arr_source['date_direction']
-				];
-				
-				if ($arr_source['date_path']) {
-					
-					$arr['date_path'] = $arr_source['date_path'];
-					
-					if (!is_array($arr['date_path'])) {
-						$arr['date_path'] = json_decode($arr['date_path'], true);
-					}
-				}
-			};
-			
-			$func_parse_statement($arr_chronology['start']['start'], $arr_source['start']['start']);
-			$func_parse_statement($arr_chronology['start']['end'], $arr_source['start']['end']);
-			$func_parse_statement($arr_chronology['end']['start'], $arr_source['end']['start']);
-			$func_parse_statement($arr_chronology['end']['end'], $arr_source['end']['end']);
+			static::parseChronologyStatementJSON($arr_chronology['start']['start'], ($arr_source['start']['start'] ?? null));
+			static::parseChronologyStatementJSON($arr_chronology['start']['end'], ($arr_source['start']['end'] ?? null));
+			static::parseChronologyStatementJSON($arr_chronology['end']['start'], ($arr_source['end']['start'] ?? null));
+			static::parseChronologyStatementJSON($arr_chronology['end']['end'], ($arr_source['end']['end'] ?? null));
 			
 		} else { // Internal
 			
-			$arr_time_directions = StoreType::getTimeDirectionsInternal(true);
 			$arr_time_units = StoreType::getTimeUnitsInternal(true);
 			
 			$arr_parts = explode(';', $value);
@@ -5863,40 +5856,9 @@ class StoreTypeObjects {
 					'cycle_object_id' => (int)$arr_part[2]
 				]
 			];
-			
-			$func_parse_statement = function($str) use (&$arr_chronology, $arr_time_directions, $arr_time_units) {
-				
-				$arr_part = explode(',', $str);
-				$int_identifier = (int)$arr_part[0];
-				
-				$arr = [
-					'offset_amount' => (int)$arr_part[1],
-					'offset_unit' => $arr_time_units[$arr_part[2]],
-					'cycle_object_id' => (int)$arr_part[3],
-					'cycle_direction' => $arr_time_directions[$arr_part[4]],
-					'date_value' => ($arr_part[5] ? self::formatToInputValue('date', $arr_part[5]) : null),
-					'date_object_sub_id' => ($arr_part[6] ? (int)$arr_part[6] : null),
-					'date_direction' => $arr_time_directions[$arr_part[7]]
-				];
-				
-				switch ($int_identifier) {
-					case StoreType::DATE_START_START:
-						$arr_chronology['start']['start'] = $arr;
-						break;
-					case StoreType::DATE_START_END:
-						$arr_chronology['start']['end'] = $arr;
-						break;
-					case StoreType::DATE_END_START:
-						$arr_chronology['end']['start'] = $arr;
-						break;
-					case StoreType::DATE_END_END:
-						$arr_chronology['end']['end'] = $arr;
-						break;
-				}
-			};
-			
+						
 			foreach ($arr_parts as $str) {
-				$func_parse_statement($str);
+				static::parseChronologyStatementInternal($arr_chronology, $str);
 			}
 			
 			$is_period = ($arr_chronology['end']['end'] ?? null);
@@ -5909,10 +5871,18 @@ class StoreTypeObjects {
 		
 		if (!isset($arr_chronology['start']['start'])) {
 			
-			if ($date_start) {
-				$arr_chronology['start']['start']['date_value'] = $date_start;
-			} else if ($reference_start) {
-				$arr_chronology['start']['start']['date_object_sub_id'] = $reference_start;
+			if ($date_start || $reference_start) {
+				if ($date_start) {
+					$arr_chronology['start']['start']['date_value'] = $date_start;
+				} else {
+					$arr_chronology['start']['start']['date_object_sub_id'] = $reference_start;
+				}
+			} else if ($date_end || $reference_end) { // Copy end to start on quick entry (non-statement) only
+				if ($date_end) {
+					$arr_chronology['start']['start']['date_value'] = $date_end;
+				} else {
+					$arr_chronology['start']['start']['date_object_sub_id'] = $reference_end;
+				}
 			} else {
 				return [];
 			}
@@ -5921,6 +5891,10 @@ class StoreTypeObjects {
 			if ($is_single) {
 				$arr_chronology['start']['start']['date_direction'] = '';
 			}
+		}
+		
+		if ($arr_chronology['start']['start']['date_value'] === '∞') {
+			$arr_chronology['start']['start']['date_value'] = '-∞';
 		}
 		
 		if ($is_period) {
@@ -5940,9 +5914,103 @@ class StoreTypeObjects {
 					}
 				}
 			}
+			
+			if ($arr_chronology['end']['end']['date_value'] === '-∞') {
+				$arr_chronology['end']['end']['date_value'] = '∞';
+			}
 		}
 				
 		return $arr_chronology;
+	}
+	
+	public static function parseChronologyStatementJSON(&$arr_chronology_statement, $arr_source_statement) {
+		
+		if (!$arr_source_statement) {
+			return;
+		}
+		
+		// date_value takes precedent (more specific)
+		if ($arr_source_statement['date_value_type']) {
+			if ($arr_source_statement['date_value_type'] == 'object_sub') {
+				$arr_source_statement['date_value'] = null;
+				$arr_source_statement['date_path'] = null;
+				$arr_source_statement['date_object_sub_id'] = (int)$arr_source_statement['date_object_sub_id'];
+			} else if ($arr_source_statement['date_value_type'] == 'path') {
+				$arr_source_statement['date_value'] = null;
+				$arr_source_statement['date_object_sub_id'] = null;
+			} else {
+				$arr_source_statement['date_object_sub_id'] = null;
+				$arr_source_statement['date_path'] = null;
+			}
+		} else if ($arr_source_statement['date_value']) {
+			
+			$arr_source_statement['date_object_sub_id'] = null;
+			$arr_source_statement['date_path'] = null;
+									
+			if ($arr_source_statement['date_value'] == '∞' || $arr_source_statement['date_value'] == '-∞') {
+				
+				$arr_source_statement = [
+					'date_value' => $arr_source_statement['date_value']
+				];
+			}
+		}
+		
+		if (!$arr_source_statement['date_value'] && !$arr_source_statement['date_object_sub_id'] && !$arr_source_statement['date_path']) {
+			return;
+		}
+		
+		$arr_chronology_statement = [
+			'offset_amount' => (int)$arr_source_statement['offset_amount'],
+			'offset_unit' => ($arr_source_statement['offset_amount'] ? $arr_source_statement['offset_unit'] : null),
+			'cycle_object_id' => (int)$arr_source_statement['cycle_object_id'],
+			'cycle_direction' => ($arr_source_statement['cycle_object_id'] ? $arr_source_statement['cycle_direction'] : null),
+			'date_value' => $arr_source_statement['date_value'],
+			'date_object_sub_id' => $arr_source_statement['date_object_sub_id'],
+			'date_direction' => $arr_source_statement['date_direction']
+		];
+		
+		if ($arr_source_statement['date_path']) {
+			
+			$arr_chronology_statement['date_path'] = $arr_source_statement['date_path'];
+			
+			if (!is_array($arr_chronology_statement['date_path'])) {
+				$arr_chronology_statement['date_path'] = json_decode($arr_chronology_statement['date_path'], true);
+			}
+		}
+	}
+	
+	public static function parseChronologyStatementInternal(&$arr_chronology, $str) {
+		
+		$arr_time_directions = StoreType::getTimeDirectionsInternal(true);
+		$arr_time_units = StoreType::getTimeUnitsInternal(true);
+	
+		$arr_part = explode(',', $str);
+		$int_identifier = (int)$arr_part[0];
+		
+		$arr_chronology_statement = [
+			'offset_amount' => (int)$arr_part[1],
+			'offset_unit' => $arr_time_units[$arr_part[2]],
+			'cycle_object_id' => (int)$arr_part[3],
+			'cycle_direction' => $arr_time_directions[$arr_part[4]],
+			'date_value' => ($arr_part[5] ? self::formatToInputValue('date', $arr_part[5]) : null),
+			'date_object_sub_id' => ($arr_part[6] ? (int)$arr_part[6] : null),
+			'date_direction' => $arr_time_directions[$arr_part[7]]
+		];
+		
+		switch ($int_identifier) {
+			case StoreType::DATE_START_START:
+				$arr_chronology['start']['start'] = $arr_chronology_statement;
+				break;
+			case StoreType::DATE_START_END:
+				$arr_chronology['start']['end'] = $arr_chronology_statement;
+				break;
+			case StoreType::DATE_END_START:
+				$arr_chronology['end']['start'] = $arr_chronology_statement;
+				break;
+			case StoreType::DATE_END_END:
+				$arr_chronology['end']['end'] = $arr_chronology_statement;
+				break;
+		}
 	}
 	
 	public static function formatToChronologyDetails($value) {

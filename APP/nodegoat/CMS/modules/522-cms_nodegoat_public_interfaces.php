@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -25,6 +25,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 	}
 	
 	public static function jobProperties() {
+		
 		return [
 			'cleanupPublicInterfaceSelections' => [
 				'label' => 'nodegoat '.getLabel('lbl_public_interface_cleanup_selections'),
@@ -370,27 +371,27 @@ class cms_nodegoat_public_interfaces extends base_module {
 		return $arr;
 	}
 	
-	public static function getDefaultPublicInterfaceId() {
+	public static function getDefaultPublicInterfaceID() {
 		
 		$id = false;
 		
 		$res = DB::query("SELECT i.id
 				FROM ".DB::getTable('DEF_NODEGOAT_PUBLIC_INTERFACES')." i
-			WHERE i.is_default = 1
+			WHERE i.is_default = TRUE
 				"."
 		");
 
-		while($row = $res->fetchAssoc()) {
+		while ($arr_row = $res->fetchAssoc()) {
 			
-			if ($row['id']) {
-				$id = $row['id'];
+			if ($arr_row['id']) {
+				$id = $arr_row['id'];
 			}
 		}
 		
 		return (int)$id;
 	}
 
-	public static function getPublicInterfaceProjectIds($public_interface_id, $limit = false) {
+	public static function getPublicInterfaceProjectIDs($public_interface_id, $limit = false) {
 		
 		$arr = [];
 
@@ -415,7 +416,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 		return (count($arr) > 1 ? $arr : key($arr));
 	}	
 
-	public static function getPublicInterfaceTypeIds($public_interface_id, $project_id = false, $filter = false) {
+	public static function getPublicInterfaceTypeIDs($public_interface_id, $project_id = false, $filter = false) {
 
 		$arr = [];
  	
@@ -440,7 +441,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 		return $arr;
 	}
 	
-	public static function getPublicInterfaceTypeProjectId($public_interface_id, $type_id) {
+	public static function getPublicInterfaceTypeProjectID($public_interface_id, $type_id) {
 
 		$project_id = false;
  	

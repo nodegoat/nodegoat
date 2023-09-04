@@ -1,5 +1,7 @@
 # Changelog
 
+Go to [nodegoat Release](http://nodegoat.net/release) to view the pre-release/development version of the changelog.
+
 To get the version for your current 1100CC installation, view `./APP/CORE/CMS/info/version.txt`
 
 ## VERSION 7.1
@@ -76,6 +78,17 @@ Initial release.
 * Data/Toolbar: Added new Objects selection layer to the existing Filter interaction layer. Manually selecting or deselecting Type Objects narrows or reversibly expands the results of a possible active Filter.
 * Analysis: Implemented Conditions to source the weights used in a graph. Sourcing weights from Conditions allows for any level of constraint or assertion, ranging from the whole graph to the level of a single edge.
 * Filter: Revamped the implementation of the (path-aware) filtering procedures providing performance, consistence, and scalability.
+* Various fixes and tweaks.
+
+## VERSION 8.2
+
+* Reconcile: New class ReconcileTypeObjectsValues is able to test and score any textual source with any Type and its Objects.
+* Reconcile: Created the module data_reconcile and a new system-defined Type 'Reconcile' to map, reconcile, and store text into references. This class also supports tagging matched Objects in the source text.
+* API: Added the required 'Reconciliation Service API' standards to make the new reconciliation functionalities available through the API.
+* Data: Expanded the data entry version history interface for improved interaction when inspecting or using previous version states.
+* Scope: Changed the Scope interface in the module data_model from expanded horizontal connection selection to vertical drop-down connection selection. This allows for a more directed and cleaner navigation. The horizontal navigation remains available.
+* Scope: Implemented temporally-aware dynamic graph traversal. This allows for the option to traverse graphs while applying and passing temporality to subsequent time-bound connections in an Object's path. The Scope's interface module in data_model and the collectTypeObjects class have been expanded to support the configuration and evaluation of dynamic path connections.
+* Import: Added the ability to update specific Sub-Objects by linking sources to Sub-Object IDs in addition to the nodegoat ID.
 * Various fixes and tweaks.
 
 ## VERSION x.x

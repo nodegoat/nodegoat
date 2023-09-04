@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -45,8 +45,8 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 				nodegoat_tos.id AS object_sub_id
 					FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
 					".($date_after ? "JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')." nodegoat_to_status ON (nodegoat_to_status.object_id = nodegoat_to.id AND nodegoat_to_status.date > '".DBFunctions::str2Date($date_after)."' AND nodegoat_to_status.date <= '".DBFunctions::str2Date($date_to)."')" : "")."
-					JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.object_id = nodegoat_to.id AND ".GenerateTypeObjects::generateVersioning('any', 'object_sub', 'nodegoat_tos').")
-				WHERE ".GenerateTypeObjects::generateVersioning('any', 'object', 'nodegoat_to')."
+					JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.object_id = nodegoat_to.id AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ANY, 'object_sub', 'nodegoat_tos').")
+				WHERE ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ANY, 'object', 'nodegoat_to')."
 		";
 		
 		$sql .= "
@@ -148,9 +148,9 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
 							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')." nodegoat_to_status ON (nodegoat_to_status.object_id = nodegoat_to.id AND nodegoat_to_status.date > '".DBFunctions::str2Date($date_after)."' AND nodegoat_to_status.date <= '".DBFunctions::str2Date($date_to)."')
 							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DATE_CHRONOLOGY')." nodegoat_tos_date_chrono ON (nodegoat_tos_date_chrono.cycle_object_id = nodegoat_to.id AND nodegoat_tos_date_chrono.active = TRUE)
-							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.id = nodegoat_tos_date_chrono.object_sub_id AND nodegoat_tos.date_version = nodegoat_tos_date_chrono.version AND ".GenerateTypeObjects::generateVersioning('any', 'object_sub', 'nodegoat_tos').")
-							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to2 ON (nodegoat_to2.id = nodegoat_tos.object_id AND ".GenerateTypeObjects::generateVersioning('any', 'object', 'nodegoat_to2').")
-						WHERE nodegoat_to.type_id = ".StoreType::getSystemTypeID('cycle')." AND ".GenerateTypeObjects::generateVersioning('any', 'object', 'nodegoat_to')."
+							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.id = nodegoat_tos_date_chrono.object_sub_id AND nodegoat_tos.date_version = nodegoat_tos_date_chrono.version AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ANY, 'object_sub', 'nodegoat_tos').")
+							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to2 ON (nodegoat_to2.id = nodegoat_tos.object_id AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ANY, 'object', 'nodegoat_to2').")
+						WHERE nodegoat_to.type_id = ".StoreType::getSystemTypeID('cycle')." AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ANY, 'object', 'nodegoat_to')."
 					)
 					".DBFunctions::onConflict('object_sub_id', false)."
 				;
@@ -188,8 +188,8 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 							".$table_name_tos.".active,
 							".$table_name_tos.".status
 								FROM ".$table_name_tos_changed_all."
-								JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." ".$table_name_tos." ON (".$table_name_tos.".id = ".$table_name_tos_changed_all.".object_sub_id AND ".GenerateTypeObjects::generateVersioning('any', 'object_sub', $table_name_tos).")
-								JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = ".$table_name_tos.".object_id AND ".GenerateTypeObjects::generateVersioning('any', 'object', 'nodegoat_to').")
+								JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." ".$table_name_tos." ON (".$table_name_tos.".id = ".$table_name_tos_changed_all.".object_sub_id AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ANY, 'object_sub', $table_name_tos).")
+								JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = ".$table_name_tos.".object_id AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ANY, 'object', 'nodegoat_to').")
 								JOIN ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DETAILS')." ".$table_name_tos_details." ON (".$table_name_tos_details.".id = ".$table_name_tos.".object_sub_details_id AND ".$table_name_tos_details.".has_date = TRUE)
 								".$arr_source['tables']."
 					)
@@ -260,16 +260,15 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 					(object_sub_id)
 					(SELECT DISTINCT
 						nodegoat_tos.id AS object_sub_id
-							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
-							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')." nodegoat_to_status ON (nodegoat_to_status.object_id = nodegoat_to.id AND nodegoat_to_status.date > '".DBFunctions::str2Date($date_after)."' AND nodegoat_to_status.date <= '".DBFunctions::str2Date($date_to)."')
-							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.location_ref_object_id = nodegoat_to.id AND ".GenerateTypeObjects::generateVersioning('any', 'object_sub', 'nodegoat_tos')."
+							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_STATUS')." nodegoat_to_status
+							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.location_ref_object_id = nodegoat_to_status.object_id AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ANY, 'object_sub', 'nodegoat_tos')."
 								AND NOT EXISTS (SELECT TRUE
 										FROM ".DB::getTable('CACHE_NODEGOAT_TYPE_OBJECT_SUB_LOCATION_PATH')." nodegoat_tos_cache_path
 									WHERE nodegoat_tos_cache_path.path_object_sub_id = nodegoat_tos.id AND nodegoat_tos_cache_path.state = 0
 								)
 							)
-							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to2 ON (nodegoat_to2.id = nodegoat_tos.object_id AND ".GenerateTypeObjects::generateVersioning('any', 'object', 'nodegoat_to2').")
-						WHERE ".GenerateTypeObjects::generateVersioning('any', 'object', 'nodegoat_to')."
+							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = nodegoat_tos.object_id AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ANY, 'object', 'nodegoat_to').")
+						WHERE nodegoat_to_status.date > '".DBFunctions::str2Date($date_after)."' AND nodegoat_to_status.date <= '".DBFunctions::str2Date($date_to)."'
 					)
 					".DBFunctions::onConflict('object_sub_id', false)."
 				;
@@ -331,8 +330,8 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 						".$table_name_tos.".active,
 						".$table_name_tos.".status
 							FROM ".$table_name_tos_changed_all."
-							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." ".$table_name_tos." ON (".$table_name_tos.".id = ".$table_name_tos_changed_all.".object_sub_id AND ".GenerateTypeObjects::generateVersioning('any', 'object_sub', $table_name_tos).")
-							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = ".$table_name_tos.".object_id AND ".GenerateTypeObjects::generateVersioning('any', 'object', 'nodegoat_to').")
+							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." ".$table_name_tos." ON (".$table_name_tos.".id = ".$table_name_tos_changed_all.".object_sub_id AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ANY, 'object_sub', $table_name_tos).")
+							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = ".$table_name_tos.".object_id AND ".GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ANY, 'object', 'nodegoat_to').")
 							JOIN ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DETAILS')." ".$table_name_tos_details." ON (".$table_name_tos_details.".id = ".$table_name_tos.".object_sub_details_id AND ".$table_name_tos_details.".has_location = TRUE)
 							".$arr_source['tables']."
 						WHERE ".$arr_source['has_geometry']." OR ".$arr_source['has_reference']."
@@ -440,7 +439,10 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 						
 						$arr_type_referenced = $arr_types_referenced[$ref_type_id];
 						
-						$arr_scope = ($arr_type['mode'] & StoreType::TYPE_MODE_REVERSAL_COLLECTION && $arr_object_type_filter['scope'] ? $arr_object_type_filter['scope'] : false);
+						$arr_scope = false;
+						if ($arr_type['mode'] & StoreType::TYPE_MODE_REVERSAL_COLLECTION && $arr_object_type_filter['scope']) {
+							$arr_scope = StoreType::parseTypeNetwork($arr_object_type_filter['scope']);
+						}
 						$arr_filters = $arr_object_type_filter['filter'];
 						
 						if ((!$arr_filters && !$arr_scope) || !$arr_type_referenced) {
@@ -495,7 +497,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 			
 							$trace = new TraceTypesNetwork($arr_scope_type_ids, true, true);
 							$trace->filterTypesNetwork($arr_scope['paths']);
-							$trace->run($ref_type_id, false, 3);
+							$trace->run($ref_type_id, false, cms_nodegoat_details::$num_network_trace_depth);
 							$arr_type_network_paths = $trace->getTypeNetworkPaths(true);
 						} else {
 							

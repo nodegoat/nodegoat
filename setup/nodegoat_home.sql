@@ -52,6 +52,7 @@ CREATE TABLE `def_nodegoat_custom_projects` (
   `discussion_enable` tinyint(1) NOT NULL,
   `system_date_cycle_enable` tinyint(1) NOT NULL,
   `system_ingestion_enable` tinyint(1) NOT NULL,
+  `system_reconciliation_enable` tinyint(1) NOT NULL,
   `visual_settings_id` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

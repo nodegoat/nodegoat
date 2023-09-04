@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -37,6 +37,7 @@ class data_import extends ingest_source {
 		'inf_pointer_map' => 'inf_import_pointer_map',
 		'inf_template' => 'inf_import_template',
 		'inf_pointer_link_object' => 'inf_import_pointer_link_object',
+		'inf_pointer_filter_object_sub_identifier' => 'inf_import_filter_object_sub_identifier',
 		'inf_template_process_select_source' => 'inf_import_template_process_select_source'
 	];
 		
@@ -235,7 +236,7 @@ class data_import extends ingest_source {
 					continue;
 				}
 				
-				if ($type == 'filter_object_identifier') {
+				if ($type == 'filter_object_identifier' || $type == 'filter_object_sub_identifier') {
 					$arr_type_pointers = [$arr_type_pointers];
 				}
 			
@@ -305,7 +306,7 @@ class data_import extends ingest_source {
 		$ingest->setSource(DIR_HOME_TYPE_IMPORT.$arr_source_file['filename']);
 		
 		$ingest->useLogIdentifier($arr_template['id']);
-		$ingest->clearLog(); // Remove possible log of previous run.
+		$ingest->resetLog(); // Remove possible log of previous run.
 		
 		if (!$arr_template['use_log']) {
 			$ingest->useLogIdentifier(false);
@@ -344,12 +345,23 @@ class data_import extends ingest_source {
 	private function createTemplateLog($import_template_id) {
 
 		$arr_import_template = StoreIngestFile::getTemplates($import_template_id);
-		$elm_filter_pointers = false;
-		$colspan = 0;
+		$str_html_filter_columns = '';
+		$str_html_object_sub_column = '';
+		$str_html_data_columns = '';
+		$num_colspan = 0;
 		
 		foreach ($arr_import_template['pointers'] as $type => $arr_type_pointers) {
 			
 			if (!$arr_type_pointers || $type == 'filter_object_identifier') {
+				continue;
+			}
+			
+			if ($type == 'filter_object_sub_identifier') {
+				
+				$arr_pointer = $arr_type_pointers;
+				
+				$str_html_object_sub_column = '<th class="disable-sort">'.getLabel('lbl_object_sub_id').': '.$arr_pointer['pointer_heading'].'</th>';
+				$num_colspan++;
 				continue;
 			}
 			
@@ -359,51 +371,63 @@ class data_import extends ingest_source {
 
 				if ($type == 'filter_object_value') {
 					
-					$elm_filter_columns .= '<th class="disable-sort">'.getLabel('lbl_filter').': '.$pointer_heading.'</th>';
-					$colspan++;
-					
+					$str_html_filter_columns .= '<th class="disable-sort">'.getLabel('lbl_filter').': '.$pointer_heading.'</th>';
+					$num_colspan++;
 				} else if ($type == 'map') {
 					
-					$elm_data_columns .= '<th class="disable-sort">'.$pointer_heading.'</th>';
-					$colspan++;
+					$str_html_data_columns .= '<th class="disable-sort">'.$pointer_heading.'</th>';
+					$num_colspan++;
 				}
 			}
 		}
 		
-		$colspan = $colspan + 2;
+		$num_colspan = $num_colspan + 2;
 		
-		if ($elm_filter_columns) {
-			
-			$colspan++;
+		if ($str_html_filter_columns) {
+			$num_colspan++;
 		}
 		
-		$date = new DateTime($arr_import_template['last_run']);
-		$date->modify('+1 month');
-		Labels::setVariable('removal_date', $date->format('d-m-Y'));
+		$arr_job = cms_jobs::getJob('cms_nodegoat_ingest', 'cleanupImportTemplateLogs');
+		
+		Labels::setVariable('removal_interval', 'N/A');
+		Labels::setVariable('removal_date', 'N/A');
+		
+		if ($arr_job['age_amount']) {
+			
+			$num_minutes = ($arr_job['age_amount'] * $arr_job['age_unit']);
+			$date = new DateTime($arr_import_template['last_run']);
+			$date->modify('+'.$num_minutes.' minutes');
+			
+			$arr_units = StoreIngestFile::getTemplateLogOptions();
+			
+			Labels::setVariable('removal_interval', $arr_job['age_amount'].' '.$arr_units[$arr_job['age_unit']]['name']);
+			Labels::setVariable('removal_date', $date->format('d-m-Y'));
+		}
 						
 		$return = '<div class="options"><form class="filter">
 				<label>'.getLabel('lbl_filter').':</label>
-				<div class="input">
-					<label><input type="checkbox" name="no_object" value="1" /><span>'.getLabel('lbl_import_log_no_object').'</span></label>
-					<label><input type="checkbox" name="no_reference" value="1" /><span>'.getLabel('lbl_import_log_no_reference').'</span></label>
-					<label><input type="checkbox" name="ignore_identical" value="1" /><span>'.getLabel('lbl_import_log_ignored_identical').'</span></label>
-					<label><input type="checkbox" name="ignore_empty" value="1" /><span>'.getLabel('lbl_import_log_ignored_empty').'</span></label>
-					<label><input type="checkbox" name="error" value="1" /><span>Error</span></label>
-				</div>
+				<div class="input">'
+					.'<label><input type="checkbox" name="no_object" value="1" /><span>'.getLabel('lbl_import_log_no_object').'</span></label>'
+					.($str_html_object_sub_column ? '<label><input type="checkbox" name="no_object_sub" value="1" /><span>'.getLabel('lbl_import_log_no_object_sub').'</span></label>' : '')
+					.'<label><input type="checkbox" name="no_reference" value="1" /><span>'.getLabel('lbl_import_log_no_reference').'</span></label>'
+					.'<label><input type="checkbox" name="ignore_identical" value="1" /><span>'.getLabel('lbl_import_log_ignored_identical').'</span></label>'
+					.'<label><input type="checkbox" name="ignore_empty" value="1" /><span>'.getLabel('lbl_import_log_ignored_empty').'</span></label>'
+					.'<label><input type="checkbox" name="error" value="1" /><span>Error</span></label>'
+				.'</div>
 			</form></div>
-			<table class="display" id="d:data_import:data_log-'.$import_template_id.'_'.($elm_filter_columns ? '1' : '0').'">
+			<table class="display" id="d:data_import:data_log-'.$import_template_id.'_'.($str_html_filter_columns ? '1' : '0').'">
 			<thead>
 				<tr>			
-					<th class="limit">'.getLabel('lbl_import_row_number').'</th>'.
-					$elm_filter_columns.
-					($elm_filter_columns ? '<th class="disable-sort">'.getLabel('lbl_filter').'</th>' : '').
-					'<th class="disable-sort">'.getLabel('lbl_object').'</th>'.
-					$elm_data_columns.
-					'</tr> 
+					<th class="limit">'.getLabel('lbl_import_row_number').'</th>'
+					.($str_html_filter_columns ? $str_html_filter_columns.'<th class="disable-sort">'.getLabel('lbl_filter').'</th>' : '')
+					.'<th class="disable-sort">'.getLabel('lbl_object').'</th>'
+					.$str_html_object_sub_column
+					.$str_html_data_columns
+					.'</tr> 
 			</thead>
 			<tbody>
 				<tr>
-					<td colspan="'. $colspan .'" class="empty">'.getLabel('msg_loading_server_data').'</td>
+					<td colspan="'.$num_colspan.'" class="empty">'.getLabel('msg_loading_server_data').'</td>
 				</tr>
 			</tbody>
 		</table>
@@ -416,7 +440,8 @@ class data_import extends ingest_source {
 	
 		$return = parent::css();
 		
-		$return .= '			
+		$return .= '
+			.data_import .import-log-template td input + span { vertical-align: middle; margin-left: 5px; }
 			.data_import .import-log-template input.del { pointer-events: none; }
 		';
 
@@ -664,7 +689,7 @@ class data_import extends ingest_source {
 
 			$arr_ids = explode('_', $id);
 			$import_template_id = $arr_ids[0];
-			$template_has_filter = $arr_ids[1];
+			$has_template_filter = $arr_ids[1];
 			
 			$arr_import_template = StoreIngestFile::getTemplates($import_template_id);
 			$type_id = $arr_import_template['type_id'];
@@ -683,6 +708,11 @@ class data_import extends ingest_source {
 			if ($arr_log_filter['no_object']) {
 				
 				 $sql_where .= " AND nodegoat_itl.object_id IS NULL";
+			}
+			
+			if ($arr_log_filter['no_object_sub']) {
+				
+				 $sql_where .= " AND nodegoat_itl.row_results LIKE '%no_object_sub%'";
 			}
 			
 			if ($arr_log_filter['no_reference']) {
@@ -705,7 +735,12 @@ class data_import extends ingest_source {
 				 $sql_where .= " AND nodegoat_itl.row_results LIKE '%error%'";
 			}
 			
-			$arr_datatable = cms_general::prepareDataTable($arr_sql_columns, $arr_sql_columns_search, $arr_sql_columns_as, $sql_table, $sql_index, '', '', $sql_where);			
+			$arr_datatable = cms_general::prepareDataTable($arr_sql_columns, $arr_sql_columns_search, $arr_sql_columns_as, $sql_table, $sql_index, '', '', $sql_where);
+			
+			$storage = null;
+			if ($arr_import_template['pointers']['filter_object_sub_identifier']) {
+				$storage = new StoreTypeObjects($type_id, false, $_SESSION['USER_ID']);
+			}
 			
 			while ($arr_row = $arr_datatable['result']->fetchAssoc()) {
 				
@@ -719,7 +754,7 @@ class data_import extends ingest_source {
 				
 				if ($arr_row_results['error']) {
 					
-					$arr_data[] = $num_row . ' <input type="button" class="data del" value="error" />';
+					$arr_data[] = '<input type="button" class="data del" value="Error" /><span>'.$num_row.'</span>';
 					$arr_data['cell'][$count]['attr']['title'] = getLabel($arr_row_results['error']);
 				
 				} else {
@@ -728,7 +763,7 @@ class data_import extends ingest_source {
 				}
 				$count++;
 				
-				if ($template_has_filter) {
+				if ($has_template_filter) {
 
 					foreach ($arr_import_template['pointers']['filter_object_value'] as $arr_pointer) {
 						
@@ -736,26 +771,48 @@ class data_import extends ingest_source {
 						$count++;
 					}
 					
+					$str_html = '';
+					
 					if ($arr_row['row_filter'] != '') {
 						
-						$arr_row_filter = '<input type="button" id="y:data_import:view_filter-'.$import_template_id.'_'.$arr_row['row_identifier'].'" class="data edit popup" value="filter" />';
-						
+						$str_html = '<input type="button" id="y:data_import:view_filter-'.$import_template_id.'_'.$arr_row['row_identifier'].'" class="data edit popup" value="Filter" />';
 					} else {
 						
-						$arr_row_filter = '<input type="button" class="data del" value="no filter" />';
+						$str_html = '<input type="button" class="data del" value="No Filter" />';
 					}
 					
-					$arr_data[] = $arr_row_filter;
+					$arr_data[] = $str_html;
 					$count++;
 				}
 					
-				$arr_data[] = ($arr_row['object_id'] ? '<input type="button" id="y:data_view:view_type_object-'.$type_id.'_'.$arr_row['object_id'].'" class="popup data add" value="object" />' : '<input type="button" class="data del" value="n/a"/>');
+				$arr_data[] = ($arr_row['object_id'] ? '<input type="button" id="y:data_view:view_type_object-'.$type_id.'_'.$arr_row['object_id'].'" class="popup data add" value="Object" />' : '<input type="button" class="data del" value="N/A"/>');
 				$count++;
+				
+				if ($arr_import_template['pointers']['filter_object_sub_identifier']) {
+					
+					$arr_pointer = $arr_import_template['pointers']['filter_object_sub_identifier'];
+					$object_sub_id = $arr_row_data[$arr_pointer['pointer_heading']];
+					$str_html = '';
+					
+					if (isset($arr_row_results['filter_object_sub_identifier']['no_object_sub'])) {
+						
+						$str_html = '<input type="button" class="data del" value="N/A" /><span>'.$object_sub_id.'</span>';
+					} else {
+
+						$object_sub_details_id = $storage->getTypeObjectSubObjectSubDetailsID($object_sub_id); // Should only be needed once
+						
+						$str_html = '<input type="button" id="y:data_view:view_type_object_sub-'.$type_id.'_'.$arr_row['object_id'].'_'.$object_sub_details_id.'_'.(int)$object_sub_id.'" class="popup data add" value="Sub-Object" />';
+					}
+					
+					$arr_data[] = $str_html;
+
+					$count++;
+				}
 				
 				foreach ($arr_import_template['pointers']['map'] as $arr_pointer) {
 					
 					$pointer_heading = $arr_pointer['pointer_heading'];
-					$elm = '';
+					$str_html = '';
 					
 					if ($arr_pointer['element_type_id']) {
 						
@@ -763,34 +820,31 @@ class data_import extends ingest_source {
 							
 							foreach ((array)$arr_ref_objects as $ref_object_id => $value) {
 								
-								$elm .= '<input type="button" id="y:data_view:view_type_object-'.$ref_type_id.'_'.$ref_object_id.'" class="popup data add" value="reference" />';
+								$str_html .= '<input type="button" id="y:data_view:view_type_object-'.$ref_type_id.'_'.$ref_object_id.'" class="popup data add" value="Reference" />';
 							}
 						}
 					}
 					
-					if ($arr_row_results[$pointer_heading]['options']['ignore_identical']) {
+					if (isset($arr_row_results[$pointer_heading]['options']['ignore_identical'])) {
 						
-						$elm .= '<input type="button" class="data del" value="identical" />';
+						$str_html .= '<input type="button" class="data del" value="Identical" />';
 					}
 					
-					if ($arr_row_results[$pointer_heading]['options']['unmatched_reference']) {
+					if (isset($arr_row_results[$pointer_heading]['options']['unmatched_reference'])) {
 						
-						$elm .= '<input type="button" class="data del" value="n/a" />';
+						$str_html .= '<input type="button" class="data del" value="N/A" />';
 					}
 					
 					if ($arr_row_data[$pointer_heading]) {
 						
-						$elm .= ' <span>'.$arr_row_data[$pointer_heading].'</span>';
-						
-					} else if ($arr_row_results[$pointer_heading]['options']['ignore_empty']) {
+						$str_html .= '<span>'.$arr_row_data[$pointer_heading].'</span>';
+					} else if (isset($arr_row_results[$pointer_heading]['options']['ignore_empty'])) {
 							
-						$elm .= '<input type="button" class="data del" value="empty" />';
-						
+						$str_html .= '<input type="button" class="data del" value="Empty" />';
 					}
 					
-					$arr_data[] = $elm;
-					
-					
+					$arr_data[] = $str_html;
+
 					$count++;
 				}
 				

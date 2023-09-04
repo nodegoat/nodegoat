@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -192,7 +192,7 @@ class data_pattern_pairs extends base_module {
 	public static function css() {
 				
 		$return = '
-			.data_pattern_pairs code { font-family: var(--font-mono); padding: 4px 8px; background-color: #e1e1e1; }
+			.data_pattern_pairs code { font-family: var(--font-mono); padding: 4px 8px; background-color: var(--back-nested); }
 		';
 
 		return $return;

@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -52,7 +52,7 @@ class ResourceExternal {
 		// [query=name]...[/query]
 		// [variable(=name(:type))]...[/variable]
 		
-		$query = $this->arr_resource['query'];
+		$str_query = $this->arr_resource['query'];
 		
 		if ($this->arr_filter !== false) {
 			
@@ -74,7 +74,7 @@ class ResourceExternal {
 			
 			foreach ($this->arr_filter as $name_query => $arr_filter_variables) {
 				
-				$query = preg_replace_callback(
+				$str_query = preg_replace_callback(
 					'/\[query='.$name_query.'\](.+?)\[\/query\]/si',
 					function($arr_matches_query) use ($arr_filter_variables, $str_uri_template_begin, $str_uri_template_end) {
 						
@@ -107,7 +107,7 @@ class ResourceExternal {
 											
 											$str_value_check = (is_array($arr_value) ? $arr_value['value'] : $arr_value);
 											
-											if ($str_uri_template_begin) {
+											if ($str_uri_template_begin) { // Try to find a match for the current URI template, in a possible list with other identifiers
 												
 												if (strpos($str_value_check, $str_uri_template_begin) !== false && (!$str_uri_template_end || strpos($str_value_check, $str_uri_template_end) !== false)) {
 													
@@ -154,54 +154,84 @@ class ResourceExternal {
 							$str
 						);
 					},
-					$query
+					$str_query
 				);
 			}
-			$query = preg_replace('/\[query=([\w]+)\](.+?)\[\/query\]/si', '', $query);
+			$str_query = preg_replace('/\[query=[\w]+\].+?\[\/query\]/si', '', $str_query);
 		} else {
 			
-			$query = preg_replace('/\[query=([\w]+)\]/si', '', $query);
-			$query = preg_replace('/\[\/query\]/si', '', $query);
-			$query = preg_replace('/\[variable(=[\w]+(\:[a-z-]+)?)?\]/si', '', $query);
-			$query = preg_replace('/\[\/variable\]/si', '', $query);
+			$str_query = preg_replace('/\[query=[\w]+\]/si', '', $str_query);
+			$str_query = preg_replace('/\[\/query\]/si', '', $str_query);
+			
+			if ($this->arr_resource['protocol'] == 'api') { // Encode only the values in case of url targeted protocols
+				
+				$str_query = preg_replace_callback(
+					'/\[variable(?:=[\w]+(?:\:[a-z-]+)?)?\](.+?)\[\/variable\]/si',
+					function($arr_matches_variable) {
+						
+						$str_value = rawurlencode($arr_matches_variable[1]);
+						
+						return $str_value;
+					},
+					$str_query
+				);
+			} else {
+				
+				$str_query = preg_replace('/\[variable(?:=[\w]+(?:\:[a-z-]+)?)?\]/si', '', $str_query);
+				$str_query = preg_replace('/\[\/variable\]/si', '', $str_query);
+			}
 		}
 		
 		if ($this->arr_resource['protocol'] == 'sparql') {
 			
-			$num_pos = stripos($query, 'SELECT');
-			$str_before = trim(substr($query, 0, $num_pos));
-			$str_after = trim(substr($query, $num_pos + strlen('SELECT')));
+			$num_pos = stripos($str_query, 'SELECT');
+			$str_before = trim(substr($str_query, 0, $num_pos));
+			$str_after = trim(substr($str_query, $num_pos + strlen('SELECT')));
 			
-			$query = $str_before.' SELECT';
+			$str_query = ($str_before ? $str_before.' ' : '').'SELECT';
 			
 			if (stripos($str_after, 'DISTINCT') !== 0) {
 			
-				$query .= ' DISTINCT';
+				$str_query .= ' DISTINCT';
 			}
 			
-			$query .= ' '.$str_after;
+			$str_query .= ' '.$str_after;
+		} else {
+			
+			$str_query = trim($str_query);
 		}
 		
-		$func_url = function($query, $arr_options) {
+		$func_url = function($str_query, $arr_options) {
 
-			if ($this->arr_resource['protocol'] == 'sparql' && !preg_match(static::TAGCODE_TEST_LIMIT, $query)) {
+			if ($this->arr_resource['protocol'] == 'sparql' && !preg_match(static::TAGCODE_TEST_LIMIT, $str_query)) {
 				
-				$query .= " OFFSET ".$arr_options['offset']." LIMIT ".$arr_options['limit'];
+				$str_query .= " OFFSET ".$arr_options['offset']." LIMIT ".$arr_options['limit'];
 			} else {
+							
+				$num_limit = $arr_options['limit'];
+				$num_offset = $arr_options['offset'];
 				
-				$query = str_replace('[[offset]]', $arr_options['offset'], $query);
-				$query = preg_replace(static::TAGCODE_TEST_LIMIT, $arr_options['limit'], $query);
+				preg_match(static::TAGCODE_PARSE_LIMIT, $str_query, $arr_match);
+				$num_limit_max = (int)$arr_match[1];
+				
+				if ($num_limit_max && $num_limit > $num_limit_max) {
+					$num_offset = floor($num_offset / $num_limit) * $num_limit_max;
+					$num_limit = $num_limit_max;
+				}
+				
+				$str_query = preg_replace(static::TAGCODE_TEST_LIMIT, $num_limit, $str_query);
+				$str_query = str_replace('[[offset]]', $num_offset, $str_query);
 			}
 
 			if ($this->arr_resource['protocol'] == 'sparql') {
 				
-				$str_url = $this->arr_resource['url'].rawurlencode($query).$this->arr_resource['url_options']; // Encode the full query to be passed verbatim
+				$str_url = $this->arr_resource['url'].rawurlencode($str_query).$this->arr_resource['url_options']; // Encode the full query to be passed verbatim
 			} else {
 				
-				$query = str_replace(["\r", "\n"], '', $query); // Allow for line breaks in the query, but do clean it before running it
-				$query = str_replace(' ', '%20', $query); // Preserve spaces
+				$str_query = str_replace(["\r", "\n"], '', $str_query); // Allow for line breaks in the query, but do clean it before running it
+				$str_query = str_replace(' ', '%20', $str_query); // Preserve spaces
 				
-				$str_url = $this->arr_resource['url'].$query.$this->arr_resource['url_options'];
+				$str_url = $this->arr_resource['url'].$str_query.$this->arr_resource['url_options'];
 			}
 			
 			//$str_url .= (!strpos($str_url, '?') ? '?' : '&').'timeout='.(($this->timeout * 1000) - (5 * 1000)); // Try to indicate a endpoint timeout is milliseconds, get possible results gracefully
@@ -214,7 +244,7 @@ class ResourceExternal {
 		status(getLabel('msg_external_resource_running'), false, false, 3000);
 		
 		$str_content_type = '';
-		$str_url = $func_url($query, ['offset' => $this->arr_limit[0], 'limit' => $this->arr_limit[1]]);
+		$str_url = $func_url($str_query, ['offset' => $this->arr_limit[0], 'limit' => $this->arr_limit[1]]);
 		$arr_request_settings = [
 			'timeout' => $this->timeout,
 			'headers' => (($this->arr_resource['url_headers'] ?: []) + ['Accept' => 'application/json, application/ld+json, */*; q=0.01']),
@@ -241,7 +271,7 @@ class ResourceExternal {
 				
 				while ((time() - $timer) < $this->timeout) {
 
-					$str_url = $func_url($query, ['offset' => $this->arr_limit[0], 'limit' => $limit]);
+					$str_url = $func_url($str_query, ['offset' => $this->arr_limit[0], 'limit' => $limit]);
 					$arr_request_settings['timeout'] = ($this->timeout / 2);
 					
 					$data = new FileGet($str_url, $arr_request_settings, true);
@@ -267,6 +297,8 @@ class ResourceExternal {
 			} else if ($data->getError()) {
 				
 				Labels::setVariable('response', $data->getErrorResponse());
+				Labels::setVariable('debug_url', $str_url);
+				Labels::setVariable('debug_query', $str_query);
 				
 				$str_message = getLabel('msg_external_resource_error');
 				
@@ -283,10 +315,9 @@ class ResourceExternal {
 				$str_result = value2JSON(['text' => $str_result]);
 			} else if ($this->mode_result_parse == static::PARSE_XML) {
 				
-				libxml_use_internal_errors(true);
-				
-				$str_result = simplexml_load_string($str_result);
-				$str_result = value2JSON($str_result);
+				$parse = new ParseXML2JSON($str_result);
+				$parse->setMode(ParseXML2JSON::MODE_COMPACT);
+				$str_result = $parse->get();
 			} else if ($this->mode_result_parse == static::PARSE_YAML) {
 				
 				$str_result = yaml_parse($str_result);
@@ -370,13 +401,13 @@ class ResourceExternal {
 			'limit' => false
 		];
 		
-		$query = $this->arr_resource['query'];
+		$str_query = $this->arr_resource['query'];
 		
-		if ($this->arr_resource['protocol'] == 'sparql' || strpos($query, '[[offset]]') !== false) {
+		if ($this->arr_resource['protocol'] == 'sparql' || strpos($str_query, '[[offset]]') !== false) {
 			$arr['offset'] = true;
 		}
 		
-		$has_match = preg_match(static::TAGCODE_PARSE_LIMIT, $query, $arr_match);
+		$has_match = preg_match(static::TAGCODE_PARSE_LIMIT, $str_query, $arr_match);
 		
 		if ($has_match) {
 			
@@ -395,9 +426,9 @@ class ResourceExternal {
 		
 		$arr = [];
 		
-		$query = $this->arr_resource['query'];
+		$str_query = $this->arr_resource['query'];
 		
-		preg_match_all('/\[query=('.($name ?: '[\w]+').')\](.+?)\[\/query\]/si', $query, $arr_matches_queries, PREG_SET_ORDER);
+		preg_match_all('/\[query=('.($name ?: '[\w]+').')\](.+?)\[\/query\]/si', $str_query, $arr_matches_queries, PREG_SET_ORDER);
 		
 		foreach ($arr_matches_queries as $arr_matches_query) {
 			
@@ -542,16 +573,18 @@ class ResourceExternal {
 		if ($this->arr_resource['response_uri']['value'] || $this->arr_resource['response_label']['value']) {
 			
 			try {
-				$arr_uri = self::arrValueByPath($arr_result, $this->arr_resource['response_uri']['value']);
+				$traverse = new TraverseJSON($this->arr_resource['response_uri']['value']);
+				$arr_uri = $traverse->get($arr_result);
 			} catch (Exception $e) {
 				
 				Labels::setVariable('parse_name', 'Response URI');
 				error(getLabel('msg_external_resource_error_parse_value'), TROUBLE_ERROR, LOG_BOTH, $this->arr_resource['response_uri']['value'], $e);
 			}
-			$has_multi = !isset($arr_uri[0]); // Apply grouping when there are multiple results in one query, which would start from 1.
+			$has_multi = $traverse->hasGroups();
 			
 			try {
-				$arr_label = self::arrValueByPath($arr_result, $this->arr_resource['response_label']['value'], $has_multi);
+				$traverse = new TraverseJSON($this->arr_resource['response_label']['value'], $has_multi);
+				$arr_label = $traverse->get($arr_result);
 			} catch (Exception $e) {
 				
 				Labels::setVariable('parse_name', 'Response Label');
@@ -562,7 +595,8 @@ class ResourceExternal {
 			foreach ($this->arr_resource['response_values'] as $name => $arr_response_value) {
 				
 				try {
-					$arr_values[$name] = self::arrValueByPath($arr_result, $arr_response_value['value'], $has_multi);
+					$traverse = new TraverseJSON($arr_response_value['value'], $has_multi);
+					$arr_values[$name] = $traverse->get($arr_result);
 				} catch (Exception $e) {
 				
 					Labels::setVariable('parse_name', 'Response Value \''.strEscapeHTML($name).'\'');
@@ -841,190 +875,5 @@ class ResourceExternal {
 		$arr = [['id' => '', 'name' => 'URL', 'value' => 'url']];
 		
 		return $arr;
-	}
-    
-    private static function arrValueByPath($arr, $str_path, $use_grouping = true) {
-				
-		$arr_path = json_decode($str_path, true);
-		
-		$num_groups = 0;
-		$arr_return = [];
-		$num_group_init = ($use_grouping ? false : 0); // Use grouping, or collect everything in one group '0'
-		$path_value_end = null;
-		
-		$func_walk = function($arr, $arr_path, $num_group = false) use (&$arr_return, &$func_walk, &$num_groups, &$path_value_end) {
-			
-			if (!$arr) {
-				
-				if ($num_group !== false && !$arr_return[$num_group]) {
-					$arr_return[$num_group] = '';
-				}
-				return;
-			}
-			
-			$path_key = key($arr_path);
-			$path_value = current($arr_path);
-			
-			if (strStartsWith($path_key, '[]') && $path_key !== '[]') {
-				
-				$str_find = substr($path_key, 2);
-				
-				foreach ($arr as $key => $value) {
-					
-					if ($key !== $str_find) {
-						unset($arr[$key]);
-					}
-				}
-				
-				$path_key = '[]';
-			} else if (strStartsWith($path_key, '[*]')) {
-				
-				$str_find = substr($path_key, 3);
-				
-				$arr = arrValuesRecursive($str_find, $arr);
-				
-				$path_key = '[]';
-			}
-			
-			if (is_array($path_value)) { // We need to go deeper, and collect
-				
-				if ($path_key === '[]') {
-
-					foreach ($arr as $key => $value) {
-						
-						if ($num_group === false) { // Start grouping for each row
-							$num_groups++;
-							$num_group_use = $num_groups;
-						} else {
-							$num_group_use = $num_group;
-						}
-						
-						$func_walk($value, $path_value, $num_group_use);
-					}
-				} else {
-					
-					$func_walk($arr[$path_key], $path_value, $num_group);
-				}
-			} else if ($num_group === false && $path_key === '[]') { // We reached the end, we want groups, but do not have any groups yet
-				
-				foreach ($arr as $key => $value) {
-					
-					$num_groups++;
-					$num_group_use = $num_groups;
-
-					$func_walk([$key => $value], [$key => $path_value], $num_group_use);
-				}
-			} else { // We reached the end, collect specific keys or the full array '[]'
-				
-				$path_value = (string)$path_value;
-				$path_value_end = $path_value;
-				
-				$s_arr =& $arr_return[$num_group];
-
-				if ($s_arr) {
-					
-					if (!is_array($s_arr)) {
-						
-						$arr_return[$num_group] = [$s_arr => $s_arr];
-						$s_arr =& $arr_return[$num_group];
-					}
-					
-					$s_arr = static::arrValueByPathKeyValue($arr, $s_arr, $path_key, $path_value, true);
-				} else {
-				
-					$s_arr = static::arrValueByPathKeyValue($arr, $s_arr, $path_key, $path_value);
-				}
-			}
-		};
-		
-		$func_walk($arr, $arr_path, $num_group_init);
-		
-		if ($path_value_end) { // Do possible final value processing
-			
-			$num_pos_join = strpos($path_value_end, 'join:');
-			
-			if ($num_pos_join !== false) {
-			
-				$str_join = substr($path_value_end, $num_pos_join + 5);
-				
-				foreach ($arr_return as $num_group => &$value) {
-					
-					if (!is_array($value)) {
-						continue;
-					}
-					
-					$value = implode($str_join, $value);
-				}
-				unset($value);
-			}
-		}
-		
-		return $arr_return;
-	}
-	
-	protected static function arrValueByPathKeyValue($arr, $s_arr, $path_key, $path_value, $to_existing = false) {
-				
-		$do_key = false;
-		$do_json = false;
-		
-		if ($path_value) {
-			$do_key = (strpos($path_value, 'key') !== false);
-			$do_json = (strpos($path_value, 'json') !== false);
-			$keep_empty = (strpos($path_value, 'empty') !== false);
-		}
-		
-		if ($path_key === '[]' || $path_key === null) { // Grab all array values (as natural end of a path, or the raw/remainder of path)
-										
-			foreach ($arr as $key => $value) {
-				
-				if (!$keep_empty && ($value === false || $value === null || $value === '' || $value === [])) {
-					continue;
-				}
-				
-				if ($do_json) {
-					$value = value2JSON($value);
-				} else if ($do_key) {
-					$value = $key;
-				}
-				
-				if ($to_existing) {
-					$s_arr[] = $value;
-				} else {
-					$s_arr[] = $value;
-				}
-			}
-		} else if ($path_key === '') {
-			
-			$value = $arr;
-			
-			if ($keep_empty || ($value !== false && $value !== null && $value !== '' && $value !== [])) {
-				
-				if ($do_json) {
-					$value = value2JSON($value);
-				}
-				
-				$s_arr = $value;
-			}
-		} else {
-			
-			$value = $arr[$path_key];
-			
-			if ($keep_empty || ($value !== false && $value !== null && $value !== '' && $value !== [])) {
-				
-				if ($do_json) {
-					$value = value2JSON($value);
-				} else if ($do_key) {
-					$value = $path_key;
-				}
-				
-				if ($to_existing) {
-					$s_arr[] = $value;
-				} else {
-					$s_arr = $value;
-				}
-			}
-		}
-				
-		return $s_arr;
 	}
 }

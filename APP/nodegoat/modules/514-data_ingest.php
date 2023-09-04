@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -266,7 +266,7 @@ class data_ingest extends ingest_source {
 			$arr_map = array_combine($arr_map, $arr_map);
 			$arr_selection = StoreType::getTypeSelectionByFlatMap($use_type_id, $arr_map);
 			
-			$filter = new FilterTypeObjects($use_type_id, GenerateTypeObjects::VIEW_SET);
+			$filter = new FilterTypeObjects($use_type_id, GenerateTypeObjects::VIEW_SET_EXTERNAL);
 			$filter->setFilter(['objects' => $arr_object_ids]);
 			$filter->setSelection($arr_selection);
 			

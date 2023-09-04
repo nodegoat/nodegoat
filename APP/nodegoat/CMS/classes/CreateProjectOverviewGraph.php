@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -105,7 +105,7 @@ class CreateProjectOverviewGraph {
 			
 			foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 				
-				if (!StoreCustomProject::checkTypeConfigurationAccess($this->arr_project['types'], $arr_type_set, $object_description_id, false, false, 'view')) {
+				if (!StoreCustomProject::checkTypeConfigurationAccess($this->arr_project['types'], $arr_type_set, $object_description_id, false, false, StoreCustomProject::ACCESS_PURPOSE_VIEW)) {
 					continue;
 				}
 			
@@ -142,7 +142,7 @@ class CreateProjectOverviewGraph {
 			
 			foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 				
-				if (!StoreCustomProject::checkTypeConfigurationAccess($this->arr_project['types'], $arr_type_set, false, $object_sub_details_id, false, 'view')) {
+				if (!StoreCustomProject::checkTypeConfigurationAccess($this->arr_project['types'], $arr_type_set, false, $object_sub_details_id, false, StoreCustomProject::ACCESS_PURPOSE_VIEW)) {
 					continue;
 				}
 				
@@ -159,7 +159,7 @@ class CreateProjectOverviewGraph {
 				
 				foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 					
-					if (!StoreCustomProject::checkTypeConfigurationAccess($this->arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id, 'view')) {
+					if (!StoreCustomProject::checkTypeConfigurationAccess($this->arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id, StoreCustomProject::ACCESS_PURPOSE_VIEW)) {
 						continue;
 					}
 				

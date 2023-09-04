@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -133,12 +133,12 @@ class cms_nodegoat_custom_projects extends base_module {
 				FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_FILTERS')." pf
 				LEFT JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p ON (p.id = pf.project_id)
 			WHERE (
-					".($project_id ? "pf.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, 'int')).")" : "= ".(int)$project_id) : "")."
+					".($project_id ? "pf.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, TYPE_INTEGER)).")" : "= ".(int)$project_id) : "")."
 					".($is_domain ? ($project_id ? "OR " : "")."pf.project_id = 0" : '')."
 				)
 				AND (p.id != 0 OR pf.project_id = 0)
 				".($filter_id && !is_array($filter_id) ? "AND pf.id = ".(int)$filter_id : "")."
-				".($filter_id && is_array($filter_id) ? "AND pf.id IN (".implode(',', arrParseRecursive($filter_id, 'int')).")" : "")."
+				".($filter_id && is_array($filter_id) ? "AND pf.id IN (".implode(',', arrParseRecursive($filter_id, TYPE_INTEGER)).")" : "")."
 				".($user_id ? "AND (pf.user_id = 0 OR pf.user_id = ".(int)$user_id.")" : "")."
 				".(!$user_id && !$filter_id ? "AND pf.user_id = 0" : "")."
 				".($type_id ? "AND pf.type_id = ".(int)$type_id : "")."
@@ -193,6 +193,9 @@ class cms_nodegoat_custom_projects extends base_module {
 			}
 		}
 		
+		
+		$sql_new_id = "JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_SCOPES')." ps ON (ps.project_id = p.id)";
+		
 		$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_SCOPES')."
 			(project_id, user_id, id, type_id, name, description, object)
 				VALUES 
@@ -201,9 +204,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				".(int)$user_id.",
 				".($scope_id || $is_user_default ? (int)$scope_id : "(SELECT * FROM (SELECT COALESCE(MAX(ps.id), 0)+1
 							FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
-							JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p2 ON (p2.user_id = p.user_id)
-							JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_SCOPES')." ps ON (ps.project_id = p2.id)
-						WHERE p.id = ".(int)$project_id."
+							".$sql_new_id."
 					) AS pid
 				)").",
 				".(int)$type_id.",
@@ -252,9 +253,9 @@ class cms_nodegoat_custom_projects extends base_module {
 		$res = DB::query("SELECT ps.*, p.name AS project_name
 				FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_SCOPES')." ps
 				JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p ON (p.id = ps.project_id)
-			WHERE ps.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, 'int')).")" : "= ".(int)$project_id)."
+			WHERE ps.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, TYPE_INTEGER)).")" : "= ".(int)$project_id)."
 				".(($scope_id || $is_user_default) && !is_array($scope_id) ? "AND ps.id = ".(int)$scope_id : "")."
-				".($scope_id && is_array($scope_id) ? "AND ps.id IN (".implode(',', arrParseRecursive($scope_id, 'int')).")" : "")."
+				".($scope_id && is_array($scope_id) ? "AND ps.id IN (".implode(',', arrParseRecursive($scope_id, TYPE_INTEGER)).")" : "")."
 				".($user_id ? "AND (ps.user_id = 0 OR ps.user_id = ".(int)$user_id.")" : "")."
 				".(!$user_id && !$scope_id ? "AND ps.user_id = 0" : "")."
 				".($type_id ? "AND ps.type_id = ".(int)$type_id : "")."
@@ -308,7 +309,10 @@ class cms_nodegoat_custom_projects extends base_module {
 				$context_id = false;
 			}
 		}
-				
+		
+		
+		$sql_new_id = "JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONTEXTS')." pcx ON (pcx.project_id = p.id)";
+		
 		$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONTEXTS')."
 			(project_id, user_id, id, type_id, name, description, object)
 				VALUES 
@@ -317,9 +321,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				".(int)$user_id.",
 				".($context_id || $is_user_default ? (int)$context_id : "(SELECT * FROM (SELECT COALESCE(MAX(pcx.id), 0)+1
 							FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
-							JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p2 ON (p2.user_id = p.user_id)
-							JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONTEXTS')." pcx ON (pcx.project_id = p2.id)
-						WHERE p.id = ".(int)$project_id."
+							".$sql_new_id."
 					) AS pid
 				)").",
 				".(int)$type_id.",
@@ -368,9 +370,9 @@ class cms_nodegoat_custom_projects extends base_module {
 		$res = DB::query("SELECT pcx.*, p.name AS project_name
 				FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONTEXTS')." pcx
 				JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p ON (p.id = pcx.project_id)
-			WHERE pcx.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, 'int')).")" : "= ".(int)$project_id)."
+			WHERE pcx.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, TYPE_INTEGER)).")" : "= ".(int)$project_id)."
 				".(($context_id || $is_user_default) && !is_array($context_id) ? "AND pcx.id = ".(int)$context_id : "")."
-				".($context_id && is_array($context_id) ? "AND pcx.id IN (".implode(',', arrParseRecursive($context_id, 'int')).")" : "")."
+				".($context_id && is_array($context_id) ? "AND pcx.id IN (".implode(',', arrParseRecursive($context_id, TYPE_INTEGER)).")" : "")."
 				".($user_id ? "AND (pcx.user_id = 0 OR pcx.user_id = ".(int)$user_id.")" : "")."
 				".(!$user_id && !$context_id ? "AND pcx.user_id = 0" : "")."
 				".($type_id ? "AND pcx.type_id = ".(int)$type_id : "")."
@@ -421,7 +423,10 @@ class cms_nodegoat_custom_projects extends base_module {
 				$frame_id = false;
 			}
 		}
-				
+		
+		
+		$sql_new_id = "JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_FRAMES')." pfr ON (pfr.project_id = p.id)";
+		
 		$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_FRAMES')."
 			(project_id, user_id, id, type_id, name, description,
 				area_geo_latitude, area_geo_longitude, area_geo_zoom_scale, area_geo_zoom_min, area_geo_zoom_max, area_social_object_id, area_social_zoom_level, area_social_zoom_min, area_social_zoom_max, time_bounds_date_start, time_bounds_date_end, time_selection_date_start, time_selection_date_end, object_subs_unknown_date, object_subs_unknown_location
@@ -432,9 +437,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				".(int)$user_id.",
 				".($frame_id || $is_user_default ? (int)$frame_id : "(SELECT * FROM (SELECT COALESCE(MAX(pfr.id), 0)+1
 							FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
-							JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p2 ON (p2.user_id = p.user_id)
-							JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_FRAMES')." pfr ON (pfr.project_id = p2.id)
-						WHERE p.id = ".(int)$project_id."
+							".$sql_new_id."
 					) AS pid
 				)").",
 				".(int)$type_id.",
@@ -499,9 +502,9 @@ class cms_nodegoat_custom_projects extends base_module {
 		$res = DB::query("SELECT pfr.*, p.name AS project_name
 				FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_FRAMES')." pfr
 				JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p ON (p.id = pfr.project_id)
-			WHERE pfr.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, 'int')).")" : "= ".(int)$project_id)."
+			WHERE pfr.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, TYPE_INTEGER)).")" : "= ".(int)$project_id)."
 				".(($frame_id || $is_user_default) && !is_array($frame_id) ? "AND pfr.id = ".(int)$frame_id : "")."
-				".($frame_id && is_array($frame_id) ? "AND pfr.id IN (".implode(',', arrParseRecursive($frame_id, 'int')).")" : "")."
+				".($frame_id && is_array($frame_id) ? "AND pfr.id IN (".implode(',', arrParseRecursive($frame_id, TYPE_INTEGER)).")" : "")."
 				".($user_id ? "AND (pfr.user_id = 0 OR pfr.user_id = ".(int)$user_id.")" : "")."
 				".(!$user_id && !$frame_id ? "AND pfr.user_id = 0" : "")."
 				".($type_id ? "AND pfr.type_id = ".(int)$type_id : "")."
@@ -642,7 +645,10 @@ class cms_nodegoat_custom_projects extends base_module {
 		}
 		
 		$arr_default = self::parseVisualSettings();
-				
+		
+		
+		$sql_new_id = "JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_VISUAL_SETTINGS')." pvs ON (pvs.project_id = p.id)";
+		
 		$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_VISUAL_SETTINGS')."
 			(project_id, user_id, id, name, description,
 				capture_enable, capture_settings, dot_show, dot_color, dot_opacity, dot_color_condition, dot_size_min, dot_size_max, dot_size_start, dot_size_stop, dot_stroke_color, dot_stroke_opacity, dot_stroke_width, location_show, location_color, location_opacity, location_size, location_threshold, location_offset, location_position, location_condition, line_show, line_color, line_opacity, line_width_min, line_width_max, line_offset, visual_hints_show, visual_hints_color, visual_hints_opacity, visual_hints_size, visual_hints_stroke_color, visual_hints_stroke_opacity, visual_hints_stroke_width, visual_hints_duration, visual_hints_delay, geometry_show, geometry_color, geometry_opacity, geometry_stroke_color, geometry_stroke_opacity, geometry_stroke_width, map_show, map_url, map_attribution, geo_info_show, geo_background_color, geo_mode, geo_display, geo_advanced, social_dot_color, social_dot_size_min, social_dot_size_max, social_dot_size_start, social_dot_size_stop, social_dot_stroke_color, social_dot_stroke_width, social_line_show, social_line_arrowhead_show, social_force, social_forceatlas2, social_disconnected_dot_show, social_include_location_references, social_background_color, social_display, social_static_layout, social_static_layout_interval, social_advanced, time_bar_color, time_bar_opacity, time_background_color, time_relative_graph, time_cumulative_graph
@@ -653,9 +659,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				".(int)$user_id.",
 				".(($visual_settings_id || $is_user_default) ? (int)$visual_settings_id : "(SELECT * FROM (SELECT COALESCE(MAX(pvs.id), 0)+1
 							FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
-							JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p2 ON (p2.user_id = p.user_id)
-							JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_VISUAL_SETTINGS')." pvs ON (pvs.project_id = p2.id)
-						WHERE p.id = ".(int)$project_id."
+							".$sql_new_id."
 					) AS pid
 				)").",
 				'".DBFunctions::strEscape($arr['name'])."',
@@ -1033,9 +1037,9 @@ class cms_nodegoat_custom_projects extends base_module {
 		$res = DB::query("SELECT pvs.*, p.name AS project_name
 				FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_VISUAL_SETTINGS')." pvs
 				JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p ON (p.id = pvs.project_id)
-			WHERE pvs.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, 'int')).")" : "= ".(int)$project_id)."
+			WHERE pvs.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, TYPE_INTEGER)).")" : "= ".(int)$project_id)."
 				".(($visual_settings_id || $is_user_default) && !is_array($visual_settings_id) ? "AND pvs.id = ".(int)$visual_settings_id : "")."
-				".($visual_settings_id && is_array($visual_settings_id) ? "AND pvs.id IN (".implode(',', arrParseRecursive($visual_settings_id, 'int')).")" : "")."
+				".($visual_settings_id && is_array($visual_settings_id) ? "AND pvs.id IN (".implode(',', arrParseRecursive($visual_settings_id, TYPE_INTEGER)).")" : "")."
 				".($user_id ? "AND (pvs.user_id = 0 OR pvs.user_id = ".(int)$user_id.")" : "")."
 				".(!$user_id && !$visual_settings_id ? "AND pvs.user_id = 0" : "")."
 			ORDER BY pvs.name, pvs.user_id
@@ -1179,7 +1183,7 @@ class cms_nodegoat_custom_projects extends base_module {
 		if (($condition_id || $is_user_default) && !is_array($condition_id)) {
 			$sql_condition_id = "AND pc.id = ".(int)$condition_id;
 		} else if ($condition_id && is_array($condition_id)) {
-			$sql_condition_id = "AND pc.id IN (".implode(',', arrParseRecursive($condition_id, 'int')).")";
+			$sql_condition_id = "AND pc.id IN (".implode(',', arrParseRecursive($condition_id, TYPE_INTEGER)).")";
 		}
 		if ($arr_use_project_ids) {
 			$sql_use_project_id = "AND (pc.id != 0 OR pc.project_id = ".(int)$project_id.")"; // User default conditions (id 0) are only valid within the specified project
@@ -1197,7 +1201,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONDITIONS')." pc
 				LEFT JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p ON (p.id = pc.project_id)
 			WHERE (
-					".($project_id ? "pc.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, 'int')).")" : "= ".(int)$project_id) : "")."
+					".($project_id ? "pc.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, TYPE_INTEGER)).")" : "= ".(int)$project_id) : "")."
 					".($is_domain ? ($project_id ? "OR " : "")."pc.project_id = 0" : '')."
 				)
 				AND (p.id != 0 OR pc.project_id = 0)
@@ -1373,7 +1377,10 @@ class cms_nodegoat_custom_projects extends base_module {
 		
 		$arr_columns_conflict = ['name', 'description'];
 		$arr_columns_conflict = array_merge($arr_columns_conflict, array_keys($arr_sql_store));
-
+		
+		
+		$sql_new_id = "JOIN ".DB::getTable($table_name)." pfeat ON (pfeat.project_id = p.id)";
+		
 		$res = DB::query("INSERT INTO ".DB::getTable($table_name)."
 			(project_id, user_id, id, type_id, name, description,
 				".implode(',', array_keys($arr_sql_store))."
@@ -1384,9 +1391,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				".(int)$user_id.",
 				".($feature_id || $is_user_default ? (int)$feature_id : "(SELECT * FROM (SELECT COALESCE(MAX(pfeat.id), 0)+1
 							FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
-							JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p2 ON (p2.user_id = p.user_id)
-							JOIN ".DB::getTable($table_name)." pfeat ON (pfeat.project_id = p2.id)
-						WHERE p.id = ".(int)$project_id."
+							".$sql_new_id."
 					) AS pid
 				)").",
 				".(int)$type_id.",
@@ -1435,9 +1440,9 @@ class cms_nodegoat_custom_projects extends base_module {
 		$res = DB::query("SELECT pfeat.*, p.name AS project_name
 				FROM ".DB::getTable($table_name)." pfeat
 				JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p ON (p.id = pfeat.project_id)
-			WHERE pfeat.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, 'int')).")" : "= ".(int)$project_id)."
+			WHERE pfeat.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, TYPE_INTEGER)).")" : "= ".(int)$project_id)."
 				".(($feature_id || $is_user_default) && !is_array($feature_id) ? "AND pfeat.id = ".(int)$feature_id : "")."
-				".($feature_id && is_array($feature_id) ? "AND pfeat.id IN (".implode(',', arrParseRecursive($feature_id, 'int')).")" : "")."
+				".($feature_id && is_array($feature_id) ? "AND pfeat.id IN (".implode(',', arrParseRecursive($feature_id, TYPE_INTEGER)).")" : "")."
 				".($user_id ? "AND (pfeat.user_id = 0 OR pfeat.user_id = ".(int)$user_id.")" : "")."
 				".(!$user_id && !$feature_id ? "AND pfeat.user_id = 0" : "")."
 				".($type_id ? "AND pfeat.type_id = ".(int)$type_id : "")."
@@ -1496,7 +1501,10 @@ class cms_nodegoat_custom_projects extends base_module {
 				$scenario_id = false;
 			}
 		}
-				
+		
+		
+		$sql_new_id = "JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_SCENARIOS')." psc ON (psc.project_id = p.id)";
+		
 		$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_SCENARIOS')."
 			(project_id, user_id, id, name, type_id, description, attribution, filter_id, filter_use_current, scope_id, scope_use_current, condition_id, condition_use_current, context_id, context_use_current, frame_id, frame_use_current, visual_settings_id, visual_settings_use_current, analysis_id, analysis_use_current, analysis_context_id, analysis_context_use_current, cache_retain)
 				VALUES 
@@ -1505,9 +1513,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				".(int)$user_id.",
 				".($scenario_id ? (int)$scenario_id : "(SELECT * FROM (SELECT COALESCE(MAX(psc.id), 0)+1
 							FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
-							JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p2 ON (p2.user_id = p.user_id)
-							JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_SCENARIOS')." psc ON (psc.project_id = p2.id)
-						WHERE p.id = ".(int)$project_id."
+							".$sql_new_id."
 					) AS pid
 				)").",
 				'".DBFunctions::strEscape($arr['name'])."',
@@ -1583,9 +1589,9 @@ class cms_nodegoat_custom_projects extends base_module {
 		$res = DB::query("SELECT psc.*, p.name AS project_name
 					FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_SCENARIOS')." psc
 					JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p ON (p.id = psc.project_id)
-				WHERE psc.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, 'int')).")" : "= ".(int)$project_id)."
+				WHERE psc.project_id ".($arr_use_project_ids ? "IN (".(int)$project_id.", ".implode(',', arrParseRecursive($arr_use_project_ids, TYPE_INTEGER)).")" : "= ".(int)$project_id)."
 					".($scenario_id && !is_array($scenario_id) ? "AND psc.id = ".(int)$scenario_id : "")."
-					".($scenario_id && is_array($scenario_id) ? "AND psc.id IN (".implode(',', arrParseRecursive($scenario_id, 'int')).")" : "")."
+					".($scenario_id && is_array($scenario_id) ? "AND psc.id IN (".implode(',', arrParseRecursive($scenario_id, TYPE_INTEGER)).")" : "")."
 					".($user_id ? "AND (psc.user_id = 0 OR psc.user_id = ".(int)$user_id.")" : "")."
 					".(!$user_id && !$scenario_id ? "AND psc.user_id = 0" : "")."
 					".($type_id ? "AND psc.type_id = ".(int)$type_id : "")."
@@ -1760,7 +1766,7 @@ class cms_nodegoat_custom_projects extends base_module {
 									unset($arr_source_user_ids[3][$user_id]); // Any match (source = 3) has been matched!
 									
 									Labels::setVariable('name', $arr_project_type_filter['label']);
-									Labels::setVariable('link', pages::getModUrl(pages::getClosestMod('data_entry'), false, ['project.v', $project_id]).'filter.v/'.$filter_id);
+									Labels::setVariable('link', pages::getModuleURL(pages::getClosestModule('data_entry'), false, ['project.v', $project_id]).'filter.v/'.$filter_id);
 									cms_messaging::sendMessage('filter_'.$project_id.'_'.$filter_id, 0, getLabel('msg_filter_notify_title', 'L', true), getLabel('msg_filter_notify', 'L', true), $user_id, false, ['individual' => true, 'limit' => 15]);
 								
 									$arr_updated_types_projects_filters_users[$type_id][$project_id][$filter_id][$user_id] = true;

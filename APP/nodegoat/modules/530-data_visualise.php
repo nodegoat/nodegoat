@@ -5,7 +5,7 @@
  * Copyright (C) 2023 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
- *
+ * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
@@ -61,7 +61,7 @@ class data_visualise extends base_module {
 			<div>
 
 				<div class="options scope">
-					'.data_model::createTypeNetwork($type_id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => 'scope', 'descriptions' => 'combine']).'
+					'.data_model::createTypeNetwork($type_id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => 'scope', 'descriptions' => 'full']).'
 				</div>
 				
 			</div>
@@ -113,7 +113,7 @@ class data_visualise extends base_module {
 									
 									$arr_scenarios = ($arr_include['type_id'] ? cms_nodegoat_custom_projects::getProjectTypeScenarios($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $arr_include['type_id'], false, $arr_use_project_ids) : []);
 									
-									$unique = uniqid('array_');
+									$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 									
 									$arr_sorter[] = [
 										'value' => '<div id="y:data_visualise:select_context_include_type-0">'
@@ -167,10 +167,10 @@ class data_visualise extends base_module {
 							<li><label>'.getLabel('lbl_latitude').'</label><span><input name="frame[area][geo][latitude]" type="text" value="'.$arr_frame['area']['geo']['latitude'].'" /></span></li>
 							<li><label>'.getLabel('lbl_longitude').'</label><input name="frame[area][geo][longitude]" type="text" value="'.$arr_frame['area']['geo']['longitude'].'" /></li>
 							<li><label></label><span><input type="button" class="data add" id="y:data_filter:select_geometry-0" value="map" /></span></li>
-							<li><label>'.getLabel('lbl_scale').'</label><div><span>1 pixel = </span><input name="frame[area][geo][zoom][scale]" type="number" value="'.$arr_frame['area']['geo']['zoom']['scale'].'" /><span> '.getLabel('unit_meter').' (equatorial)</span></div></li>
+							<li><label>'.getLabel('lbl_scale').'</label><div><label>1 pixel =</label></span><input name="frame[area][geo][zoom][scale]" type="number" value="'.$arr_frame['area']['geo']['zoom']['scale'].'" /><label>'.getLabel('unit_meter').' (equatorial)</label></div></li>
 							<li><label>'.getLabel('lbl_zoom_level').'</label><div>'
-								.'<label>'.getLabel('lbl_min').'</label><input name="frame[area][geo][zoom][min]" type="number" value="'.$arr_frame['area']['geo']['zoom']['min'].'" min="1" max="30" placeholder="1" />'
-								.'<label>'.getLabel('lbl_max').'</label><input name="frame[area][geo][zoom][max]" type="number" value="'.$arr_frame['area']['geo']['zoom']['max'].'" min="1" max="30" placeholder="18" />'
+								.'<label>'.getLabel('lbl_minimum').'</label><input name="frame[area][geo][zoom][min]" type="number" value="'.$arr_frame['area']['geo']['zoom']['min'].'" min="1" max="30" placeholder="1" />'
+								.'<label>'.getLabel('lbl_maximum').'</label><input name="frame[area][geo][zoom][max]" type="number" value="'.$arr_frame['area']['geo']['zoom']['max'].'" min="1" max="30" placeholder="18" />'
 							.'</div></li>
 						</ul></fieldset>
 						
@@ -183,8 +183,8 @@ class data_visualise extends base_module {
 							<li><label>'.getLabel('lbl_focus').'</label><span><input type="hidden" name="frame[area][social][object_id]" value="'.$arr_frame['area']['social']['object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$type_id.'" class="autocomplete" value="'.$area_social_object_name.'" /></span></li>
 							<li><label>'.getLabel('lbl_zoom_level').'</label><div><input type="range" min="1" max="100" step="1" /><input type="number" name="frame[area][social][zoom][level]" value="'.$arr_frame['area']['social']['zoom']['level'].'" /><label>%</label></div></li>
 							<li><label>'.getLabel('lbl_zoom_level').'</label><div>'
-								.'<label>'.getLabel('lbl_min').'</label><input name="frame[area][social][zoom][min]" type="number" value="'.$arr_frame['area']['social']['zoom']['min'].'" min="-15" max="10" placeholder="-7" />'
-								.'<label>'.getLabel('lbl_max').'</label><input name="frame[area][social][zoom][max]" type="number" value="'.$arr_frame['area']['social']['zoom']['max'].'" min="-15" max="10" placeholder="7" />'
+								.'<label>'.getLabel('lbl_minimum').'</label><input name="frame[area][social][zoom][min]" type="number" value="'.$arr_frame['area']['social']['zoom']['min'].'" min="-15" max="10" placeholder="-7" />'
+								.'<label>'.getLabel('lbl_maximum').'</label><input name="frame[area][social][zoom][max]" type="number" value="'.$arr_frame['area']['social']['zoom']['max'].'" min="-15" max="10" placeholder="7" />'
 							.'</div></li>
 						</ul></fieldset>
 						
@@ -455,7 +455,7 @@ class data_visualise extends base_module {
 					<fieldset>
 						<ul>
 							<li><label>'.getLabel('lbl_form').'</label><div>'
-								.'<textarea name="plain">'.($arr_scope ? value2JSON($arr_scope, JSON_PRETTY_PRINT) : '').'</textarea>'
+								.'<textarea name="plain" placeholder="'.getLabel('lbl_scope_advanced_input').'">'.($arr_scope ? value2JSON($arr_scope, JSON_PRETTY_PRINT) : '').'</textarea>'
 							.'</div></li>
 						</ul>
 					</fieldset>
@@ -1527,6 +1527,8 @@ class data_visualise extends base_module {
 				}
 			}
 			
+			$str_html_tabs = '';
+			
 			if ($arr_type_objects) {
 
 				$arr_html_tabs = [];
@@ -1547,41 +1549,43 @@ class data_visualise extends base_module {
 										
 					$arr_html_tabs['links'][$cur_type_id] = '<li><a href="#tab-review-'.$cur_type_id.'">'.Labels::parseTextVariables($arr_type['name']).'</a></li>';
 					
-					$return_tab = '<div id="tab-review-'.$cur_type_id.'">';
+					$str_html_tab = '<div id="tab-review-'.$cur_type_id.'">';
 					
 					if (count($arr_objects) == 1) {
 						
-						$return_tab .= data_view::createViewTypeObject($cur_type_id, key($arr_objects));
+						$str_html_tab .= data_view::createViewTypeObject($cur_type_id, key($arr_objects));
 					} else {
 						
-						$return_tab .= data_view::createViewTypeObjects($cur_type_id, [], true);
+						$str_html_tab .= data_view::createViewTypeObjects($cur_type_id, [], true);
 					}
 					
-					$return_tab .= '</div>';
+					$str_html_tab .= '</div>';
 					
-					$arr_html_tabs['content'][$cur_type_id] = $return_tab;
+					$arr_html_tabs['content'][$cur_type_id] = $str_html_tab;
 				}
 				
-				if ($arr_value['info_box']['name']) {
-					$name = $arr_value['info_box']['name'];
-				} else {
-					$name = getLabel('lbl_in_selection');
-				}
-				
-				$this->html = '<div class="review_data_selection data_viewer">
-					<h1>'.$name.'</h1>
-					<div class="record"><dl>
-						'.($arr_value['object_id'] ? '<li><dt>'.getLabel('lbl_object').'</dt><dd>'.data_view::createTypeObjectLink($arr_value['type_id'], $arr_value['object_id'], $name).'</dd></li>' : '').'
-						'.($arr_value['date_range'] ? '<li><dt>'.getLabel('lbl_date_range').'</dt><dd>'.StoreTypeObjects::formatToCleanValue('date', $arr_value['date_range']['min']).' - '.StoreTypeObjects::formatToCleanValue('date', $arr_value['date_range']['max']).'</dd></li>' : '').'
-					</dl></div>
-					<div class="tabs">
-						<ul>
-							'.implode('', $arr_html_tabs['links']).'
-						</ul>
-						'.implode('', $arr_html_tabs['content']).'
-					</div>
+				$str_html_tabs = '<div class="tabs">
+					<ul>
+						'.implode('', $arr_html_tabs['links']).'
+					</ul>
+					'.implode('', $arr_html_tabs['content']).'
 				</div>';
 			}
+			
+			if ($arr_value['info_box']['name']) {
+				$str_name = $arr_value['info_box']['name'];
+			} else {
+				$str_name = getLabel('lbl_in_selection');
+			}
+			
+			$this->html = '<div class="review_data_selection data_viewer">
+				<h1>'.$str_name.'</h1>
+				<div class="record"><dl>
+					'.($arr_value['object_id'] ? '<li><dt>'.getLabel('lbl_object').'</dt><dd>'.data_view::createTypeObjectLink($arr_value['type_id'], $arr_value['object_id'], $str_name).'</dd></li>' : '').'
+					'.($arr_value['date_range'] ? '<li><dt>'.getLabel('lbl_date_range').'</dt><dd>'.StoreTypeObjects::formatToCleanValue('date', $arr_value['date_range']['min']).' - '.StoreTypeObjects::formatToCleanValue('date', $arr_value['date_range']['max']).'</dd></li>' : '').'
+				</dl></div>
+				'.$str_html_tabs.'
+			</div>';
 		}
 		
 		if ($method == "store_scope") {
@@ -1625,7 +1629,7 @@ class data_visualise extends base_module {
 				$arr_scope = data_model::parseTypeNetwork($arr_scope);
 			}
 
-			$this->html = data_model::createTypeNetwork($id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => 'scope', 'descriptions' => 'combine']);
+			$this->html = data_model::createTypeNetwork($id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => 'scope', 'descriptions' => 'full']);
 		}
 		
 		if ($method == "select_context_include_type") {
@@ -1750,7 +1754,7 @@ class data_visualise extends base_module {
 						
 			$trace = new TraceTypesNetwork(array_keys($arr_project['types']), true, true);
 			$trace->filterTypesNetwork($arr_scope['paths']);
-			$trace->run($type_id, false, 3);
+			$trace->run($type_id, false, cms_nodegoat_details::$num_network_trace_depth);
 			$arr_type_network_paths = $trace->getTypeNetworkPaths(true);
 		} else {
 			$arr_type_network_paths = ['start' => [$type_id => ['path' => [0]]]];
@@ -1926,7 +1930,7 @@ class data_visualise extends base_module {
 					
 					foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 						
-						if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
+						if (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, $object_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
 							continue;
 						}
 						
