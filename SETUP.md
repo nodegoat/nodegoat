@@ -2,7 +2,7 @@
 
 ## 1100CC & nodegoat
 
-Make sure 1100CC is configured or your server and a new SITE named 'nodegoat' has been added and setup (see the [1100CC SETUP](https://github.com/LAB1100/1100CC/blob/master/SETUP.md) instructions).
+Make sure 1100CC is configured or your server and a new SITE named 'nodegoat' has been added and setup (see the [1100CC SETUP](https://github.com/LAB1100/1100CC/blob/master/SETUP.md) instructions and do not source the `SITE_cms.default.sql` file as it is used for the exemplary site and not nodegoat).
 
 Update the new nodegoat setup with this repository:
 1. Overwrite the new `./APP/nodegoat` and  `./APP/SETTINGS/nodegoat` directories in your 1100CC directory with the `./APP/nodegoat` and `./APP/SETTINGS/nodegoat` directories from this repository.
