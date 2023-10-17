@@ -12,7 +12,11 @@ Update the new nodegoat setup with this repository:
 1. Compile nodegoat's services, see [Programs](SETUP.md#programs).
 1. Login to your nodegoat CMS (cms.yournodegoathost.com), go to User Management, and add a new user to 'User' with the appropriate page clearances (see the [1100CC Guides](https://lab1100.com/1100cc/guides#create-user)).
 1. You can now login with your new user account to your nodegoat HOME (yournodegoathost.com).
-1. Login to your nodegoat CMS, go to Jobs, and make sure the Job Scheduler is running (see the [1100CC Guides](https://lab1100.com/1100cc/guides#run-jobs)).
+1. Configure the 1100CC Jobs for nodegoat, see [Jobs](SETUP.md#jobs).
+
+### Jobs
+1. Login to your nodegoat CMS, go to Jobs, and make sure the Jobs process is running (see the [1100CC Guides](https://lab1100.com/1100cc/guides#run-jobs)).
+1. Run 'nodegoat Object Cache (Reset)' manually once to prepare nodegoat's default routines.
 
 ## Database
 
@@ -72,7 +76,7 @@ cd /var/1100CC/PROGRAMS
 When a program is compiled successfully, the path `var/1100CC/PROGRAMS/RUN/graph_analysis` is returned and is ready to be used.
 
 Setup a Job to run the service:
-1. Login to your nodegoat CMS and go to 'Jobs' (see the [1100CC Guides](https://lab1100.com/1100cc/guides#run-jobs)).
+1. See [Jobs](SETUP.md#jobs) for the initial setup.
 1. Find the job 'nodegoat Analysis Service'.
 1. Set a port e.g. '44444' by editing its options. The service listens to your localhost.
 1. Set the timing to 'Always'.
