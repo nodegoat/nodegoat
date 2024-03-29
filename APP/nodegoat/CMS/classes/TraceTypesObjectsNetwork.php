@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -84,19 +84,19 @@ class TraceTypesObjectsNetwork {
 							
 							if ($in_out == 'out') {
 								if ($arr_connection['use_object_description_id']) {
-									$sql .= " LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable('type')." to_def_".$ref_unique_id." ON (to_def_".$ref_unique_id.".object_id IN (".$sql_source_tables.") AND to_def_".$ref_unique_id.".object_description_id = ".$arr_connection['use_object_description_id'].")";
+									$sql .= " LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable(StoreType::getTypeObjectDescriptionValueType($arr_connection['type_id'], $arr_connection['use_object_description_id']))." to_def_".$ref_unique_id." ON (to_def_".$ref_unique_id.".object_id IN (".$sql_source_tables.") AND to_def_".$ref_unique_id.".object_description_id = ".$arr_connection['use_object_description_id'].")";
 									$ref_table = 'to_def_'.$ref_unique_id.'.ref_object_id';
 								} else {
 									$sql .= " LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." tos_".$ref_unique_id." ON (tos_".$ref_unique_id.".object_id IN (".$sql_source_tables."))
-										JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').StoreType::getValueTypeTable('type')." tos_def_".$ref_unique_id." ON (tos_def_".$ref_unique_id.".object_sub_id = tos_".$ref_unique_id.".id AND tos_def_".$ref_unique_id.".object_sub_description_id = ".$object_sub_description_id.")";
+										JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').StoreType::getValueTypeTable(StoreType::getTypeObjectSubDescriptionValueType($arr_connection['type_id'], $object_sub_details_id, $object_sub_description_id))." tos_def_".$ref_unique_id." ON (tos_def_".$ref_unique_id.".object_sub_id = tos_".$ref_unique_id.".id AND tos_def_".$ref_unique_id.".object_sub_description_id = ".$object_sub_description_id.")";
 									$ref_table = 'tos_def_'.$ref_unique_id.'.ref_object_id';
 								}
 							} else {
 								if ($arr_connection['use_object_description_id']) {
-									$sql .= " LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable('type')." to_def_".$ref_unique_id." ON (to_def_".$ref_unique_id.".ref_object_id IN (".$sql_source_tables.") AND to_def_".$ref_unique_id.".object_description_id = ".$arr_connection['use_object_description_id'].")";
+									$sql .= " LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable(StoreType::getTypeObjectDescriptionValueType($arr_connection['ref_type_id'], $arr_connection['use_object_description_id']))." to_def_".$ref_unique_id." ON (to_def_".$ref_unique_id.".ref_object_id IN (".$sql_source_tables.") AND to_def_".$ref_unique_id.".object_description_id = ".$arr_connection['use_object_description_id'].")";
 									$ref_table = 'to_def_'.$ref_unique_id.'.object_id';
 								} else {
-									$sql .= " LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').StoreType::getValueTypeTable('type')." tos_def_".$ref_unique_id." ON (tos_def_".$ref_unique_id.".ref_object_id IN (".$sql_source_tables.") AND tos_def_".$ref_unique_id.".object_sub_description_id = ".$object_sub_description_id.")
+									$sql .= " LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').StoreType::getValueTypeTable(StoreType::getTypeObjectSubDescriptionValueType($arr_connection['ref_type_id'], $object_sub_details_id, $object_sub_description_id))." tos_def_".$ref_unique_id." ON (tos_def_".$ref_unique_id.".ref_object_id IN (".$sql_source_tables.") AND tos_def_".$ref_unique_id.".object_sub_description_id = ".$object_sub_description_id.")
 										JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." tos_".$ref_unique_id." ON (tos_".$ref_unique_id.".id = tos_def_".$ref_unique_id.".object_sub_id)";
 									$ref_table = 'tos_'.$ref_unique_id.'.object_id';
 								}
@@ -112,10 +112,10 @@ class TraceTypesObjectsNetwork {
 						$table_name = 'to_def_'.implode('_', $arr_connection['path']).'_'.$arr_connection['ref_type_id'].'_'.$object_description_id;
 						
 						if ($in_out == 'out') {
-							$sql .= " LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable('type')." ".$table_name." ON (".$table_name.".object_id IN (".$sql_source_tables.") AND ".$table_name.".object_description_id = ".$object_description_id.")";
+							$sql .= " LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable(StoreType::getTypeObjectDescriptionValueType($arr_connection['type_id'], $object_description_id))." ".$table_name." ON (".$table_name.".object_id IN (".$sql_source_tables.") AND ".$table_name.".object_description_id = ".$object_description_id.")";
 							$ref_table = $table_name.'.ref_object_id';
 						} else {
-							$sql .= " LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable('type')." ".$table_name." ON (".$table_name.".ref_object_id IN (".$sql_source_tables.") AND ".$table_name.".object_description_id = ".$object_description_id.")";
+							$sql .= " LEFT JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable(StoreType::getTypeObjectDescriptionValueType($arr_connection['ref_type_id'], $object_description_id))." ".$table_name." ON (".$table_name.".ref_object_id IN (".$sql_source_tables.") AND ".$table_name.".object_description_id = ".$object_description_id.")";
 							$ref_table = $table_name.'.object_id';
 						}
 						$arr_tables[] = $ref_table;

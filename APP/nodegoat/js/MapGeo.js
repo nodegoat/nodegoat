@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -478,9 +478,9 @@ function MapGeo(elm_draw, PARENT, options) {
 						
 				var arr_media = [];
 				
-				for (var key in arr_data.legend.conditions) {
+				for (const key in arr_data.legend.conditions) {
 					
-					var arr_condition = arr_data.legend.conditions[key];
+					const arr_condition = arr_data.legend.conditions[key];
 					
 					if (arr_condition.icon) {			
 						arr_media.push(arr_condition.icon);
@@ -499,13 +499,13 @@ function MapGeo(elm_draw, PARENT, options) {
 						
 						if (display == DISPLAY_PIXEL) {
 							
-							for (var i = 0, len = arr_media.length; i < len; i++) {
+							for (let i = 0, len = arr_media.length; i < len; i++) {
 							
-								var resource = arr_media[i];
-								var arr_medium = ASSETS.getMedia(resource);
-								var elm_image = arr_medium.image.cloneNode(false);
+								const resource = arr_media[i];
+								const arr_medium = ASSETS.getMedia(resource);
+								const elm_image = arr_medium.image.cloneNode(false);
 								
-								var texture = new PIXI.Texture.from(elm_image);
+								const texture = PIXI.Texture.from(elm_image);
 								
 								arr_assets_texture_icons[resource] = {texture: texture, width: arr_medium.width, height: arr_medium.height};
 							}
@@ -2926,11 +2926,11 @@ function MapGeo(elm_draw, PARENT, options) {
 									
 									const x = Math.floor(arr_object_sub_dot.xy_geometry_center.x - pos_offset_x);
 									const y = Math.floor(arr_object_sub_dot.xy_geometry_center.y - pos_offset_y);
-									const num_size_r = arr_hint[2];
+									const num_size_radius = arr_hint[2];
 									
 									const calc = TWEEN.Easing.Sinusoidal.In(time_elapsed);
 									
-									const calc_scale = 1 + (((num_size_r + size_hint) / num_size_r) - 1) * calc;
+									const calc_scale = 1 + (((num_size_radius + size_hint) / num_size_radius) - 1) * calc;
 									const calc_opacity = opacity_hint + (0 - opacity_hint) * calc;
 									const calc_opacity_stroke = opacity_hint_stroke + (0 - opacity_hint_stroke) * calc;
 									
@@ -2941,7 +2941,7 @@ function MapGeo(elm_draw, PARENT, options) {
 									if (width_hint_stroke) {
 										elm.lineStyle(width_hint_stroke, stroke_color, calc_opacity_stroke);
 									}
-									elm.drawCircle(x, y, num_size_r * calc_scale);
+									elm.drawCircle(x, y, num_size_radius * calc_scale);
 									elm.endFill();
 								} else {
 									
@@ -3078,17 +3078,17 @@ function MapGeo(elm_draw, PARENT, options) {
 									
 									const x = Math.floor(arr_object_sub_dot.xy_geometry_center.x - pos_offset_x);
 									const y = Math.floor(arr_object_sub_dot.xy_geometry_center.y - pos_offset_y);
-									const num_size_r = arr_hint[2];
+									const num_size_radius = arr_hint[2];
 									
 									const calc = TWEEN.Easing.Sinusoidal.In(time_elapsed);
 									
-									const calc_scale = 1 + (((num_size_r + size_hint) / num_size_r) - 1) * calc;
+									const calc_scale = 1 + (((num_size_radius + size_hint) / num_size_radius) - 1) * calc;
 									const calc_opacity = opacity_hint + (0 - opacity_hint) * calc;
 									const calc_opacity_stroke = opacity_hint_stroke + (0 - opacity_hint_stroke) * calc;
 									
 									elm.setAttribute('cx', x);
 									elm.setAttribute('cy', y);
-									elm.setAttribute('r', num_size_r * calc_scale);								
+									elm.setAttribute('r', num_size_radius * calc_scale);								
 									if (opacity_hint) {
 										elm.style.fillOpacity = calc_opacity;
 									}
@@ -3197,10 +3197,10 @@ function MapGeo(elm_draw, PARENT, options) {
 							const dy = arr_object_sub_dot.xy_geometry_center.y - pos_hover_poll.y;
 							const distance_squared = dx * dx + dy * dy;
 							
-							let size = arr_object_sub_dot.obj_settings.size;
-							size = (size < 5 ? 5 : size);
+							let num_size = arr_object_sub_dot.obj_settings.size / 2 + width_dot_stroke;
+							num_size = (num_size < 5 ? 5 : num_size);
 							
-							const radius_squared = (size + offset_info_hover) * (size + offset_info_hover);
+							const radius_squared = (num_size + offset_info_hover) * (num_size + offset_info_hover);
 
 							if (distance_squared < radius_squared) {
 									
@@ -3209,7 +3209,7 @@ function MapGeo(elm_draw, PARENT, options) {
 									count_info_show_object_sub_dots_hover++;
 									arr_object_sub_dot.info_hover = true;
 									
-									/*radius_squared = size * size;
+									/*radius_squared = num_size * num_size;
 									
 									if (distance_squared < radius_squared) {
 										elm_target = arr_object_sub_dot;
@@ -4639,20 +4639,20 @@ function MapGeo(elm_draw, PARENT, options) {
 		
 		if (display == DISPLAY_PIXEL) {
 
-			var count_line = (info_mode == 'hover' ? count_info_show_object_sub_lines_hover : count_info_show_object_sub_lines);
-			do_show_info_line = (show_info_line && count_line && (show_info_line === true || count_line < show_info_line));
+			const num_count_line = (info_mode == 'hover' ? count_info_show_object_sub_lines_hover : count_info_show_object_sub_lines);
+			do_show_info_line = (show_info_line && num_count_line && (show_info_line === true || num_count_line < show_info_line));
 			
-			var count_dot = (info_mode == 'hover' ? count_info_show_object_sub_dots_hover : count_info_show_object_sub_dots);
-			do_show_info_dot = (show_info_dot && count_dot && (show_info_dot === true || count_dot < show_info_dot));
+			const num_count_dot = (info_mode == 'hover' ? count_info_show_object_sub_dots_hover : count_info_show_object_sub_dots);
+			do_show_info_dot = (show_info_dot && num_count_dot && (show_info_dot === true || num_count_dot < show_info_dot));
 			
-			if ((show_info_line && count_line && !do_show_info_line) || (show_info_dot && count_dot && !do_show_info_dot)) { // Do not show either when one reached the limit
+			if ((show_info_line && num_count_line && !do_show_info_line) || (show_info_dot && num_count_dot && !do_show_info_dot)) { // Do not show either when one reached the limit
 				do_show_info_line = false;
 				do_show_info_dot = false;
 			}
 			
 			if (do_show_info_line) {
 				
-				var is_new = false;
+				let is_new = false;
 				
 				if (!elm_container_info_lines) {
 					
@@ -4664,11 +4664,11 @@ function MapGeo(elm_draw, PARENT, options) {
 					elm_plot_between.addChild(elm_container_info_lines);
 				}
 
-				var arr_loop = arr_loop_object_sub_lines.arr_loop;
+				const arr_loop = arr_loop_object_sub_lines.arr_loop;
 				
-				for (var i = 0, len = arr_loop.length; i < len; i++) {
+				for (let i = 0, len = arr_loop.length; i < len; i++) {
 					
-					var arr_object_sub_lines_locate = arr_loop[i];
+					const arr_object_sub_lines_locate = arr_loop[i];
 					
 					if (info_mode == 'all' && arr_object_sub_lines_locate.updated != count_loop && !redraw) {
 						continue;
@@ -4676,13 +4676,13 @@ function MapGeo(elm_draw, PARENT, options) {
 					
 					if (!arr_object_sub_lines_locate.count_info_show || (info_mode == 'hover' && !arr_object_sub_lines_locate.info_hover)) {
 						
-						var arr_obj_info = arr_object_sub_lines_locate.arr_obj_info;
+						const arr_obj_info = arr_object_sub_lines_locate.arr_obj_info;
 						
 						if (arr_obj_info) {
 
-							for (var j = 0, len_j = arr_obj_info.length; j < len_j; j++) {
+							for (let j = 0, len_j = arr_obj_info.length; j < len_j; j++) {
 
-								var obj_info = arr_obj_info[j];
+								const obj_info = arr_obj_info[j];
 								
 								if (!is_new) {
 									elm_container_info_lines.removeChild(obj_info.elm);
@@ -4694,18 +4694,22 @@ function MapGeo(elm_draw, PARENT, options) {
 						continue;
 					}
 					
-					var angle = false;
+					let num_angle = null;
 					
 					arr_object_sub_lines_locate.arr_obj_info = false;
 					arr_obj_info = [];
 					
-					var arr_loop_loc = arr_object_sub_lines_locate.arr_con;
+					const arr_loop_loc = arr_object_sub_lines_locate.arr_con;
 					
-					for (var j = 0, len_j = arr_loop_loc.length; j < len_j; j++) {
+					let x_start = null;
+					let y_start = null;
+					let c = null;
+					
+					for (let j = 0, len_j = arr_loop_loc.length; j < len_j; j++) {
 						
-						var arr_object_sub_line = arr_loop_loc[j];
+						const arr_object_sub_line = arr_loop_loc[j];
 
-						var obj_info = arr_object_sub_line.obj_info;
+						const obj_info = arr_object_sub_line.obj_info;
 						
 						if (!arr_object_sub_line.info_show || (mode == MODE_MOVE && info_mode == 'all' && !obj_info.is_added && arr_object_sub_line.obj_move.percentage >= 0.05)) { // In mode move, do not begin to show info at already traveling instances in mode 'all'
 							
@@ -4720,87 +4724,96 @@ function MapGeo(elm_draw, PARENT, options) {
 							continue;
 						}
 
-						var identifier = arr_object_sub_line.count;
+						let identifier = arr_object_sub_line.count;
+						let align = '';
+						let valign = '';
 						
-						if (angle === false) {
+						if (num_angle === null) {
 						
-							var angle = arr_object_sub_lines_locate.obj_move_path.angle;
-						
-							if (angle > 270) {
-								var align = 'left';
-								var valign = 'bottom';
-							} else if (angle > 180) {
-								var align = 'right';
-								var valign = 'bottom';
-							} else if (angle > 90) {
-								var align = 'right';
-								var valign = 'top';
+							num_angle = arr_object_sub_lines_locate.obj_move_path.angle;
+								
+							if (num_angle > 270) {
+								align = 'left';
+								valign = 'bottom';
+							} else if (num_angle > 180) {
+								align = 'right';
+								valign = 'bottom';
+							} else if (num_angle > 90) {
+								align = 'right';
+								valign = 'top';
 							} else {
-								var align = 'left';
-								var valign = 'top';
+								align = 'left';
+								valign = 'top';
 							}
 							
-							var correction = ((4/90) * (90 * ((angle/90) - Math.floor(angle/90)))); // Perform small corrections to make the pointing corner align nicely
-							if ((angle < 270 && angle > 180) || (angle > 0 && angle < 90)) {
+							let correction = ((4/90) * (90 * ((num_angle/90) - Math.floor(num_angle/90)))); // Perform small corrections to make the pointing corner align nicely
+							if ((num_angle < 270 && num_angle > 180) || (num_angle > 0 && num_angle < 90)) {
 								correction = -correction;
 							} else {
 								correction = 4 - correction;
 							}
 							
-							var arr_path = arr_object_sub_lines_locate.arr_path;
-							var x_start = arr_path[0].x;
-							var y_start = arr_path[0].y;
-							var x_end = arr_path[1].x;
-							var y_end = arr_path[1].y;
+							const arr_path = arr_object_sub_lines_locate.arr_path;
+							x_start = arr_path[0].x;
+							y_start = arr_path[0].y;
+							const x_end = arr_path[1].x;
+							const y_end = arr_path[1].y;
 
-							var c = GeoUtilities.calcPointOffset(x_start, y_start, x_end, y_end, 10, correction/arr_object_sub_lines_locate.obj_move_path.length);
+							c = GeoUtilities.calcPointOffset(x_start, y_start, x_end, y_end, 10, correction/arr_object_sub_lines_locate.obj_move_path.length);
 						}
 
 						if (!obj_info.elm || obj_info.identifier != identifier) {
 							
-							var arr_object_subs = getObjectSubsLineDetails(arr_object_sub_line);
-							var dateinta_range_sub = arr_object_subs.dateinta_range;
-							var arr_first_object_sub = arr_object_subs.arr_first_object_sub;
-							var arr_first_connect_object_sub = arr_object_subs.arr_first_connect_object_sub;
+							const arr_object_subs = getObjectSubsLineDetails(arr_object_sub_line);
+							const dateinta_range_sub = arr_object_subs.dateinta_range;
+							const arr_first_object_sub = arr_object_subs.arr_first_object_sub;
+							const arr_first_connect_object_sub = arr_object_subs.arr_first_connect_object_sub;
 							
-							var date_range_sub_min = DATEPARSER.int2Date(DATEPARSER.dateIntAbsolute2DateInt(dateinta_range_sub.min));
-							var date_range_sub_max = DATEPARSER.int2Date(DATEPARSER.dateIntAbsolute2DateInt(dateinta_range_sub.max));
+							let str_date_start = '';
+							let str_date_end = '';
+							
+							const date_range_sub_min = DATEPARSER.int2Date(DATEPARSER.dateIntAbsolute2DateInt(dateinta_range_sub.min));
+							const date_range_sub_max = DATEPARSER.int2Date(DATEPARSER.dateIntAbsolute2DateInt(dateinta_range_sub.max));
 							if (date_range_sub_min.getFullYear() == -90000000000) {
-								var str_date_start = '-∞';
+								str_date_start = '-∞';
 							} else {
-								var str_date_start = DATEPARSER.date2StrDate(date_range_sub_min, settings_timeline.dating.show_ce);
+								str_date_start = DATEPARSER.date2StrDate(date_range_sub_min, settings_timeline.dating.show_ce);
 							}
 							if (date_range_sub_max.getFullYear() == 90000000000) {
-								var str_date_end = '∞';
+								str_date_end = '∞';
 							} else {
-								var str_date_end = DATEPARSER.date2StrDate(date_range_sub_max, settings_timeline.dating.show_ce);
+								str_date_end = DATEPARSER.date2StrDate(date_range_sub_max, settings_timeline.dating.show_ce);
 							}
 							
-							spacing_prefix = spacing_affix = '';
+							let spacing_prefix = '';
+							let spacing_affix = '';
 							if (align == 'left') {
 								spacing_prefix = '    ';
 							} else {
 								spacing_affix = '    ';
 							}
 							
-							var str_object = '';
-							var str_object_name = '';
-							var str_add = '';
+							let str_object = '';
+							let str_object_name = '';
+							let str_add = '';
+							let object_id = null;
+							let object_sub_details_id = null;
+							let arr_object_sub_definitions = null;
 							
 							if (arr_first_connect_object_sub) {
-								var object_id = arr_first_connect_object_sub.object_id;
-								var object_sub_details_id = arr_first_connect_object_sub.object_sub_details_id;
-								var arr_object_sub_definitions = arr_first_connect_object_sub.object_sub_definitions;
+								object_id = arr_first_connect_object_sub.object_id;
+								object_sub_details_id = arr_first_connect_object_sub.object_sub_details_id;
+								arr_object_sub_definitions = arr_first_connect_object_sub.object_sub_definitions;
 							} else {
-								var object_id = arr_first_object_sub.object_id;
-								var object_sub_details_id = arr_first_object_sub.object_sub_details_id;
-								var arr_object_sub_definitions = arr_first_object_sub.object_sub_definitions;
+								object_id = arr_first_object_sub.object_id;
+								object_sub_details_id = arr_first_object_sub.object_sub_details_id;
+								arr_object_sub_definitions = arr_first_object_sub.object_sub_definitions;
 							}
 
 							if (arr_object_sub_line.count > 1) {
 								
-								var type_id = arr_data.objects[object_id].type_id;
-								var first_object_type_id = (arr_first_connect_object_sub && arr_first_object_sub ? arr_data.objects[arr_first_object_sub.object_id].type_id : type_id);
+								const type_id = arr_data.objects[object_id].type_id;
+								const first_object_type_id = (arr_first_connect_object_sub && arr_first_object_sub ? arr_data.objects[arr_first_object_sub.object_id].type_id : type_id);
 								
 								if (align == 'left') {
 									str_object_name = arr_data.info.types[type_id].name+(first_object_type_id != type_id ? ' - '+arr_data.info.types[first_object_type_id].name : '')+' '+arr_object_sub_line.count+'x';
@@ -4818,15 +4831,15 @@ function MapGeo(elm_draw, PARENT, options) {
 								str_add = str_date_start+' ['+arr_data.info.object_sub_details[object_sub_details_id].object_sub_details_name+']'+spacing_affix;
 							}
 							
-							for (var key in arr_object_sub_definitions) {
+							for (const key in arr_object_sub_definitions) {
 								
-								var object_sub_definition = arr_object_sub_definitions[key];
+								const object_sub_definition = arr_object_sub_definitions[key];
 								
 								if (!object_sub_definition.value) {
 									continue;
 								}
 								
-								var object_sub_description_name = arr_data.info.object_sub_descriptions[object_sub_definition.description_id].object_sub_description_name; // Could be collapsed
+								const object_sub_description_name = arr_data.info.object_sub_descriptions[object_sub_definition.description_id].object_sub_description_name; // Could be collapsed
 								
 								str_add = str_add+'\n'+spacing_prefix+''+object_sub_definition.value+spacing_affix;
 							}
@@ -4855,15 +4868,15 @@ function MapGeo(elm_draw, PARENT, options) {
 									str_add = str_date_end+' ['+arr_data.info.object_sub_details[object_sub_details_id].object_sub_details_name+']'+spacing_affix;
 								}
 								
-								for (var key in arr_object_sub_definitions) {
+								for (const key in arr_object_sub_definitions) {
 									
-									var object_sub_definition = arr_object_sub_definitions[key];
+									const object_sub_definition = arr_object_sub_definitions[key];
 									
 									if (!object_sub_definition.value) {
 										continue;
 									}
 									
-									var object_sub_description_name = arr_data.info.object_sub_descriptions[object_sub_definition.description_id].object_sub_description_name; // Could be collapsed
+									const object_sub_description_name = arr_data.info.object_sub_descriptions[object_sub_definition.description_id].object_sub_description_name; // Could be collapsed
 									
 									str_add = str_add+'\n'+spacing_prefix+''+object_sub_definition.value+spacing_affix;
 								}
@@ -4874,15 +4887,18 @@ function MapGeo(elm_draw, PARENT, options) {
 									str_object = str_add+'\n'+(str_object_name ? str_object_name+'\n' : '')+str_object;
 								}
 							}
-
+							
+							let elm_info = null;
+							let elm_pointer = null;
+							
 							if (!obj_info.elm) {
 							
-								var elm_info = new PIXI.Container();
+								elm_info = new PIXI.Container();
 
-								var elm_text = new PIXI.Text(str_object, {fontSize: size_info, fontFamily: font_family, fill: color_info, align: align});
+								const elm_text = new PIXI.Text(str_object, {fontSize: size_info, fontFamily: font_family, fill: color_info, align: align});
 								elm_info.addChild(elm_text);
 								
-								var elm_pointer = new PIXI.Sprite(arr_assets_texture_info.pointer);
+								elm_pointer = new PIXI.Sprite(arr_assets_texture_info.pointer);
 								elm_info.addChild(elm_pointer);
 								
 								obj_info.elm = elm_info;
@@ -4890,9 +4906,9 @@ function MapGeo(elm_draw, PARENT, options) {
 								obj_info.elm_pointer = elm_pointer;
 							} else {
 								
-								var elm_info = obj_info.elm;
+								elm_info = obj_info.elm;
 								obj_info.elm_text.text = str_object;
-								var elm_pointer = obj_info.elm_pointer;
+								elm_pointer = obj_info.elm_pointer;
 							}
 
 							obj_info.x = Math.floor(c.x-x_start);
@@ -4900,25 +4916,35 @@ function MapGeo(elm_draw, PARENT, options) {
 							obj_info.width = Math.floor(elm_info.width);
 							obj_info.height = Math.floor(elm_info.height);
 							
+							let num_angle_info = -45;
+							
 							elm_pointer.position.x = -4
 							elm_pointer.position.y = -2;
-							if (angle > 270) {
+							if (num_angle > 270) {
 								obj_info.y -= obj_info.height;
 								elm_pointer.position.y = obj_info.height + 2;
 								elm_pointer.rotation = 270 * Math.PI/180;
-							} else if (angle > 180) {
+								num_angle_info = 270 + (3*45);
+							} else if (num_angle > 180) {
 								obj_info.x -= obj_info.width;
 								obj_info.y -= obj_info.height;
 								elm_pointer.position.x = obj_info.width + 4;
 								elm_pointer.position.y = obj_info.height + 2;
 								elm_pointer.rotation = 180 * Math.PI/180;
-							} else if (angle > 90) {
+								num_angle_info = 180 - 45;
+							} else if (num_angle > 90) {
 								obj_info.x -= obj_info.width;
 								elm_pointer.position.x = obj_info.width + 4;
 								elm_pointer.rotation = 90 * Math.PI/180;
+								num_angle_info = 90 + (3*45);
 							} else {
-								
+
 							}
+							
+							const num_radius = (arr_object_sub_line.obj_settings.size / 2);
+							const num_distance = 1;
+							obj_info.x += (num_radius * Math.cos(-num_angle_info*Math.PI/180) * num_distance);
+							obj_info.y += (num_radius * Math.sin(-num_angle_info*Math.PI/180) * num_distance);
 
 							obj_info.identifier = identifier;
 						}
@@ -4927,7 +4953,7 @@ function MapGeo(elm_draw, PARENT, options) {
 							
 							if (duration_move_info_min || duration_move_info_max) {
 								
-								var duration = arr_object_sub_line.obj_move.duration;
+								let duration = arr_object_sub_line.obj_move.duration;
 								if (duration_move_info_min && duration < duration_move_info_min) {
 									duration = duration_move_info_min;
 								} else if (duration_move_info_max && duration > duration_move_info_max) {
@@ -4969,7 +4995,7 @@ function MapGeo(elm_draw, PARENT, options) {
 						
 			if (do_show_info_dot) {
 
-				var is_new = false;
+				let is_new = false;
 				
 				if (!elm_container_info_dots) {
 					
@@ -4981,15 +5007,15 @@ function MapGeo(elm_draw, PARENT, options) {
 					elm_plot_between.addChild(elm_container_info_dots);
 				}
 				
-				for (var i = 0, len = arr_loop_object_sub_dots.length; i < len; i++) {
+				for (let i = 0, len = arr_loop_object_sub_dots.length; i < len; i++) {
 
-					var arr_object_sub_dot = arr_loop_object_sub_dots[i];
+					const arr_object_sub_dot = arr_loop_object_sub_dots[i];
 					
 					if (info_mode == 'all' && arr_object_sub_dot.updated != count_loop && !redraw) {
 						continue;
 					}
 						
-					var obj_info = arr_object_sub_dot.obj_info;
+					const obj_info = arr_object_sub_dot.obj_info;
 					
 					if (!arr_object_sub_dot.info_show || (info_mode == 'hover' && !arr_object_sub_dot.info_hover)) {
 						
@@ -5001,7 +5027,7 @@ function MapGeo(elm_draw, PARENT, options) {
 
 								if (info_mode == 'hover' && show_location) {
 									
-									var obj_location = arr_object_sub_dot.obj_location;
+									const obj_location = arr_object_sub_dot.obj_location;
 									
 									if (!obj_location.visible) {
 
@@ -5017,51 +5043,51 @@ function MapGeo(elm_draw, PARENT, options) {
 						continue;
 					}
 					
-					var identifier = arr_object_sub_dot.count;
-					var restart = false;
+					let identifier = arr_object_sub_dot.count;
+					let do_restart = false;
 
 					if (!obj_info.elm || obj_info.identifier != identifier) {
 
-						var arr_object_subs_dot_details = getObjectSubsDotDetails(arr_object_sub_dot);
+						const arr_object_subs_dot_details = getObjectSubsDotDetails(arr_object_sub_dot);
 				
-						var str_object = '';
+						let str_object = '';
 
-						var arr_view = arr_object_subs_dot_details.arr_view;
+						const arr_view = arr_object_subs_dot_details.arr_view;
 						
-						for (var type_id in arr_view.types) {
+						for (const type_id in arr_view.types) {
 														
-							var arr_view_type = arr_view.types[type_id];
+							const arr_view_type = arr_view.types[type_id];
 								
-							for (var object_sub_details_id in arr_view_type) {
+							for (const object_sub_details_id in arr_view_type) {
 
 								str_object = (str_object ? str_object+'\n' : '')+'['+arr_data.info.object_sub_details[object_sub_details_id].object_sub_details_name+']';
 								
-								var arr_view_type_object_sub = arr_view_type[object_sub_details_id];
+								const arr_view_type_object_sub = arr_view_type[object_sub_details_id];
 																	
-								var arr_view_type_object_sub_definitions = arr_view_type_object_sub.object_sub_definitions;
+								const arr_view_type_object_sub_definitions = arr_view_type_object_sub.object_sub_definitions;
 								
-								for (var object_sub_description_id in arr_view_type_object_sub_definitions) {
+								for (const object_sub_description_id in arr_view_type_object_sub_definitions) {
 									
-									var object_sub_description_name = arr_data.info.object_sub_descriptions[object_sub_description_id].object_sub_description_name; // Could be collapsed
+									const object_sub_description_name = arr_data.info.object_sub_descriptions[object_sub_description_id].object_sub_description_name; // Could be collapsed
 										
-									var arr_ref_objects = arr_view_type_object_sub_definitions[object_sub_description_id];
+									const arr_ref_objects = arr_view_type_object_sub_definitions[object_sub_description_id];
 									
-									var arr_sort = [];
-									for (var ref_object_id in arr_ref_objects) {
+									const arr_sort = [];
+									for (const ref_object_id in arr_ref_objects) {
 										arr_sort.push([ref_object_id, arr_ref_objects[ref_object_id].count]);
 									}
 									arr_sort.sort(function(a, b) {
 										return b[1] - a[1];
 									});
 									
-									var count = 0;
-									for (var j = 0, len_j = arr_sort.length; j < len_j; j++) {
+									let count = 0;
+									for (let j = 0, len_j = arr_sort.length; j < len_j; j++) {
 										
 										if (count > 3) {
 											break;
 										}
 										
-										var arr_ref_object = arr_ref_objects[arr_sort[j][0]];
+										const arr_ref_object = arr_ref_objects[arr_sort[j][0]];
 										
 										str_object = str_object+'\n'+stripHTMLTags(arr_ref_object.value)+(arr_ref_object.count > 1 ? ' ('+arr_ref_object.count+'x)' : '');
 										count++;
@@ -5072,28 +5098,28 @@ function MapGeo(elm_draw, PARENT, options) {
 									}
 								}
 								
-								var arr_view_type_object_sub_objects = arr_view_type_object_sub.objects;
+								const arr_view_type_object_sub_objects = arr_view_type_object_sub.objects;
 								
 								if (arr_view_type_object_sub_objects) {
 										
-									var arr_objects = arr_view_type_object_sub_objects;
+									const arr_objects = arr_view_type_object_sub_objects;
 									
-									var arr_sort = [];
-									for (var object_id in arr_objects) {
+									const arr_sort = [];
+									for (const object_id in arr_objects) {
 										arr_sort.push([object_id, arr_objects[object_id].count]);
 									}
 									arr_sort.sort(function(a, b) {
 										return b[1] - a[1];
 									});
 									
-									var count = 0;
-									for (var j = 0, len_j = arr_sort.length; j < len_j; j++) {
+									let count = 0;
+									for (let j = 0, len_j = arr_sort.length; j < len_j; j++) {
 										
 										if (count > 3) {
 											break;
 										}
 										
-										var arr_object = arr_objects[arr_sort[j][0]];
+										const arr_object = arr_objects[arr_sort[j][0]];
 										
 										str_object = str_object+'\n'+stripHTMLTags(arr_object.value)+(arr_object.count > 1 ? ' ('+arr_object.count+'x)' : '');
 										count++;
@@ -5106,32 +5132,32 @@ function MapGeo(elm_draw, PARENT, options) {
 							}
 						}
 						
-						var arr_view_scope = arr_view.scope;
+						const arr_view_scope = arr_view.scope;
 			
 						if (arr_view_scope) {
 							
 							str_object = (info_content == 'default' ? str_object+'\n-Scope-' : str_object);
 							
-							for (var type_id in arr_view_scope) {
+							for (const type_id in arr_view_scope) {
 																
-								var arr_objects = arr_view_scope[type_id];
+								const arr_objects = arr_view_scope[type_id];
 									
-								var arr_sort = [];
-								for (var object_id in arr_objects) {
+								const arr_sort = [];
+								for (const object_id in arr_objects) {
 									arr_sort.push([object_id, arr_objects[object_id].count]);
 								}
 								arr_sort.sort(function(a, b) {
 									return b[1] - a[1];
 								});
 								
-								var count = 0;
-								for (var j = 0, len_j = arr_sort.length; j < len_j; j++) {
+								let count = 0;
+								for (let j = 0, len_j = arr_sort.length; j < len_j; j++) {
 									
 									if (count > 3) {
 										break;
 									}
 									
-									var arr_object = arr_objects[arr_sort[j][0]];
+									const arr_object = arr_objects[arr_sort[j][0]];
 									
 									str_object = (str_object ? str_object+'\n' : '')+stripHTMLTags(arr_object.value)+(arr_object.count > 1 ? ' ('+arr_object.count+'x)' : '');
 									count++;
@@ -5142,15 +5168,17 @@ function MapGeo(elm_draw, PARENT, options) {
 								}
 							}
 						}
-
+						
+						let elm_info = null;
+						
 						if (!obj_info.elm) {
 						
-							var elm_info = new PIXI.Container();
+							elm_info = new PIXI.Container();
 
-							var elm_text = new PIXI.Text(str_object, {fontSize: size_info, fontFamily: font_family, fill: color_info, align: 'left'});
+							const elm_text = new PIXI.Text(str_object, {fontSize: size_info, fontFamily: font_family, fill: color_info, align: 'left'});
 							elm_info.addChild(elm_text);
 
-							var elm_pointer = new PIXI.Sprite(arr_assets_texture_info.pointer);
+							const elm_pointer = new PIXI.Sprite(arr_assets_texture_info.pointer);
 							elm_info.addChild(elm_pointer);
 							
 							obj_info.elm = elm_info;
@@ -5161,31 +5189,34 @@ function MapGeo(elm_draw, PARENT, options) {
 							elm_pointer.position.y = -2;
 						} else {
 							
-							var elm_info = obj_info.elm;
+							elm_info = obj_info.elm;
 							obj_info.elm_text.text = str_object;
 						}
 
 						obj_info.width = Math.floor(elm_info.width);
 						obj_info.height = Math.floor(elm_info.height);
 						
-						restart = true;
+						do_restart = true;
 						obj_info.identifier = identifier;
 					}
 					
 					if (!obj_info.is_added || is_new || redraw) {
 												
-						var x = (arr_object_sub_dot.xy_geometry_center.x - pos_offset_x) + ((arr_object_sub_dot.obj_settings.size / 2) + width_dot_stroke);
-						var y = (arr_object_sub_dot.xy_geometry_center.y - pos_offset_y) + ((arr_object_sub_dot.obj_settings.size / 2) + width_dot_stroke);
+						const num_radius = (arr_object_sub_dot.obj_settings.size / 2 + width_dot_stroke);
+						const num_angle = -45;					
+						const num_distance = 1;
+						const num_x = (arr_object_sub_dot.xy_geometry_center.x - pos_offset_x) + (num_radius * Math.cos(-num_angle*Math.PI/180) * num_distance);
+						const num_y = (arr_object_sub_dot.xy_geometry_center.y - pos_offset_y) + (num_radius * Math.sin(-num_angle*Math.PI/180) * num_distance);
 						
-						obj_info.elm.x = Math.floor(x + 7);
-						obj_info.elm.y = Math.floor(y + 6);
+						obj_info.elm.x = Math.floor(num_x + 7);
+						obj_info.elm.y = Math.floor(num_y + 6);
 						
 						elm_container_info_dots.addChild(obj_info.elm);
 						obj_info.is_added = true;
 						
 						if (info_mode == 'hover' && show_location) {
 							
-							var obj_location = arr_object_sub_dot.obj_location;
+							const obj_location = arr_object_sub_dot.obj_location;
 							
 							if (!obj_location.visible) {
 
@@ -5194,12 +5225,12 @@ function MapGeo(elm_draw, PARENT, options) {
 							}
 						}
 						
-						restart = true;
+						do_restart = true;
 					}
 					
 					obj_info.elm.alpha = 0;
 					
-					if (restart) {
+					if (do_restart) {
 						
 						obj_info.duration = duration_info_dot_min;
 					}
@@ -5208,15 +5239,15 @@ function MapGeo(elm_draw, PARENT, options) {
 				
 				if (info_mode == 'hover' && show_location) {
 						
-					for (var i = 0, len = arr_loop_object_sub_dots.length; i < len; i++) {
+					for (let i = 0, len = arr_loop_object_sub_dots.length; i < len; i++) {
 
-						var arr_object_sub_dot = arr_loop_object_sub_dots[i];
+						const arr_object_sub_dot = arr_loop_object_sub_dots[i];
 							
-						var obj_info = arr_object_sub_dot.obj_info;
+						const obj_info = arr_object_sub_dot.obj_info;
 
 						if (obj_info.is_added) {
 
-							var obj_location = arr_object_sub_dot.obj_location;
+							const obj_location = arr_object_sub_dot.obj_location;
 							
 							if (!obj_location.visible) {
 
@@ -5265,7 +5296,7 @@ function MapGeo(elm_draw, PARENT, options) {
 
 		if (show_dot && num_size) {
 			
-			const num_size_r = (num_size / 2);
+			const num_size_radius = (num_size / 2);
 			
 			str_identifier = num_size;
 			
@@ -5468,9 +5499,9 @@ function MapGeo(elm_draw, PARENT, options) {
 						let num_offset_origin = 0;
 						
 						if (offset_location < 0) {
-							num_offset_origin = -((num_size + width_dot_stroke) / 2) - (obj_location.height / 2) + offset_location;
+							num_offset_origin = (-(num_size_radius + width_dot_stroke) + offset_location - (obj_location.height / 2));
 						} else if (offset_location > 0) {
-							num_offset_origin = ((num_size + width_dot_stroke) / 2) + (obj_location.height / 2) + offset_location;
+							num_offset_origin = (num_size_radius + width_dot_stroke + offset_location + (obj_location.height / 2));
 						}
 						
 						obj_location.y_offset_origin = num_offset_origin;
@@ -5502,9 +5533,9 @@ function MapGeo(elm_draw, PARENT, options) {
 						let num_offset_origin = 0;
 						
 						if (offset_location < 0) {
-							num_offset_origin = -((num_size + width_dot_stroke) / 2) - (obj_location.height / 2) + offset_location;
+							num_offset_origin = (-(num_size_radius + width_dot_stroke) + offset_location - (obj_location.height / 2));
 						} else if (offset_location > 0) {
-							num_offset_origin = ((num_size + width_dot_stroke) / 2) + (obj_location.height / 2) + offset_location;
+							num_offset_origin = (num_size_radius + width_dot_stroke + offset_location + (obj_location.height / 2));
 						}
 						
 						obj_location.y_offset_origin = num_offset_origin;
@@ -5550,10 +5581,10 @@ function MapGeo(elm_draw, PARENT, options) {
 						}
 						if (dot_icon == 'square') {
 							const num_width = (num_size + width_dot_stroke);
-							const num_offset = Math.floor(-num_width/2);
+							const num_offset = Math.floor(-num_width / 2);
 							elm_dot.drawRect(num_offset, num_offset, num_width, num_width);
 						} else {
-							elm_dot.drawCircle(0, 0, (num_size_r + width_dot_stroke/2));
+							elm_dot.drawCircle(0, 0, (num_size_radius + width_dot_stroke / 2));
 						}
 						elm_dot.endFill();
 						
@@ -5570,7 +5601,7 @@ function MapGeo(elm_draw, PARENT, options) {
 						if (width_dot_stroke) {
 							elm_dot.lineStyle(width_dot_stroke, GeoUtilities.parseColor(color_dot_stroke), opacity_dot_stroke);
 						}
-						elm_dot.drawCircle(0, 0, (num_size_r + width_dot_stroke/2));
+						elm_dot.drawCircle(0, 0, (num_size_radius + width_dot_stroke / 2));
 						
 						elm_plot.addChild(elm_dot);
 
@@ -5583,8 +5614,8 @@ function MapGeo(elm_draw, PARENT, options) {
 							const elm_dot = new PIXI.Graphics();
 							elm_dot.beginFill(GeoUtilities.parseColor(arr_dot_colors[i].color), opacity_dot);
 							elm_dot.moveTo(0, 0)
-								.lineTo(num_size_r * Math.cos(num_start), num_size_r * Math.sin(num_start))
-								.arc(0, 0, num_size_r, num_start, num_end, false)
+								.lineTo(num_size_radius * Math.cos(num_start), num_size_radius * Math.sin(num_start))
+								.arc(0, 0, num_size_radius, num_start, num_end, false)
 								.lineTo(0, 0);
 							elm_dot.endFill();
 							
@@ -5639,9 +5670,9 @@ function MapGeo(elm_draw, PARENT, options) {
 						if (offset_dot_icons == 0) {
 							num_offset = -(size_dot_icons / 2);
 						} else if (offset_dot_icons < 0) {
-							num_offset = -((num_size + width_dot_stroke) / 2) + offset_dot_icons - size_dot_icons;
+							num_offset = (-(num_size_radius + width_dot_stroke) + offset_dot_icons - size_dot_icons);
 						} else {
-							num_offset = ((num_size + width_dot_stroke) / 2) + offset_dot_icons;
+							num_offset = (num_size_radius + width_dot_stroke + offset_dot_icons);
 						}
 						
 						elm_icons.position.x = Math.floor(-(num_width_sum / 2));
@@ -5699,9 +5730,9 @@ function MapGeo(elm_draw, PARENT, options) {
 						let num_offset_origin = 0;
 
 						if (offset_location < 0) {
-							num_offset_origin = -((num_size + width_dot_stroke) / 2) - (obj_location.height / 2) + offset_location;
+							num_offset_origin = (-(num_size_radius + width_dot_stroke) + offset_location - (obj_location.height / 2));
 						} else if (offset_location > 0) {
-							num_offset_origin = ((num_size + width_dot_stroke) / 2) + (obj_location.height / 2) + offset_location;
+							num_offset_origin = (num_size_radius + width_dot_stroke + offset_location + (obj_location.height / 2));
 						}
 						
 						obj_location.y_offset_origin = num_offset_origin;
@@ -5733,7 +5764,7 @@ function MapGeo(elm_draw, PARENT, options) {
 						if (dot_icon == 'square') {
 							
 							const num_width = (num_size + width_dot_stroke);
-							const num_offset = Math.floor(-num_width/2);
+							const num_offset = Math.floor(-num_width / 2);
 							
 							elm_dot = stage.createElementNS(stage_ns, 'rect');
 							elm_dot.setAttribute('x', num_offset);
@@ -5745,7 +5776,7 @@ function MapGeo(elm_draw, PARENT, options) {
 							elm_dot = stage.createElementNS(stage_ns, 'circle');
 							elm_dot.setAttribute('cx', 0);
 							elm_dot.setAttribute('cy', 0);
-							elm_dot.setAttribute('r', (num_size_r + width_dot_stroke/2));
+							elm_dot.setAttribute('r', (num_size_radius + width_dot_stroke / 2));
 						}
 						if (opacity_dot) {
 							elm_dot.style.fill = arr_dot_colors[0].color;
@@ -5773,7 +5804,7 @@ function MapGeo(elm_draw, PARENT, options) {
 						const elm_circle = stage.createElementNS(stage_ns, 'circle');
 						elm_circle.setAttribute('cx', 0);
 						elm_circle.setAttribute('cy', 0);
-						elm_circle.setAttribute('r', (num_size_r + width_dot_stroke/2));
+						elm_circle.setAttribute('r', (num_size_radius + width_dot_stroke / 2));
 						elm_circle.style.fill = 'none';
 						if (width_dot_stroke) {
 							elm_circle.style.stroke = color_dot_stroke;
@@ -5789,7 +5820,7 @@ function MapGeo(elm_draw, PARENT, options) {
 							const num_end = (cur_count / count) * 2 * Math.PI;
 						
 							const elm_path = stage.createElementNS(stage_ns, 'path');
-							elm_path.setAttribute('d','M '+0+','+0+' L '+(0 + num_size_r * Math.cos(num_start))+','+(0 + num_size_r * Math.sin(num_start))+' A '+num_size_r+','+num_size_r+' 0 '+(num_end - num_start < Math.PI ? 0 : 1)+',1 '+(0 + num_size_r * Math.cos(num_end))+','+(0 + num_size_r * Math.sin(num_end))+' z');
+							elm_path.setAttribute('d','M '+0+','+0+' L '+(0 + num_size_radius * Math.cos(num_start))+','+(0 + num_size_radius * Math.sin(num_start))+' A '+num_size_radius+','+num_size_radius+' 0 '+(num_end - num_start < Math.PI ? 0 : 1)+',1 '+(0 + num_size_radius * Math.cos(num_end))+','+(0 + num_size_radius * Math.sin(num_end))+' z');
 							elm_path.style.fill = arr_dot_colors[i].color;
 							elm_path.style.fillOpacity = opacity_dot;
 							elm_plot.appendChild(elm_path);
@@ -5843,9 +5874,9 @@ function MapGeo(elm_draw, PARENT, options) {
 						if (offset_dot_icons == 0) {
 							num_offset = -(size_dot_icons / 2);
 						} else if (offset_dot_icons < 0) {
-							num_offset = -((num_size + width_dot_stroke) / 2) + offset_dot_icons - size_dot_icons;
+							num_offset = (-(num_size_radius + width_dot_stroke) + offset_dot_icons - size_dot_icons);
 						} else {
-							num_offset = ((num_size + width_dot_stroke) / 2) + offset_dot_icons;
+							num_offset = (num_size_radius + width_dot_stroke + offset_dot_icons);
 						}
 						
 						elm_icons.setAttribute('transform', 'translate('+(-(num_width_sum / 2))+' '+(num_offset)+')');
@@ -5918,9 +5949,9 @@ function MapGeo(elm_draw, PARENT, options) {
 						let num_offset_origin = 0;
 						
 						if (offset_location < 0) {
-							num_offset_origin = -((num_size + width_dot_stroke) / 2) - (obj_location.height / 2) + offset_location;
+							num_offset_origin = (-(num_size_radius + width_dot_stroke) + offset_location - (obj_location.height / 2));
 						} else if (offset_location > 0) {
-							num_offset_origin = ((num_size + width_dot_stroke) / 2) + (obj_location.height / 2) + offset_location;
+							num_offset_origin = (num_size_radius + width_dot_stroke + offset_location + (obj_location.height / 2));
 						}
 						
 						obj_location.y_offset_origin = num_offset_origin;
@@ -6418,7 +6449,7 @@ function MapGeo(elm_draw, PARENT, options) {
 			count_animate_between++;
 			
 			let elm = null;
-			const num_size_r = (arr_object_sub_dot.obj_settings.size / 2);
+			const num_size_radius = (arr_object_sub_dot.obj_settings.size / 2);
 			
 			if (display == DISPLAY_PIXEL) {
 						
@@ -6443,7 +6474,7 @@ function MapGeo(elm_draw, PARENT, options) {
 				fragment_plot_between.appendChild(elm);
 			}
 							
-			const arr_hint = [false, elm, num_size_r];
+			const arr_hint = [false, elm, num_size_radius];
 			
 			arr_object_sub_dot.arr_hint_queue.push(arr_hint);
 		}
@@ -6872,7 +6903,7 @@ function MapGeo(elm_draw, PARENT, options) {
 							context.arc(num_size_glow, num_size_glow, r, 0, 360);
 							context.fill();
 							
-							arr_texture[0] = new PIXI.Texture.from(canvas);
+							arr_texture[0] = PIXI.Texture.from(canvas);
 							if (use_best_quality) {
 								arr_texture[1] = elm.generateCanvasTexture();
 							} else {

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -24,14 +24,13 @@ class data_model extends base_module {
 	
 	private $arr_object_descriptions_numbers = [];
 	private $arr_object_analyses = [];
-	private $show_user_settings = false;
-	private $show_api_settings = false;
+	private $do_show_user_settings = false;
+	private $do_show_api_settings = false;
 	
-	const CONDITION_NAMESPACE_VISUALISE = 'VISUALISE';
-	const CONDITION_NAMESPACE_ANALYSE = 'ANALYSE';
-	const CONDITION_NAMESPACES = [self::CONDITION_NAMESPACE_VISUALISE, self::CONDITION_NAMESPACE_ANALYSE];
-	
-	
+	const TYPE_NETWORK_DESCRIPTIONS_FLAT = 'flat';
+	const TYPE_NETWORK_DESCRIPTIONS_CONCEPT = 'concept';
+	const TYPE_NETWORK_DESCRIPTIONS_DISPLAY = 'display';
+	const TYPE_NETWORK_DESCRIPTIONS_DATE = 'date';
 	const SYMBOL_IN = '🡩';
 	const SYMBOL_OUT = '🡫';
 	const SYMBOL_DYNAMIC = '*';
@@ -41,10 +40,10 @@ class data_model extends base_module {
 		parent::__construct();
 		
 		$arr_users_link = pages::getClosestModule('register_by_user');
-		$this->show_user_settings = ($arr_users_link && pages::filterClearance([$arr_users_link], $_SESSION['USER_GROUP'], $_SESSION['CUR_USER'][DB::getTableName('TABLE_USER_PAGE_CLEARANCE')]));
+		$this->do_show_user_settings = ($arr_users_link && pages::filterClearance([$arr_users_link], $_SESSION['USER_GROUP'], $_SESSION['CUR_USER'][DB::getTableName('TABLE_USER_PAGE_CLEARANCE')]));
 		
 		$arr_api_link = pages::getClosestModule('api_configuration');
-		$this->show_api_settings = ($arr_api_link && pages::filterClearance([$arr_api_link], $_SESSION['USER_GROUP'], $_SESSION['CUR_USER'][DB::getTableName('TABLE_USER_PAGE_CLEARANCE')]));
+		$this->do_show_api_settings = ($arr_api_link && pages::filterClearance([$arr_api_link], $_SESSION['USER_GROUP'], $_SESSION['CUR_USER'][DB::getTableName('TABLE_USER_PAGE_CLEARANCE')]));
 	}
 		
 	public function contents() {
@@ -242,7 +241,7 @@ class data_model extends base_module {
 						</li>';
 					}
 					
-					if ($this->show_user_settings) {
+					if ($this->do_show_user_settings) {
 						
 						$return .= '<li>
 							<label>'.getLabel('lbl_clearance').'</label>
@@ -353,7 +352,7 @@ class data_model extends base_module {
 															.'<label title="'.getLabel('inf_object_description_in_name').'"><input type="checkbox" name="object_descriptions['.$unique.'][object_description_in_name]" value="1"'.($arr_object_description['object_description_in_name'] ? ' checked="checked"' : '').' /><span>'.getLabel('lbl_name').'</span></label>'
 															.'<label title="'.getLabel('inf_object_description_in_search').'"><input type="checkbox" name="object_descriptions['.$unique.'][object_description_in_search]" value="1"'.($arr_object_description['object_description_in_search'] ? ' checked="checked"' : '').' /><span>'.getLabel('lbl_quick_search').'</span></label>'
 															.'<label title="'.getLabel('inf_object_description_in_overview').'"><input type="checkbox" name="object_descriptions['.$unique.'][object_description_in_overview]" value="1"'.(!$arr_object_description || $arr_object_description['object_description_in_overview'] ? ' checked="checked"' : '').' /><span>'.getLabel('lbl_overview').'</span></label>'
-															.($this->show_api_settings ?
+															.($this->do_show_api_settings ?
 																'<label title="'.getLabel('inf_object_description_is_identifier').'"><input type="checkbox" name="object_descriptions['.$unique.'][object_description_is_identifier]" value="1"'.($arr_object_description['object_description_is_identifier'] ? ' checked="checked"' : '').' /><span>'.getLabel('lbl_identifier').'</span></label>'
 															: '')
 														.'</div>'
@@ -361,7 +360,7 @@ class data_model extends base_module {
 													.'<li class="object-description-options">'
 														.$this->createTypeObjectDescriptionValueTypeOptions($type_id, 'object_descriptions['.$unique.']', $arr_object_description['object_description_value_type_base'], $arr_object_description['object_description_ref_type_id'], $arr_object_description['object_description_has_multi'], $has_default_value, $arr_object_description['object_description_in_name'], $arr_object_description)
 													.'</li>'
-													.($this->show_user_settings ? '<li>'
+													.($this->do_show_user_settings ? '<li>'
 														.'<select name="object_descriptions['.$unique.'][object_description_clearance_edit]" title="'.getLabel('inf_object_description_clearance_edit').'">'.cms_general::createDropdown(cms_nodegoat_details::getClearanceLevels(), $arr_object_description['object_description_clearance_edit'], true, 'label').'</select>'
 														.'<select name="object_descriptions['.$unique.'][object_description_clearance_view]" title="'.getLabel('inf_object_description_clearance_view').'">'.cms_general::createDropdown(cms_nodegoat_details::getClearanceLevels(), $arr_object_description['object_description_clearance_view'], true, 'label').'</select>'
 													.'</li>' : '').'
@@ -379,26 +378,31 @@ class data_model extends base_module {
 				
 				if ($num_type_class == StoreType::TYPE_CLASS_REVERSAL) {
 					
-					$arr_object_description_reference = [];
+					$reversal_ref_type_id = false;
+					$arr_module_settings = [];
 					
 					if ($type_id) {
 							
 						foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 							
-							if ($arr_object_description['object_description_value_type'] != 'reference') {
-								continue;
+							if ($arr_object_description['object_description_value_type'] == 'reference') {
+								$reversal_ref_type_id = $arr_object_description['object_description_ref_type_id'];
 							}
-							
-							$arr_object_description_reference = $arr_object_description;
+							if ($arr_object_description['object_description_value_type'] == 'reversal_module') {
+								$arr_module_settings = $arr_object_description['object_description_value_type_settings'];
+							}
 						}
 					}
 					
+					$reference = '';
 					if (!$type_id) {
 						$reference = 'classification';
-					} else if ($arr_object_description_reference['object_description_ref_type_id']) {
-						$reference = ($arr_types_classifications[StoreType::TYPE_CLASS_TYPE][$arr_object_description_reference['object_description_ref_type_id']] ? 'type' : 'classification');
-					} else {
-						$reference = '';
+					} else if ($reversal_ref_type_id) {
+						$reference = ($arr_types_classifications[StoreType::TYPE_CLASS_TYPE][$reversal_ref_type_id] ? 'type' : 'classification');
+					}
+					$has_reversal_resource_path = false;
+					if ($arr_module_settings) {
+						$has_reversal_resource_path = $arr_module_settings['resource_path'];
 					}
 					
 					$return .= '<div>
@@ -406,7 +410,7 @@ class data_model extends base_module {
 							<fieldset><ul>
 								<li>
 									<label>'.getLabel('lbl_mode').'</label>
-									<span>'.cms_general::createSelectorRadio([['id' => 0, 'name' => getLabel('lbl_reversed_classification')], ['id' => 1, 'name' => getLabel('lbl_reversed_collection')]], 'reversal_mode', (bitHasMode($num_type_mode, StoreType::TYPE_MODE_REVERSAL_COLLECTION) ? 1 : 0)).'</span>
+									<span>'.cms_general::createSelectorRadio([['id' => StoreType::TYPE_MODE_REVERSAL_CLASSIFICATION, 'name' => getLabel('lbl_reversed_classification')], ['id' => StoreType::TYPE_MODE_REVERSAL_COLLECTION, 'name' => getLabel('lbl_reversed_collection')]], 'reversal_mode', (bitHasMode($num_type_mode, StoreType::TYPE_MODE_REVERSAL_COLLECTION) ? StoreType::TYPE_MODE_REVERSAL_COLLECTION : StoreType::TYPE_MODE_REVERSAL_CLASSIFICATION)).'</span>
 								</li>
 								<li>
 									<label>'.getLabel('lbl_reversed_classification_reference').'</label>
@@ -415,9 +419,13 @@ class data_model extends base_module {
 								<li>
 									<label></label>
 									<span>'
-										.'<select name="reversal_ref_type_id[type]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types_classifications[StoreType::TYPE_CLASS_TYPE], $arr_object_description_reference['object_description_ref_type_id'])).'</select>'
-										.'<select name="reversal_ref_type_id[classification]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types_classifications[StoreType::TYPE_CLASS_CLASSIFICATION], $arr_object_description_reference['object_description_ref_type_id'])).'</select>
+										.'<select name="reversal_ref_type_id[type]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types_classifications[StoreType::TYPE_CLASS_TYPE], $reversal_ref_type_id)).'</select>'
+										.'<select name="reversal_ref_type_id[classification]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types_classifications[StoreType::TYPE_CLASS_CLASSIFICATION], $reversal_ref_type_id)).'</select>
 									</span>
+								</li>
+								<li>
+									<label>'.getLabel('lbl_reversed_collection_resource_path').'</label>
+									<span>'.cms_general::createSelectorRadio([['id' => 0, 'name' => getLabel('lbl_no')], ['id' => 1, 'name' => getLabel('lbl_yes')]], 'reversal_resource_path', $has_reversal_resource_path).'</span>
 								</li>
 							</ul></fieldset>
 						</div>
@@ -562,7 +570,7 @@ class data_model extends base_module {
 						.'<label><input type="checkbox" name="object_sub_details['.$unique.'][object_sub_details][object_sub_details_is_required]" value="1"'.($arr_object_sub_details['object_sub_details_is_required'] ? ' checked="checked"' : '').' /><span>'.getLabel('lbl_required').'</span></label>'
 					.'</div>
 				</li>'
-				.($this->show_user_settings ?
+				.($this->do_show_user_settings ?
 					'<li>
 						<label></label>
 						<div>'
@@ -698,7 +706,7 @@ class data_model extends base_module {
 												.'<li class="object-description-options">'
 													.$this->createTypeObjectDescriptionValueTypeOptions($type_id, 'object_sub_details['.$unique.'][object_sub_descriptions]['.$unique2.']', $arr_object_sub_description['object_sub_description_value_type_base'], $arr_object_sub_description['object_sub_description_ref_type_id'], false, $has_default_value, $arr_object_sub_description['object_sub_description_in_name'], $arr_object_sub_description)
 												.'</li>'
-												.($this->show_user_settings ? '<li>'
+												.($this->do_show_user_settings ? '<li>'
 													.'<select name="object_sub_details['.$unique.'][object_sub_descriptions]['.$unique2.'][object_sub_description_clearance_edit]" title="'.getLabel('inf_object_description_clearance_edit').'">'.cms_general::createDropdown(cms_nodegoat_details::getClearanceLevels(), $arr_object_sub_description['object_sub_description_clearance_edit'], true, 'label').'</select>'
 													.'<select name="object_sub_details['.$unique.'][object_sub_descriptions]['.$unique2.'][object_sub_description_clearance_view]" title="'.getLabel('inf_object_description_clearance_view').'">'.cms_general::createDropdown(cms_nodegoat_details::getClearanceLevels(), $arr_object_sub_description['object_sub_description_clearance_view'], true, 'label').'</select>'
 												.'</li>' : '').'
@@ -757,13 +765,24 @@ class data_model extends base_module {
 				</li>';
 				
 				break;
+			case 'text_layout':
 			case 'text_tags':
-			
-				$html_option = '<li>
-					<label><span>'.getLabel('lbl_marginalia').'</span></label>
-					<div><input type="checkbox" name="'.$str_name_settings.'[marginalia]" value="1" title="'.getLabel('lbl_marginalia').'"'.($arr_value_type_settings['marginalia'] ? ' checked="checked"' : '').' /></div>
-				</li>';
 				
+				$html_option = '';
+				
+				if ($value_type == 'text_tags') {
+					
+					$html_option .= '<li>
+						<label><span>'.getLabel('lbl_marginalia').'</span></label>
+						<div><input type="checkbox" name="'.$str_name_settings.'[marginalia]" value="1" title="'.getLabel('inf_marginalia_enable').'"'.($arr_value_type_settings['marginalia'] ? ' checked="checked"' : '').' /></div>
+					</li>';
+				}
+				
+				$html_option .= '<li>
+					<label><span>'.getLabel('lbl_html').'</span></label>
+					<div><input type="checkbox" name="'.$str_name_settings.'[html]" value="1" title="'.getLabel('inf_html_enable').'"'.($arr_value_type_settings['html'] ? ' checked="checked"' : '').' /></div>
+				</li>';
+
 				break;
 			case 'media':
 			case 'media_external':
@@ -851,7 +870,7 @@ class data_model extends base_module {
 					$arr_values = (is_array($arr_values) ? current($arr_values) : $arr_values);
 				}
 				
-				$html_default_value = StoreTypeObjects::formatToFormValue($value_type, StoreTypeObjects::formatToSQLValue($value_type, $arr_values), $str_name_default, $arr_value_type_settings);
+				$html_default_value = FormatTypeObjects::formatToFormValue($value_type, FormatTypeObjects::formatToSQLValue($value_type, $arr_values), false, $str_name_default, $arr_value_type_settings);
 			}
 			
 			$html_default_value = '<li>
@@ -922,10 +941,10 @@ class data_model extends base_module {
 		$arr_type_set_flat_separated['object_nodes_object']['id'] = $arr_type_set_flat['id'];
 		$arr_type_set_flat_separated['object_nodes_referencing'] = [];
 
-		$arr_condition_actions_separated['object_name'] = cms_nodegoat_definitions::getSetConditionActions('object_name');
-		$arr_condition_actions_separated['object_values'] = cms_nodegoat_definitions::getSetConditionActions('object_values');
-		$arr_condition_actions_separated['object_nodes_object'] = cms_nodegoat_definitions::getSetConditionActions('object_nodes');
-		$arr_condition_actions_separated['object_nodes_referencing'] = cms_nodegoat_definitions::getSetConditionActions('object_nodes_referencing');
+		$arr_condition_actions_separated['object_name'] = ParseTypeFeatures::getSetConditionActions('object_name');
+		$arr_condition_actions_separated['object_values'] = ParseTypeFeatures::getSetConditionActions('object_values');
+		$arr_condition_actions_separated['object_nodes_object'] = ParseTypeFeatures::getSetConditionActions('object_nodes');
+		$arr_condition_actions_separated['object_nodes_referencing'] = ParseTypeFeatures::getSetConditionActions('object_nodes_referencing');
 		
 		$this->arr_object_analyses = data_analysis::createTypeAnalysesSelection($type_id);
 		
@@ -1277,7 +1296,7 @@ class data_model extends base_module {
 	
 	private function createConditionAction($type_id, $action, $arr_selected = [], $arr_options = []) {
 		
-		$arr_condition_actions = cms_nodegoat_definitions::getSetConditionActions();
+		$arr_condition_actions = ParseTypeFeatures::getSetConditionActions();
 		
 		$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 	
@@ -1376,7 +1395,7 @@ class data_model extends base_module {
 	
 	public static function createTypeNetwork($from_type_id, $to_type_id, $num_steps, $arr_options = []) {
 		
-		// $arr_options = array('references' => TraceTypesNetwork::RUN_MODE, 'descriptions' => bool/'flat'/'full'/'date', 'functions' => ['filter' => bool, 'collapse' => bool], 'network' => ['dynamic' => bool, 'object_sub_locations' => bool], 'name' => string, 'source_path' => string);
+		// $arr_options = array('references' => TraceTypesNetwork::RUN_MODE, 'descriptions' => false/'flat'/'concept'/'value'/'date', 'functions' => ['filter' => bool, 'collapse' => bool], 'network' => ['dynamic' => bool, 'object_sub_locations' => bool], 'name' => string, 'source_path' => string);
 		
 		$arr_options['name'] = ($arr_options['name'] ?: 'type_network');
 		$arr_options['references'] = ($arr_options['references'] ?: TraceTypesNetwork::RUN_MODE_BOTH);
@@ -1401,16 +1420,17 @@ class data_model extends base_module {
 			$do_compact = $arr_options['compact'];
 			$str_descriptions_type = ($arr_options['descriptions'] ?: '');
 			
-			if ($str_descriptions_type == 'flat') {
+			if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_FLAT) {
 				$arr_type_set_flat = StoreType::getTypeSetFlat($type_id);
-			} else if ($str_descriptions_type == 'full') {
+			} else if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_DISPLAY) {
+				$arr_type_set_flat = StoreType::getTypeSetFlat($type_id, ['purpose' => 'select']);
+			} else if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_CONCEPT) {
 				$arr_type_set_flat = StoreType::getTypeSetFlat($type_id, ['object_sub_details_date' => false, 'object_sub_details_location' => false]);
-			} else if ($str_descriptions_type == 'date') {
+			} else if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_DATE) {
 				$arr_type_set_flat = StoreType::getTypeSetFlat($type_id, ['object_sub_details_date' => true, 'object_sub_details_location' => false]);
 			}
 			
-			if ($str_descriptions_type == 'date') {
-						
+			if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_DATE) {
 				unset($arr_type_set['name'], $arr_type_set_flat['name']);
 			}
 						
@@ -1427,7 +1447,7 @@ class data_model extends base_module {
 					}
 				} else {
 					
-					if ($str_descriptions_type == 'flat') {
+					if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_FLAT) {
 						
 						if ($arr_object_description['object_description_ref_type_id'] || $arr_object_description['object_description_value_type'] == 'text_tags') {
 							
@@ -1437,7 +1457,7 @@ class data_model extends base_module {
 								arrInsert($arr_type_set_flat, $str_id, [$str_id.'_text' => ['id' => $str_id.'_text', 'name' => $arr_type_set_flat[$str_id]['name'].' - Text']]);
 							}
 						}
-					} else if ($str_descriptions_type == 'date') {
+					} else if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_DATE) {
 						
 						if ($arr_object_description['object_description_value_type'] != 'date') {
 							unset($arr_type_set['object_descriptions'][$object_description_id], $arr_type_set_flat[$str_id]);
@@ -1473,11 +1493,11 @@ class data_model extends base_module {
 					continue;
 				}
 					
-				if ($str_descriptions_type == 'flat' || $str_descriptions_type == 'full') {
+				if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_FLAT || $str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_CONCEPT) {
 					
 					$arr_type_set_flat[$str_id.'id']['name'] = $arr_type_set_flat[$str_id.'id']['name'].' Sub-Object ID';
 					
-					if ($str_descriptions_type == 'flat') {
+					if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_FLAT) {
 						
 						$str_id = $str_id.'location_ref_type_id';
 						
@@ -1485,7 +1505,10 @@ class data_model extends base_module {
 							arrInsert($arr_type_set_flat, $str_id, [$str_id.'_id' => ['id' => $str_id.'_id', 'name' => $arr_type_set_flat[$str_id]['name'].' - Object ID']]);
 						}
 					}
-				} else if ($str_descriptions_type == 'date') {
+				} else if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_DISPLAY) {
+					
+					unset($arr_type_set_flat[$str_id.'id']);
+				} else if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_DATE) {
 					
 					unset($arr_type_set_flat[$str_id.'id'], $arr_type_set_flat[$str_id.'date_chronology']);
 				}
@@ -1510,7 +1533,7 @@ class data_model extends base_module {
 						}
 					} else {
 						
-						if ($str_descriptions_type == 'flat') {
+						if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_FLAT) {
 							
 							if ($arr_object_sub_description['object_sub_description_ref_type_id'] || $arr_object_sub_description['object_sub_description_value_type'] == 'text_tags') {
 								
@@ -1520,7 +1543,7 @@ class data_model extends base_module {
 									arrInsert($arr_type_set_flat, $str_id, [$str_id.'_text' => ['id' => $str_id.'_text', 'name' => $arr_type_set_flat[$str_id]['name'].' - Text']]);
 								}
 							}
-						} else if ($str_descriptions_type == 'date') {
+						} else if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_DATE) {
 						
 							if ($arr_object_sub_description['object_sub_description_value_type'] != 'date') {
 								unset($arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id], $arr_type_set_flat[$str_id]);
@@ -1760,26 +1783,7 @@ class data_model extends base_module {
 				$arr_options_values = $arr_options['value']['types'][$source_path][$type_id];
 				$name = $arr_options['name'].'[types]['.$source_path.']['.$type_id.']';
 									
-				if (!$str_descriptions_type) {
-					
-					$arr_selector = [];
-					if (keyIsUncontested('filter', $arr_options['functions'])) {
-						$arr_selector[] = ['id' => 'filter', 'name' => getLabel('lbl_filter'), 'title' => getLabel('inf_path_filter')];
-					}
-					if ($source_path && keyIsUncontested('collapse', $arr_options['functions'])) {
-						$arr_selector[] = ['id' => 'collapse', 'name' => getLabel('lbl_collapse'), 'title' => getLabel('inf_path_collapse')];
-					}
-					$arr_selected = [
-						($arr_options_values['filter'] ? 'filter' : false),
-						($arr_options_values['collapse'] ? 'collapse' : false)
-					];
-
-					$html_fields = '<fieldset><legend>'.$str_source_path_name.'</legend><ul>
-						<li>
-							<label>'.getLabel('lbl_path').'</label><span>'.cms_general::createSelector($arr_selector, $name, $arr_selected).'</span>
-						</li>
-					</ul></fieldset>';
-				} else if ($str_descriptions_type == 'flat') {
+				if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_FLAT) {
 					
 					$arr_sorter = [];
 					
@@ -1831,7 +1835,7 @@ class data_model extends base_module {
 						</li>
 					</ul></fieldset>';
 					
-				} else if ($str_descriptions_type == 'full') {
+				} else if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_CONCEPT) {
 
 					$arr_type_set_flat_separated = [];
 					$arr_sorter = [];
@@ -1936,7 +1940,7 @@ class data_model extends base_module {
 						
 						if (strpos($id, '_reference') !== false) { // Check if dynamic references are targeting specific type IDs and separate them
 							
-							$arr_ref_type_ids = ($arr_selected['object_description_reference'] ?: $arr_selected['object_sub_description_reference']);
+							$arr_ref_type_ids = $arr_selected['use_reference'];
 							
 							if ($arr_ref_type_ids && is_array($arr_ref_type_ids)) {
 								
@@ -2015,37 +2019,70 @@ class data_model extends base_module {
 						</li>';
 					}
 					$html_fields .= '</ul></fieldset>';
-				} else if ($str_descriptions_type == 'date') {
+				} else {
 					
-					$arr_sorter = [];
+					if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_DATE) {
+						$arr_options['functions']['collapse'] = false;
+					}
+
+					$arr_selector = [];
+					if (keyIsUncontested('filter', $arr_options['functions'])) {
+						$arr_selector[] = ['id' => 'filter', 'name' => getLabel('lbl_filter'), 'title' => getLabel('inf_path_filter')];
+					}
+					if ($source_path && keyIsUncontested('collapse', $arr_options['functions'])) {
+						$arr_selector[] = ['id' => 'collapse', 'name' => getLabel('lbl_collapse'), 'title' => getLabel('inf_path_collapse')];
+					}
+					$arr_selected = [
+						($arr_options_values['filter'] ? 'filter' : false),
+						($arr_options_values['collapse'] ? 'collapse' : false)
+					];
 					
-					foreach (($arr_options_values['selection'] ?: [[]]) as $id => $value) {
+					$html_fields_path = '<li>
+						<label>'.getLabel('lbl_path').'</label><span>'.cms_general::createSelector($arr_selector, $name, $arr_selected).'</span>
+					</li>';
+					$html_fields_other = '';
+					
+					if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_DISPLAY) {
 						
-						$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
-						
-						$arr_sorter[] = ['value' => [
-								'<select name="'.$name.'[selection]['.$unique.'][id]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_type_set_flat, $id, true)).'</select>'
-							]
+						$arr_selected = [
+							($arr_options_values['name'] ? 'name' : false)
 						];
+					
+						$html_fields_other .= '<li>
+							<label>'.getLabel('lbl_object').'</label>
+							<span>'.cms_general::createSelectorList([
+								['id' => 'name', 'name' => getLabel('lbl_name')]
+							], $name, $arr_selected).'</span>
+						</li>';
 					}
 					
-					$arr_selector = [['id' => 'filter', 'name' => getLabel('lbl_filter'), 'title' => getLabel('inf_path_filter')]];
-
-					$arr_selected = [
-						($arr_options_values['filter'] ? 'filter' : false)
-					];
-
-					$html_fields = '<fieldset><legend>'.$str_source_path_name.'</legend><ul>
-						<li>
-							<label>'.getLabel('lbl_path').'</label><span>'.cms_general::createSelector($arr_selector, $name, $arr_selected).'</span>
-						</li>
-						<li>
-							<label>'.getLabel('lbl_'.$str_descriptions_type).'</label>
+					if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_DATE || $str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_DISPLAY) {
+						
+						$arr_sorter = [];
+					
+						foreach (($arr_options_values['selection'] ?: [[]]) as $id => $value) {
+							
+							$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
+							
+							$arr_sorter[] = ['value' => [
+									'<select name="'.$name.'[selection]['.$unique.'][id]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_type_set_flat, $id, true)).'</select>'
+								]
+							];
+						}
+						
+						$str_label = ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_DATE ? 'lbl_date' : 'lbl_select');
+											
+						$html_fields_other .= '<li>
+							<label>'.getLabel($str_label).'</label>
 							<div><menu class="sorter"><input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" /></menu></div>
 						</li>
 						<li>
 							<label></label>'.cms_general::createSorter($arr_sorter, true).'
-						</li>
+						</li>';
+					}
+
+					$html_fields = '<fieldset><legend>'.$str_source_path_name.'</legend><ul>
+						'.$html_fields_path.$html_fields_other.'
 					</ul></fieldset>';
 				}
 					
@@ -2354,13 +2391,16 @@ class data_model extends base_module {
 				
 				var cur = $(this);
 				var value = cur.val();
-				var elm_parent = cur.closest('li');
-				var elm_target = elm_parent.nextAll('li');
+				var elm_parent = cur.closest('ul');
+				var elms_target_classification = elm_parent.find('[name^=reversal_ref]').closest('li');
+				var elms_target_collection = elm_parent.find('[name=reversal_resource_path]').closest('li');
 				
-				if (value == 1) {
-					elm_target.addClass('hide');
+				if (value == ".StoreType::TYPE_MODE_REVERSAL_CLASSIFICATION.") {
+					elms_target_classification.removeClass('hide');
+					elms_target_collection.addClass('hide');
 				} else {
-					elm_target.removeClass('hide');
+					elms_target_classification.addClass('hide');
+					elms_target_collection.removeClass('hide');
 				}
 			}).on('change update_data_model', '[name=reversal_reference_class]', function(e) {
 				
@@ -2735,7 +2775,7 @@ class data_model extends base_module {
 				error(getLabel('msg_not_allowed'));
 			}
 				
-			SiteEndVars::setFeedback('filter_model', $value, true);
+			SiteEndEnvironment::setFeedback('filter_model', $value, true);
 				
 			$this->refresh_table = true;
 		}
@@ -2746,7 +2786,7 @@ class data_model extends base_module {
 			
 			$arr_condition = cms_nodegoat_custom_projects::getProjectTypeConditions($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, 0);
 			$arr_condition_self = self::parseTypeCondition($type_id, $arr_condition['object']);
-			$arr_model_conditions = self::parseTypeModelConditions($type_id, $arr_condition['model_object']);
+			$arr_model_conditions = ParseTypeFeatures::parseTypeModelConditions($type_id, $arr_condition['model_object']);
 			
 			$this->html = '<form data-method="update_condition">
 				'.$this->createTypeCondition($type_id, $arr_condition_self, $arr_model_conditions)
@@ -2764,15 +2804,15 @@ class data_model extends base_module {
 				$arr_condition_self = [];
 				$arr_model_conditions = [];
 				
-				SiteEndVars::setFeedback('condition_id', false, true);
+				SiteEndEnvironment::setFeedback('condition_id', false, true);
 			} else {
 				
 				$arr_files = ($_FILES['condition'] ? arrRearrangeParams($_FILES['condition']) : []);
 				
 				$arr_condition_self = self::parseTypeCondition($type_id, $_POST['condition'], $arr_files);
-				$arr_model_conditions = self::parseTypeModelConditions($type_id, $_POST['model_conditions']);
+				$arr_model_conditions = ParseTypeFeatures::parseTypeModelConditions($type_id, $_POST['model_conditions']);
 				
-				SiteEndVars::setFeedback('condition_id', 0, true);
+				SiteEndEnvironment::setFeedback('condition_id', 0, true);
 			}
 			
 			$has_changed = cms_nodegoat_custom_projects::handleProjectTypeCondition($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, $type_id, [], $arr_condition_self, $arr_model_conditions);
@@ -2781,8 +2821,8 @@ class data_model extends base_module {
 				toolbar::checkActiveScenario(false);
 			}
 			
-			SiteEndVars::setFeedback('condition', ($arr_condition_self ? true : false));
-			SiteEndVars::setFeedback('condition_model_conditions', ($arr_model_conditions ? true : false));
+			SiteEndEnvironment::setFeedback('condition', ($arr_condition_self ? true : false));
+			SiteEndEnvironment::setFeedback('condition_model_conditions', ($arr_model_conditions ? true : false));
 			$this->msg = true;
 		}
 		
@@ -2818,7 +2858,7 @@ class data_model extends base_module {
 				
 				$arr_condition = cms_nodegoat_custom_projects::getProjectTypeConditions($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], false, $_POST['condition_id'], ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN ? true : false), $arr_use_project_ids);
 				$arr_condition_self = self::parseTypeCondition($type_id, $arr_condition['object']);
-				$arr_model_conditions = self::parseTypeModelConditions($type_id, $arr_condition['model_object']);
+				$arr_model_conditions = ParseTypeFeatures::parseTypeModelConditions($type_id, $arr_condition['model_object']);
 			} else {
 				
 				$arr_condition_self = $arr_model_conditions = [];
@@ -2916,7 +2956,7 @@ class data_model extends base_module {
 			
 			if (Settings::get('domain_administrator_mode')) {
 				
-				$arr_filter_model = (SiteStartVars::getFeedback('filter_model') ?: []);
+				$arr_filter_model = (SiteStartEnvironment::getFeedback('filter_model') ?: []);
 				
 				if ($arr_filter_model['project_id']) {
 					
@@ -2993,7 +3033,7 @@ class data_model extends base_module {
 				'label' => $_POST['label'],
 				'color' => $_POST['color'],
 				'condition_id' => (int)$_POST['condition_id'],
-				'clearance_edit' => ($this->show_user_settings ? (int)$_POST['clearance_edit'] : null),
+				'clearance_edit' => ($this->do_show_user_settings ? (int)$_POST['clearance_edit'] : null),
 				'use_object_name' => (bool)$_POST['use_object_name'],
 				'object_name_in_overview' => (bool)$_POST['object_name_in_overview'],
 				'class' => (int)$_POST['class']
@@ -3011,9 +3051,10 @@ class data_model extends base_module {
 			
 			if ($_POST['class'] == StoreType::TYPE_CLASS_REVERSAL) {
 				
+				$arr_details['reversal_mode'] = (int)$_POST['reversal_mode'];
 				$reversal_ref_type_id = $_POST['reversal_ref_type_id'][$_POST['reversal_reference_class']];
 				$arr_details['reversal_ref_type_id'] = (int)$reversal_ref_type_id;
-				$arr_details['reversal_mode'] = (int)$_POST['reversal_mode'];
+				$arr_details['reversal_resource_path'] = (bool)$_POST['reversal_resource_path'];
 				
 				$arr_object_descriptions = false;
 			} else {
@@ -3040,9 +3081,9 @@ class data_model extends base_module {
 						'object_description_in_name' => (int)$value['object_description_in_name'],
 						'object_description_in_search' => (int)$value['object_description_in_search'],
 						'object_description_in_overview' => (int)$value['object_description_in_overview'],
-						'object_description_is_identifier' => ($this->show_api_settings ? (int)$value['object_description_is_identifier'] : null),
-						'object_description_clearance_edit' => ($this->show_user_settings ? (int)$value['object_description_clearance_edit'] : null),
-						'object_description_clearance_view' => ($this->show_user_settings ? (int)$value['object_description_clearance_view'] : null),
+						'object_description_is_identifier' => ($this->do_show_api_settings ? (int)$value['object_description_is_identifier'] : null),
+						'object_description_clearance_edit' => ($this->do_show_user_settings ? (int)$value['object_description_clearance_edit'] : null),
+						'object_description_clearance_view' => ($this->do_show_user_settings ? (int)$value['object_description_clearance_view'] : null),
 						'object_description_id' => (int)$value['object_description_id']
 					];
 				}
@@ -3051,7 +3092,7 @@ class data_model extends base_module {
 				
 				foreach ((array)$_POST['object_sub_details'] as $arr_object_sub) {
 					
-					if (!$this->show_user_settings) {
+					if (!$this->do_show_user_settings) {
 						unset($arr_object_sub['object_sub_details']['object_sub_details_clearance_edit'], $arr_object_sub['object_sub_details']['object_sub_details_clearance_view']);
 					}
 					
@@ -3078,8 +3119,8 @@ class data_model extends base_module {
 								'object_sub_description_in_name' => (int)$value['object_sub_description_in_name'],
 								'object_sub_description_in_search' => (int)$value['object_sub_description_in_search'],
 								'object_sub_description_in_overview' => (int)$value['object_sub_description_in_overview'],
-								'object_sub_description_clearance_edit' => ($this->show_user_settings ? (int)$value['object_sub_description_clearance_edit'] : null),
-								'object_sub_description_clearance_view' => ($this->show_user_settings ? (int)$value['object_sub_description_clearance_view'] : null),
+								'object_sub_description_clearance_edit' => ($this->do_show_user_settings ? (int)$value['object_sub_description_clearance_edit'] : null),
+								'object_sub_description_clearance_view' => ($this->do_show_user_settings ? (int)$value['object_sub_description_clearance_view'] : null),
 								'object_sub_description_id' => (int)$value['object_sub_description_id']
 							];
 						}
@@ -3117,7 +3158,7 @@ class data_model extends base_module {
 			
 			StoreType::setTypesObjectPaths();
 			
-			$arr_filter_model = (SiteStartVars::getFeedback('filter_model') ?: []);
+			$arr_filter_model = (SiteStartEnvironment::getFeedback('filter_model') ?: []);
 			
 			if ($method == 'insert' && $arr_filter_model['project_id']) {
 				
@@ -3174,279 +3215,9 @@ class data_model extends base_module {
 		
 	public static function parseTypeCondition($type_id, $arr, $arr_files = []) {
 		
-		if ($arr && !$arr['object'] && !$arr['object_descriptions'] && !$arr['object_sub_details']) { // Form
-			
-			$arr_type_set = StoreType::getTypeSet($type_id);
-			$arr_condition_actions = cms_nodegoat_definitions::getSetConditionActions();
-			
-			$arr_condition = [];
-			
-			foreach ($arr as $key => $arr_condition_setting) {
-				
-				if (!$arr_condition_setting['id']) {
-					continue;
-				}
-				
-				$condition_filter = ($arr_condition_setting['condition_filter'] ? json_decode($arr_condition_setting['condition_filter'], true) : '');
-				$condition_scope = ($arr_condition_setting['condition_scope'] ? json_decode($arr_condition_setting['condition_scope'], true) : '');
-				$condition_actions = [];
-				
-				foreach ($arr_condition_actions as $action => $arr_action) {
-					
-					if (!isset($arr_condition_setting['condition_actions'][$action])) {
-						continue;
-					}
-					
-					foreach ($arr_action['value'] as $value) {
-						
-						$type = (is_array($value) ? $value['type'] : $value);
-						$return = null;
-						
-						switch ($type) {
-							case 'emphasis':
-								$return = array_filter(array_values($arr_condition_setting['condition_actions'][$action][$type]));
-								break;
-							case 'color':
-								$return = str2Color($arr_condition_setting['condition_actions'][$action][$type]);
-								break;
-							case 'regex':
-							
-								$arr_regex = $arr_condition_setting['condition_actions'][$action][$type];
-								$return = parseRegularExpression($arr_regex['pattern'], $arr_regex['flags'], $arr_regex['template']);
-								
-								break;
-							case 'image':
-							
-								$return = '';
-								$url = $arr_condition_setting['condition_actions'][$action][$type]['url'];
-								
-								if ($url) {
-									
-									if (isPath(DIR_HOME_CUSTOM_PROJECT_WORKSPACE.$url)) {
-										
-										$return = $url;
-									}
-								} else if ($arr_files[$key]['name']['condition_actions'][$action][$type]['file']) {
-									
-									$arr_file = $arr_files[$key];
-									
-									foreach ($arr_file as $key_file => $value_file) {
-										
-										$arr_file[$key_file] = $value_file['condition_actions'][$action][$type]['file'];
-									}
-									
-									$str_path_file = $arr_file['tmp_name'];
-									
-									$str_extension = FileStore::getExtension($arr_file['name']);
-									if ($str_extension == FileStore::EXTENSION_UNKNOWN) {
-										$str_extension = FileStore::getExtension($str_path_file);
-									}
-									
-									if ($str_extension != 'svg') {
-										
-										Labels::setVariable('type', 'svg');
-										error(getLabel('msg_invalid_file_type_specific'));
-									}
-									
-									$str_filename = hash_file('md5', $str_path_file);
-									$str_filename = $str_filename.'.'.$str_extension;
-									
-									if (!isPath(DIR_HOME_CUSTOM_PROJECT_WORKSPACE.$str_filename)) {
-										$store_file = new FileStore($arr_file, ['directory' => DIR_HOME_CUSTOM_PROJECT_WORKSPACE, 'filename' => $str_filename], FileStore::getSizeLimit(FileStore::STORE_FILE));
-									}
-
-									$return = $str_filename;
-								}
-								break;
-							default:
-								$return = $arr_condition_setting['condition_actions'][$action][$type];
-						}
-						
-						if ($return === '' || $return === false || $return === null || $return === []) {
-							continue;
-						}
-						
-						$condition_actions[$action][$type] = $return;
-					}
-				}
-				
-				if (!$condition_actions && !$arr_condition_setting['condition_label']) {
-					continue;
-				}
-
-				$arr_condition_setting_clean = [
-					'condition_filter' => $condition_filter,
-					'condition_scope' => $condition_scope,
-					'condition_actions' => $condition_actions,
-					'condition_in_object_name' => (int)$arr_condition_setting['condition_in_object_name'],
-					'condition_in_object_values' => (int)$arr_condition_setting['condition_in_object_values'],
-					'condition_in_object_nodes_object' => (int)$arr_condition_setting['condition_in_object_nodes_object'],
-					'condition_in_object_nodes_referencing' => (int)$arr_condition_setting['condition_in_object_nodes_referencing'],
-					'condition_label' => $arr_condition_setting['condition_label']
-				];
-
-				if ($arr_condition_setting['id'] == 'id') {
-					$arr_condition['object'][] = $arr_condition_setting_clean;
-				}				
-			
-				foreach ($arr_type_set['object_descriptions'] as $object_description_id => $value) {
-					
-					$str_id = 'object_description_'.$object_description_id;
-					
-					if ($arr_condition_setting['id'] == $str_id && $_SESSION['NODEGOAT_CLEARANCE'] >= $value['object_description_clearance_view']) {
-						$arr_condition['object_descriptions'][$object_description_id][] = $arr_condition_setting_clean;
-						break;
-					}				
-				}
-				
-				foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
-					
-					$str_id = 'object_sub_details_'.$object_sub_details_id.'_id';
-					
-					if ($arr_condition_setting['id'] == $str_id) {
-						$arr_condition['object_sub_details'][$object_sub_details_id]['object_sub_details'][] = $arr_condition_setting_clean;
-						break;
-					}
-					
-					foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $value) {
-						
-						$str_id = 'object_sub_description_'.$object_sub_description_id;
-						
-						if ($arr_condition_setting['id'] == $str_id) {
-							$arr_condition['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id][] = $arr_condition_setting_clean;
-							break;
-						}					
-					}				
-				}
-				
-			}
-		} else {
-			
-			$arr_condition = $arr;
-			
-			$num_count_conditions = 0;
-			$str_prefix = value2Hash($arr_condition); // Create a stable and reinitiable (scenario-cacheable) but unique identifier
-			
-			if ($arr_condition['object']) {
-				
-				foreach ($arr_condition['object'] as &$arr_condition_setting) {
-					
-					$num_count_conditions++;
-					
-					if (!isset($arr_condition_setting['condition_identifier'])) {
-						$arr_condition_setting['condition_identifier'] = ($arr_condition_setting['condition_label'] ?: $str_prefix.$num_count_conditions);
-					}
-				}
-			}
-			
-			if ($arr_condition['object_descriptions']) {
-				
-				foreach ($arr_condition['object_descriptions'] as $object_description_id => &$arr_condition_settings) {
-					
-					foreach ($arr_condition_settings as &$arr_condition_setting) {
-						
-						$num_count_conditions++;
-						
-						if (!isset($arr_condition_setting['condition_identifier'])) {
-							$arr_condition_setting['condition_identifier'] = ($arr_condition_setting['condition_label'] ?: $str_prefix.$num_count_conditions);
-						}
-					}
-				}
-			}
-			
-			if ($arr_condition['object_sub_details']) {
-				
-				foreach ($arr_condition['object_sub_details'] as $object_sub_details_id => &$arr_condition_object_sub_details) {
-					
-					if ($arr_condition_object_sub_details['object_sub_details']) {
-						
-						foreach ($arr_condition_object_sub_details['object_sub_details'] as &$arr_condition_setting) {
-					
-							$num_count_conditions++;
-							
-							if (!isset($arr_condition_setting['condition_identifier'])) {
-								$arr_condition_setting['condition_identifier'] = ($arr_condition_setting['condition_label'] ?: $str_prefix.$num_count_conditions);
-							}
-						}
-					}
-					
-					if (!$arr_condition_object_sub_details['object_sub_descriptions']) {
-						continue;
-					}
-							
-					foreach ($arr_condition_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => &$arr_condition_settings) {
-
-						foreach ($arr_condition_settings as &$arr_condition_setting) {
-							
-							$num_count_conditions++;
-							
-							if (!isset($arr_condition_setting['condition_identifier'])) {
-								$arr_condition_setting['condition_identifier'] = ($arr_condition_setting['condition_label'] ?: $str_prefix.$num_count_conditions);
-							}
-						}
-					}
-				}
-			}
-		}
-		
-		return $arr_condition;
+		return ParseTypeFeatures::parseTypeCondition($type_id, $arr, $arr_files, ($_SESSION['NODEGOAT_CLEARANCE'] ?? 0));
 	}
 		
-	public static function checkTypeConditionNamespace($arr_condition_setting, $str_namespace) {
-		
-		$arr_label = Labels::parseNamespace($arr_condition_setting['condition_label']);
-		
-		if ($arr_label === false) {
-			return $arr_condition_setting;
-		}
-		
-		if (in_array($arr_label['namespace'], static::CONDITION_NAMESPACES)) {
-			
-			if ($arr_label['namespace'] == $str_namespace) {
-				
-				$arr_condition_setting['condition_label'] = $arr_label['label']; // Return label without namespace
-				
-				return $arr_condition_setting;
-			} else {
-				return false;
-			}
-		}
-
-		return $arr_condition_setting;
-	}
-	
-	public static function parseTypeModelConditions($type_id, $arr) {
-		
-		$arr_collect = [];
-		
-		foreach ((array)$arr as $cur_type_id => $arr_type_condition) {
-			
-			if ($arr_type_condition['condition_id']) {
-				$arr_collect[$cur_type_id] = ['condition_id' => $arr_type_condition['condition_id']];
-			} else if ($arr_type_condition['condition_use_current']) {
-				$arr_collect[$cur_type_id] = ['condition_use_current' => true];
-			}
-		}
-		
-		return $arr_collect;
-	}
-	
-	public static function parseTypeContext($type_id, $arr) {
-		
-		$arr_collect = [];
-		
-		foreach ((array)$arr['include'] as $arr_context_include) {
-			
-			if (!$arr_context_include['type_id'] || !$arr_context_include['scenario_id'] ) {
-				continue;
-			}
-			
-			$arr_collect['include'][$arr_context_include['type_id'].'_'.$arr_context_include['scenario_id']] = ['type_id' => $arr_context_include['type_id'], 'scenario_id' => $arr_context_include['scenario_id']];
-		}
-		
-		return $arr_collect;
-	}
-	
 	public static function checkClearanceType($type_id, $do_error = true) {
 		
 		$arr_type_set = StoreType::getTypeSet($type_id);

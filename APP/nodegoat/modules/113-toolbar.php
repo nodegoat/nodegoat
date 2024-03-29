@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -96,7 +96,7 @@ class toolbar extends base_module {
 					
 			<div>
 				<div class="options">
-				'.data_model::createTypeNetwork($type_id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'descriptions' => 'flat', 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_settings['scope'], 'name' => 'export_settings[scope]']).'
+				'.data_model::createTypeNetwork($type_id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'descriptions' => data_model::TYPE_NETWORK_DESCRIPTIONS_FLAT, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_settings['scope'], 'name' => 'export_settings[scope]']).'
 				</div>
 			</div>
 			
@@ -483,7 +483,7 @@ class toolbar extends base_module {
 				
 				$export = new $str_class($type_id, $arr_export_settings['scope']['types'], $arr_export_settings['format']);
 				
-				$collect = self::getExportCollector($type_id, $arr_filters, $arr_export_settings['scope'], $arr_conditions, $arr_ordering, $export->getCollectorSettings());
+				$collect = self::getExportCollector($type_id, $arr_filters, $arr_export_settings['scope'], $arr_conditions, $arr_ordering, $str_class::getCollectorSettings());
 				
 				$arr_nodegoat_details = cms_nodegoat_details::getDetails();
 				if ($arr_nodegoat_details['processing_time']) {
@@ -494,30 +494,18 @@ class toolbar extends base_module {
 				}
 			
 				$export->init($collect, $arr_filters);
-				
-				$response_format = Response::getFormat(); // Response could have changed in the following steps; store it
-				
-				try {
-					
-					$has_package = $export->createPackage($arr_export_settings['format']['settings'][$str_format_type]);
-				} catch (Exception $e) {
-					
-					Response::setFormat($response_format);
-					
-					throw($e);
-				}
+								
+				$has_package = $export->createPackage($arr_export_settings['format']['settings'][$str_format_type]);
 				
 				if (!$has_package) {
-					
-					Response::setFormat($response_format);
-					
+										
 					$this->msg = getLabel('msg_export_not_available');
 					return;
 				}
 
 				$export->readPackage('export');
 				
-				die;
+				exit;
 			} else {
 				 
 				$this->do_download = true;
@@ -632,10 +620,10 @@ class toolbar extends base_module {
 			$arr_use_project_ids = array_keys($arr_project['use_projects']);
 			
 			$arr_scenario = cms_nodegoat_custom_projects::getProjectTypeScenarios($_SESSION['custom_projects']['project_id'], false, false, $scenario_id, $arr_use_project_ids);
-			SiteEndVars::setFeedback('scenario_id', $arr_scenario['id'], true);
+			SiteEndEnvironment::setFeedback('scenario_id', $arr_scenario['id'], true);
 		} else {
 			
-			SiteEndVars::setFeedback('scenario_id', null, true);
+			SiteEndEnvironment::setFeedback('scenario_id', null, true);
 		}
 
 		// Filter
@@ -651,12 +639,12 @@ class toolbar extends base_module {
 				$cache_scenario = new CacheProjectTypeScenario($_SESSION['custom_projects']['project_id'], $scenario_id);						
 				$has_scenario_cache = $cache_scenario->checkCacheFilter($scenario_hash, false);
 				
-				SiteEndVars::setFeedback('scenario_has_cache', $has_scenario_cache);
+				SiteEndEnvironment::setFeedback('scenario_has_cache', $has_scenario_cache);
 			}
 			
 			if (self::$action_space === 0) {
 								
-				SiteEndVars::setFeedback('filter', [
+				SiteEndEnvironment::setFeedback('filter', [
 					'filter' => ['filter_id' => $arr_scenario['filter_id'], 'form' => [], 'versioning' => []],
 					'active' => ($arr_scenario['filter_id'] ? true : false)
 				]);
@@ -679,7 +667,7 @@ class toolbar extends base_module {
 				cms_nodegoat_custom_projects::handleProjectTypeScope($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, $type_id, [], $arr_scope);
 			}
 			
-			SiteEndVars::setFeedback('scope_id', ($arr_scenario['scope_id'] ?: false), true);
+			SiteEndEnvironment::setFeedback('scope_id', ($arr_scenario['scope_id'] ?: false), true);
 		}
 		
 		// Condition
@@ -700,7 +688,7 @@ class toolbar extends base_module {
 				cms_nodegoat_custom_projects::handleProjectTypeCondition($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, $type_id, [], $arr_condition, $arr_model_conditions);
 			}
 			
-			SiteEndVars::setFeedback('condition_id', ($arr_scenario['condition_id'] ?: false), true);
+			SiteEndEnvironment::setFeedback('condition_id', ($arr_scenario['condition_id'] ?: false), true);
 		}
 
 		// Context
@@ -719,7 +707,7 @@ class toolbar extends base_module {
 				cms_nodegoat_custom_projects::handleProjectTypeContext($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, $type_id, [], $arr_context);
 			}
 			
-			SiteEndVars::setFeedback('context_id', ($arr_scenario['context_id'] ?: false), true);
+			SiteEndEnvironment::setFeedback('context_id', ($arr_scenario['context_id'] ?: false), true);
 		}
 		
 		// Frame
@@ -733,7 +721,7 @@ class toolbar extends base_module {
 					
 					$arr_frame = cms_nodegoat_custom_projects::getProjectTypeFrames($_SESSION['custom_projects']['project_id'], false, false, $arr_scenario['frame_id'], $arr_use_project_ids);
 					$arr_frame = $arr_frame['settings'];
-					$arr_frame = cms_nodegoat_custom_projects::parseFrame($arr_frame);
+					$arr_frame = ParseTypeFeatures::parseTypeFrame($type_id, $arr_frame);
 					
 					if (data_visualise::getTypeFrame($type_id, false) == $arr_frame) {
 
@@ -744,7 +732,7 @@ class toolbar extends base_module {
 				cms_nodegoat_custom_projects::handleProjectTypeFrame($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, $type_id, [], $arr_frame);
 			}
 			
-			SiteEndVars::setFeedback('frame_id', ($arr_scenario['frame_id'] ?: false), true);
+			SiteEndEnvironment::setFeedback('frame_id', ($arr_scenario['frame_id'] ?: false), true);
 		}
 		
 		// Visual settings
@@ -758,7 +746,7 @@ class toolbar extends base_module {
 					
 					$arr_visual_settings = cms_nodegoat_custom_projects::getProjectVisualSettings($_SESSION['custom_projects']['project_id'], false, $arr_scenario['visual_settings_id'], $arr_use_project_ids);
 					$arr_visual_settings = $arr_visual_settings['settings'];
-					$arr_visual_settings = cms_nodegoat_custom_projects::parseVisualSettings($arr_visual_settings);
+					$arr_visual_settings = ParseTypeFeatures::parseVisualSettings($arr_visual_settings);
 					
 					if (data_visualise::getVisualSettings(false) == $arr_visual_settings) {
 
@@ -769,7 +757,7 @@ class toolbar extends base_module {
 				cms_nodegoat_custom_projects::handleProjectVisualSettings($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, [], $arr_visual_settings);
 			}
 			
-			SiteEndVars::setFeedback('visual_settings_id', ($arr_scenario['visual_settings_id'] ?: false), true);
+			SiteEndEnvironment::setFeedback('visual_settings_id', ($arr_scenario['visual_settings_id'] ?: false), true);
 		}
 		
 		// Analysis
@@ -787,7 +775,7 @@ class toolbar extends base_module {
 				cms_nodegoat_custom_projects::handleProjectTypeAnalysis($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, $type_id, [], $arr_analysis);
 			}
 			
-			SiteEndVars::setFeedback('analysis_id', ($arr_scenario['analysis_id'] ?: false), true);
+			SiteEndEnvironment::setFeedback('analysis_id', ($arr_scenario['analysis_id'] ?: false), true);
 		}
 		
 		// Analysis Context
@@ -806,7 +794,7 @@ class toolbar extends base_module {
 				cms_nodegoat_custom_projects::handleProjectTypeAnalysisContext($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, $type_id, [], $arr_analysis_context);
 			}
 			
-			SiteEndVars::setFeedback('analysis_context_id', ($arr_scenario['analysis_context_id'] ?: false), true);
+			SiteEndEnvironment::setFeedback('analysis_context_id', ($arr_scenario['analysis_context_id'] ?: false), true);
 		}
 		
 		self::checkActiveSettings();
@@ -814,24 +802,24 @@ class toolbar extends base_module {
 	
 	public static function checkActiveScenario($do_enable = true) {
 		
-		$scenario_id = SiteStartVars::getFeedback('scenario_id');
+		$scenario_id = SiteStartEnvironment::getFeedback('scenario_id');
 		
 		if (!$scenario_id) {
 			return false;
 		}
 		
 		if (!$do_enable) {
-			SiteEndVars::setFeedback('scenario_id', null, true);
+			SiteEndEnvironment::setFeedback('scenario_id', null, true);
 			return false;
 		}
 		
 		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 						
-		$arr_scenario = cms_nodegoat_custom_projects::getProjectTypeScenarios($_SESSION['custom_projects']['project_id'], false, false, SiteStartVars::getFeedback('scenario_id'), $arr_use_project_ids);
+		$arr_scenario = cms_nodegoat_custom_projects::getProjectTypeScenarios($_SESSION['custom_projects']['project_id'], false, false, SiteStartEnvironment::getFeedback('scenario_id'), $arr_use_project_ids);
 		
 		if (!$arr_scenario) {
-			SiteEndVars::setFeedback('scenario_id', null, true);
+			SiteEndEnvironment::setFeedback('scenario_id', null, true);
 			return false;
 		}
 		
@@ -839,7 +827,7 @@ class toolbar extends base_module {
 		
 		// Breaks Scenario
 		if ($arr_scenario['filter_use_current'] || $arr_scenario['scope_use_current'] || $arr_scenario['condition_use_current']) {
-			SiteEndVars::setFeedback('scenario_id', null, true);
+			SiteEndEnvironment::setFeedback('scenario_id', null, true);
 			return false;
 		}
 		
@@ -862,7 +850,7 @@ class toolbar extends base_module {
 		
 		if ($arr_cur_filters !== $arr_filters) { // Check if the active (original) filter matches the scenario
 			
-			SiteEndVars::setFeedback('scenario_id', null, true);
+			SiteEndEnvironment::setFeedback('scenario_id', null, true);
 			return false;
 		}
 
@@ -921,7 +909,7 @@ class toolbar extends base_module {
 			$arr_set_cache['result'] = $cache_scenario->getCache();
 		} else {
 			
-			status(getLabel('msg_building_cache_scenario_filter'), false, getLabel('msg_wait'), ['identifier' => SiteStartVars::getSessionId(true).'cache_scenario_filter', 'duration' => 1000, 'persist' => true]);
+			status(getLabel('msg_building_cache_scenario_filter'), false, getLabel('msg_wait'), ['identifier' => SiteStartEnvironment::getSessionId(true).'cache_scenario_filter', 'duration' => 1000, 'persist' => true]);
 		}
 		
 		$has_set_cache = ($arr_set_cache['result'] !== null);
@@ -957,7 +945,7 @@ class toolbar extends base_module {
 			
 			$cache_scenario->updateCache($arr_set_result);
 			
-			clearStatus(SiteStartVars::getSessionId(true).'cache_scenario_filter');
+			clearStatus(SiteStartEnvironment::getSessionId(true).'cache_scenario_filter');
 			
 			$arr_filter = ['objects' => $arr_set_result['objects']];
 		}
@@ -975,14 +963,14 @@ class toolbar extends base_module {
 			return;
 		}
 		
-		SiteEndVars::setFeedback('filter', $arr_filters, true);
+		SiteEndEnvironment::setFeedback('filter', $arr_filters, true);
 		
 		self::checkFilters();
 	}
 	
 	public static function getFilter($do_selected = true) {
 		
-		$arr = SiteStartVars::getFeedback('filter');
+		$arr = SiteStartEnvironment::getFeedback('filter');
 		$arr = ($arr ?: []);
 		
 		if ($do_selected) {
@@ -1015,7 +1003,7 @@ class toolbar extends base_module {
 	
 	public static function getSelected() {
 		
-		$arr = SiteStartVars::getFeedback('selected');
+		$arr = SiteStartEnvironment::getFeedback('selected');
 		$arr = ($arr ?: []);
 		
 		foreach ($arr as $type_id => &$arr_object_ids) {
@@ -1053,7 +1041,7 @@ class toolbar extends base_module {
 		$arr_selected = self::getSelected();
 		$arr_filters = self::getFilter(false);
 		
-		SiteEndVars::setFeedback('project_id', $_SESSION['custom_projects']['project_id']);
+		SiteEndEnvironment::setFeedback('project_id', $_SESSION['custom_projects']['project_id']);
 
 		if ($arr_selected || $arr_filters) {
 			
@@ -1066,12 +1054,12 @@ class toolbar extends base_module {
 			
 			$arr_type_set = StoreType::getTypeSet($type_id);
 			
-			SiteEndVars::setFeedback('visualise', ($arr_type_set['object_sub_details'] || $has_scope ? true : false));
-			SiteEndVars::setFeedback('data', true);
+			SiteEndEnvironment::setFeedback('visualise', ($arr_type_set['object_sub_details'] || $has_scope ? true : false));
+			SiteEndEnvironment::setFeedback('data', true);
 		} else {
 			
-			SiteEndVars::setFeedback('visualise', false);
-			SiteEndVars::setFeedback('data', false);
+			SiteEndEnvironment::setFeedback('visualise', false);
+			SiteEndEnvironment::setFeedback('data', false);
 		}
 	}
 	
@@ -1079,12 +1067,12 @@ class toolbar extends base_module {
 				
 		// $arr_ordering = array(type_id => arr_ordering = see GenerateTypeObjects)
 		
-		SiteEndVars::setFeedback('order', $arr_ordering, true);
+		SiteEndEnvironment::setFeedback('order', $arr_ordering, true);
 	}
 	
 	public static function getOrder() {
 		
-		$arr = SiteStartVars::getFeedback('order');
+		$arr = SiteStartEnvironment::getFeedback('order');
 		$arr = ($arr ?: []);
 		
 		return $arr;
@@ -1098,20 +1086,20 @@ class toolbar extends base_module {
 		
 		if ($type_id) { // Specific Type check, reset all user settings when applicable
 			
-			$cur_type_id = SiteStartVars::getFeedback('type_id');
+			$cur_type_id = SiteStartEnvironment::getFeedback('type_id');
 			
 			if ($cur_type_id && $type_id != $cur_type_id) {
 				
-				SiteEndVars::setFeedback('scope_id', 0, true);
-				SiteEndVars::setFeedback('condition_id', 0, true);
-				SiteEndVars::setFeedback('context_id', 0, true);
-				SiteEndVars::setFeedback('frame_id', 0, true);
-				SiteEndVars::setFeedback('visual_settings_id', 0, true);
-				SiteEndVars::setFeedback('analysis_id', 0, true);
-				SiteEndVars::setFeedback('analysis_context_id', 0, true);
+				SiteEndEnvironment::setFeedback('scope_id', 0, true);
+				SiteEndEnvironment::setFeedback('condition_id', 0, true);
+				SiteEndEnvironment::setFeedback('context_id', 0, true);
+				SiteEndEnvironment::setFeedback('frame_id', 0, true);
+				SiteEndEnvironment::setFeedback('visual_settings_id', 0, true);
+				SiteEndEnvironment::setFeedback('analysis_id', 0, true);
+				SiteEndEnvironment::setFeedback('analysis_context_id', 0, true);
 			}
 		
-			SiteEndVars::setFeedback('type_id', $type_id, true);
+			SiteEndEnvironment::setFeedback('type_id', $type_id, true);
 		} else {
 			
 			$type_id = self::getFilterTypeID();
@@ -1120,65 +1108,65 @@ class toolbar extends base_module {
 		$arr_scope = data_visualise::getTypeScope($type_id);
 		$bool_scope = (($arr_scope['types'] || $arr_scope['paths']) ? true : false);
 		
-		SiteEndVars::setFeedback('scope', $bool_scope);
+		SiteEndEnvironment::setFeedback('scope', $bool_scope);
 		
 		$arr_condition = cms_nodegoat_custom_projects::getProjectTypeConditions($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, 0);
 		
-		SiteEndVars::setFeedback('condition', ($arr_condition['object'] ? true : false));
-		SiteEndVars::setFeedback('condition_model_conditions', ($arr_condition['model_object'] ? true : false));
+		SiteEndEnvironment::setFeedback('condition', ($arr_condition['object'] ? true : false));
+		SiteEndEnvironment::setFeedback('condition_model_conditions', ($arr_condition['model_object'] ? true : false));
 		
 		$arr_analysis = cms_nodegoat_custom_projects::getProjectTypeAnalyses($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, 0);
 		$bool_analysis = ($arr_analysis['algorithm'] ? true : false);
 		
-		SiteEndVars::setFeedback('analysis', $bool_analysis);
+		SiteEndEnvironment::setFeedback('analysis', $bool_analysis);
 		
 		$arr_analysis_context = cms_nodegoat_custom_projects::getProjectTypeAnalysesContexts($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, 0);
 		$bool_analysis_context = ($arr_analysis_context['object'] ? true : false);
 		$html_column = false;
 		
-		SiteEndVars::setFeedback('analysis_context', $bool_analysis_context);
+		SiteEndEnvironment::setFeedback('analysis_context', $bool_analysis_context);
 		
 		if ($bool_analysis || $bool_analysis_context) {
 			
 			$arr_analysis = data_analysis::parseTypeAnalysis($type_id, $arr_analysis);
 			
 			$arr_analysis_context = $arr_analysis_context['object'];
-			$arr_analysis_context = data_analysis::parseTypeAnalysisContext($type_id, $arr_analysis_context);
+			$arr_analysis_context = ParseTypeFeatures::parseTypeAnalysisContext($type_id, $arr_analysis_context);
 			
 			$html_column = '<th class="analysis limit" title="'.getLabel('lbl_analysis').'" data-identifier="analysis"><span>'.data_analysis::createTypeAnalysisTableHeader($type_id, $arr_analysis, $arr_analysis_context).'</span></th>';
 		}
 		
-		SiteEndVars::setFeedback('analysis_column', ($html_column ?: false));
+		SiteEndEnvironment::setFeedback('analysis_column', ($html_column ?: false));
 		
 		$arr_context = cms_nodegoat_custom_projects::getProjectTypeContexts($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, 0);
 		$bool_context = ($arr_context['object'] ? true : false);
 		
-		SiteEndVars::setFeedback('context', $bool_context);
+		SiteEndEnvironment::setFeedback('context', $bool_context);
 		
 		$arr_frame = cms_nodegoat_custom_projects::getProjectTypeFrames($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, 0);
 		$bool_frame = ($arr_frame['settings'] && array_filter($arr_frame['settings']) ? true : false);
 		
-		SiteEndVars::setFeedback('frame', $bool_frame);
+		SiteEndEnvironment::setFeedback('frame', $bool_frame);
 		
 		$arr_visual_settings = cms_nodegoat_custom_projects::getProjectVisualSettings($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0);
 		$arr_visual_settings = $arr_visual_settings['settings'];
 		
 		if ($arr_visual_settings) {
 			
-			$arr_visual_settings = cms_nodegoat_custom_projects::parseVisualSettings($arr_visual_settings);
-			$arr_visual_settings_default = cms_nodegoat_custom_projects::parseVisualSettings();
+			$arr_visual_settings = ParseTypeFeatures::parseVisualSettings($arr_visual_settings);
+			$arr_visual_settings_default = ParseTypeFeatures::parseVisualSettings();
 			
 			if ($arr_visual_settings == $arr_visual_settings_default) {
 				$arr_visual_settings = false;
 			}
 		}
 
-		SiteEndVars::setFeedback('visual_settings', ($arr_visual_settings ? true : false));
+		SiteEndEnvironment::setFeedback('visual_settings', ($arr_visual_settings ? true : false));
 	}
 	
 	public static function getTypeFilterSet($str_identifier, $arr_filters) {
 		
-		$arr_set = SiteStartVars::getFeedback('data_entry_filter_set');
+		$arr_set = SiteStartEnvironment::getFeedback('data_entry_filter_set');
 		$arr_set = $arr_set[$str_identifier];
 		
 		$str_filter = value2Hash($arr_filters);
@@ -1194,27 +1182,27 @@ class toolbar extends base_module {
 	
 	public static function setTypeFilterSet($str_identifier, $arr_set) {
 		
-		$arr_set_all = SiteStartVars::getFeedback('data_entry_filter_set');
+		$arr_set_all = SiteStartEnvironment::getFeedback('data_entry_filter_set');
 		$arr_set_all[$str_identifier] = $arr_set;
 		
-		SiteEndVars::setFeedback('data_entry_filter_set', $arr_set_all, true);
+		SiteEndEnvironment::setFeedback('data_entry_filter_set', $arr_set_all, true);
 	}
 	
 	public static function clearTypeFilterSet($str_identifier = false) {
 		
 		if ($str_identifier) {
 			
-			$arr_set_all = SiteStartVars::getFeedback('data_entry_filter_set');
+			$arr_set_all = SiteStartEnvironment::getFeedback('data_entry_filter_set');
 			$arr_set_all[$str_identifier] = null;
 		} else {
 			
 			$arr_set_all = [];
 		}
 		
-		SiteEndVars::setFeedback('data_entry_filter_set', $arr_set_all, true);
+		SiteEndEnvironment::setFeedback('data_entry_filter_set', $arr_set_all, true);
 	}
 		
-	public static function getTypeConditions($type_id, $object_name_only = false) {
+	public static function getTypeConditions($type_id, $do_object_name_only = false) {
 		
 		$arr_collect_conditions = [];
 		$arr_condition_ids = [];
@@ -1241,11 +1229,11 @@ class toolbar extends base_module {
 		}
 		
 		// Interaction settings
-		if (SiteStartVars::getFeedback('condition_id') === false) {
+		if (SiteStartEnvironment::getFeedback('condition_id') === false) {
 			
 		} else {
 			
-			$arr_context = SiteStartVars::getFeedback('context');
+			$arr_context = SiteStartEnvironment::getFeedback('context');
 			
 			if ($arr_context) {
 				$active_type_id = $arr_context['type_id'];
@@ -1253,7 +1241,7 @@ class toolbar extends base_module {
 				$active_type_id = self::getFilterTypeID();
 			}
 			
-			$condition_id = SiteStartVars::getFeedback('condition_id');
+			$condition_id = SiteStartEnvironment::getFeedback('condition_id');
 			if (!$condition_id) {
 				$condition_id = 0;
 			}
@@ -1270,7 +1258,7 @@ class toolbar extends base_module {
 						$arr_condition_ids[] = $arr_condtion_model_object_type['condition_id'];
 					} else if ($arr_condtion_model_object_type['condition_use_current']) {
 						
-						if (!SiteStartVars::getFeedback('scenario_id') && !$arr_context) { // Only apply a user's condition when no scenarios or contexts are active
+						if (!SiteStartEnvironment::getFeedback('scenario_id') && !$arr_context) { // Only apply a user's condition when no scenarios or contexts are active
 							$arr_condition_ids[] = 0;
 						}
 					}
@@ -1296,76 +1284,14 @@ class toolbar extends base_module {
 				$arr_collect_conditions[] = $arr_conditions[$condition_id]['object'];
 			}
 		}
-			
-		$arr_type_set_conditions = [];
-	
-		foreach ($arr_collect_conditions as $arr_condition) {
+		
+		foreach ($arr_collect_conditions as &$arr_condition) {
 			
 			$arr_condition = data_model::parseTypeCondition($type_id, $arr_condition);
-			
-			if ($object_name_only) {
-				
-				foreach (($arr_condition['object'] ?? []) as $arr_condition_setting) {
-					
-					if (!$arr_condition_setting['condition_in_object_name']) {
-						continue;
-					}
-					
-					$arr_type_set_conditions['object'][] = $arr_condition_setting;
-				}
-				
-				foreach (($arr_condition['object_descriptions'] ?? []) as $object_description_id => $arr_condition_settings) {
-					
-					foreach ($arr_condition_settings as $arr_condition_setting) {
-						
-						if (!$arr_condition_setting['condition_in_object_name']) {
-							continue;
-						}
-						
-						$arr_type_set_conditions['object_descriptions'][$object_description_id][] = $arr_condition_setting;
-					}
-				}
-				
-				foreach (($arr_condition['object_sub_details'] ?? [])  as $object_sub_details_id => $arr_condition_object_sub_details) {
-					
-					if (!$arr_condition_object_sub_details['object_sub_descriptions']) {
-						continue;
-					}
-							
-					foreach ($arr_condition_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_condition_settings) {
-
-						foreach ($arr_condition_settings as $arr_condition_setting) {
-							
-							if (!$arr_condition_setting['condition_in_object_name']) {
-								continue;
-							}
-							
-							$arr_type_set_conditions['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id][] = $arr_condition_setting;
-						}
-					}
-				}
-			} else {
-
-				if ($arr_condition['object']) {
-					$arr_type_set_conditions['object'] = array_merge(($arr_type_set_conditions['object'] ?? []) , $arr_condition['object']);
-				}
-				 
-				foreach (($arr_condition['object_descriptions'] ?? [])  as $object_description_id => $arr_condition_settings) {
-					$arr_type_set_conditions['object_descriptions'][$object_description_id] = array_merge(($arr_type_set_conditions['object_descriptions'][$object_description_id] ?? []) , $arr_condition_settings);
-				}
-				
-				foreach (($arr_condition['object_sub_details'] ?? [])  as $object_sub_details_id => $arr_condition_object_sub_details) {
-					
-					if ($arr_condition_object_sub_details['object_sub_details']) {
-						$arr_type_set_conditions['object_sub_details'][$object_sub_details_id]['object_sub_details'] = array_merge(($arr_type_set_conditions['object_sub_details'][$object_sub_details_id]['object_sub_details'] ?? []) , $arr_condition_object_sub_details['object_sub_details']);
-					}
-					
-					foreach (($arr_condition_object_sub_details['object_sub_descriptions'] ?? [])  as $object_sub_description_id => $arr_condition_object_sub_description) {
-						$arr_type_set_conditions['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id] = array_merge(($arr_type_set_conditions['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id] ?? []), $arr_condition_object_sub_description);
-					}
-				}
-			}
 		}
+		unset($arr_condition);
+		
+		$arr_type_set_conditions = ParseTypeFeatures::mergeTypeConditions($type_id, $arr_collect_conditions, $do_object_name_only);
 		
 		return $arr_type_set_conditions;
 	}
@@ -1391,14 +1317,16 @@ class toolbar extends base_module {
 		$collect->setConditions($arr_settings['conditions'], function($cur_type_id) use ($type_id, $arr_conditions) {
 			
 			if ($cur_type_id == $type_id && $arr_conditions !== false) {
-				return $arr_conditions;
+				$arr_use_conditions = $arr_conditions;
+			} else {
+				$arr_use_conditions = toolbar::getTypeConditions($cur_type_id);
 			}
 			
-			return toolbar::getTypeConditions($cur_type_id);
+			return ParseTypeFeatures::parseTypeConditionNamespace($cur_type_id, $arr_use_conditions, fn($arr_condition_setting) => ParseTypeFeatures::checkTypeConditionNamespace($arr_condition_setting, false));
 		});
 		$collect->setGenerateCallback(function($generate, $cur_type_id) {
 			
-			$generate->setFormatMode(StoreTypeObjects::FORMAT_DATE_YMD);
+			$generate->setFormatMode(FormatTypeObjects::FORMAT_DATE_YMD);
 		});
 		$collect->setTypeOptions([$type_id => ['order' => $arr_ordering]]);
 		$collect->init($arr_filters, false);
@@ -1455,9 +1383,9 @@ class toolbar extends base_module {
 					}
 				}
 				
-				$arr_selected = ($arr_scope_settings['selection'] ?: []);
+				$arr_in_selection = ($arr_scope_settings['selection'] ?: []);
 				
-				foreach ($arr_selected as $id => $value) {
+				foreach ($arr_in_selection as $id => $arr_selected) {
 					
 					if ($id == 'name') {
 						
@@ -1466,7 +1394,7 @@ class toolbar extends base_module {
 						continue;
 					}
 					
-					$object_description_id = $value['object_description_id'];
+					$object_description_id = $arr_selected['object_description_id'];
 					
 					if ($object_description_id) {
 							
@@ -1479,7 +1407,7 @@ class toolbar extends base_module {
 						continue;
 					}
 					
-					$object_sub_details_id = $value['object_sub_details_id'];
+					$object_sub_details_id = $arr_selected['object_sub_details_id'];
 					
 					if ($object_sub_details_id) {
 
@@ -1487,9 +1415,13 @@ class toolbar extends base_module {
 							continue;
 						}
 						
-						$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details'] = ['all' => true];
+						if (!isset($arr_selection['object_sub_details'][$object_sub_details_id])) {
+							
+							$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details'] = ['all' => true];
+							$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] = []; // Set default empty selection on sub object descriptions as there could be none selected
+						}
 						
-						$object_sub_description_id = $value['object_sub_description_id'];
+						$object_sub_description_id = $arr_selected['object_sub_description_id'];
 						
 						if ($object_sub_description_id) {
 							
@@ -1498,9 +1430,6 @@ class toolbar extends base_module {
 							}
 							
 							$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id] = ['object_sub_description_id' => true];
-						} else if (!$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions']) { // Set empty selection on sub object descriptions if there are none selected
-							
-							$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] = [];
 						}
 						
 						continue;

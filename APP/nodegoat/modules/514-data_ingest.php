@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -123,7 +123,7 @@ class data_ingest extends ingest_source {
 		
 		if (arrHasKeysRecursive('conversion_id', $arr_response_values, true)) {
 			
-			SiteEndVars::setFeedback('ingest_source', cms_details::setWebServiceActiveUser($_SESSION['USER_ID'], value2Hash(session_id())));
+			SiteEndEnvironment::setFeedback('ingest_source', cms_details::setWebServiceActiveUser($_SESSION['USER_ID'], value2Hash(session_id())));
 			$has_webservice = true;
 		}
 		
@@ -366,7 +366,7 @@ class data_ingest extends ingest_source {
 			$this->has_feedback_template_process = true;
 		} else {
 			
-			SiteStartVars::stopSession(); // Make sure storage & status update is not interrupted
+			SiteStartEnvironment::stopSession(); // Make sure storage & status update is not interrupted
 			
 			$ingest->process();
 			
@@ -380,7 +380,7 @@ class data_ingest extends ingest_source {
 				static::updateTemplateState($system_object_id, ['source' => $arr_state['source'], 'object_ids' => $arr_object_ids, 'status' => 'done']);
 			}
 			
-			SiteStartVars::startSession();
+			SiteStartEnvironment::startSession();
 			
 			if ($this->has_feedback_template_process) {
 				
@@ -528,7 +528,7 @@ class data_ingest extends ingest_source {
 			$this->has_feedback_template_process = true;
 		} else {
 			
-			SiteStartVars::stopSession(); // Make sure storage & status update is not interrupted
+			SiteStartEnvironment::stopSession(); // Make sure storage & status update is not interrupted
 			
 			$ingest->process();
 			
@@ -553,7 +553,7 @@ class data_ingest extends ingest_source {
 				}
 			}
 			
-			SiteStartVars::startSession();
+			SiteStartEnvironment::startSession();
 			
 			if ($this->has_feedback_template_process || $this->is_done_template_process) {
 				
@@ -610,40 +610,47 @@ class data_ingest extends ingest_source {
 		$return = parent::js();
 
 		$return .= "
+			SCRIPTER.dynamic('.ingest-source.run', function(elm_scripter) {
+
+				const elm_form = elm_scripter.closest('form');
+				const elm_menu = elm_form.children('menu');
+				
+				elm_form.on('command', function(e) {
+
+					if (!hasElement(elm_menu, e.target)) {
+						return;
+					}
+					
+					const elm_template_check = elm_form.find('.template-check');
+					
+					const is_discard = (e.target.getAttribute('name') == 'do_discard');
+					const is_webservice = (elm_template_check[0] && elm_template_check[0].dataset.webservice ? true : false);
+					const is_active = INGEST_SOURCE.isActive();
+					const do_abort = (is_webservice && !is_active && !is_discard);
+										
+					COMMANDS.setAbort(elm_form, do_abort);
+
+					if (!do_abort) {
+						return;
+					}
+					
+					var popup = new MessagePopup(elm_form);
+					popup.addButtonDefault();
+					
+					ASSETS.getLabels(elm_form,
+						['msg_ingest_no_webservice_client'],
+						function(data) {
+							popup.setMessage(data.msg_ingest_no_webservice_client);
+						}
+					);
+				});
+			});
 			SCRIPTER.dynamic('.ingest-source.template-check', function(elm_scripter) {
 				
 				var elm_reset = elm_scripter.find('[id^=y\\\:data_ingest\\\:reset_process-]');
 				
 				COMMANDS.setTarget(elm_reset, elm_scripter);
 				COMMANDS.setOptions(elm_reset, {html: 'replace'});
-				
-				if (elm_scripter[0].dataset.webservice) {
-					
-					const elm_form = elm_scripter.closest('form');
-					
-					elm_form.on('command', function(e) {
-						
-						const is_discard = (e.target.getAttribute('name') == 'do_discard');
-						const is_active = INGEST_SOURCE.isActive();
-						const do_abort = (!is_active && !is_discard);
-											
-						COMMANDS.setAbort(elm_form, do_abort);
-
-						if (!do_abort) {
-							return;
-						}
-						
-						var popup = new MessagePopup(elm_form);
-						popup.addButtonDefault();
-						
-						ASSETS.getLabels(elm_form,
-							['msg_ingest_no_webservice_client'],
-							function(data) {
-								popup.setMessage(data.msg_ingest_no_webservice_client);
-							}
-						);
-					});
-				}
 			});
 		";
 		

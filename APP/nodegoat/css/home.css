@@ -2,7 +2,7 @@
 
 :root {
 	--nodegoat-green: #a3ce6c;
-	--nodegoat-highlight: #009cff;
+	--nodegoat-blue: #009cff;
 	--nodegoat-dark: #131617;
 }
 
@@ -72,7 +72,7 @@ hr { border-bottom-width: 1px; }
 .toolbar a:hover,
 .toolbar .a:hover,
 .logout a:hover,
-.logout .a:hover { color: var(--nodegoat-highlight); }
+.logout .a:hover { color: var(--highlight); }
 .toolbar a:not(:hover),
 .toolbar .a:not(:hover),
 .logout a:not(:hover),
@@ -184,7 +184,7 @@ div.analysis-object > span + span::before { content: "|"; padding: 0px 4px; }
 .text_tags .body span.tag-active { padding: 1px; border-width: 1px; margin: -2px; border-style: solid; border-radius: 2px; }
 .text_tags .body + .marginalia { position: relative; display: inline-block; padding-left: 3px; font-style: oblique; vertical-align: top;}
 .text_tags .body + .marginalia > p { position: absolute; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; padding: 0;}
-.text_tags .body + .marginalia > p span { opacity: 0.7; }
+.text_tags .body + .marginalia > p span { opacity: 0.7; display: inline-block; }
 .text_tags .body + .marginalia > p.tag-active { padding-top: 2px; padding-bottom: 2px; margin-top: -2px; margin-bottom: -2px; }
 .text_tags .body + .marginalia > p.tag-active span { padding: 1px; border-width: 1px; margin-top: -2px; margin-bottom: -2px; border-style: solid; border-radius: 2px; opacity: 1 !important; }
 .text_layout.body + p,
@@ -197,25 +197,25 @@ div.analysis-object > span + span::before { content: "|"; padding: 0px 4px; }
 
 .data_entry > .tabs { margin-bottom: 20px; }
 
-.data_viewer .record > dl > li > dd { max-width: 800px; overflow-wrap: break-word; }
-.data_viewer .record > dl > li > dd > span.icon,
-.data_viewer .record > dl > li > dd ul > li span.icon { display: inline-block; color: var(--text); margin-left: 4px; margin-right: 2px; }
-.data_viewer .record > dl > li > dd > span.icon svg,
-.data_viewer .record > dl > li > dd ul > li span.icon svg { height: 12px; }
-.data_viewer .record > dl > li > dd > span.a,
-.data_viewer .record > dl > li > dd ul > li span.a { text-decoration: underline currentColor dashed 1px; text-underline-offset: 4px; display: inline-block; padding-bottom: 2px; }
-.data_viewer .record > dl > li > dd > span.a:not(:hover),
-.data_viewer .record > dl > li > dd ul > li span.a:not(:hover) { text-decoration-color: var(--text); }
-.data_viewer .record > dl > li > dd > span.a:hover > span[style] { color: inherit !important; }
-.data_viewer .record > dl > li > dd > ul ul { margin-left: 20px; }
-.data_viewer .record > dl > li > dd > div { display: inline-block; }
-.data_viewer .record > dl > li > dd > div.analysis-object > span + span::before { content: "|"; }
-.data_viewer .record > dl > li > dd > div > img { display: block; }
-.data_viewer .record > dl > li > dd > div > div.album > * + * { margin-top: 8px; }
-.data_viewer .record > dl > li > dd object,
-.data_viewer .record > dl > li > dd iframe { width: 800px; height: 600px; }
-.data_viewer .record > dl > li > dd .tabs.text_layout > ul + div,
-.data_viewer .record > dl > li > dd .tabs.text_tags > ul + div { min-width: 600px; white-space: nowrap; }
+.data_viewer .record > dl > div > dd { max-width: 800px; overflow-wrap: break-word; }
+.data_viewer .record > dl > div > dd > span.icon,
+.data_viewer .record > dl > div > dd ul > li span.icon { display: inline-block; color: var(--text); margin-left: 4px; margin-right: 2px; }
+.data_viewer .record > dl > div > dd > span.icon svg,
+.data_viewer .record > dl > div > dd ul > li span.icon svg { height: 12px; }
+.data_viewer .record > dl > div > dd > span.a,
+.data_viewer .record > dl > div > dd ul > li span.a { text-decoration: underline currentColor dashed 1px; text-underline-offset: 4px; display: inline-block; padding-bottom: 2px; }
+.data_viewer .record > dl > div > dd > span.a:not(:hover),
+.data_viewer .record > dl > div > dd ul > li span.a:not(:hover) { text-decoration-color: var(--text); }
+.data_viewer .record > dl > div > dd > span.a:hover > span[style] { color: inherit !important; }
+.data_viewer .record > dl > div > dd > ul ul { margin-left: 20px; }
+.data_viewer .record > dl > div > dd > div { display: inline-block; }
+.data_viewer .record > dl > div > dd > div.analysis-object > span + span::before { content: "|"; }
+.data_viewer .record > dl > div > dd > div > img { display: block; }
+.data_viewer .record > dl > div > dd > div > div.album > * + * { margin-top: 8px; }
+.data_viewer .record > dl > div > dd object,
+.data_viewer .record > dl > div > dd iframe { width: 800px; height: 600px; }
+.data_viewer .record > dl > div > dd .tabs.text_layout > ul + div,
+.data_viewer .record > dl > div > dd .tabs.text_tags > ul + div { min-width: 600px; white-space: nowrap; }
 
 /* CUSTOM & BODY CONTENT */
 
@@ -233,7 +233,7 @@ div.analysis-object > span + span::before { content: "|"; padding: 0px 4px; }
 .body table.details td > *:first-child { margin-top: 0px; }
 .body table.details td > *:last-child { margin-bottom: 0px; }
 .body table.details tr:nth-child(odd) { background-color: #f9f9f9; }
-.body table.details th { background-color: var(--nodegoat-highlight); color: #ffffff; }
+.body table.details th { background-color: var(--highlight); color: #ffffff; }
 
 /* INTERFACE */
 
@@ -267,10 +267,7 @@ fieldset > ul > li > label:first-child + * input[type=text].colorpicker,
 .custom_projects > form > h1 > small,
 .project-overview > div > h1 > small,
 .public_interfaces > form > h1 > small,
-.popup > form[data-method="handle_scenario_storage"] > h2 > small,
-.popup > form[data-method="handle_scope_storage"] > h2 > small,
-.popup > form[data-method="handle_filter_storage"] > h2 > small,
-.popup > form[data-method="handle_condition_storage"] > h2 > small { display: block; margin-top: 1px; vertical-align: middle; font-size: 1.1rem; font-weight: normal; font-family: var(--font-mono); }
+.popup > form[data-method*="handle_"] > h2 > small { display: block; margin-top: 1px; vertical-align: middle; font-size: 1.1rem; font-weight: normal; font-family: var(--font-mono); }
 .view_type_object .overview h1 > small::before,
 .entry .object h1 > small::before,
 .entry.object h1 > small::before,
@@ -278,10 +275,7 @@ fieldset > ul > li > label:first-child + * input[type=text].colorpicker,
 .custom_projects > form > h1 > small::before,
 .project-overview > div > h1 > small::before,
 .public_interfaces > form > h1 > small::before,
-.popup > form[data-method="handle_scenario_storage"] > h2 > small::before,
-.popup > form[data-method="handle_scope_storage"] > h2 > small::before,
-.popup > form[data-method="handle_filter_storage"] > h2 > small::before,
-.popup > form[data-method="handle_condition_storage"] > h2 > small::before { content: "("; margin-right: 0.14em; }
+.popup > form[data-method*="handle_"] > h2 > small::before { content: "("; margin-right: 0.14em; }
 .view_type_object .overview h1 > small::after,
 .entry .object h1 > small::after,
 .entry.object h1 > small::after,
@@ -289,10 +283,10 @@ fieldset > ul > li > label:first-child + * input[type=text].colorpicker,
 .custom_projects > form > h1 > small::after,
 .project-overview > div > h1 > small::after,
 .public_interfaces > form > h1 > small::after,
-.popup > form[data-method="handle_scenario_storage"] > h2 > small::after,
-.popup > form[data-method="handle_scope_storage"] > h2 > small::after,
-.popup > form[data-method="handle_filter_storage"] > h2 > small::after,
-.popup > form[data-method="handle_condition_storage"] > h2 > small::after { content: ")"; margin-left: 0.14em; }
+.popup > form[data-method*="handle_"] > h2 > small::after { content: ")"; margin-left: 0.14em; }
+.view_type_object .overview h1 > small > span + span::before,
+.entry .object h1 > small > span + span::before,
+.entry.object h1 > small > span + span::before { content: "/"; margin-left: 0.28em; margin-right: 0.28em; }
 
 .display td > img.enlarge { background-color: var(--back-nested); border: 2px solid var(--back-nested); }
 .display td > img.enlarge + img.enlarge { margin-left: 2px; }
@@ -332,9 +326,9 @@ fieldset > ul > li > label:first-child + * input[type=text].colorpicker,
 
 .tooltip { max-width: none; }
 .tooltip ul > li > label:first-child + *,
-.tooltip dl > li > dt + dd { white-space: nowrap; }
+.tooltip dl > div > dt + dd { white-space: nowrap; }
 
-.record > dl > li > dt { font-weight: bold; }
+.record > dl > div > dt { font-weight: bold; }
 fieldset > ul > li > label:first-child { color: #000000; font-weight: bold; font-size: 14px; }
 
 /* BBCODE */

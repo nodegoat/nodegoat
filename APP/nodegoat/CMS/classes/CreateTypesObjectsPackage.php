@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -27,13 +27,11 @@ class CreateTypesObjectsPackage {
 		$this->mode = (int)$mode;
 	}
     
-	public function init($type_id, $arr_objects) { // Straightforward object parsing
+	public function init($type_id, $arr_objects) { // Straightforward Object parsing
 		
 		if (Response::getFormat() & Response::RENDER_LINKED_DATA) {
-			
 			return $this->parseObjectsLD($type_id, $arr_objects);
 		} else {
-			
 			return $this->parseObjects($type_id, $arr_objects);
 		}
 	}
@@ -44,7 +42,7 @@ class CreateTypesObjectsPackage {
 		
 		foreach ($arr_objects as $object_id => &$arr_object) {
 			
-			$arr_object['object'] = ['nodegoat_id' => GenerateTypeObjects::encodeTypeObjectID($type_id, $object_id)] + $arr_object['object'];
+			$arr_object['object'] = ['nodegoat_id' => GenerateTypeObjects::encodeTypeObjectID($type_id, $object_id), 'type_id' => $type_id] + $arr_object['object'];
 			
 			unset($arr_object['object']['object_locked']);
 				
@@ -68,7 +66,7 @@ class CreateTypesObjectsPackage {
 				$arr_object_sub_details = $arr_type_set['object_sub_details'][$s_arr_self['object_sub_details_id']];
 				
 				if ($s_arr_self['object_sub_date_chronology']) {
-					$s_arr_self['object_sub_date_chronology'] = StoreTypeObjects::formatToChronology($s_arr_self['object_sub_date_chronology']);
+					$s_arr_self['object_sub_date_chronology'] = $this->formatToDataType('chronology', $s_arr_self['object_sub_date_chronology']);
 				}
 				$s_arr_self['object_sub_date_start'] = $this->formatToDataType('date', $s_arr_self['object_sub_date_start']);
 				$s_arr_self['object_sub_date_end'] = $this->formatToDataType('date', $s_arr_self['object_sub_date_end']);
@@ -102,7 +100,7 @@ class CreateTypesObjectsPackage {
 		
 		$arr_type_schema = $arr_types_schema[$type_id];
 		
-		$base_path = SiteStartVars::getBasePath(0, false);
+		$base_path = SiteStartEnvironment::getBasePath(0, false);
 		
 		$context = 'nodegoat:';
 
@@ -132,7 +130,7 @@ class CreateTypesObjectsPackage {
 					
 					$ref_type_id = $arr_object_description['object_description_ref_type_id'];
 					
-					if (!$this->arr_type_sets[$ref_type_id]) {
+					if (!isset($this->arr_type_sets[$ref_type_id])) {
 						$this->arr_type_sets[$ref_type_id] = StoreType::getTypeSet($ref_type_id);
 					}
 					
@@ -165,20 +163,15 @@ class CreateTypesObjectsPackage {
 					if ($arr_schema_data_type['type']) {
 						
 						$arr_object_ld[$object_description_name_ld] = $this->applySchemaDataType($arr_schema_data_type, $arr_object_definition['object_definition_value']);
-						
 					} else {
 						
 						if ($arr_object_description['object_description_value_type'] == 'external') {
-							
 							$arr_object_ld[$object_description_name_ld] = ['@id' => $arr_object_definition['object_definition_value']];
-							
 						} else {
-							
 							$arr_object_ld[$object_description_name_ld] = $this->formatToSchemaDataType($arr_object_description['object_description_value_type'], $arr_object_definition['object_definition_value']);
 						}
 					}
 				}
-
 			}
 			
 			foreach ($arr_object['object_subs'] as $object_sub_id => $arr_object_sub) {
@@ -197,48 +190,32 @@ class CreateTypesObjectsPackage {
 				if ($arr_object_sub_self['object_sub_date_start']) {
 					
 					$str_name_ld = ($arr_object_sub_details_schema_data_type['object_sub_details']['object_sub_details_date_start'] ?: $object_sub_name_ld.'/date_start');
-					
-					$arr_object_sub_ld[$str_name_ld] = [
-						'@type' => 'schema:Date', 
-						'@value' => StoreTypeObjects::dateInt2DateStandard($arr_object_sub_self['object_sub_date_start'])
-					];
+					$arr_object_sub_ld[$str_name_ld] = $this->formatToSchemaDataType('date', $arr_object_sub_self['object_sub_date_start']);
 				}
 				
 				if ($arr_object_sub_self['object_sub_date_end']) {
 					
 					$str_name_ld = ($arr_object_sub_details_schema_data_type['object_sub_details']['object_sub_details_date_end'] ?: $object_sub_name_ld.'/date_end');
-					
-					$arr_object_sub_ld[$str_name_ld] = [
-						'@type' => 'schema:Date', 
-						'@value' => StoreTypeObjects::dateInt2DateStandard($arr_object_sub_self['object_sub_date_end'])
-					];
+					$arr_object_sub_ld[$str_name_ld] = $this->formatToSchemaDataType('date', $arr_object_sub_self['object_sub_date_end']);
 				}
 				
 				if ($arr_object_sub_self['object_sub_date_chronology']) {
 					
 					$str_name_ld = ($arr_object_sub_details_schema_data_type['object_sub_details']['object_sub_details_date_chronology'] ?: $object_sub_name_ld.'/chronology');
-					
-					$arr_object_sub_ld[$str_name_ld] = [
-						'@type' => 'dc:temporal', 
-						'@value' => StoreTypeObjects::formatToChronology($arr_object_sub_self['object_sub_date_chronology'])
-					];
+					$arr_object_sub_ld[$str_name_ld] = $this->formatToSchemaDataType('chronology', $arr_object_sub_self['object_sub_date_chronology']);
 				}
 				
 				if ($arr_object_sub_self['object_sub_location_geometry']) {
 					
 					$str_name_ld = ($arr_object_sub_details_schema_data_type['object_sub_details']['object_sub_details_location_geometry'] ?: $object_sub_name_ld.'/geometry');
-					
-					$arr_object_sub_ld[$str_name_ld] = [
-						'@type' => 'schema:GeoCoordinates', 
-						'@value' => $arr_object_sub_self['object_sub_location_geometry']
-					];
+					$arr_object_sub_ld[$str_name_ld] = $this->formatToSchemaDataType('geometry', $arr_object_sub_self['object_sub_location_geometry']);
 				}
 
 				if ($arr_object_sub_self['object_sub_location_ref_object_id']) {
 					
 					$ref_type_id = $arr_object_sub_self['object_sub_location_ref_type_id'];
 					
-					if (!$this->arr_type_sets[$ref_type_id]) {
+					if (!isset($this->arr_type_sets[$ref_type_id])) {
 						$this->arr_type_sets[$ref_type_id] = StoreType::getTypeSet($ref_type_id);
 					}
 					
@@ -253,11 +230,7 @@ class CreateTypesObjectsPackage {
 					];
 					
 					$str_name_ld = ($arr_object_sub_details_schema_data_type['object_sub_details']['object_sub_details_location_reference_name'] ?: $object_sub_name_ld.'/location_reference_name');
-					
-					$arr_object_sub_ld[$str_name_ld] = [
-						'@type' => 'schema:Text', 
-						'@value' => $arr_object_sub_self['object_sub_location_ref_object_name']
-					];
+					$arr_object_sub_ld[$str_name_ld] = $this->formatToSchemaDataType('', $arr_object_sub_self['object_sub_location_ref_object_name']);
 				}
 				
 				foreach ($arr_object_sub['object_sub_definitions'] as $object_sub_description_id => $arr_object_sub_definition) {
@@ -275,7 +248,7 @@ class CreateTypesObjectsPackage {
 						
 						$ref_type_id = $arr_object_sub_description['object_sub_description_ref_type_id'];
 						
-						if (!$this->arr_type_sets[$ref_type_id]) {
+						if (!isset($this->arr_type_sets[$ref_type_id])) {
 							$this->arr_type_sets[$ref_type_id] = StoreType::getTypeSet($ref_type_id);
 						}
 						
@@ -323,7 +296,7 @@ class CreateTypesObjectsPackage {
 				$collapsed = ($arr_info['arr_collapsed_source'] ? true : false);
 				$arr_collapsing_source = ($collapsed ? $arr_info['arr_collapsed_source'] : $arr_info['arr_collapse_source']);
 				
-				$arr_object['object'] = ['nodegoat_id' => GenerateTypeObjects::encodeTypeObjectID($cur_target_type_id, $cur_target_object_id)] + $arr_object['object'];
+				$arr_object['object'] = ['nodegoat_id' => GenerateTypeObjects::encodeTypeObjectID($cur_target_type_id, $cur_target_object_id), 'type_id' => $cur_target_type_id] + $arr_object['object'];
 				
 				foreach ($arr_object['object_definitions'] as $object_description_id => &$arr_object_definition) {
 					
@@ -345,7 +318,7 @@ class CreateTypesObjectsPackage {
 					$arr_object_sub_details = $arr_object_subs_details[$s_arr_object_sub_self['object_sub_details_id']];
 					
 					if ($s_arr_object_sub_self['object_sub_date_chronology']) {
-						$s_arr_object_sub_self['object_sub_date_chronology'] = StoreTypeObjects::formatToChronology($s_arr_object_sub_self['object_sub_date_chronology']);
+						$s_arr_object_sub_self['object_sub_date_chronology'] = $this->formatToDataType('chronology', $s_arr_object_sub_self['object_sub_date_chronology']);
 					}
 					$s_arr_object_sub_self['object_sub_date_start'] = $this->formatToDataType('date', $s_arr_object_sub_self['object_sub_date_start']);
 					$s_arr_object_sub_self['object_sub_date_end'] = $this->formatToDataType('date', $s_arr_object_sub_self['object_sub_date_end']);
@@ -397,8 +370,11 @@ class CreateTypesObjectsPackage {
 		switch ($value_type) {
 			case 'date':
 				if ($this->mode != static::MODE_RAW) {
-					$value = StoreTypeObjects::formatToCleanValue('date', $value, [], StoreTypeObjects::FORMAT_DATE_YMD);
+					$value = FormatTypeObjects::formatToCleanValue('date', $value, [], FormatTypeObjects::FORMAT_DATE_YMD);
 				}
+				break;
+			case 'chronology':
+				$value = FormatTypeObjects::formatToChronology($value);
 				break;
 		}
 		
@@ -406,36 +382,47 @@ class CreateTypesObjectsPackage {
 	}
 	
 	protected function formatToSchemaDataType($value_type, $value) {
-
+		
+		$str_schema = 'schema';
+		$cast_value = null;
+		
 		switch ($value_type) {
 			case 'boolean':
-				$cast_type = 'Boolean';
+				$str_cast_type = 'Boolean';
 				break;
 			case 'date':
-				$cast_type = 'Date';
-				$cast_value = StoreTypeObjects::dateInt2DateStandard($value);
+				$str_cast_type = 'Date';
+				$cast_value = FormatTypeObjects::dateInt2DateStandard($value);
+				break;
+			case 'chronology':
+				$str_schema = 'dc';
+				$str_cast_type = 'temporal';
+				$cast_value = FormatTypeObjects::formatToChronology($value);
+				break;
+			case 'geometry':
+				$str_cast_type = 'GeoCoordinates';
 				break;
 			case 'media':
-				$cast_type = 'MediaObject';
+				$str_cast_type = 'MediaObject';
 				break;
 			case 'media_external':
 			case 'external':
-				$cast_type = 'URL';
+				$str_cast_type = 'URL';
 				break;
 			case 'int':
-				$cast_type = 'Integer';
+				$str_cast_type = 'Integer';
 				break;
 			case 'text':
 			case 'text_layout':
 			case 'text_tags':
 			case '':
-				$cast_type = 'Text';
+				$str_cast_type = 'Text';
 				break;
 			default:
-				$cast_type = 'Text';
+				$str_cast_type = 'Text';
 		}
 		
-		return ['@type' => 'schema:'.$cast_type, '@value' => ($cast_value ?: $value)];
+		return ['@type' => $str_schema.':'.$str_cast_type, '@value' => ($cast_value ?? $value)];
 	}
 	
 	protected function applySchemaDataType($arr_schema_data_type, $value) {
@@ -445,7 +432,6 @@ class CreateTypesObjectsPackage {
 		$func_cast_value = ($arr_schema_data_type['cast_value'] ?? null);
 		
 		if ($func_cast_value) {
-			
 			$value = $func_cast_value($value);
 		}
 		

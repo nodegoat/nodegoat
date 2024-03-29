@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -22,9 +22,9 @@ class custom_projects extends base_module {
 	
 	public static function modulePreload() {
 		
-		if (SiteStartVars::getPage('name') == 'viewer') {
+		if (SiteStartEnvironment::getPage('name') == 'viewer') {
 
-			$arr_request_vars = SiteStartVars::getModuleVariables(0);
+			$arr_request_vars = SiteStartEnvironment::getModuleVariables(0);
 
 			if ($arr_request_vars[0]) {
 				
@@ -39,7 +39,7 @@ class custom_projects extends base_module {
 			
 			ui::getPublicUserInterfaceModuleVars();
 			
-			if (SiteStartVars::getRequestState() == SiteStartVars::REQUEST_INDEX) {
+			if (SiteStartEnvironment::getRequestState() == SiteStartEnvironment::REQUEST_INDEX) {
 
 				$_SESSION['public_interface'][$public_user_interface_id]['clearance'] = 0;
 
@@ -49,13 +49,13 @@ class custom_projects extends base_module {
 				if ($theme_color) {
 					
 					$arr_theme = ['theme_color' => $theme_color, 'background_color' => $theme_color];
-					SiteEndVars::setTheme($arr_theme);
+					SiteEndEnvironment::setTheme($arr_theme);
 				}
 				
-				SiteEndVars::addHeadTag('<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">');
+				SiteEndEnvironment::addHeadTag('<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">');
 				
 				$arr_public_interface_style = cms_nodegoat_public_interfaces::getPublicInterfaceStyle($public_user_interface_id);
-				SiteEndVars::addHeadTag('<style>'.$arr_public_interface_style['css'].'</style>');
+				SiteEndEnvironment::addHeadTag('<style>'.$arr_public_interface_style['css'].'</style>');
 				
 				$arr_types_all = StoreType::getTypes(); // Source can be any type
 				$arr_style_type = [];
@@ -95,22 +95,22 @@ class custom_projects extends base_module {
 				
 				if ($arr_style_type) {
 					
-					SiteEndVars::addHeadTag('<style>
+					SiteEndEnvironment::addHeadTag('<style>
 						'.implode(' ', $arr_style_type).'
 					</style>');
 				}
 			}
-		} else if (SiteStartVars::getRequestState() == SiteStartVars::REQUEST_API) {
+		} else if (SiteStartEnvironment::getRequestState() == SiteStartEnvironment::REQUEST_API) {
 			
 			$_SESSION['custom_projects']['project_id'] = false;
 			toolbar::setActionSpace('api');
 			
-			$arr_request_vars = SiteStartVars::getModuleVariables(0);
+			$arr_request_vars = SiteStartEnvironment::getModuleVariables(0);
 				
-			$arr_api_configuration = cms_nodegoat_api::getConfiguration(SiteStartVars::getAPI('id'));
+			$arr_api_configuration = cms_nodegoat_api::getConfiguration(SiteStartEnvironment::getAPI('id'));
 			$arr_projects = StoreCustomProject::getProjects();
 			
-			$is_data_model = ($arr_request_vars[0] == 'model');
+			$is_data_model = ($arr_request_vars[0] == 'model' && $arr_request_vars[1]);
 			$is_administrator = ($_SESSION['USER_ID'] && $_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN);
 
 			if ($is_data_model && $is_administrator) {
@@ -124,7 +124,7 @@ class custom_projects extends base_module {
 					$_SESSION['custom_projects']['project_id'] = $project_id;
 				}
 			} else if ($arr_api_configuration['projects']) { // Select default configured API project
-					
+				
 				foreach ($arr_api_configuration['projects'] as $project_id => $arr_api_project) {
 					
 					if (!$arr_projects[$project_id]) { // Make sure the project itself also exists
@@ -173,11 +173,11 @@ class custom_projects extends base_module {
 					$_SESSION['custom_projects']['project_id'] = (!$_SESSION['custom_projects']['project_id'] || $arr_project_link['is_active'] ? $project_id : $_SESSION['custom_projects']['project_id']);
 				}
 				
-				$arr_request_vars = SiteStartVars::getModuleVariables(0);
+				$arr_request_vars = SiteStartEnvironment::getModuleVariables(0);
 				
 				if (!empty($arr_request_vars['project'][0])) {
 					
-					SiteEndVars::setModuleVariables(0, ['project' => false]);
+					SiteEndEnvironment::setModuleVariables(0, ['project' => false]);
 					
 					if ($arr_request_vars['project'][0] != $_SESSION['custom_projects']['project_id'] && !empty($_SESSION['CUR_USER'][DB::getTableName('USER_LINK_NODEGOAT_CUSTOM_PROJECTS')][$arr_request_vars['project'][0]])) {
 						
@@ -193,7 +193,7 @@ class custom_projects extends base_module {
 			
 			if ($_SESSION['custom_projects']['project_id']) {
 				
-				if (SiteStartVars::getRequestState() == SiteStartVars::REQUEST_INDEX) {
+				if (SiteStartEnvironment::getRequestState() == SiteStartEnvironment::REQUEST_INDEX) {
 							
 					$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 					$arr_types_all = StoreType::getTypes(); // Source can be any type
@@ -214,16 +214,16 @@ class custom_projects extends base_module {
 
 					if ($arr_style_type) {
 						
-						SiteEndVars::addHeadTag('<style>
+						SiteEndEnvironment::addHeadTag('<style>
 							'.implode(' ', $arr_style_type).'
 						</style>');
 					}
 				}
 				
-				if (SiteStartVars::getRequestState() == SiteStartVars::REQUEST_INDEX || SiteStartVars::getRequestState() == SiteStartVars::REQUEST_COMMAND) {
+				if (SiteStartEnvironment::getRequestState() == SiteStartEnvironment::REQUEST_INDEX || SiteStartEnvironment::getRequestState() == SiteStartEnvironment::REQUEST_COMMAND) {
 					
 					// Check client side if the current project matches.			
-					SiteEndVars::setFeedback('project_id', $_SESSION['custom_projects']['project_id']);
+					SiteEndEnvironment::setFeedback('project_id', $_SESSION['custom_projects']['project_id']);
 				}
 			}
 		}
@@ -314,14 +314,14 @@ class custom_projects extends base_module {
 		];
 	}
 	
-	private $show_user_settings = false;
+	private $do_show_user_settings = false;
 	
 	function __construct() {
 		
 		parent::__construct();
 		
 		$arr_users_link = pages::getClosestModule('register_by_user');
-		$this->show_user_settings = ($arr_users_link && pages::filterClearance([$arr_users_link], $_SESSION['USER_GROUP'], $_SESSION['CUR_USER'][DB::getTableName('TABLE_USER_PAGE_CLEARANCE')]));
+		$this->do_show_user_settings = ($arr_users_link && pages::filterClearance([$arr_users_link], $_SESSION['USER_GROUP'], $_SESSION['CUR_USER'][DB::getTableName('TABLE_USER_PAGE_CLEARANCE')]));
 	}
 	
 	public function contents() {
@@ -576,13 +576,13 @@ class custom_projects extends base_module {
 							
 							$arr_html_tabs['links'][] = '<li><a href="#">'.strEscapeHTML(Labels::parseTextVariables($arr_types[$type_id]['name'])).'</a></li>';
 							
-							$return_tab = '<div>
+							$str_html_tab = '<div>
 								<div class="options">
 								
 									<div class="fieldsets"><div>
 									
 										<fieldset><legend>'.getLabel('lbl_configuration').'</legend><ul>'
-											.($this->show_user_settings ? '<li>
+											.($this->do_show_user_settings ? '<li>
 												<label>'.getLabel('lbl_information').'</label>
 												<div>'
 													.'<input type="hidden" name="types_organise[type_id-'.$type_id.'][type_information]" value="'.($arr_project_type['type_information'] ? strEscapeHTML($arr_project_type['type_information']) : '').'" />'
@@ -629,85 +629,110 @@ class custom_projects extends base_module {
 													
 													if ($arr_type_set['object_descriptions']) {
 															
-														$return_tab .= '<fieldset><legend>'.getLabel('lbl_object').' '.getLabel('lbl_descriptions').'</legend><ul>
+														$str_html_tab .= '<fieldset><legend>'.getLabel('lbl_object').' '.getLabel('lbl_descriptions').'</legend><ul>
 															<li><ul class="select">';
 														
 																foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 																	
 																	$arr_configuration = (array)$arr_project_type['configuration']['object_descriptions'][$object_description_id];
-																	$name = 'types_organise[type_id-'.$type_id.'][configuration][object_descriptions]['.$object_description_id.']';
+																	$str_name = 'types_organise[type_id-'.$type_id.'][configuration][object_descriptions]['.$object_description_id.']';
 																	
 																	$is_reversal = ($arr_object_description['object_description_ref_type_id'] && $arr_types[$arr_object_description['object_description_ref_type_id']]['class'] == StoreType::TYPE_CLASS_REVERSAL ? true : false);
 																	$is_not_editable = $is_reversal;
 																	
-																	$return_tab .= '<li>'
-																		.'<input type="checkbox" name="'.$name.'[edit]" value="1" title="'.getLabel('inf_project_object_description_edit').'"'.($arr_configuration['edit'] ? ' checked="checked"' : '').($is_not_editable ? ' disabled="disabled"' : '').' />'
-																		.'<input type="checkbox" name="'.$name.'[view]" value="1" title="'.getLabel('inf_project_object_description_view').'"'.($arr_configuration['view'] ? ' checked="checked"' : '').' />'
-																		.($this->show_user_settings ?
-																			'<input type="hidden" name="'.$name.'[information]" value="'.($arr_configuration['information'] ? strEscapeHTML($arr_configuration['information']) : '').'" />'
-																			.'<button type="button" id="y:custom_projects:set_information-'.$type_id.'_'.$object_description_id.'" title="'.getLabel('inf_project_object_description_information').'" class="data neutral popup"><span>info</span></button>'
-																		: '')
+																	$str_html_options = '<input type="checkbox" name="'.$str_name.'[edit]" value="1" title="'.getLabel('inf_project_object_description_edit').'"'.($arr_configuration['edit'] ? ' checked="checked"' : '').($is_not_editable ? ' disabled="disabled"' : '').' />'
+																		.'<input type="checkbox" name="'.$str_name.'[view]" value="1" title="'.getLabel('inf_project_object_description_view').'"'.($arr_configuration['view'] ? ' checked="checked"' : '').' />';
+																		
+																	if ($this->do_show_user_settings) {
+																		$str_html_options .= '<input type="hidden" name="'.$str_name.'[information]" value="'.($arr_configuration['information'] ? strEscapeHTML($arr_configuration['information']) : '').'" />'
+																			.'<button type="button" id="y:custom_projects:set_information-'.$type_id.'_'.$object_description_id.'" title="'.getLabel('inf_project_object_description_information').'" class="data neutral popup"><span>info</span></button>';
+																	}
+																		
+																	if ($arr_object_description['object_description_ref_type_id'] && !$is_not_editable) {
+																		
+																		$arr_project_type_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($id, false, $arr_object_description['object_description_ref_type_id'], false, true, $arr_use_project_ids);
+																		$str_html_select = '<select name="'.$str_name.'[filter_id]" title="'.getLabel('inf_project_type_filter').'">'.cms_general::createDropdown($arr_project_type_filters, $arr_configuration['filter_id'], true, 'label').'</select>';
+																		
+																		$str_html_options .= (!$arr_configuration['filter_id'] ? '<div class="hide-edit hide">'.$str_html_select.'</div><input type="button" class="data neutral" value="filter" />' : $str_html_select);
+																	}
+																	
+																	$str_html_tab .= '<li>'
+																		.$str_html_options
 																		.'<label>'.strEscapeHTML(Labels::parseTextVariables($arr_object_description['object_description_name'])).'</label>'
 																	.'</li>';
 																}
 															
-															$return_tab .= '</ul></li>
+															$str_html_tab .= '</ul></li>
 														</ul></fieldset>';
 													}
 													
 													if ($arr_type_set['object_sub_details']) {
 														
-														$return_tab .= '<fieldset><legend>'.getLabel('lbl_object_subs').'</legend><ul>
+														$str_html_tab .= '<fieldset><legend>'.getLabel('lbl_object_subs').'</legend><ul>
 															<li><ul class="select">';
 														
 																foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 																	
 																	$arr_configuration = (array)$arr_project_type['configuration']['object_sub_details'][$object_sub_details_id]['object_sub_details'];
-																	$name = 'types_organise[type_id-'.$type_id.'][configuration][object_sub_details]['.$object_sub_details_id.'][object_sub_details]';
-
-																	$return_tab .= '<li>'
-																		.'<input type="checkbox" name="'.$name.'[edit]" value="1" title="'.getLabel('inf_project_object_sub_details_edit').'"'.($arr_configuration['edit'] ? ' checked="checked"' : '').' />'
-																		.'<input type="checkbox" name="'.$name.'[view]" value="1" title="'.getLabel('inf_project_object_sub_details_view').'"'.($arr_configuration['view'] ? ' checked="checked"' : '').' />'
-																		.($this->show_user_settings ?
-																			'<input type="hidden" name="'.$name.'[information]" value="'.($arr_configuration['information'] ? strEscapeHTML($arr_configuration['information']) : '').'" />'
-																			.'<button type="button" id="y:custom_projects:set_information-'.$type_id.'_0_'.$object_sub_details_id.'" title="'.getLabel('inf_project_object_sub_details_information').'" class="data neutral popup"><span>info</span></button>'
-																		: '')
+																	$str_name = 'types_organise[type_id-'.$type_id.'][configuration][object_sub_details]['.$object_sub_details_id.'][object_sub_details]';
+																	
+																	$str_html_options = '<input type="checkbox" name="'.$str_name.'[edit]" value="1" title="'.getLabel('inf_project_object_sub_details_edit').'"'.($arr_configuration['edit'] ? ' checked="checked"' : '').' />'
+																		.'<input type="checkbox" name="'.$str_name.'[view]" value="1" title="'.getLabel('inf_project_object_sub_details_view').'"'.($arr_configuration['view'] ? ' checked="checked"' : '').' />';
+																	
+																	if ($this->do_show_user_settings) {
+																		$str_html_options .= '<input type="hidden" name="'.$str_name.'[information]" value="'.($arr_configuration['information'] ? strEscapeHTML($arr_configuration['information']) : '').'" />'
+																			.'<button type="button" id="y:custom_projects:set_information-'.$type_id.'_0_'.$object_sub_details_id.'" title="'.getLabel('inf_project_object_sub_details_information').'" class="data neutral popup"><span>info</span></button>';
+																	}
+																	
+																	$str_html_tab .= '<li>'
+																		.$str_html_options
 																		.'<label><span class="sub-name">'.strEscapeHTML(Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])).'</span></label>'
 																	.'</li>';
 																	
 																	if ($arr_object_sub_details['object_sub_descriptions']) {
 																		
-																		$return_tab .= '<li><fieldset><ul class="select">';
+																		$str_html_tab .= '<li><fieldset><ul class="select">';
 																				
 																			foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 																				
 																				$arr_configuration = (array)$arr_project_type['configuration']['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
-																				$name = 'types_organise[type_id-'.$type_id.'][configuration][object_sub_details]['.$object_sub_details_id.'][object_sub_descriptions]['.$object_sub_description_id.']';
+																				$str_name = 'types_organise[type_id-'.$type_id.'][configuration][object_sub_details]['.$object_sub_details_id.'][object_sub_descriptions]['.$object_sub_description_id.']';
 																				
 																				$is_reversal = ($arr_object_sub_description['object_sub_description_ref_type_id'] && $arr_types[$arr_object_sub_description['object_sub_description_ref_type_id']]['class'] == StoreType::TYPE_CLASS_REVERSAL ? true : false);
 																				$use_object_description_id = ($arr_object_sub_description['object_sub_description_ref_type_id'] && $arr_object_sub_description['object_sub_description_use_object_description_id'] ? true : false);
 																				$is_not_editable = ($is_reversal || $use_object_description_id);
-																			
-																				$return_tab .= '<li>'
-																					.'<input type="checkbox" name="'.$name.'[edit]" value="1" title="'.getLabel('inf_project_object_description_edit').'"'.($arr_configuration['edit'] ? ' checked="checked"' : '').($is_not_editable ? ' disabled="disabled"' : '').' />'
-																					.'<input type="checkbox" name="'.$name.'[view]" value="1" title="'.getLabel('inf_project_object_description_view').'"'.($arr_configuration['view'] ? ' checked="checked"' : '').' />'
-																					.($this->show_user_settings ?
-																						'<input type="hidden" name="'.$name.'[information]" value="'.($arr_configuration['information'] ? strEscapeHTML($arr_configuration['information']) : '').'" />'
-																						.'<button type="button" id="y:custom_projects:set_information-'.$type_id.'_0_'.$object_sub_details_id.'_'.$object_sub_description_id.'" title="'.getLabel('inf_project_object_description_information').'" class="data neutral popup"><span>info</span></button>'
-																					: '')
+																				
+																				$str_html_options = '<input type="checkbox" name="'.$str_name.'[edit]" value="1" title="'.getLabel('inf_project_object_description_edit').'"'.($arr_configuration['edit'] ? ' checked="checked"' : '').($is_not_editable ? ' disabled="disabled"' : '').' />'
+																					.'<input type="checkbox" name="'.$str_name.'[view]" value="1" title="'.getLabel('inf_project_object_description_view').'"'.($arr_configuration['view'] ? ' checked="checked"' : '').' />';
+																				
+																				if ($this->do_show_user_settings) {
+																					$str_html_options .= '<input type="hidden" name="'.$str_name.'[information]" value="'.($arr_configuration['information'] ? strEscapeHTML($arr_configuration['information']) : '').'" />'
+																						.'<button type="button" id="y:custom_projects:set_information-'.$type_id.'_0_'.$object_sub_details_id.'_'.$object_sub_description_id.'" title="'.getLabel('inf_project_object_description_information').'" class="data neutral popup"><span>info</span></button>';
+																				}
+																				
+																				if ($arr_object_sub_description['object_sub_description_ref_type_id'] && !$is_not_editable) {
+																		
+																					$arr_project_type_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($id, false, $arr_object_sub_description['object_sub_description_ref_type_id'], false, true, $arr_use_project_ids);
+																					$str_html_select = '<select name="'.$str_name.'[filter_id]" title="'.getLabel('inf_project_type_filter').'">'.cms_general::createDropdown($arr_project_type_filters, $arr_configuration['filter_id'], true, 'label').'</select>';
+																					
+																					$str_html_options .= (!$arr_configuration['filter_id'] ? '<div class="hide-edit hide">'.$str_html_select.'</div><input type="button" class="data neutral" value="filter" />' : $str_html_select);
+																				}
+																				
+																				$str_html_tab .= '<li>'
+																					.$str_html_options
 																					.'<label><span>'.strEscapeHTML(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name'])).'</span></label>'
 																				.'</li>';
 																			}
 																		
-																		$return_tab .= '</ul></fieldset></li>';
+																		$str_html_tab .= '</ul></fieldset></li>';
 																	}
 																}
 															
-															$return_tab .= '</ul></li>
+															$str_html_tab .= '</ul></li>
 														</ul></fieldset>';
 													}
 													
-												$return_tab .= '</div></div>
+												$str_html_tab .= '</div></div>
 												
 												<fieldset><legend>'.getLabel('lbl_mode_view_add_edit').'</legend><ul>
 													<li>
@@ -720,7 +745,9 @@ class custom_projects extends base_module {
 										</div>';
 										
 										if ($arr_types_referenced) {
-									
+											
+											$is_reversal_self = ($arr_types[$type_id]['class'] == StoreType::TYPE_CLASS_REVERSAL ? true : false);
+											
 											$arr_html_type_referenced_tabs = [];
 											
 											foreach ($arr_types_referenced as $ref_type_id => $arr_type_referenced) {
@@ -730,12 +757,12 @@ class custom_projects extends base_module {
 												
 												$arr_html_type_referenced_tabs['links'][] = '<li><a href="#">'.Labels::parseTextVariables($arr_referenced_type_set['type']['name']).'</a></li>';
 												
-												$return_type_referenced_tab = '<div>
+												$str_html_type_referenced_tab = '<div>
 													<div class="options fieldsets"><div>';
 													
 														if ($arr_type_referenced['object_descriptions']) {
 															
-															$return_type_referenced_tab .= '<fieldset><legend>'.getLabel('lbl_object').' '.getLabel('lbl_descriptions').'</legend><ul>
+															$str_html_type_referenced_tab .= '<fieldset><legend>'.getLabel('lbl_object').' '.getLabel('lbl_descriptions').'</legend><ul>
 																<li><ul class="select">';
 															
 																	foreach ($arr_type_referenced['object_descriptions'] as $object_description_id => $arr_object_description_referenced) {
@@ -743,26 +770,39 @@ class custom_projects extends base_module {
 																		$arr_object_description = $arr_referenced_type_set['object_descriptions'][$object_description_id];
 																		
 																		$arr_configuration = (array)$arr_project_include_referenced_types['object_descriptions'][$object_description_id];
-																		$name = 'types_organise[type_id-'.$type_id.'][include_referenced_types]['.$ref_type_id.'][object_descriptions]['.$object_description_id.']';
+																		$str_name = 'types_organise[type_id-'.$type_id.'][include_referenced_types]['.$ref_type_id.'][object_descriptions]['.$object_description_id.']';
 																		
-																		$return_type_referenced_tab .= '<li>'
-																			.'<input type="checkbox" name="'.$name.'[edit]" value="1" title="'.getLabel('inf_project_include_referenced_edit').'"'.($arr_configuration['edit'] ? ' checked="checked"' : '').' />'
-																			.'<input type="checkbox" name="'.$name.'[view]" value="1" title="'.getLabel('inf_project_include_referenced_view').'"'.($arr_configuration['view'] ? ' checked="checked"' : '').' />'
-																			.($this->show_user_settings ?
-																				'<input type="hidden" name="'.$name.'[information]" value="'.($arr_configuration['information'] ? strEscapeHTML($arr_configuration['information']) : '').'" />'
-																				.'<button type="button" id="y:custom_projects:set_information-'.$ref_type_id.'_'.$object_description_id.'" title="'.getLabel('inf_project_object_description_information').'" class="data neutral popup"><span>info</span></button>'
-																			: '')
+																		$is_not_editable = $is_reversal_self;
+																		
+																		$str_html_options = '<input type="checkbox" name="'.$str_name.'[edit]" value="1" title="'.getLabel('inf_project_include_referenced_edit').'"'.($arr_configuration['edit'] ? ' checked="checked"' : '').' />'
+																			.'<input type="checkbox" name="'.$str_name.'[view]" value="1" title="'.getLabel('inf_project_include_referenced_view').'"'.($arr_configuration['view'] ? ' checked="checked"' : '').' />';
+																		
+																		if ($this->do_show_user_settings) {
+																			$str_html_options .= '<input type="hidden" name="'.$str_name.'[information]" value="'.($arr_configuration['information'] ? strEscapeHTML($arr_configuration['information']) : '').'" />'
+																				.'<button type="button" id="y:custom_projects:set_information-'.$ref_type_id.'_'.$object_description_id.'" title="'.getLabel('inf_project_object_description_information').'" class="data neutral popup"><span>info</span></button>';
+																		}
+																		
+																		if (!$is_not_editable) {
+																		
+																			$arr_project_type_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($id, false, $ref_type_id, false, true, $arr_use_project_ids);
+																			$str_html_select = '<select name="'.$str_name.'[filter_id]" title="'.getLabel('inf_project_type_filter').'">'.cms_general::createDropdown($arr_project_type_filters, $arr_configuration['filter_id'], true, 'label').'</select>';
+																			
+																			$str_html_options .= (!$arr_configuration['filter_id'] ? '<div class="hide-edit hide">'.$str_html_select.'</div><input type="button" class="data neutral" value="filter" />' : $str_html_select);
+																		}
+																		
+																		$str_html_type_referenced_tab .= '<li>'
+																			.$str_html_options
 																			.'<label>'.strEscapeHTML(Labels::parseTextVariables($arr_object_description['object_description_name'])).'</label>'
 																		.'</li>';
 																	}
 																
-																$return_type_referenced_tab .= '</ul></li>
+																$str_html_type_referenced_tab .= '</ul></li>
 															</ul></fieldset>';
 														}
 													
 														if ($arr_type_referenced['object_sub_details']) {
 															
-															$return_type_referenced_tab .= '<fieldset><legend>'.getLabel('lbl_object_sub').' '.getLabel('lbl_descriptions').'</legend><ul>
+															$str_html_type_referenced_tab .= '<fieldset><legend>'.getLabel('lbl_object_sub').' '.getLabel('lbl_descriptions').'</legend><ul>
 																<li><ul class="select">';
 															
 																	foreach ($arr_type_referenced['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details_referenced) {
@@ -774,31 +814,44 @@ class custom_projects extends base_module {
 																			$arr_object_sub_description = $arr_object_sub_details['object_sub_descriptions'][$object_sub_description_id];
 																			
 																			$arr_configuration = (array)$arr_project_include_referenced_types['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
-																			$name = 'types_organise[type_id-'.$type_id.'][include_referenced_types]['.$ref_type_id.'][object_sub_details]['.$object_sub_details_id.'][object_sub_descriptions]['.$object_sub_description_id.']';
-																		
-																			$return_type_referenced_tab .= '<li>'
-																				.'<input type="checkbox" name="'.$name.'[edit]" value="1" title="'.getLabel('inf_project_include_referenced_edit').'"'.($arr_configuration['edit'] ? ' checked="checked"' : '').' />'
-																				.'<input type="checkbox" name="'.$name.'[view]" value="1" title="'.getLabel('inf_project_include_referenced_view').'"'.($arr_configuration['view'] ? ' checked="checked"' : '').' />'
-																				.($this->show_user_settings ?
-																					'<input type="hidden" name="'.$name.'[information]" value="'.($arr_configuration['information'] ? strEscapeHTML($arr_configuration['information']) : '').'" />'
-																					.'<button type="button" id="y:custom_projects:set_information-'.$ref_type_id.'_0_'.$object_sub_details_id.'_'.$object_sub_description_id.'" title="'.getLabel('inf_project_object_description_information').'" class="data neutral popup"><span>info</span></button>'
-																				: '')
+																			$str_name = 'types_organise[type_id-'.$type_id.'][include_referenced_types]['.$ref_type_id.'][object_sub_details]['.$object_sub_details_id.'][object_sub_descriptions]['.$object_sub_description_id.']';
+																			
+																			$is_not_editable = $is_reversal_self;
+																			
+																			$str_html_options = '<input type="checkbox" name="'.$str_name.'[edit]" value="1" title="'.getLabel('inf_project_include_referenced_edit').'"'.($arr_configuration['edit'] ? ' checked="checked"' : '').' />'
+																				.'<input type="checkbox" name="'.$str_name.'[view]" value="1" title="'.getLabel('inf_project_include_referenced_view').'"'.($arr_configuration['view'] ? ' checked="checked"' : '').' />';
+
+																			if ($this->do_show_user_settings) {
+																				$str_html_options .= '<input type="hidden" name="'.$str_name.'[information]" value="'.($arr_configuration['information'] ? strEscapeHTML($arr_configuration['information']) : '').'" />'
+																					.'<button type="button" id="y:custom_projects:set_information-'.$ref_type_id.'_0_'.$object_sub_details_id.'_'.$object_sub_description_id.'" title="'.getLabel('inf_project_object_description_information').'" class="data neutral popup"><span>info</span></button>';
+																			}
+																			
+																			if (!$is_not_editable) {
+																				
+																				$arr_project_type_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($id, false, $ref_type_id, false, true, $arr_use_project_ids);
+																				$str_html_select = '<select name="'.$str_name.'[filter_id]" title="'.getLabel('inf_project_type_filter').'">'.cms_general::createDropdown($arr_project_type_filters, $arr_configuration['filter_id'], true, 'label').'</select>';
+
+																				$str_html_options .= (!$arr_configuration['filter_id'] ? '<div class="hide-edit hide">'.$str_html_select.'</div><input type="button" class="data neutral" value="filter" />' : $str_html_select);
+																			}
+																			
+																			$str_html_type_referenced_tab .= '<li>'
+																				.$str_html_options
 																				.'<label><span class="sub-name">'.strEscapeHTML(Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])).'</span> <span>'.strEscapeHTML(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name'])).'</span></label>'
 																			.'</li>';
 																		}
 																	}
 																
-																$return_type_referenced_tab .= '</ul></li>
+																$str_html_type_referenced_tab .= '</ul></li>
 															</ul></fieldset>';
 														}
 																																	
-													$return_type_referenced_tab .= '</div></div>
+													$str_html_type_referenced_tab .= '</div></div>
 												</div>';
 												
-												$arr_html_type_referenced_tabs['content'][] = $return_type_referenced_tab;
+												$arr_html_type_referenced_tabs['content'][] = $str_html_type_referenced_tab;
 											}
 
-											$return_tab .= '<div>
+											$str_html_tab .= '<div>
 												<div class="options">
 												
 													<div class="tabs">
@@ -812,12 +865,12 @@ class custom_projects extends base_module {
 											</div>';
 										}
 
-									$return_tab .= '</div>
+									$str_html_tab .= '</div>
 									
 								</div>
 							</div>';
 							
-							$arr_html_tabs['content'][] = $return_tab;
+							$arr_html_tabs['content'][] = $str_html_tab;
 						}
 						
 						if ($arr_html_tabs['links']) {
@@ -866,7 +919,7 @@ class custom_projects extends base_module {
 	}
 	
 	public function createProjectOverviewGraph($project_id, $arr_options = []) {
-		 
+		
 		$str_info = '<tspan>'.SERVER_NAME.' · '.date('d-m-Y').'</tspan>';
 		
 		$graph = new CreateProjectOverviewGraph($_SESSION['USER_ID'], $project_id);
@@ -926,7 +979,6 @@ class custom_projects extends base_module {
 	public function createScopeStore($project_id, $user_id, $scope_id) {
 		
 		if ($scope_id) {
-			
 			$arr_scope = cms_nodegoat_custom_projects::getProjectTypeScopes($project_id, $user_id, false, $scope_id);
 		}
 		
@@ -952,13 +1004,12 @@ class custom_projects extends base_module {
 	public function createContextStore($project_id, $user_id, $context_id) {
 		
 		if ($context_id) {
-			
 			$arr_context = cms_nodegoat_custom_projects::getProjectTypeContexts($project_id, $user_id, false, $context_id);
 		}
 		
 		$arr_level = [['id' => 'project', 'name' => getLabel('lbl_project')], ['id' => 'personal', 'name' => getLabel('lbl_personal')]];
 		
-		$return = '<h2>'.($filter_id ? getLabel('lbl_context').': '.strEscapeHTML($arr_context['name']) : getLabel('lbl_context')).'</h2>
+		$return = '<h2>'.($context_id ? '<span>'.getLabel('lbl_context').': '.strEscapeHTML($arr_context['name']).'</span><small title="'.getLabel('lbl_context').' ID">'.$context_id.'</small>' : '<span>'.getLabel('lbl_context').'</span>').'</h2>
 		
 		<div class="options">
 			<fieldset>
@@ -978,13 +1029,12 @@ class custom_projects extends base_module {
 	public function createFrameStore($project_id, $user_id, $frame_id) {
 		
 		if ($frame_id) {
-			
 			$arr_frame = cms_nodegoat_custom_projects::getProjectTypeFrames($project_id, $user_id, false, $frame_id);
 		}
 		
 		$arr_level = [['id' => 'project', 'name' => getLabel('lbl_project')], ['id' => 'personal', 'name' => getLabel('lbl_personal')]];
 		
-		$return = '<h2>'.($frame_id ? getLabel('lbl_frame').': '.strEscapeHTML($arr_frame['name']) : getLabel('lbl_frame')).'</h2>
+		$return = '<h2>'.($frame_id ? '<span>'.getLabel('lbl_frame').': '.strEscapeHTML($arr_frame['name']).'</span><small title="'.getLabel('lbl_frame').' ID">'.$frame_id.'</small>' : '<span>'.getLabel('lbl_frame').'</span>').'</h2>
 		
 		<div class="options">
 			<fieldset>
@@ -1009,7 +1059,7 @@ class custom_projects extends base_module {
 		
 		$arr_level = [['id' => 'project', 'name' => getLabel('lbl_project')], ['id' => 'personal', 'name' => getLabel('lbl_personal')]];
 		
-		$return = '<h2>'.($visual_settings_id ? getLabel('lbl_visual_settings').': '.strEscapeHTML($arr_visual_settings['name']) : getLabel('lbl_visual_settings')).'</h2>
+		$return = '<h2>'.($visual_settings_id ? '<span>'.getLabel('lbl_visual_settings').': '.strEscapeHTML($arr_visual_settings['name']).'</span><small title="'.getLabel('lbl_visual_settings').' ID">'.$visual_settings_id.'</small>' : '<span>'.getLabel('lbl_visual_settings').'</span>').'</h2>
 		
 		<div class="options">
 			<fieldset>
@@ -1157,13 +1207,12 @@ class custom_projects extends base_module {
 	public function createAnalysisStore($project_id, $user_id, $analysis_id) {
 		
 		if ($analysis_id) {
-			
 			$arr_analysis = cms_nodegoat_custom_projects::getProjectTypeAnalyses($project_id, $user_id, false, $analysis_id);
 		}
 		
 		$arr_level = [['id' => 'project', 'name' => getLabel('lbl_project')], ['id' => 'personal', 'name' => getLabel('lbl_personal')]];
 		
-		$return = '<h2>'.($analysis_id ? getLabel('lbl_analysis').': '.strEscapeHTML($arr_analysis['name']) : getLabel('lbl_analysis')).'</h2>
+		$return = '<h2>'.($analysis_id ? '<span>'.getLabel('lbl_analysis').': '.strEscapeHTML($arr_analysis['name']).'</span><small title="'.getLabel('lbl_analysis').' ID">'.$analysis_id.'</small>' : '<span>'.getLabel('lbl_analysis').'</span>').'</h2>
 		
 		<div class="options">
 			<fieldset>
@@ -1183,13 +1232,12 @@ class custom_projects extends base_module {
 	public function createAnalysisContextStore($project_id, $user_id, $analysis_context_id) {
 		
 		if ($analysis_context_id) {
-			
 			$arr_analysis_context = cms_nodegoat_custom_projects::getProjectTypeAnalysesContexts($project_id, $user_id, false, $analysis_context_id);
 		}
 		
 		$arr_level = [['id' => 'project', 'name' => getLabel('lbl_project')], ['id' => 'personal', 'name' => getLabel('lbl_personal')]];
 		
-		$return = '<h2>'.($analysis_context_id ? getLabel('lbl_analysis_context').': '.strEscapeHTML($arr_analysis_context['name']) : getLabel('lbl_analysis_context')).'</h2>
+		$return = '<h2>'.($analysis_context_id ? '<span>'.getLabel('lbl_analysis_context').': '.strEscapeHTML($arr_analysis_context['name']).'</span><small title="'.getLabel('lbl_analysis_context').' ID">'.$analysis_context_id.'</small>' : '<span>'.getLabel('lbl_analysis_context').'</span>').'</h2>
 		
 		<div class="options">
 			<fieldset>
@@ -1209,13 +1257,12 @@ class custom_projects extends base_module {
 	public function createExportSettingsStore($project_id, $user_id, $export_setting_id) {
 		
 		if ($export_setting_id) {
-			
 			$arr_export_settings = cms_nodegoat_custom_projects::getProjectTypeExportSettings($project_id, $user_id, false, $export_setting_id);
 		}
 		
 		$arr_level = [['id' => 'project', 'name' => getLabel('lbl_project')], ['id' => 'personal', 'name' => getLabel('lbl_personal')]];
 		
-		$return = '<h2>'.($export_setting_id ? getLabel('lbl_export').': '.strEscapeHTML($arr_export_settings['name']) : getLabel('lbl_export')).'</h2>
+		$return = '<h2>'.($export_setting_id ? '<span>'.getLabel('lbl_export').': '.strEscapeHTML($arr_export_settings['name']).'</span><small title="'.getLabel('lbl_export').' ID">'.$export_setting_id.'</small>' : '<span>'.getLabel('lbl_export').'</span>').'</h2>
 		
 		<div class="options">
 			<fieldset>
@@ -1635,8 +1682,8 @@ class custom_projects extends base_module {
 			
 			$arr_visual_settings = $_POST['visual_settings'];
 
-			$arr_visual_settings['settings']['geo_advanced'] = cms_nodegoat_custom_projects::parseVisualSettingsInputAdvanced($arr_visual_settings['settings']['geo_advanced']);
-			$arr_visual_settings['social']['settings']['social_advanced'] = cms_nodegoat_custom_projects::parseVisualSettingsInputAdvanced($arr_visual_settings['social']['settings']['social_advanced']);
+			$arr_visual_settings['settings']['geo_advanced'] = ParseTypeFeatures::parseVisualSettingsInputAdvanced($arr_visual_settings['settings']['geo_advanced']);
+			$arr_visual_settings['social']['settings']['social_advanced'] = ParseTypeFeatures::parseVisualSettingsInputAdvanced($arr_visual_settings['social']['settings']['social_advanced']);
 						
 			$visual_settings_id = cms_nodegoat_custom_projects::handleProjectVisualSettings($_SESSION['custom_projects']['project_id'], ($_POST['usage'] == 'personal' ? $_SESSION['USER_ID'] : false), $_POST['visual_settings_id'], $_POST, $arr_visual_settings);
 		}
@@ -1806,7 +1853,7 @@ class custom_projects extends base_module {
 				$arr_files = ($_FILES['condition'] ? arrRearrangeParams($_FILES['condition']) : []);
 					
 				$arr_condition = data_model::parseTypeCondition($type_id, $arr_data, $arr_files);
-				$arr_model_conditions = data_model::parseTypeModelConditions($type_id, $_POST['model_conditions']);
+				$arr_model_conditions = ParseTypeFeatures::parseTypeModelConditions($type_id, $_POST['model_conditions']);
 				
 				if (!$arr_condition && !$arr_model_conditions) {
 					error(getLabel('msg_condition_store_empty'));
@@ -1822,13 +1869,13 @@ class custom_projects extends base_module {
 					$arr_data = data_model::parseTypeNetwork($arr_data);
 				} else if ($what == 'context') {
 					
-					$arr_data = data_model::parseTypeContext($type_id, $arr_data);
+					$arr_data = ParseTypeFeatures::parseTypeContext($type_id, $arr_data);
 				} else if ($what == 'analysis') {
 
 					$arr_data = data_analysis::parseTypeAnalysis($type_id, $arr_data);
 				} else if ($what == 'analysis_context') {
 
-					$arr_data = data_analysis::parseTypeAnalysisContext($type_id, $arr_data);
+					$arr_data = ParseTypeFeatures::parseTypeAnalysisContext($type_id, $arr_data);
 				} else if ($what == 'export_settings') {
 
 					$arr_data = toolbar::parseTypeExportSettings($type_id, $arr_data);
@@ -1910,7 +1957,6 @@ class custom_projects extends base_module {
 		if ($method == "insert" || $method == "update") {
 			
 			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_ADMIN) {
-				
 				error(getLabel('msg_not_allowed'));
 			}
 
@@ -1924,11 +1970,7 @@ class custom_projects extends base_module {
 				];
 				user_management::updateUserLinkedData($_SESSION['USER_ID'], $user_data);
 			} else if ($method == 'update') {
-				
-				if (!$_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$id]) {
-					error(getLabel('msg_not_allowed'));
-				}
-				
+								
 				$custom_project = new StoreCustomProject($id);
 				$custom_project->store($_POST);
 			}
@@ -1940,7 +1982,7 @@ class custom_projects extends base_module {
 		
 		if ($method == "del" && (int)$id) {
 			
-			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_ADMIN || !$_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$id]) {
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_ADMIN) {
 				error(getLabel('msg_not_allowed'));
 			}
 			
@@ -1960,7 +2002,7 @@ class custom_projects extends base_module {
 		
 			self::setUserProjectID($project_id);
 			
-			Response::location(SiteStartVars::getPageURL());
+			Response::location(SiteStartEnvironment::getPageURL());
 		}
 	}
 	

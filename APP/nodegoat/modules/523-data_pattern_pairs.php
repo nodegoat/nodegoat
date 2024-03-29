@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -321,7 +321,7 @@ class data_pattern_pairs extends base_module {
 		
 		if ($method == "set_filter") {
 			
-			SiteEndVars::setFeedback('filter_pattern_pairs', $value, true);
+			SiteEndEnvironment::setFeedback('filter_pattern_pairs', $value, true);
 				
 			$this->refresh_table = true;
 		}
@@ -345,7 +345,7 @@ class data_pattern_pairs extends base_module {
 			$sql_index = 'nodegoat_ptop.type_id, nodegoat_ptop.identifier';
 			$sql_where = 'TRUE';
 			
-			$arr_filter_pattern_pairs = (SiteStartVars::getFeedback('filter_pattern_pairs') ?: []);
+			$arr_filter_pattern_pairs = (SiteStartEnvironment::getFeedback('filter_pattern_pairs') ?: []);
 			
 			if (!empty($arr_filter_pattern_pairs['type_id'])) {
 				

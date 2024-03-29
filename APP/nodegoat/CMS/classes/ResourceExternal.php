@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -320,7 +320,7 @@ class ResourceExternal {
 				$str_result = $parse->get();
 			} else if ($this->mode_result_parse == static::PARSE_YAML) {
 				
-				$str_result = yaml_parse($str_result);
+				$str_result = YAML2Value($str_result);
 				$str_result = value2JSON($str_result);
 			}
 
@@ -574,7 +574,8 @@ class ResourceExternal {
 			
 			try {
 				$traverse = new TraverseJSON($this->arr_resource['response_uri']['value']);
-				$arr_uri = $traverse->get($arr_result);
+				$traverse->set($arr_result);
+				$arr_uri = $traverse->get(true);
 			} catch (Exception $e) {
 				
 				Labels::setVariable('parse_name', 'Response URI');
@@ -584,7 +585,8 @@ class ResourceExternal {
 			
 			try {
 				$traverse = new TraverseJSON($this->arr_resource['response_label']['value'], $has_multi);
-				$arr_label = $traverse->get($arr_result);
+				$traverse->set($arr_result);
+				$arr_label = $traverse->get(true);
 			} catch (Exception $e) {
 				
 				Labels::setVariable('parse_name', 'Response Label');
@@ -596,7 +598,8 @@ class ResourceExternal {
 				
 				try {
 					$traverse = new TraverseJSON($arr_response_value['value'], $has_multi);
-					$arr_values[$name] = $traverse->get($arr_result);
+					$traverse->set($arr_result);
+					$arr_values[$name] = $traverse->get(true);
 				} catch (Exception $e) {
 				
 					Labels::setVariable('parse_name', 'Response Value \''.strEscapeHTML($name).'\'');
@@ -832,7 +835,7 @@ class ResourceExternal {
 				}
 				unset($value['value_now'], $value['range_now']);
 				$arr_values[$key] = $value;
-				if (StoreTypeObjects::date2Integer($use_value)) {
+				if (FormatTypeObjects::date2Integer($use_value)) {
 					continue;
 				}
 			} else if ($use_value) {

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -17,8 +17,8 @@ class CollectTypesObjectsValues extends CollectTypesObjects {
 	
 	protected $arr_filters = [];
 	
-	protected static $nr_store_objects_buffer = 2000;
-	protected static $nr_store_objects_stream = 50000;
+	protected static $num_store_objects_buffer = 2000;
+	protected static $num_store_objects_stream = 50000;
 
 	public function __construct($type_id, $view = GenerateTypeObjects::VIEW_SET, $value_type = '', $arr_value_type_settings = []) {
 		
@@ -113,17 +113,25 @@ class CollectTypesObjectsValues extends CollectTypesObjects {
 						
 						if ($object_sub_details_id) {
 							
-							if ($arr_selected['object_sub_details_date_start'] || $arr_selected['object_sub_details_date_end']) {
+							$str_attribute = $arr_selected['attribute'];
+							
+							if ($str_attribute == 'date_start' || $str_attribute == 'date_end']) {
+								
 								$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_date'] = true;
-								if ($arr_selected['object_sub_details_date_start']) {
+								if ($str_attribute == 'date_start']) {
 									$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_date_start'] = true;
 								}
-								if ($arr_selected['object_sub_details_date_end']) {
+								if ($str_attribute == 'date_end']) {
 									$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_date_end'] = true;
 								}
-							} else if (!$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details']) { // Set empty selection on sub object details if nothing is selected
+							} else if (!isset($arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details'])) { // Set empty selection on sub object details if nothing is selected
 								
 								$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details'] = [];
+							}
+							
+							if (!isset($arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'])) { // Set default empty selection on sub object descriptions as there could be none selected
+								
+								$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] = [];
 							}
 							
 							$object_sub_description_id = $arr_selected['object_sub_description_id'];
@@ -133,9 +141,6 @@ class CollectTypesObjectsValues extends CollectTypesObjects {
 								$s_arr =& $arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
 								$s_arr['object_sub_description_id'] = true;
 								$s_arr['object_sub_description_value'] = true;
-							} else if (!$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions']) { // Set empty selection on sub object descriptions if there are none selected
-								
-								$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] = [];
 							}
 						}
 					}
@@ -152,7 +157,7 @@ class CollectTypesObjectsValues extends CollectTypesObjects {
 		
 	public function collectToTable($sql_table_name, $source_object_sub_details_id) {
 
-		$this->setInitLimit(static::$nr_store_objects_stream);
+		$this->setInitLimit(static::$num_store_objects_stream);
 
 		while ($this->init($this->arr_filters)) {
 
@@ -176,8 +181,10 @@ class CollectTypesObjectsValues extends CollectTypesObjects {
 							$source_object_sub_id = false;
 						}
 					}
+					
+					$arr_selection = $this->arr_path_options[$cur_path]['arr_selection'];
 										
-					if ($this->arr_path_options[$cur_path]['arr_selection']) {
+					if ($arr_selection) {
 						
 						if ($source_object_sub_id) {
 							$s_arr =& $cur_arr['object_sub_ids'][$source_object_sub_id];
@@ -191,16 +198,18 @@ class CollectTypesObjectsValues extends CollectTypesObjects {
 							
 							$value = $arr_object_definition['object_definition_value'];
 							
-							if ($value) {
-								$s_arr[$value] = $value;
+							if (!$value) {
+								continue;
 							}
+							
+							$s_arr[$value] = $value;
 						}
 						
 						foreach ($arr_object['object_subs'] as $object_sub_id => $arr_object_sub) {
 							
 							$object_sub_details_id = $arr_object_sub['object_sub']['object_sub_details_id'];
 						
-							if ($this->arr_path_options[$cur_path]['arr_selection']['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_date_start']) {
+							if ($arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_date_start']) {
 								
 								$value = $arr_object_sub['object_sub']['object_sub_date_start'];
 								
@@ -209,7 +218,7 @@ class CollectTypesObjectsValues extends CollectTypesObjects {
 								}
 							}
 							
-							if ($this->arr_path_options[$cur_path]['arr_selection']['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_date_end']) {
+							if ($arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_date_end']) {
 								
 								$value = $arr_object_sub['object_sub']['object_sub_date_end'];
 								
@@ -222,9 +231,11 @@ class CollectTypesObjectsValues extends CollectTypesObjects {
 								
 								$value = $arr_object_sub_definition['object_sub_definition_value'];
 								
-								if ($value) {
-									$s_arr[$value] = $value;
+								if (!$value) {
+									continue;
 								}
+								
+								$s_arr[$value] = $value;
 							}
 						}
 					}
@@ -281,7 +292,7 @@ class CollectTypesObjectsValues extends CollectTypesObjects {
 			if ($arr_sql_insert) {
 								
 				$count = 0;
-				$arr_sql_chunk = array_slice($arr_sql_insert, $count, static::$nr_store_objects_buffer);
+				$arr_sql_chunk = array_slice($arr_sql_insert, $count, static::$num_store_objects_buffer);
 				
 				while ($arr_sql_chunk) {
 					
@@ -292,8 +303,8 @@ class CollectTypesObjectsValues extends CollectTypesObjects {
 						".DBFunctions::onConflict('identifier, object_id, object_sub_id', ['object_id'])."
 					");
 					
-					$count += static::$nr_store_objects_buffer;
-					$arr_sql_chunk = array_slice($arr_sql_insert, $count, static::$nr_store_objects_buffer);
+					$count += static::$num_store_objects_buffer;
+					$arr_sql_chunk = array_slice($arr_sql_insert, $count, static::$num_store_objects_buffer);
 				}
 				
 				unset($arr_sql_insert);

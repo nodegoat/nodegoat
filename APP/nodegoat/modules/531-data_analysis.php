@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -69,8 +69,6 @@ class data_analysis extends base_module {
 		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		
-		Labels::setVariable('icon', '<span class="icon">'.getIcon('info-point').'</span>');
-		
 		$return = '<div class="tabs">
 			<ul>
 				<li><a href="#analysis-analysis">'.getLabel('lbl_analysis').': '.Labels::parseTextVariables($arr_type_set['type']['name']).'</a></li>
@@ -79,7 +77,7 @@ class data_analysis extends base_module {
 			
 			<div>
 				<section class="info attention">
-					'.Labels::parseTextVariables(getLabel('inf_analysis_introduction')).'
+					'.parseBody(getLabel('inf_analysis_introduction')).'
 				</section>
 				'.$this->createTypeAnalysis($type_id, $arr_analysis).'
 			</div>
@@ -655,15 +653,15 @@ class data_analysis extends base_module {
 				
 				$arr_analysis = [];
 				
-				SiteEndVars::setFeedback('analysis_id', false, true);
+				SiteEndEnvironment::setFeedback('analysis_id', false, true);
 			} else {
 				
 				$arr_analysis = self::parseTypeAnalysis($type_id, $_POST['analysis']);
 			
-				SiteEndVars::setFeedback('analysis_id', 0, true);
+				SiteEndEnvironment::setFeedback('analysis_id', 0, true);
 			}
 			
-			SiteEndVars::setFeedback('analysis', ($arr_analysis['algorithm'] ? true : false));
+			SiteEndEnvironment::setFeedback('analysis', ($arr_analysis['algorithm'] ? true : false));
 			
 			cms_nodegoat_custom_projects::handleProjectTypeAnalysis($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, $type_id, [], $arr_analysis);
 			
@@ -671,15 +669,15 @@ class data_analysis extends base_module {
 				
 				$arr_analysis_context = [];
 				
-				SiteEndVars::setFeedback('analysis_context_id', false, true);
+				SiteEndEnvironment::setFeedback('analysis_context_id', false, true);
 			} else {
 				
-				$arr_analysis_context = self::parseTypeAnalysisContext($type_id, $_POST['analysis_context']);
+				$arr_analysis_context = ParseTypeFeatures::parseTypeAnalysisContext($type_id, $_POST['analysis_context']);
 			
-				SiteEndVars::setFeedback('analysis_context_id', 0, true);
+				SiteEndEnvironment::setFeedback('analysis_context_id', 0, true);
 			}
 			
-			SiteEndVars::setFeedback('analysis_context', ($arr_analysis_context ? true : false));
+			SiteEndEnvironment::setFeedback('analysis_context', ($arr_analysis_context ? true : false));
 			
 			cms_nodegoat_custom_projects::handleProjectTypeAnalysisContext($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, $type_id, [], $arr_analysis_context);
 			
@@ -742,7 +740,7 @@ class data_analysis extends base_module {
 				
 				$arr_analysis_context = cms_nodegoat_custom_projects::getProjectTypeAnalysesContexts($_SESSION['custom_projects']['project_id'], false, false, $_POST['analysis_context_id'], $arr_use_project_ids);
 				$arr_analysis_context = $arr_analysis_context['object'];
-				$arr_analysis_context = self::parseTypeAnalysisContext($type_id, $arr_analysis_context);
+				$arr_analysis_context = ParseTypeFeatures::parseTypeAnalysisContext($type_id, $arr_analysis_context);
 			}
 			
 			$this->html = $this->createTypeAnalysisContext($type_id, $arr_analysis_context);
@@ -772,60 +770,20 @@ class data_analysis extends base_module {
 		
 		if ($do_weighted) {
 			
-			$collect->setConditions(GenerateTypeObjects::CONDITIONS_MODE_FULL, function($cur_type_id) use ($type_id) {
-								
-				$arr_type_set_conditions = toolbar::getTypeConditions($cur_type_id);
+			$collect->setConditions(GenerateTypeObjects::CONDITIONS_MODE_FULL, function($cur_type_id) {
 				
-				if (!$arr_type_set_conditions) {
-					return $arr_type_set_conditions;
-				}
+				$arr_use_conditions = toolbar::getTypeConditions($cur_type_id);
 				
-				$func_check_conditions = function(&$arr_condition_settings) {
+				return ParseTypeFeatures::parseTypeConditionNamespace($cur_type_id, $arr_use_conditions, function($arr_condition_setting) {
 					
-					foreach ($arr_condition_settings as $key => &$arr_condition_setting) {
+					$arr_condition_setting = ParseTypeFeatures::checkTypeConditionNamespace($arr_condition_setting, ParseTypeFeatures::CONDITION_NAMESPACE_ANALYSE);
 						
-						$arr_condition_setting = data_model::checkTypeConditionNamespace($arr_condition_setting, data_model::CONDITION_NAMESPACE_ANALYSE);
-						
-						if ($arr_condition_setting !== false && isset($arr_condition_setting['condition_actions']['weight'])) {
-							continue;
-						}
-						
-						unset($arr_condition_settings[$key]);
+					if ($arr_condition_setting !== false && isset($arr_condition_setting['condition_actions']['weight'])) {
+						return $arr_condition_setting;
 					}
 					
-					return $arr_condition_settings;
-				};
-				
-				if ($arr_type_set_conditions['object']) {
-					
-					$func_check_conditions($arr_type_set_conditions['object']);
-				}
-				
-				if ($arr_type_set_conditions['object_descriptions']) {
-				
-					foreach ($arr_type_set_conditions['object_descriptions'] as $object_description_id => &$arr_condition_settings) {
-						$func_check_conditions($arr_condition_settings);
-					}
-				}
-				
-				if ($arr_type_set_conditions['object_sub_details']) {
-					
-					foreach ($arr_type_set_conditions['object_sub_details'] as $object_sub_details_id => &$arr_conditions_object_sub_details) {
-						
-						if ($arr_conditions_object_sub_details['object_sub_details']) {
-							$func_check_conditions($arr_conditions_object_sub_details['object_sub_details']);
-						}
-						
-						if ($arr_conditions_object_sub_details['object_sub_descriptions']) {
-							
-							foreach ($arr_conditions_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => &$arr_condition_settings) {
-								$func_check_conditions($arr_condition_settings);
-							}
-						}
-					}
-				}
-
-				return $arr_type_set_conditions;
+					return false;
+				});
 			});
 		} else {
 			
@@ -888,7 +846,7 @@ class data_analysis extends base_module {
 		
 	public static function getTypeAnalysis($type_id, $include_user = true) {
 		
-		$analysis_id = SiteStartVars::getFeedback('analysis_id');
+		$analysis_id = SiteStartEnvironment::getFeedback('analysis_id');
 		$arr_analysis = [];
 		
 		if ($analysis_id !== false) {
@@ -918,7 +876,7 @@ class data_analysis extends base_module {
 	
 	public static function getTypeAnalysisContext($type_id, $include_user = true) {
 		
-		$analysis_context_id = SiteStartVars::getFeedback('analysis_context_id');
+		$analysis_context_id = SiteStartEnvironment::getFeedback('analysis_context_id');
 		$arr_analysis_context = [];
 		
 		if ($analysis_context_id !== false) {
@@ -939,7 +897,7 @@ class data_analysis extends base_module {
 			
 				$arr_analysis_context = cms_nodegoat_custom_projects::getProjectTypeAnalysesContexts($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, $analysis_context_id, $arr_use_project_ids);
 				$arr_analysis_context = $arr_analysis_context['object'];
-				$arr_analysis_context = self::parseTypeAnalysisContext($type_id, $arr_analysis_context);
+				$arr_analysis_context = ParseTypeFeatures::parseTypeAnalysisContext($type_id, $arr_analysis_context);
 			}
 		}
 		
@@ -977,87 +935,10 @@ class data_analysis extends base_module {
 	}
 	
 	public static function parseTypeAnalysis($type_id, $arr) {
-
-		$arr_collect = [];
 		
-		$algorithm = $arr['algorithm'];
-		
-		if (!$algorithm) {
-			return $arr_collect;
-		}
-		
-		$arr_scope = data_model::parseTypeNetwork($arr['scope']);
-		
-		if (!$arr_scope['paths'] && !$arr_scope['types']) {
-			return $arr_collect;
-		}
-		
-		if ($arr['algorithm_settings']) {
-			
-			$arr_settings = $arr['algorithm_settings'][$algorithm];
-			$arr_weighted = $arr['weighted_settings'];
-		} else { // 'algorithm_settings' is part of the form configuration
-			
-			$arr_settings = $arr['settings'];
-			$arr_weighted = $arr['settings']['weighted'];
-		}
-		unset($arr['algorithm_settings']);
-		unset($arr['weighted_settings']);
-			
-		$arr_algorithm = AnalyseTypeObjects::getAlgorithms($algorithm);
-		$func_parse = $arr_algorithm['parse'];
-		
-		if ($func_parse) {
-			
-			$arr_settings = $func_parse($arr_settings);
-			
-			if ($arr_settings === false) { // Settings are required, otherwise return
-				return $arr_collect;
-			}
-		} else {
-			
-			$arr_settings = [];
-		}
-		
-		if ($arr_algorithm['weighted']) {
-			
-			$str_mode = $arr_weighted['mode'];
-			$arr_settings['weighted']['mode'] = ($str_mode == 'closeness' || $str_mode == 'distance' ? $str_mode : 'unweighted');
-			
-			if ($arr_settings['weighted']['mode'] != 'unweighted') {
-				
-				$arr_settings['weighted']['max'] = ($arr_weighted['max'] && (int)$arr_weighted['max'] > 1 ? (int)$arr_weighted['max'] : '');
-			}
-		}
-		
-		$arr_collect['algorithm'] = $algorithm;
-		$arr_collect['scope'] = $arr_scope;
-		$arr_collect['settings'] = $arr_settings;
-		$arr_collect['user_id'] = (int)$arr['user_id'];
-		$arr_collect['id'] = (int)$arr['id'];
-		
-		return $arr_collect;
+		return ParseTypeFeatures::parseTypeAnalysis($type_id, $arr, ($_SESSION['NODEGOAT_CLEARANCE'] ?? 0));
 	}
-	
-	public static function parseTypeAnalysisContext($type_id, $arr) {
 		
-		$arr_collect = [];
-		
-		if ($arr['include']) {
-				
-			foreach ($arr['include'] as $arr_analysis_context_include) {
-				
-				if (!$arr_analysis_context_include['analysis_id'] ) {
-					continue;
-				}
-				
-				$arr_collect['include'][$arr_analysis_context_include['analysis_id']] = ['analysis_id' => $arr_analysis_context_include['analysis_id']];
-			}
-		}
-		
-		return $arr_collect;
-	}
-	
 	public static function checkService() {
 		
 		$arr_job = cms_jobs::getJob('cms_nodegoat_definitions', 'runGraphAnalysisService');

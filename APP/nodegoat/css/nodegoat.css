@@ -18,3 +18,6 @@ body .container > .full { flex: 0 0 100%; align-self: flex-end; }
 
 .page-viewer .container:after { padding-bottom: 0px; }
 .page-viewer .full .site { min-width: 100%; max-width: 100%; padding: 0px; }
+
+.page-publication { background-color: #ffffff; }
+.page-publication .full .site { padding: 0px; }

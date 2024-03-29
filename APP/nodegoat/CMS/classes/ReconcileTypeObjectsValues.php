@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -289,12 +289,21 @@ class ReconcileTypeObjectsValues {
 		$arr_test = [];
 		
 		foreach ($arr_test_value as $arr_values) {
+			
+			if (!isset($arr_values)) {
+				continue;
+			}
 
 			if (!is_array($arr_values)) { // Make sure to provide multi-values
 				$arr_values = [$arr_values];
 			}
 			
 			foreach ($arr_values as $key => &$value) {
+				
+				if ($value === null) {
+					unset($arr_values[$key]);
+					continue;
+				}
 				
 				$value = $this->transliterate($value);
 				$value = explode(' ', $value);
@@ -430,7 +439,7 @@ class ReconcileTypeObjectsValues {
 					$str_source_value = $str_source_value['parse'];
 				}
 					
-				$arr_source_value_clean[$str_source_value_identifier] = StoreTypeObjects::clearObjectDefinitionText($str_source_value, StoreTypeObjects::TEXT_TAG_OBJECT);
+				$arr_source_value_clean[$str_source_value_identifier] = FormatTypeObjects::clearObjectDefinitionText($str_source_value, FormatTypeObjects::TEXT_TAG_OBJECT);
 			}
 			
 			foreach ($this->arr_pattern_pairs as $str_identifier => $arr_pattern_pair) {
@@ -567,7 +576,7 @@ class ReconcileTypeObjectsValues {
 			foreach ($this->arr_test_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 								
 				$value_type = $arr_object_description['object_description_value_type'];
-				$sql_column = StoreTypeObjects::formatFromSQLValue($value_type, 's.'.StoreType::getValueTypeValue($value_type, 'search'));
+				$sql_column = FormatTypeObjects::formatFromSQLValue($value_type, 's.'.StoreType::getValueTypeValue($value_type, 'search'));
 				$version_select = GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ACTIVE, 'search', 's', $value_type);
 				$version_select_to = GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ACTIVE, 'object', 'nodegoat_to');
 				$arr_sql_value = $func_sql_search($arr_reconcile_value['process'], $sql_column);
@@ -586,7 +595,7 @@ class ReconcileTypeObjectsValues {
 				foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 					
 					$value_type = $arr_object_sub_description['object_sub_description_value_type'];
-					$sql_column = StoreTypeObjects::formatFromSQLValue($value_type, 's.'.StoreType::getValueTypeValue($value_type, 'search'));
+					$sql_column = FormatTypeObjects::formatFromSQLValue($value_type, 's.'.StoreType::getValueTypeValue($value_type, 'search'));
 					$version_select = GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ACTIVE, 'search', 's', $value_type);
 					$version_select_to = GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ACTIVE, 'object', 'nodegoat_to');
 					$version_select_tos = GenerateTypeObjects::generateVersioning(GenerateTypeObjects::VERSIONING_ACTIVE, 'object_sub', 's_tos');
@@ -688,12 +697,12 @@ class ReconcileTypeObjectsValues {
 				
 				$arr_source_value[$str_source_value_identifier] = $str_source_value;
 				
-				$arr_source_value_clean[$str_source_value_identifier] = StoreTypeObjects::clearObjectDefinitionText($str_source_value, StoreTypeObjects::TEXT_TAG_OBJECT);
+				$arr_source_value_clean[$str_source_value_identifier] = FormatTypeObjects::clearObjectDefinitionText($str_source_value, FormatTypeObjects::TEXT_TAG_OBJECT);
 				
 				$str_source_value = $this->transliterate($str_source_value);
 				$arr_source_value_normalised[$str_source_value_identifier] = $str_source_value;
 								
-				$arr_source_value_normalised_clean[$str_source_value_identifier] = StoreTypeObjects::clearObjectDefinitionText($str_source_value, StoreTypeObjects::TEXT_TAG_OBJECT);
+				$arr_source_value_normalised_clean[$str_source_value_identifier] = FormatTypeObjects::clearObjectDefinitionText($str_source_value, FormatTypeObjects::TEXT_TAG_OBJECT);
 			}
 			
 			$has_multi_source_value = (count($arr_result_set['values']) > 1);
@@ -745,7 +754,7 @@ class ReconcileTypeObjectsValues {
 						if ($mode_result & static::RESULT_MODE_TAGS_OVERWRITE_TYPE) {
 							
 							$arr_type_ids = [$this->type_id => false];
-							$str_test_value = StoreTypeObjects::updateObjectDefinitionTextTagsObject($str_test_value, $arr_type_ids);
+							$str_test_value = FormatTypeObjects::updateObjectDefinitionTextTagsObject($str_test_value, $arr_type_ids);
 						}
 						
 						$arr_tags = $this->getTextTags($str_test_value);

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -138,7 +138,7 @@ class data_linked_data extends base_module {
 		
 		$arr_sorter_values = [];
 		
-		$arr_conversions = StoreResourceExternal::getResourceConversions();
+		$arr_conversions = StoreResourceExternal::getConversions();
 					
 		foreach (($arr_resource['response_values'] ?: [[]]) as $name => $arr_value) {
 			
@@ -277,7 +277,7 @@ class data_linked_data extends base_module {
 	private function createResourceConversion($id = false) {
 	
 		if (is_numeric($id)) {
-			$arr_conversion = StoreResourceExternal::getResourceConversions($id);
+			$arr_conversion = StoreResourceExternal::getConversions($id);
 		}
 
 		$id = (int)$id;
@@ -563,7 +563,7 @@ class data_linked_data extends base_module {
 		
 		if ($method == "selector_conversion_output_identifiers") {
 			
-			$arr_conversion = StoreResourceExternal::getResourceConversions((int)$value);
+			$arr_conversion = StoreResourceExternal::getConversions((int)$value);
 									
 			$this->html = cms_general::createDropdown($arr_conversion['output_identifiers'], false, false);
 		}
@@ -731,7 +731,8 @@ class data_linked_data extends base_module {
 			
 			$arr = static::parseResourceExternal($_POST);
 			
-			StoreResourceExternal::handleResource((int)$id, $arr);
+			$store_resource = new StoreResourceExternal();
+			$store_resource->storeResource((int)$id, $arr);
 			
 			$this->html = $this->createAddResource();
 			$this->refresh_table = true;
@@ -751,7 +752,8 @@ class data_linked_data extends base_module {
 			
 			$arr = $_POST;
 			
-			StoreResourceExternal::handleResourceConversion((int)$id, $arr);
+			$store_resource = new StoreResourceExternal();
+			$store_resource->storeConversion((int)$id, $arr);
 			
 			$this->html = $this->createAddResourceConversion();
 			$this->refresh_table = true;
@@ -765,7 +767,8 @@ class data_linked_data extends base_module {
 				return;
 			}
 			
-			StoreResourceExternal::delResource($id);
+			$store_resource = new StoreResourceExternal();
+			$store_resource->delResource($id);
 								
 			$this->msg = true;
 		}
@@ -777,7 +780,8 @@ class data_linked_data extends base_module {
 				return;
 			}
 			
-			StoreResourceExternal::delResourceConversion($id);
+			$store_resource = new StoreResourceExternal();
+			$store_resource->delConversion($id);
 								
 			$this->msg = true;
 		}

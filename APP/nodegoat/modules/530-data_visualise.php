@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -61,7 +61,7 @@ class data_visualise extends base_module {
 			<div>
 
 				<div class="options scope">
-					'.data_model::createTypeNetwork($type_id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => 'scope', 'descriptions' => 'full']).'
+					'.data_model::createTypeNetwork($type_id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => 'scope', 'descriptions' => data_model::TYPE_NETWORK_DESCRIPTIONS_CONCEPT]).'
 				</div>
 				
 			</div>
@@ -197,12 +197,12 @@ class data_visualise extends base_module {
 			
 				<fieldset><legend>'.getLabel('lbl_time').'</legend><ul>
 					<li><label>'.getLabel('lbl_boundary').'</label><span>'
-						.'<label>'.getLabel('lbl_start').'</label><input type="text" value="'.StoreTypeObjects::formatToCleanValue('date', $arr_frame['time']['bounds']['date_start']).'" name="frame[time][bounds][date_start]" class="date" placeholder="d-m-y">'
-						.'<label>'.getLabel('lbl_end').'</label><input type="text" value="'.StoreTypeObjects::formatToCleanValue('date', $arr_frame['time']['bounds']['date_end']).'" name="frame[time][bounds][date_end]" class="date" placeholder="d-m-y">'
+						.'<label>'.getLabel('lbl_start').'</label><input type="text" value="'.FormatTypeObjects::formatToCleanValue('date', $arr_frame['time']['bounds']['date_start']).'" name="frame[time][bounds][date_start]" class="date" placeholder="d-m-y">'
+						.'<label>'.getLabel('lbl_end').'</label><input type="text" value="'.FormatTypeObjects::formatToCleanValue('date', $arr_frame['time']['bounds']['date_end']).'" name="frame[time][bounds][date_end]" class="date" placeholder="d-m-y">'
 					.'</span></li>
 					<li><label>'.getLabel('lbl_selection').'</label><span>'
-						.'<label>'.getLabel('lbl_start').'</label><input type="text" value="'.StoreTypeObjects::formatToCleanValue('date', $arr_frame['time']['selection']['date_start']).'" name="frame[time][selection][date_start]" class="date" placeholder="d-m-y">'
-						.'<label>'.getLabel('lbl_end').'</label><input type="text" value="'.StoreTypeObjects::formatToCleanValue('date', $arr_frame['time']['selection']['date_end']).'" name="frame[time][selection][date_end]" class="date" placeholder="d-m-y">'
+						.'<label>'.getLabel('lbl_start').'</label><input type="text" value="'.FormatTypeObjects::formatToCleanValue('date', $arr_frame['time']['selection']['date_start']).'" name="frame[time][selection][date_start]" class="date" placeholder="d-m-y">'
+						.'<label>'.getLabel('lbl_end').'</label><input type="text" value="'.FormatTypeObjects::formatToCleanValue('date', $arr_frame['time']['selection']['date_end']).'" name="frame[time][selection][date_end]" class="date" placeholder="d-m-y">'
 					.'</span></li>
 				</ul></fieldset>
 				
@@ -226,8 +226,8 @@ class data_visualise extends base_module {
 		$arr_display = [['id' => 1, 'name' => getLabel('lbl_display_vector')], ['id' => 2, 'name' => getLabel('lbl_display_pixel')]];
 		$arr_location_position = [['id' => 0, 'name' => getLabel('lbl_static')], ['id' => 1, 'name' => getLabel('lbl_algorithmic')]];
 
-		$str_geo_advanced = cms_nodegoat_custom_projects::parseVisualSettingsOutputAdvanced($arr_settings['settings']['geo_advanced']);
-		$str_social_advanced = cms_nodegoat_custom_projects::parseVisualSettingsOutputAdvanced($arr_settings['social']['settings']['social_advanced']);
+		$str_geo_advanced = ParseTypeFeatures::parseVisualSettingsOutputAdvanced($arr_settings['settings']['geo_advanced']);
+		$str_social_advanced = ParseTypeFeatures::parseVisualSettingsOutputAdvanced($arr_settings['social']['settings']['social_advanced']);
 		
 		$return = '<div class="tabs visual-settings">
 			<ul>
@@ -332,6 +332,9 @@ class data_visualise extends base_module {
 						.'<span></li>
 						<li><label>'.getLabel('lbl_dot').' '.getLabel('lbl_stroke_color').'</label><span><input name="visual_settings[social][dot][stroke_color]" type="text" value="'.$arr_settings['social']['dot']['stroke_color'].'" class="colorpicker" /></span></li>
 						<li><label>'.getLabel('lbl_dot').' '.getLabel('lbl_stroke_width').'</label><input name="visual_settings[social][dot][stroke_width]" type="number" step="0.5" min="0" value="'.$arr_settings['social']['dot']['stroke_width'].'" /></li>
+						<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_label').'</label><span>'.cms_general::createSelectorRadio($arr_yes_no, 'visual_settings[social][label][show]', $arr_settings['social']['label']['show']).'</span></li>
+						<li><label>'.getLabel('lbl_label').' '.getLabel('lbl_threshold').'</label><input name="visual_settings[social][label][threshold]" type="number" step="0.01" min="0" max="1" value="'.$arr_settings['social']['label']['threshold'].'" /></li>
+						<li><label>'.getLabel('lbl_label').' '.getLabel('lbl_condition').'</label><input name="visual_settings[social][label][condition]" type="text" value="'.$arr_settings['social']['label']['condition'].'" /></li>
 						<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_line').'</label><span>'.cms_general::createSelectorRadio($arr_yes_no, 'visual_settings[social][line][show]', $arr_settings['social']['line']['show']).'</span></li>
 						<li><label>'.getLabel('lbl_show').' '.getLabel('lbl_arrowhead').'</label><span>'.cms_general::createSelectorRadio($arr_yes_no, 'visual_settings[social][line][arrowhead_show]', $arr_settings['social']['line']['arrowhead_show']).'</span></li>
 					</ul></fieldset>
@@ -1041,7 +1044,7 @@ class data_visualise extends base_module {
 				
 				COMMANDS.setData(cur[0], arr_value);
 				cur.attr('id', 'y:data_visualise:review_data-object').popupCommand();
-			}).on('click.review', 'figure.types li, figure.object-sub-details li, figure.conditions li', function() {
+			}).on('click.review', 'figure.types dl > div, figure.object-sub-details dl > div, figure.conditions dl > div', function() {
 				
 				var cur = $(this);
 				var elm_source = cur.closest('figure');
@@ -1075,7 +1078,7 @@ class data_visualise extends base_module {
 					return;
 				}
 				
-				runElementsSelectorFunction(e.detail.elm, '[name$=\"[dot][show]\"]:checked, [name$=\"[line][show]\"]:checked, [name$=\"[location][show]\"]:checked, [name$=\"[hint][show]\"]:checked, [name$=\"[geometry][show]\"]:checked, [name$=\"[map_show]\"]:checked, [name$=\"[geo_mode]\"]:checked, [name$=\"[capture][enable]\"]:checked', function(elm_found) {
+				runElementsSelectorFunction(e.detail.elm, '[name$=\"[dot][show]\"]:checked, [name$=\"[line][show]\"]:checked, [name$=\"[location][show]\"]:checked, [name$=\"[label][show]\"]:checked, [name$=\"[hint][show]\"]:checked, [name$=\"[geometry][show]\"]:checked, [name$=\"[map_show]\"]:checked, [name$=\"[geo_mode]\"]:checked, [name$=\"[capture][enable]\"]:checked', function(elm_found) {
 					SCRIPTER.triggerEvent(elm_found, 'update_show_hide');
 				});
 				runElementSelectorFunction(e.detail.elm, '[name$=\"[capture][settings][resolution]\"]', function(elm_found) {
@@ -1140,6 +1143,8 @@ class data_visualise extends base_module {
 					selector_target = '[name*=\"[line]\"]';
 				} else if (elm.matches('[name$=\"[location][show]\"]')) {
 					selector_target = '[name*=\"[location]\"]';
+				} else if (elm.matches('[name$=\"[label][show]\"]')) {
+					selector_target = '[name*=\"[label]\"]';
 				} else if (elm.matches('[name$=\"[hint][show]\"]')) {
 					selector_target = '[name*=\"[hint]\"]';
 				} else if (elm.matches('[name$=\"[geometry][show]\"]')) {
@@ -1160,7 +1165,7 @@ class data_visualise extends base_module {
 				}
 			};
 			
-			elm_scripter.on('change update_show_hide', '[name$=\"[dot][show]\"], [name$=\"[line][show]\"], [name$=\"[location][show]\"], [name$=\"[hint][show]\"], [name$=\"[geometry][show]\"], [name$=\"[map_show]\"], [name$=\"[capture][enable]\"]', function() {
+			elm_scripter.on('change update_show_hide', '[name$=\"[dot][show]\"], [name$=\"[line][show]\"], [name$=\"[location][show]\"], [name$=\"[label][show]\"], [name$=\"[hint][show]\"], [name$=\"[geometry][show]\"], [name$=\"[map_show]\"], [name$=\"[capture][enable]\"]', function() {
 				
 				func_hide_show(this);
 			}).on('change update_show_hide', '[name$=\"[geo_mode]\"]:checked', function() {
@@ -1302,19 +1307,19 @@ class data_visualise extends base_module {
 							continue;
 						}
 						
-						SiteEndVars::setFeedback('context', ['type_id' => $context_type_id], true);
+						SiteEndEnvironment::setFeedback('context', ['type_id' => $context_type_id], true);
 						
 						$arr_filters = toolbar::getScenarioFilters($context_scenario_id);
 						
-						$cur_scope_id = SiteStartVars::getFeedback('scope_id');
-						SiteEndVars::setFeedback('scope_id', ($arr_context_scenario['scope_id'] ?: false), true);
+						$cur_scope_id = SiteStartEnvironment::getFeedback('scope_id');
+						SiteEndEnvironment::setFeedback('scope_id', ($arr_context_scenario['scope_id'] ?: false), true);
 						$arr_scope = self::getTypeScope($context_type_id);
-						SiteEndVars::setFeedback('scope_id', $cur_scope_id, true);
+						SiteEndEnvironment::setFeedback('scope_id', $cur_scope_id, true);
 						
-						$cur_condition_id = SiteStartVars::getFeedback('condition_id');
-						SiteEndVars::setFeedback('condition_id', ($arr_context_scenario['condition_id'] ?: false), true);
+						$cur_condition_id = SiteStartEnvironment::getFeedback('condition_id');
+						SiteEndEnvironment::setFeedback('condition_id', ($arr_context_scenario['condition_id'] ?: false), true);
 						$arr_conditions = toolbar::getTypeConditions($context_type_id);
-						SiteEndVars::setFeedback('condition_id', $cur_condition_id, true);
+						SiteEndEnvironment::setFeedback('condition_id', $cur_condition_id, true);
 						
 						$collect = self::getVisualisationCollector($context_type_id, $arr_filters, $arr_scope, $arr_conditions);
 						$arr_collect_info = $collect->getResultInfo();
@@ -1325,7 +1330,7 @@ class data_visualise extends base_module {
 						$create_visualisation_package->addType($context_type_id, $collect, $arr_filters, $arr_scope, $arr_conditions, $context_scenario_id, $context_scenario_hash);
 					}
 					
-					SiteEndVars::setFeedback('context', null, true);
+					SiteEndEnvironment::setFeedback('context', null, true);
 				}
 			}
 			
@@ -1361,12 +1366,12 @@ class data_visualise extends base_module {
 				
 				$arr_scope = [];
 				
-				SiteEndVars::setFeedback('scope_id', false, true);
+				SiteEndEnvironment::setFeedback('scope_id', false, true);
 			} else {
 				
 				$arr_scope = data_model::parseTypeNetwork($_POST['scope']);
 				
-				SiteEndVars::setFeedback('scope_id', 0, true);
+				SiteEndEnvironment::setFeedback('scope_id', 0, true);
 			}
 			
 			$has_changed_scope = cms_nodegoat_custom_projects::handleProjectTypeScope($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, $type_id, [], $arr_scope);
@@ -1375,16 +1380,16 @@ class data_visualise extends base_module {
 				
 				$arr_context = [];
 				
-				SiteEndVars::setFeedback('context_id', false, true);
+				SiteEndEnvironment::setFeedback('context_id', false, true);
 			} else {
 												
-				$arr_context = data_model::parseTypeContext($type_id, $_POST['context']);
+				$arr_context = ParseTypeFeatures::parseTypeContext($type_id, $_POST['context']);
 				
 				if (self::getTypeContext($type_id, false) == $arr_context) {
 					$arr_context = [];
 				}
 				
-				SiteEndVars::setFeedback('context_id', 0, true);
+				SiteEndEnvironment::setFeedback('context_id', 0, true);
 			}
 			
 			$has_changed_context = cms_nodegoat_custom_projects::handleProjectTypeContext($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, $type_id, [], $arr_context);
@@ -1393,16 +1398,16 @@ class data_visualise extends base_module {
 				
 				$arr_frame = [];
 				
-				SiteEndVars::setFeedback('frame_id', false, true);
+				SiteEndEnvironment::setFeedback('frame_id', false, true);
 			} else {
 												
-				$arr_frame = cms_nodegoat_custom_projects::parseFrame($_POST['frame']);
+				$arr_frame = ParseTypeFeatures::parseTypeFrame($type_id, $_POST['frame']);
 				
 				if (self::getTypeFrame($type_id, false) == $arr_frame) {
 					$arr_frame = [];
 				}
 				
-				SiteEndVars::setFeedback('frame_id', 0, true);
+				SiteEndEnvironment::setFeedback('frame_id', 0, true);
 			}
 			
 			$has_changed_frame = cms_nodegoat_custom_projects::handleProjectTypeFrame($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, $type_id, [], $arr_frame);
@@ -1411,21 +1416,21 @@ class data_visualise extends base_module {
 				
 				$arr_visual_settings = [];
 				
-				SiteEndVars::setFeedback('visual_settings_id', false, true);
+				SiteEndEnvironment::setFeedback('visual_settings_id', false, true);
 			} else {
 				
 				$arr_visual_settings = $_POST['visual_settings'];
 				
-				$arr_visual_settings['settings']['geo_advanced'] = cms_nodegoat_custom_projects::parseVisualSettingsInputAdvanced($arr_visual_settings['settings']['geo_advanced']);		
-				$arr_visual_settings['social']['settings']['social_advanced'] = cms_nodegoat_custom_projects::parseVisualSettingsInputAdvanced($arr_visual_settings['social']['settings']['social_advanced']);
+				$arr_visual_settings['settings']['geo_advanced'] = ParseTypeFeatures::parseVisualSettingsInputAdvanced($arr_visual_settings['settings']['geo_advanced']);		
+				$arr_visual_settings['social']['settings']['social_advanced'] = ParseTypeFeatures::parseVisualSettingsInputAdvanced($arr_visual_settings['social']['settings']['social_advanced']);
 				
-				$arr_visual_settings = cms_nodegoat_custom_projects::parseVisualSettings($arr_visual_settings);
+				$arr_visual_settings = ParseTypeFeatures::parseVisualSettings($arr_visual_settings);
 
 				if (self::getVisualSettings(false) == $arr_visual_settings) {
 					$arr_visual_settings = [];
 				}
 				
-				SiteEndVars::setFeedback('visual_settings_id', 0, true);
+				SiteEndEnvironment::setFeedback('visual_settings_id', 0, true);
 			}
 			
 			$has_changed_visual_settings = cms_nodegoat_custom_projects::handleProjectVisualSettings($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], 0, [], $arr_visual_settings);
@@ -1581,8 +1586,8 @@ class data_visualise extends base_module {
 			$this->html = '<div class="review_data_selection data_viewer">
 				<h1>'.$str_name.'</h1>
 				<div class="record"><dl>
-					'.($arr_value['object_id'] ? '<li><dt>'.getLabel('lbl_object').'</dt><dd>'.data_view::createTypeObjectLink($arr_value['type_id'], $arr_value['object_id'], $str_name).'</dd></li>' : '').'
-					'.($arr_value['date_range'] ? '<li><dt>'.getLabel('lbl_date_range').'</dt><dd>'.StoreTypeObjects::formatToCleanValue('date', $arr_value['date_range']['min']).' - '.StoreTypeObjects::formatToCleanValue('date', $arr_value['date_range']['max']).'</dd></li>' : '').'
+					'.($arr_value['object_id'] ? '<div><dt>'.getLabel('lbl_object').'</dt><dd>'.data_view::createTypeObjectLink($arr_value['type_id'], $arr_value['object_id'], $str_name).'</dd></div>' : '').'
+					'.($arr_value['date_range'] ? '<div><dt>'.getLabel('lbl_date_range').'</dt><dd>'.FormatTypeObjects::formatToCleanValue('date', $arr_value['date_range']['min']).' - '.FormatTypeObjects::formatToCleanValue('date', $arr_value['date_range']['max']).'</dd></div>' : '').'
 				</dl></div>
 				'.$str_html_tabs.'
 			</div>';
@@ -1629,7 +1634,7 @@ class data_visualise extends base_module {
 				$arr_scope = data_model::parseTypeNetwork($arr_scope);
 			}
 
-			$this->html = data_model::createTypeNetwork($id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => 'scope', 'descriptions' => 'full']);
+			$this->html = data_model::createTypeNetwork($id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => 'scope', 'descriptions' => data_model::TYPE_NETWORK_DESCRIPTIONS_CONCEPT]);
 		}
 		
 		if ($method == "select_context_include_type") {
@@ -1670,7 +1675,7 @@ class data_visualise extends base_module {
 				
 				$arr_context = cms_nodegoat_custom_projects::getProjectTypeContexts($_SESSION['custom_projects']['project_id'], false, false, $_POST['context_id'], $arr_use_project_ids);
 				$arr_context = $arr_context['object'];
-				$arr_context = data_model::parseTypeContext($id, $arr_context);
+				$arr_context = ParseTypeFeatures::parseTypeContext($id, $arr_context);
 			} else {
 				
 				$arr_context = [];
@@ -1706,7 +1711,7 @@ class data_visualise extends base_module {
 				$arr_frame = cms_nodegoat_custom_projects::getProjectTypeFrames($_SESSION['custom_projects']['project_id'], false, false, $_POST['frame_id'], $arr_use_project_ids);
 				$arr_frame = $arr_frame['settings'];
 			}
-			$arr_frame = cms_nodegoat_custom_projects::parseFrame($arr_frame);
+			$arr_frame = ParseTypeFeatures::parseTypeFrame($id, $arr_frame);
 			
 			$this->html = $this->createFrame($id, $arr_frame);
 		}
@@ -1739,7 +1744,7 @@ class data_visualise extends base_module {
 				$arr_visual_settings = $arr_visual_settings['settings'];
 			}
 			
-			$arr_visual_settings = cms_nodegoat_custom_projects::parseVisualSettings($arr_visual_settings);
+			$arr_visual_settings = ParseTypeFeatures::parseVisualSettings($arr_visual_settings);
 						
 			$this->html = $this->createVisualSettings($arr_visual_settings);
 		}
@@ -1766,61 +1771,12 @@ class data_visualise extends base_module {
 		$collect->setConditions(GenerateTypeObjects::CONDITIONS_MODE_FULL, function($cur_type_id) use ($type_id, $arr_conditions) {
 			
 			if ($cur_type_id == $type_id && $arr_conditions !== false) {
-				$arr_type_set_conditions = $arr_conditions;
+				$arr_use_conditions = $arr_conditions;
 			} else {
-				$arr_type_set_conditions = toolbar::getTypeConditions($cur_type_id);
-			}
-
-			if (!$arr_type_set_conditions) {
-				return $arr_type_set_conditions;
+				$arr_use_conditions = toolbar::getTypeConditions($cur_type_id);
 			}
 			
-			$func_check_conditions = function(&$arr_condition_settings) {
-				
-				foreach ($arr_condition_settings as $key => &$arr_condition_setting) {
-					
-					$arr_condition_setting = data_model::checkTypeConditionNamespace($arr_condition_setting, data_model::CONDITION_NAMESPACE_VISUALISE);
-					
-					if ($arr_condition_setting !== false) {
-						continue;
-					}
-					
-					unset($arr_condition_settings[$key]);
-				}
-				
-				return $arr_condition_settings;
-			};
-			
-			if ($arr_type_set_conditions['object']) {
-				
-				$func_check_conditions($arr_type_set_conditions['object']);
-			}
-			
-			if ($arr_type_set_conditions['object_descriptions']) {
-			
-				foreach ($arr_type_set_conditions['object_descriptions'] as $object_description_id => &$arr_condition_settings) {
-					$func_check_conditions($arr_condition_settings);
-				}
-			}
-			
-			if ($arr_type_set_conditions['object_sub_details']) {
-				
-				foreach ($arr_type_set_conditions['object_sub_details'] as $object_sub_details_id => &$arr_conditions_object_sub_details) {
-					
-					if ($arr_conditions_object_sub_details['object_sub_details']) {
-						$func_check_conditions($arr_conditions_object_sub_details['object_sub_details']);
-					}
-					
-					if ($arr_conditions_object_sub_details['object_sub_descriptions']) {
-						
-						foreach ($arr_conditions_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => &$arr_condition_settings) {
-							$func_check_conditions($arr_condition_settings);
-						}
-					}
-				}
-			}
-			
-			return $arr_type_set_conditions;
+			return ParseTypeFeatures::parseTypeConditionNamespace($cur_type_id, $arr_use_conditions, fn($arr_condition_setting) => ParseTypeFeatures::checkTypeConditionNamespace($arr_condition_setting, ParseTypeFeatures::CONDITION_NAMESPACE_VISUALISE));
 		});
 		
 		$collect->setTypeOptions([$type_id => ['order' => $arr_ordering]]);
@@ -1878,13 +1834,13 @@ class data_visualise extends base_module {
 							$s_arr =& $arr_selection['object_descriptions'][$object_description_id];
 							$s_arr['object_description_id'] = true;
 							
-							if ($arr_selected['object_description_value']) {
+							if ($arr_selected['use_value']) {
 								$s_arr['object_description_value'] = true;
 							}
-							if ($arr_selected['object_description_reference']) {
-								$s_arr['object_description_reference'] = $arr_selected['object_description_reference'];
-								if ($arr_selected['object_description_reference_value']) {
-									$s_arr['object_description_reference_value'] = $arr_selected['object_description_reference_value'];
+							if ($arr_selected['use_reference']) {
+								$s_arr['object_description_reference'] = $arr_selected['use_reference'];
+								if ($arr_selected['use_reference_value']) {
+									$s_arr['object_description_reference_value'] = $arr_selected['use_reference_value'];
 								}
 							}
 						}
@@ -1897,8 +1853,12 @@ class data_visualise extends base_module {
 								continue;
 							}
 							
-							$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details'] = ['all' => true];
-							
+							if (!isset($arr_selection['object_sub_details'][$object_sub_details_id])) {
+								
+								$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details'] = ['all' => true];
+								$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] = []; // Set default empty selection on sub object descriptions as there could be none selected
+							}
+
 							$object_sub_description_id = $arr_selected['object_sub_description_id'];
 							
 							if ($object_sub_description_id) {
@@ -1910,18 +1870,15 @@ class data_visualise extends base_module {
 								$s_arr =& $arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
 								$s_arr['object_sub_description_id'] = true;
 								
-								if ($arr_selected['object_sub_description_value']) {
+								if ($arr_selected['use_value']) {
 									$s_arr['object_sub_description_value'] = true;
 								}
-								if ($arr_selected['object_sub_description_reference']) {
-									$s_arr['object_sub_description_reference'] = $arr_selected['object_sub_description_reference'];
-									if ($arr_selected['object_sub_description_reference_value']) {
-										$s_arr['object_sub_description_reference_value'] = $arr_selected['object_sub_description_reference_value'];
+								if ($arr_selected['use_reference']) {
+									$s_arr['object_sub_description_reference'] = $arr_selected['use_reference'];
+									if ($arr_selected['use_reference_value']) {
+										$s_arr['object_sub_description_reference_value'] = $arr_selected['use_reference_value'];
 									}
 								}
-							} else if (!$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions']) { // Set empty selection on sub object descriptions if there are none selected
-								
-								$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] = [];
 							}
 						}
 					}
@@ -1973,7 +1930,7 @@ class data_visualise extends base_module {
 		
 	public static function getTypeScope($type_id) {
 		
-		$scope_id = SiteStartVars::getFeedback('scope_id');
+		$scope_id = SiteStartEnvironment::getFeedback('scope_id');
 		
 		$arr_project = false;
 		
@@ -2004,7 +1961,7 @@ class data_visualise extends base_module {
 	
 	public static function getTypeContext($type_id, $include_user = true) {
 		
-		$context_id = SiteStartVars::getFeedback('context_id');
+		$context_id = SiteStartEnvironment::getFeedback('context_id');
 		$arr_context = [];
 		
 		$arr_project = false;
@@ -2046,14 +2003,14 @@ class data_visualise extends base_module {
 			}
 		}
 		
-		$arr_context = data_model::parseTypeContext($type_id, $arr_context);
+		$arr_context = ParseTypeFeatures::parseTypeContext($type_id, $arr_context);
 
 		return $arr_context;
 	}
 	
 	public static function getTypeFrame($type_id, $include_user = true) {
 		
-		$frame_id = SiteStartVars::getFeedback('frame_id');
+		$frame_id = SiteStartEnvironment::getFeedback('frame_id');
 		$arr_frame = [];
 		
 		$arr_project = false;
@@ -2099,14 +2056,14 @@ class data_visualise extends base_module {
 			}
 		}
 		
-		$arr_frame = cms_nodegoat_custom_projects::parseFrame($arr_frame);
+		$arr_frame = ParseTypeFeatures::parseTypeFrame($type_id, $arr_frame);
 
 		return $arr_frame;
 	}
 	
 	public static function getVisualSettings($include_user = true) {
 		
-		$visual_settings_id = SiteStartVars::getFeedback('visual_settings_id');
+		$visual_settings_id = SiteStartEnvironment::getFeedback('visual_settings_id');
 		$arr_visual_settings = [];
 		
 		$arr_project = false;
@@ -2132,8 +2089,8 @@ class data_visualise extends base_module {
 				
 				if ($arr_visual_settings) {
 					
-					$arr_visual_settings = cms_nodegoat_custom_projects::parseVisualSettings($arr_visual_settings);
-					$arr_visual_settings_default = cms_nodegoat_custom_projects::parseVisualSettings();
+					$arr_visual_settings = ParseTypeFeatures::parseVisualSettings($arr_visual_settings);
+					$arr_visual_settings_default = ParseTypeFeatures::parseVisualSettings();
 					
 					if ($arr_visual_settings == $arr_visual_settings_default) {
 					
@@ -2158,7 +2115,7 @@ class data_visualise extends base_module {
 				$arr_visual_settings = $arr_visual_settings['settings'];
 			}
 			
-			$arr_visual_settings = cms_nodegoat_custom_projects::parseVisualSettings($arr_visual_settings);
+			$arr_visual_settings = ParseTypeFeatures::parseVisualSettings($arr_visual_settings);
 		}
 		
 		return $arr_visual_settings;

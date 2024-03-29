@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -531,13 +531,13 @@ class data_reconcile extends base_module {
 										$arr_remove_objects[$result_object_id] = false;
 									}
 
-									$str_value = StoreTypeObjects::updateObjectDefinitionTextTagsObject($str_value, [$test_type_id => $arr_remove_objects]);
+									$str_value = FormatTypeObjects::updateObjectDefinitionTextTagsObject($str_value, [$test_type_id => $arr_remove_objects]);
 									
 									// Get leftover tags and clear tags
 									
 									$arr_tags = $reconcile->getTextTags($str_value);
 									
-									$str_value = StoreTypeObjects::clearObjectDefinitionText($str_value, StoreTypeObjects::TEXT_TAG_OBJECT);
+									$str_value = FormatTypeObjects::clearObjectDefinitionText($str_value, FormatTypeObjects::TEXT_TAG_OBJECT);
 									
 									// Add identical value tags for all selected reconciled tags
 									
@@ -572,7 +572,7 @@ class data_reconcile extends base_module {
 										$arr_objects_select_state[$result_object_id] = in_array($result_object_id, $arr_select_object_ids);
 									}
 									
-									$str_value = StoreTypeObjects::updateObjectDefinitionTextTagsObject($str_value, [$test_type_id => $arr_objects_select_state]);
+									$str_value = FormatTypeObjects::updateObjectDefinitionTextTagsObject($str_value, [$test_type_id => $arr_objects_select_state]);
 								}
 							}
 							
@@ -975,7 +975,7 @@ class data_reconcile extends base_module {
 						}
 						
 						$html_value .= '<fieldset>'
-							.StoreTypeObjects::formatToHTMLValue('text_tags', $str_value, ['marginalia' => true], [$test_type_id => $arr_objects_value_name])
+							.FormatTypeObjects::formatToHTMLValue('text_tags', $str_value, [$test_type_id => $arr_objects_value_name], ['marginalia' => true])
 							.($arr_template['target_self'] ? '<input type="hidden" name="'.$str_name.'[values]['.$key.']" value="'.strEscapeHTML($str_value).'" />' : '')
 							.($arr_template['target_self'] ? '<input type="hidden" name="'.$str_name.'[options]['.$key.']" value="'.strEscapeHTML(value2JSON($arr_option_objects)).'" />' : '')
 						.'</fieldset>';
@@ -1322,7 +1322,7 @@ class data_reconcile extends base_module {
 			
 			foreach ($value['values'] as $key => $str_value) {
 				
-				$html .= '<fieldset>'.StoreTypeObjects::formatToFormValue('text_tags', $str_value, '').'</fieldset>';
+				$html .= '<fieldset>'.FormatTypeObjects::formatToFormValue('text_tags', $str_value, false, '').'</fieldset>';
 			}
 			
 			$str_name = $value['form_name'];
@@ -1493,8 +1493,8 @@ class data_reconcile extends base_module {
 		$arr_template = [
 			'type_id' => (int)$arr_template_raw['type_id'],
 			'test_type_id' => (int)$arr_template_raw['test_type_id'],
-			'type_filter' => ($arr_template_raw['type_id'] ? (is_array($arr_template_raw['type_filter']) ? $arr_template_raw['type_filter'] : JSON2Value($arr_template_raw['type_filter'])) : ''),
-			'test_type_filter' => ($arr_template_raw['test_type_id'] ? (is_array($arr_template_raw['test_type_filter']) ? $arr_template_raw['test_type_filter'] : JSON2Value($arr_template_raw['test_type_filter'])) : ''),
+			'type_filter' => ($arr_template_raw['type_id'] ? (is_array($arr_template_raw['type_filter']) ? $arr_template_raw['type_filter'] : JSON2Value((string)$arr_template_raw['type_filter'])) : ''),
+			'test_type_filter' => ($arr_template_raw['test_type_id'] ? (is_array($arr_template_raw['test_type_filter']) ? $arr_template_raw['test_type_filter'] : JSON2Value((string)$arr_template_raw['test_type_filter'])) : ''),
 			'test_pattern_pairs' => (bool)$arr_template_raw['test_pattern_pairs'],
 			'target_id' => $arr_template_raw['target_id'],
 			'target_self' => (int)$arr_template_raw['target_self'],

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -24,14 +24,14 @@ class StoreCustomProject {
 	
 	public static $arr_projects_storage = [];
 		
-    public function __construct($project_id) {
+	public function __construct($project_id) {
 
 		if ($project_id) {
 			$this->project_id = (int)$project_id;
 		}
 		
-    }
-    
+	}
+
 	public function setMode($mode = self::MODE_UPDATE) {
 		
 		// $mode = overwite OR update
@@ -165,20 +165,22 @@ class StoreCustomProject {
 						$edit = ($arr_configuration_object_description['edit'] ? true : false);
 						$view = ($edit || $arr_configuration_object_description['view'] ? true : false);
 					}
+					$filter_id = (int)$arr_configuration_object_description['filter_id'];
 					
 					$str_information = null;
 					if ($has_information) {
 						$str_information = trim($arr_configuration_object_description['information']);
 					}
 					
-					$has_data = ($edit || $view || $str_information);
+					$has_data = ($edit || $view || $filter_id || $str_information);
 					
 					if ($has_data || !$has_information) { // When 'information' is not part of the data, there could still be valid data in the database
 						
 						$arr_sql_insert[] = "(
 							".$this->project_id.", ".(int)$type_id.",
 							".(int)$object_description_id.", 0, 0,
-							".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN)."".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
+							".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN).", ".(int)$filter_id."
+							".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
 						)";
 
 						$arr_sql_keys['configuration'][] = "(
@@ -202,6 +204,7 @@ class StoreCustomProject {
 							$edit = ($arr_configuration_object_sub_details['edit'] ? true : false);
 							$view = ($edit || $arr_configuration_object_sub_details['view'] ? true : false);
 						}
+						$filter_id = 0;
 						
 						$str_information = null;
 						if ($has_information) {
@@ -215,7 +218,8 @@ class StoreCustomProject {
 							$arr_sql_insert[] = "(
 								".$this->project_id.", ".(int)$type_id.",
 								0, ".(int)$object_sub_details_id.", 0,
-								".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN)."".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
+								".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN).", ".(int)$filter_id."
+								".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
 							)";
 
 							$arr_sql_keys['configuration'][] = "(
@@ -237,20 +241,22 @@ class StoreCustomProject {
 							$edit = ($arr_configuration_object_sub_description['edit'] ? true : false);
 							$view = ($edit || $arr_configuration_object_sub_description['view'] ? true : false);
 						}
+						$filter_id = (int)$arr_configuration_object_sub_description['filter_id'];
 						
 						$str_information = null;
 						if ($has_information) {
 							$str_information = trim($arr_configuration_object_sub_description['information']);
 						}
 						
-						$has_data = ($edit || $view || $str_information);
+						$has_data = ($edit || $view || $filter_id || $str_information);
 						
 						if ($has_data || !$has_information) { // When 'information' is not part of the data, there could still be valid data in the database
 							
 							$arr_sql_insert[] = "(
 								".$this->project_id.", ".(int)$type_id.",
 								0, ".(int)$object_sub_details_id.", ".(int)$object_sub_description_id.",
-								".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN)."".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
+								".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN).", ".(int)$filter_id."
+								".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
 							)";
 
 							$arr_sql_keys['configuration'][] = "(
@@ -264,10 +270,9 @@ class StoreCustomProject {
 				
 				if ($arr_sql_insert) {
 					
+					$arr_sql_update = ['edit', 'view', 'filter_id'];
 					if ($has_information) {
-						$arr_sql_update = ['edit', 'view', 'information'];
-					} else {
-						$arr_sql_update = ['edit', 'view'];
+						$arr_sql_update[] = 'information';
 					}
 	
 					$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONFIGURATION')."
@@ -292,20 +297,22 @@ class StoreCustomProject {
 						
 						$edit = ($arr_referenced_object_description['edit'] ? true : false);
 						$view = ($arr_referenced_object_description['view'] ? true : false);
+						$filter_id = (int)$arr_referenced_object_description['filter_id'];
 						
 						$str_information = null;
 						if ($has_information) {
 							$str_information = trim($arr_referenced_object_description['information']);
 						}
 						
-						$has_data = ($edit || $view || $str_information);
+						$has_data = ($edit || $view || $filter_id || $str_information);
 						
 						if ($has_data || !$has_information) { // When 'information' is not part of the data, there could still be valid data in the database
 							
 							$arr_sql_insert[] = "(
 								".$this->project_id.", ".(int)$type_id.", ".(int)$ref_type_id.",
 								".(int)$object_description_id.", 0, 0,
-								".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN)."".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
+								".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN).", ".(int)$filter_id."
+								".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
 							)";
 
 							$arr_sql_keys['include_referenced'][] = "(
@@ -323,20 +330,22 @@ class StoreCustomProject {
 							
 							$edit = ($arr_referenced_object_sub_description['edit'] ? true : false);
 							$view = ($arr_referenced_object_sub_description['view'] ? true : false);
+							$filter_id = (int)$arr_referenced_object_sub_description['filter_id'];
 							
 							$str_information = null;
 							if ($has_information) {
 								$str_information = trim($arr_referenced_object_sub_description['information']);
 							}
 							
-							$has_data = ($edit || $view || $str_information);
+							$has_data = ($edit || $view || $filter_id || $str_information);
 							
 							if ($has_data || !$has_information) { // When 'information' is not part of the data, there could still be valid data in the database
 									
 								$arr_sql_insert[] = "(
 									".$this->project_id.", ".(int)$type_id.", ".(int)$ref_type_id.", 
 									0, ".(int)$object_sub_details_id.", ".(int)$object_sub_description_id.",
-									".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN)."".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
+									".DBFunctions::escapeAs($edit, DBFunctions::TYPE_BOOLEAN).", ".DBFunctions::escapeAs($view, DBFunctions::TYPE_BOOLEAN).", ".(int)$filter_id."
+									".($has_information ? ", ".($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL') : '')."
 								)";
 
 								$arr_sql_keys['include_referenced'][] = "(
@@ -350,10 +359,9 @@ class StoreCustomProject {
 					
 					if ($arr_sql_insert) {
 							
+						$arr_sql_update = ['edit', 'view', 'filter_id'];
 						if ($has_information) {
-							$arr_sql_update = ['edit', 'view', 'information'];
-						} else {
-							$arr_sql_update = ['edit', 'view'];
+							$arr_sql_update[] = 'information';
 						}
 						
 						$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_INCLUDE_REFERENCED_TYPES')."
@@ -516,7 +524,7 @@ class StoreCustomProject {
 		$arr_res = DB::queryMulti("
 			SELECT p.*,
 				pt.type_id, pt.color, pt.type_information, pt.type_filter_id, pt.type_filter_object_subs, pt.type_context_id, pt.type_frame_id, pt.type_condition_id, pt.type_edit, pt.configuration_exclude,
-				ptc.object_description_id AS configuration_object_description_id, ptc.object_sub_details_id AS configuration_object_sub_details_id, ptc.object_sub_description_id AS configuration_object_sub_description_id, ptc.edit AS configuration_edit, ptc.view AS configuration_view, ptc.information AS configuration_information
+				ptc.object_description_id AS configuration_object_description_id, ptc.object_sub_details_id AS configuration_object_sub_details_id, ptc.object_sub_description_id AS configuration_object_sub_description_id, ptc.edit AS configuration_edit, ptc.view AS configuration_view, ptc.filter_id AS configuration_filter_id, ptc.information AS configuration_information
 					FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
 					LEFT JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPES')." pt ON (pt.project_id = p.id)
 					LEFT JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_CONFIGURATION')." ptc ON (ptc.project_id = p.id AND ptc.type_id = pt.type_id)
@@ -527,7 +535,7 @@ class StoreCustomProject {
 				
 			SELECT p.id,
 				pt.type_id,
-				ptrt.referenced_type_id, ptrt.object_description_id AS referenced_object_description_id, ptrt.object_sub_details_id AS referenced_object_sub_details_id, ptrt.object_sub_description_id AS referenced_object_sub_description_id, ptrt.edit AS referenced_edit, ptrt.view AS referenced_view, ptrt.information AS referenced_information
+				ptrt.referenced_type_id, ptrt.object_description_id AS referenced_object_description_id, ptrt.object_sub_details_id AS referenced_object_sub_details_id, ptrt.object_sub_description_id AS referenced_object_sub_description_id, ptrt.edit AS referenced_edit, ptrt.view AS referenced_view, ptrt.filter_id AS referenced_filter_id, ptrt.information AS referenced_information
 					FROM ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS')." p
 					JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPES')." pt ON (pt.project_id = p.id)
 					LEFT JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPE_INCLUDE_REFERENCED_TYPES')." ptrt ON (ptrt.project_id = p.id AND ptrt.type_id = pt.type_id)
@@ -585,16 +593,16 @@ class StoreCustomProject {
 					$s_arr = $arr_row;
 				}
 				
-				if ($arr_row['configuration_edit'] || $arr_row['configuration_view'] || $arr_row['configuration_information']) {
+				if ($arr_row['configuration_edit'] || $arr_row['configuration_view'] || $arr_row['configuration_filter_id'] || $arr_row['configuration_information']) {
 					
 					$s_arr =& $s_arr['configuration'];
 					
 					if ($arr_row['configuration_object_description_id']) {
-						$s_arr['object_descriptions'][$arr_row['configuration_object_description_id']] = ['edit' => DBFunctions::unescapeAs($arr_row['configuration_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['configuration_view'], DBFunctions::TYPE_BOOLEAN), 'information' => $arr_row['configuration_information']];
+						$s_arr['object_descriptions'][$arr_row['configuration_object_description_id']] = ['edit' => DBFunctions::unescapeAs($arr_row['configuration_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['configuration_view'], DBFunctions::TYPE_BOOLEAN), 'filter_id' => $arr_row['configuration_filter_id'], 'information' => $arr_row['configuration_information']];
 					} else if ($arr_row['configuration_object_sub_description_id']) {
-						$s_arr['object_sub_details'][$arr_row['configuration_object_sub_details_id']]['object_sub_descriptions'][$arr_row['configuration_object_sub_description_id']] = ['edit' => DBFunctions::unescapeAs($arr_row['configuration_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['configuration_view'], DBFunctions::TYPE_BOOLEAN), 'information' => $arr_row['configuration_information']];
+						$s_arr['object_sub_details'][$arr_row['configuration_object_sub_details_id']]['object_sub_descriptions'][$arr_row['configuration_object_sub_description_id']] = ['edit' => DBFunctions::unescapeAs($arr_row['configuration_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['configuration_view'], DBFunctions::TYPE_BOOLEAN), 'filter_id' => $arr_row['configuration_filter_id'], 'information' => $arr_row['configuration_information']];
 					} else if ($arr_row['configuration_object_sub_details_id']) {
-						$s_arr['object_sub_details'][$arr_row['configuration_object_sub_details_id']]['object_sub_details'] = ['edit' => DBFunctions::unescapeAs($arr_row['configuration_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['configuration_view'], DBFunctions::TYPE_BOOLEAN), 'information' => $arr_row['configuration_information']];
+						$s_arr['object_sub_details'][$arr_row['configuration_object_sub_details_id']]['object_sub_details'] = ['edit' => DBFunctions::unescapeAs($arr_row['configuration_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['configuration_view'], DBFunctions::TYPE_BOOLEAN), 'filter_id' => $arr_row['configuration_filter_id'], 'information' => $arr_row['configuration_information']];
 					}
 				}
 			}
@@ -609,9 +617,9 @@ class StoreCustomProject {
 			$s_arr =& $arr[$arr_row['id']]['types'][$arr_row['type_id']]['include_referenced_types'][$arr_row['referenced_type_id']];
 			
 			if ($arr_row['referenced_object_description_id']) {
-				$s_arr['object_descriptions'][$arr_row['referenced_object_description_id']] = ['edit' => DBFunctions::unescapeAs($arr_row['referenced_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['referenced_view'], DBFunctions::TYPE_BOOLEAN), 'information' => $arr_row['referenced_information']];
+				$s_arr['object_descriptions'][$arr_row['referenced_object_description_id']] = ['edit' => DBFunctions::unescapeAs($arr_row['referenced_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['referenced_view'], DBFunctions::TYPE_BOOLEAN), 'filter_id' => $arr_row['referenced_filter_id'], 'information' => $arr_row['referenced_information']];
 			} else if ($arr_row['referenced_object_sub_description_id']) {
-				$s_arr['object_sub_details'][$arr_row['referenced_object_sub_details_id']]['object_sub_descriptions'][$arr_row['referenced_object_sub_description_id']] = ['edit' => DBFunctions::unescapeAs($arr_row['referenced_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['referenced_view'], DBFunctions::TYPE_BOOLEAN), 'information' => $arr_row['referenced_information']];
+				$s_arr['object_sub_details'][$arr_row['referenced_object_sub_details_id']]['object_sub_descriptions'][$arr_row['referenced_object_sub_description_id']] = ['edit' => DBFunctions::unescapeAs($arr_row['referenced_edit'], DBFunctions::TYPE_BOOLEAN), 'view' => DBFunctions::unescapeAs($arr_row['referenced_view'], DBFunctions::TYPE_BOOLEAN), 'filter_id' => $arr_row['referenced_filter_id'], 'information' => $arr_row['referenced_information']];
 			}
 		}
 		while ($arr_row = $arr_res[2]->fetchAssoc()) {
@@ -700,6 +708,7 @@ class StoreCustomProject {
 				
 				if ($arr_referenced_object_description['object_description_is_dynamic']) { // In the referenced view the focus lies with the singular source type, not the dynamic values.
 					$s_arr['object_description_is_dynamic'] = false;
+					$s_arr['object_description_value_type'] = 'reference';
 				}
 			}
 			
@@ -726,6 +735,7 @@ class StoreCustomProject {
 					
 					if ($arr_referenced_object_sub_description['object_sub_description_is_dynamic']) { // In the referenced view the focus lies with the singular source type, not the dynamic values.
 						$s_arr['object_sub_description_is_dynamic'] = false;
+						$s_arr['object_sub_description_value_type'] = 'reference';
 					}
 					
 					foreach ($arr_type_set['object_sub_details'][$use_object_sub_details_id]['object_sub_descriptions'] as $arr_check_object_sub_description) {
@@ -789,41 +799,41 @@ class StoreCustomProject {
 		if ($type_id < 0) {
 			
 			if ($type_id == StoreType::getSystemTypeID('cycle')) {
-				$found = $arr_project['project']['system_date_cycle_enable'];
+				$is_found = $arr_project['project']['system_date_cycle_enable'];
 			} else if ($type_id == StoreType::getSystemTypeID('ingestion')) {
-				$found = $arr_project['project']['system_ingestion_enable'];
+				$is_found = $arr_project['project']['system_ingestion_enable'];
 			} else if ($type_id == StoreType::getSystemTypeID('reconciliation')) {
-				$found = $arr_project['project']['system_reconciliation_enable'];
+				$is_found = $arr_project['project']['system_reconciliation_enable'];
 			}
 		} else {
 			
-			$found = ($arr_project['types'][$type_id] ? 'project' : false);
+			$is_found = ($arr_project['types'][$type_id] ? 'project' : false);
 		}
 		
 		if ($type == static::ACCESS_PURPOSE_EDIT) {
 			
-			if ($found) {
+			if ($is_found) {
 				
 				if ($type_id < 0) {
-					$found = true;
+					$is_found = true;
 				} else if (!$arr_project['types'][$type_id]['type_edit']) {
-					$found = false;
+					$is_found = false;
 				}
 			}
 		} else {
 			
-			if (!$found) {
+			if (!$is_found) {
 				
 				$arr_types = StoreType::getTypes();
 				
 				if ($arr_types[$type_id]) {
 					
-					$found = ($arr_project['project']['full_scope_enable'] ? 'scope' : 'domain');
+					$is_found = ($arr_project['project']['full_scope_enable'] ? 'scope' : 'domain');
 				}
 			}
 		}
 		
-		return $found;
+		return $is_found;
 	}
 	
 	public static function checkTypeConfigurationAccess($arr_project_types, $arr_type_set, $object_description_id, $object_sub_details_id, $object_sub_description_id, $type = self::ACCESS_PURPOSE_VIEW) {
@@ -1018,4 +1028,5 @@ class StoreCustomProject {
 		
 		return $arr;
 	}
+	
 }

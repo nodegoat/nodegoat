@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -263,14 +263,14 @@ class StoreIngestFile {
 		}
 	}
 	
-	public static function getSources($id = false, $show_rows_in_name = true) {
+	public static function getSources($id = false, $do_show_rows_in_name = true) {
 		
 		$arr = [];
 		
-		$res = DB::query("SELECT nodegoat_if.* ".($show_rows_in_name ? ", CONCAT(nodegoat_if.name, ' (', nodegoat_if.total_objects, ')') AS name" : "")." 
+		$res = DB::query("SELECT nodegoat_if.* ".($do_show_rows_in_name ? ", CONCAT(nodegoat_if.name, ' (', nodegoat_if.total_objects, ')') AS name" : "")." 
 				FROM ".DB::getTable('DEF_NODEGOAT_IMPORT_FILES')." nodegoat_if
 			WHERE "."TRUE"."
-				".($id ? "AND nodegoat_if.id = ".(int)$id."" : "")."
+				".($id ? "AND nodegoat_if.id = ".(int)$id : "")."
 			ORDER BY nodegoat_if.id DESC
 		");
 				 
@@ -278,7 +278,7 @@ class StoreIngestFile {
 			$arr[$arr_row['id']] = $arr_row;
 		}	
 
-		if ($id && is_numeric($id)) {
+		if ($id) {
 			
 			$arr = current($arr);
 			

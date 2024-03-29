@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -274,7 +274,7 @@ class cms_nodegoat_custom_projects extends base_module {
 			return $arr;
 		} else {
 		
-			while($arr_row = $res->fetchAssoc()) {
+			while ($arr_row = $res->fetchAssoc()) {
 				
 				if ($arr_row['id'] == 0 && ($scope_id === false || $scope_id === 0)) { // Do not show the default user settings in lists
 					continue;
@@ -390,7 +390,7 @@ class cms_nodegoat_custom_projects extends base_module {
 			return $arr;
 		} else {
 		
-			while($arr_row = $res->fetchAssoc()) {
+			while ($arr_row = $res->fetchAssoc()) {
 				
 				if ($arr_row['id'] == 0 && ($context_id === false || $context_id === 0)) { // Do not show the default user settings in lists
 					continue;
@@ -452,10 +452,10 @@ class cms_nodegoat_custom_projects extends base_module {
 				".(float)$arr_frame['area']['social']['zoom']['level'].",
 				".(int)$arr_frame['area']['social']['zoom']['min'].",
 				".(int)$arr_frame['area']['social']['zoom']['max'].",
-				".(int)StoreTypeObjects::formatToSQLValue('date', $arr_frame['time']['bounds']['date_start']).",
-				".(int)StoreTypeObjects::formatToSQLValue('date', $arr_frame['time']['bounds']['date_end']).",
-				".(int)StoreTypeObjects::formatToSQLValue('date', $arr_frame['time']['selection']['date_start']).",
-				".(int)StoreTypeObjects::formatToSQLValue('date', $arr_frame['time']['selection']['date_end']).",
+				".(int)FormatTypeObjects::formatToSQLValue('date', $arr_frame['time']['bounds']['date_start']).",
+				".(int)FormatTypeObjects::formatToSQLValue('date', $arr_frame['time']['bounds']['date_end']).",
+				".(int)FormatTypeObjects::formatToSQLValue('date', $arr_frame['time']['selection']['date_start']).",
+				".(int)FormatTypeObjects::formatToSQLValue('date', $arr_frame['time']['selection']['date_end']).",
 				".($arr_frame['object_subs']['unknown']['date'] && $arr_frame['object_subs']['unknown']['date'] != 'span' ? "'".DBFunctions::strEscape($arr_frame['object_subs']['unknown']['date'])."'" : 'NULL').",
 				".($arr_frame['object_subs']['unknown']['location'] && $arr_frame['object_subs']['unknown']['location'] != 'ignore' ? "'".DBFunctions::strEscape($arr_frame['object_subs']['unknown']['location'])."'" : 'NULL')."
 			)
@@ -534,7 +534,7 @@ class cms_nodegoat_custom_projects extends base_module {
 			return $arr;
 		} else {
 		
-			while($arr_row = $res->fetchAssoc()) {
+			while ($arr_row = $res->fetchAssoc()) {
 				
 				if ($arr_row['id'] == 0 && ($frame_id === false || $frame_id === 0)) { // Do not show the default user settings in lists
 					continue;
@@ -561,74 +561,6 @@ class cms_nodegoat_custom_projects extends base_module {
 		}
 	}
 	
-	public static function parseFrame($arr_settings) {
-		
-		if (!$arr_settings) {
-			$arr_settings = [];
-		}
-		
-		if (array_key_exists('area', $arr_settings)) {
-			
-			$arr_settings_use = $arr_settings;
-			
-			$arr_settings = [
-				'area_geo_latitude' => $arr_settings_use['area']['geo']['latitude'],
-				'area_geo_longitude' => $arr_settings_use['area']['geo']['longitude'],
-				'area_geo_zoom_scale' => $arr_settings_use['area']['geo']['zoom']['scale'],
-				'area_geo_zoom_min' => $arr_settings_use['area']['geo']['zoom']['min'],
-				'area_geo_zoom_max' => $arr_settings_use['area']['geo']['zoom']['max'],
-				'area_social_object_id' => $arr_settings_use['area']['social']['object_id'],
-				'area_social_zoom_level' => $arr_settings_use['area']['social']['zoom']['level'],
-				'area_social_zoom_min' => $arr_settings_use['area']['social']['zoom']['min'],
-				'area_social_zoom_max' => $arr_settings_use['area']['social']['zoom']['max'],
-				'time_bounds_date_start' => $arr_settings_use['time']['bounds']['date_start'],
-				'time_bounds_date_end' => $arr_settings_use['time']['bounds']['date_end'],
-				'time_selection_date_start' => $arr_settings_use['time']['selection']['date_start'],
-				'time_selection_date_end' => $arr_settings_use['time']['selection']['date_end'],
-				'object_subs_unknown_date' => $arr_settings_use['object_subs']['unknown']['date'],
-				'object_subs_unknown_location' => $arr_settings_use['object_subs']['unknown']['location']
-			];
-		}
-			
-		return [
-			'area' => [
-				'geo' => [
-					'latitude' => ((string)$arr_settings['area_geo_latitude'] !== '' ? (float)$arr_settings['area_geo_latitude'] : ''),
-					'longitude' => ((string)$arr_settings['area_geo_longitude'] !== '' ? (float)$arr_settings['area_geo_longitude'] : ''),
-					'zoom' => [
-						'scale' => ($arr_settings['area_geo_zoom_scale'] ? (float)$arr_settings['area_geo_zoom_scale'] : ''),
-						'min' => ($arr_settings['area_geo_zoom_min'] ? (int)$arr_settings['area_geo_zoom_min'] : ''),
-						'max' => ($arr_settings['area_geo_zoom_max'] ? (int)$arr_settings['area_geo_zoom_max'] : '')
-					]
-				],
-				'social' => [
-					'object_id' => ($arr_settings['area_social_object_id'] ? (int)$arr_settings['area_social_object_id'] : ''),
-					'zoom' => [
-						'level' => ($arr_settings['area_social_zoom_level'] ? (float)$arr_settings['area_social_zoom_level'] : ''),
-						'min' => ($arr_settings['area_social_zoom_min'] ? (int)$arr_settings['area_social_zoom_min'] : ''),
-						'max' => ($arr_settings['area_social_zoom_max'] ? (int)$arr_settings['area_social_zoom_max'] : '')
-					]
-				]
-			],
-			'time' => [
-				'bounds' => [
-					'date_start' => (int)(StoreTypeObjects::formatToSQLValue('date', $arr_settings['time_bounds_date_start']) ?: ''),
-					'date_end' => (int)(StoreTypeObjects::formatToSQLValue('date', $arr_settings['time_bounds_date_end']) ?: '')
-				],
-				'selection' => [
-					'date_start' => (int)(StoreTypeObjects::formatToSQLValue('date', $arr_settings['time_selection_date_start']) ?: ''),
-					'date_end' => (int)(StoreTypeObjects::formatToSQLValue('date', $arr_settings['time_selection_date_end']) ?: '')
-				]
-			],
-			'object_subs' => [
-				'unknown' => [
-					'date' => ($arr_settings['object_subs_unknown_date'] ? $arr_settings['object_subs_unknown_date'] : 'span'),
-					'location' => ($arr_settings['object_subs_unknown_location'] ? $arr_settings['object_subs_unknown_location'] : 'ignore')
-				]
-			]
-		];
-	}
-	
 	// Project Visual Settings
 	
 	public static function handleProjectVisualSettings($project_id, $user_id, $visual_settings_id, $arr, $arr_visual_settings) {
@@ -644,14 +576,14 @@ class cms_nodegoat_custom_projects extends base_module {
 			}
 		}
 		
-		$arr_default = self::parseVisualSettings();
+		$arr_default = ParseTypeFeatures::parseVisualSettings();
 		
 		
 		$sql_new_id = "JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_VISUAL_SETTINGS')." pvs ON (pvs.project_id = p.id)";
 		
 		$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_VISUAL_SETTINGS')."
 			(project_id, user_id, id, name, description,
-				capture_enable, capture_settings, dot_show, dot_color, dot_opacity, dot_color_condition, dot_size_min, dot_size_max, dot_size_start, dot_size_stop, dot_stroke_color, dot_stroke_opacity, dot_stroke_width, location_show, location_color, location_opacity, location_size, location_threshold, location_offset, location_position, location_condition, line_show, line_color, line_opacity, line_width_min, line_width_max, line_offset, visual_hints_show, visual_hints_color, visual_hints_opacity, visual_hints_size, visual_hints_stroke_color, visual_hints_stroke_opacity, visual_hints_stroke_width, visual_hints_duration, visual_hints_delay, geometry_show, geometry_color, geometry_opacity, geometry_stroke_color, geometry_stroke_opacity, geometry_stroke_width, map_show, map_url, map_attribution, geo_info_show, geo_background_color, geo_mode, geo_display, geo_advanced, social_dot_color, social_dot_size_min, social_dot_size_max, social_dot_size_start, social_dot_size_stop, social_dot_stroke_color, social_dot_stroke_width, social_line_show, social_line_arrowhead_show, social_force, social_forceatlas2, social_disconnected_dot_show, social_include_location_references, social_background_color, social_display, social_static_layout, social_static_layout_interval, social_advanced, time_bar_color, time_bar_opacity, time_background_color, time_relative_graph, time_cumulative_graph
+				capture_enable, capture_settings, dot_show, dot_color, dot_opacity, dot_color_condition, dot_size_min, dot_size_max, dot_size_start, dot_size_stop, dot_stroke_color, dot_stroke_opacity, dot_stroke_width, location_show, location_color, location_opacity, location_size, location_threshold, location_offset, location_position, location_condition, line_show, line_color, line_opacity, line_width_min, line_width_max, line_offset, visual_hints_show, visual_hints_color, visual_hints_opacity, visual_hints_size, visual_hints_stroke_color, visual_hints_stroke_opacity, visual_hints_stroke_width, visual_hints_duration, visual_hints_delay, geometry_show, geometry_color, geometry_opacity, geometry_stroke_color, geometry_stroke_opacity, geometry_stroke_width, map_show, map_url, map_attribution, geo_info_show, geo_background_color, geo_mode, geo_display, geo_advanced, social_dot_color, social_dot_size_min, social_dot_size_max, social_dot_size_start, social_dot_size_stop, social_dot_stroke_color, social_dot_stroke_width, social_label_show, social_label_threshold, social_label_condition, social_line_show, social_line_arrowhead_show, social_force, social_forceatlas2, social_disconnected_dot_show, social_include_location_references, social_background_color, social_display, social_static_layout, social_static_layout_interval, social_advanced, time_bar_color, time_bar_opacity, time_background_color, time_relative_graph, time_cumulative_graph
 			)
 				VALUES 
 			(
@@ -721,6 +653,9 @@ class cms_nodegoat_custom_projects extends base_module {
 					".(int)((int)$arr_visual_settings['social']['dot']['size']['stop'] != $arr_default['social']['dot']['size']['stop'] ? $arr_visual_settings['social']['dot']['size']['stop'] : '').",
 					'".(str2Color($arr_visual_settings['social']['dot']['stroke_color']) != $arr_default['social']['dot']['stroke_color'] ? str2Color($arr_visual_settings['social']['dot']['stroke_color']) : '')."',
 					".((string)$arr_visual_settings['social']['dot']['stroke_width'] !== '' && (float)$arr_visual_settings['social']['dot']['stroke_width'] != $arr_default['social']['dot']['stroke_width'] ? (float)$arr_visual_settings['social']['dot']['stroke_width'] : 'NULL').",
+					".((string)$arr_visual_settings['social']['label']['show'] !== '' && (int)$arr_visual_settings['social']['label']['show'] != $arr_default['social']['label']['show'] ? (int)$arr_visual_settings['social']['label']['show'] : 'NULL').",
+					".((string)$arr_visual_settings['social']['label']['threshold'] !== '' && (float)$arr_visual_settings['social']['label']['threshold'] != $arr_default['social']['label']['threshold'] ? (float)$arr_visual_settings['social']['label']['threshold'] : 'NULL').",
+					'".($arr_visual_settings['social']['label']['condition'] != $arr_default['social']['label']['condition'] ? DBFunctions::strEscape($arr_visual_settings['social']['label']['condition']) : '')."',
 					".((string)$arr_visual_settings['social']['line']['show'] !== '' && (int)$arr_visual_settings['social']['line']['show'] != $arr_default['social']['line']['show'] ? (int)$arr_visual_settings['social']['line']['show'] : 'NULL').",
 					".((string)$arr_visual_settings['social']['line']['arrowhead_show'] !== '' && (int)$arr_visual_settings['social']['line']['arrowhead_show'] != $arr_default['social']['line']['arrowhead_show'] ? (int)$arr_visual_settings['social']['line']['arrowhead_show'] : 'NULL').",
 					'".($arr_visual_settings['social']['force'] && $arr_visual_settings['social']['force'] !== $arr_default['social']['force'] ? DBFunctions::strEscape(value2JSON($arr_visual_settings['social']['force'])) : '')."',
@@ -739,7 +674,7 @@ class cms_nodegoat_custom_projects extends base_module {
 					".((string)$arr_visual_settings['time']['settings']['cumulative_graph'] !== '' && (int)$arr_visual_settings['time']['settings']['cumulative_graph'] != $arr_default['time']['settings']['cumulative_graph'] ? (int)$arr_visual_settings['time']['settings']['cumulative_graph'] : 'NULL')."
 			)
 			".DBFunctions::onConflict('project_id, user_id, id', ['name', 'description',
-				'capture_enable', 'capture_settings', 'dot_show', 'dot_color', 'dot_opacity', 'dot_color_condition', 'dot_size_min', 'dot_size_max', 'dot_size_start', 'dot_size_stop', 'dot_stroke_color', 'dot_stroke_opacity', 'dot_stroke_width', 'location_show', 'location_color', 'location_opacity', 'location_size', 'location_threshold', 'location_offset', 'location_position', 'location_condition', 'line_show', 'line_color', 'line_opacity', 'line_width_min', 'line_width_max', 'line_offset', 'visual_hints_show', 'visual_hints_color', 'visual_hints_opacity', 'visual_hints_size', 'visual_hints_stroke_color', 'visual_hints_stroke_opacity', 'visual_hints_stroke_width', 'visual_hints_duration', 'visual_hints_delay', 'geometry_show', 'geometry_color', 'geometry_opacity', 'geometry_stroke_color', 'geometry_stroke_opacity', 'geometry_stroke_width', 'map_show', 'map_url', 'map_attribution', 'geo_info_show', 'geo_background_color', 'geo_mode', 'geo_display', 'geo_advanced', 'social_dot_color', 'social_dot_size_min', 'social_dot_size_max', 'social_dot_size_start', 'social_dot_size_stop', 'social_dot_stroke_color', 'social_dot_stroke_width', 'social_line_show', 'social_line_arrowhead_show', 'social_force', 'social_forceatlas2', 'social_disconnected_dot_show', 'social_include_location_references', 'social_background_color', 'social_display', 'social_static_layout', 'social_static_layout_interval', 'social_advanced', 'time_bar_color', 'time_bar_opacity', 'time_background_color', 'time_relative_graph', 'time_cumulative_graph'
+				'capture_enable', 'capture_settings', 'dot_show', 'dot_color', 'dot_opacity', 'dot_color_condition', 'dot_size_min', 'dot_size_max', 'dot_size_start', 'dot_size_stop', 'dot_stroke_color', 'dot_stroke_opacity', 'dot_stroke_width', 'location_show', 'location_color', 'location_opacity', 'location_size', 'location_threshold', 'location_offset', 'location_position', 'location_condition', 'line_show', 'line_color', 'line_opacity', 'line_width_min', 'line_width_max', 'line_offset', 'visual_hints_show', 'visual_hints_color', 'visual_hints_opacity', 'visual_hints_size', 'visual_hints_stroke_color', 'visual_hints_stroke_opacity', 'visual_hints_stroke_width', 'visual_hints_duration', 'visual_hints_delay', 'geometry_show', 'geometry_color', 'geometry_opacity', 'geometry_stroke_color', 'geometry_stroke_opacity', 'geometry_stroke_width', 'map_show', 'map_url', 'map_attribution', 'geo_info_show', 'geo_background_color', 'geo_mode', 'geo_display', 'geo_advanced', 'social_dot_color', 'social_dot_size_min', 'social_dot_size_max', 'social_dot_size_start', 'social_dot_size_stop', 'social_dot_stroke_color', 'social_dot_stroke_width', 'social_label_show', 'social_label_threshold', 'social_label_condition', 'social_line_show', 'social_line_arrowhead_show', 'social_force', 'social_forceatlas2', 'social_disconnected_dot_show', 'social_include_location_references', 'social_background_color', 'social_display', 'social_static_layout', 'social_static_layout_interval', 'social_advanced', 'time_bar_color', 'time_bar_opacity', 'time_background_color', 'time_relative_graph', 'time_cumulative_graph'
 			])."
 		");
 		
@@ -759,265 +694,7 @@ class cms_nodegoat_custom_projects extends base_module {
 		
 		return $visual_settings_id;
 	}
-	
-	public static function parseVisualSettings($arr_settings = false) {
 		
-		if (!$arr_settings) {
-			$arr_settings = [];
-		}
-		
-		if (array_key_exists('dot', $arr_settings)) {
-			
-			$arr_settings_use = $arr_settings;
-			
-			$arr_settings = [
-				'capture_enable' => $arr_settings_use['capture']['enable'],
-				'capture_settings' => $arr_settings_use['capture']['settings'],
-				'dot_show' => $arr_settings_use['dot']['show'],
-				'dot_color' => $arr_settings_use['dot']['color'],
-				'dot_opacity' => $arr_settings_use['dot']['opacity'],
-				'dot_color_condition' => $arr_settings_use['dot']['color_condition'],
-				'dot_size_min' => $arr_settings_use['dot']['size']['min'],
-				'dot_size_max' => $arr_settings_use['dot']['size']['max'],
-				'dot_size_start' => $arr_settings_use['dot']['size']['start'],
-				'dot_size_stop' => $arr_settings_use['dot']['size']['stop'],
-				'dot_stroke_color' => $arr_settings_use['dot']['stroke_color'],
-				'dot_stroke_opacity' => $arr_settings_use['dot']['stroke_opacity'],
-				'dot_stroke_width' => $arr_settings_use['dot']['stroke_width'],
-				'location_show' => $arr_settings_use['location']['show'],
-				'location_color' => $arr_settings_use['location']['color'],
-				'location_opacity' => $arr_settings_use['location']['opacity'],
-				'location_size' => $arr_settings_use['location']['size'],
-				'location_threshold' => $arr_settings_use['location']['threshold'],
-				'location_offset' => $arr_settings_use['location']['offset'],
-				'location_position' => $arr_settings_use['location']['position'],
-				'location_condition' => $arr_settings_use['location']['condition'],
-				'line_show' => $arr_settings_use['line']['show'],
-				'line_color' => $arr_settings_use['line']['color'],
-				'line_opacity' => $arr_settings_use['line']['opacity'],
-				'line_width_min' => $arr_settings_use['line']['width']['min'],
-				'line_width_max' => $arr_settings_use['line']['width']['max'],
-				'line_offset' => $arr_settings_use['line']['offset'],
-				'visual_hints_show' => $arr_settings_use['hint']['show'],
-				'visual_hints_color' => $arr_settings_use['hint']['color'],
-				'visual_hints_opacity' => $arr_settings_use['hint']['opacity'],
-				'visual_hints_size' => $arr_settings_use['hint']['size'],
-				'visual_hints_stroke_color' => $arr_settings_use['hint']['stroke_color'],
-				'visual_hints_stroke_opacity' => $arr_settings_use['hint']['stroke_opacity'],
-				'visual_hints_stroke_width' => $arr_settings_use['hint']['stroke_width'],
-				'visual_hints_duration' => $arr_settings_use['hint']['duration'],
-				'visual_hints_delay' => $arr_settings_use['hint']['delay'],
-				'geometry_show' => $arr_settings_use['geometry']['show'],
-				'geometry_color' => $arr_settings_use['geometry']['color'],
-				'geometry_opacity' => $arr_settings_use['geometry']['opacity'],
-				'geometry_stroke_color' => $arr_settings_use['geometry']['stroke_color'],
-				'geometry_stroke_opacity' => $arr_settings_use['geometry']['stroke_opacity'],
-				'geometry_stroke_width' => $arr_settings_use['geometry']['stroke_width'],
-				'map_show' => $arr_settings_use['settings']['map_show'],
-				'map_url' => $arr_settings_use['settings']['map_url'],
-				'map_attribution' => $arr_settings_use['settings']['map_attribution'],
-				'geo_info_show' => $arr_settings_use['settings']['geo_info_show'],
-				'geo_background_color' => $arr_settings_use['settings']['geo_background_color'],
-				'geo_mode' => $arr_settings_use['settings']['geo_mode'],
-				'geo_display' => $arr_settings_use['settings']['geo_display'],
-				'geo_advanced' => $arr_settings_use['settings']['geo_advanced'],
-				'social_dot_color' => $arr_settings_use['social']['dot']['color'],
-				'social_dot_size_min' => $arr_settings_use['social']['dot']['size']['min'],
-				'social_dot_size_max' => $arr_settings_use['social']['dot']['size']['max'],
-				'social_dot_size_start' => $arr_settings_use['social']['dot']['size']['start'],
-				'social_dot_size_stop' => $arr_settings_use['social']['dot']['size']['stop'],
-				'social_dot_stroke_color' => $arr_settings_use['social']['dot']['stroke_color'],
-				'social_dot_stroke_width' => $arr_settings_use['social']['dot']['stroke_width'],
-				'social_line_show' => $arr_settings_use['social']['line']['show'],
-				'social_line_arrowhead_show' => $arr_settings_use['social']['line']['arrowhead_show'],
-				'social_force' => $arr_settings_use['social']['force'],
-				'social_forceatlas2' => $arr_settings_use['social']['forceatlas2'],
-				'social_disconnected_dot_show' => $arr_settings_use['social']['settings']['disconnected_dot_show'],
-				'social_include_location_references' => $arr_settings_use['social']['settings']['include_location_references'],
-				'social_background_color' => $arr_settings_use['social']['settings']['background_color'],
-				'social_display' => $arr_settings_use['social']['settings']['display'],
-				'social_static_layout' => $arr_settings_use['social']['settings']['static_layout'],
-				'social_static_layout_interval' => $arr_settings_use['social']['settings']['static_layout_interval'],
-				'social_advanced' => $arr_settings_use['social']['settings']['social_advanced'],
-				'time_bar_color' => $arr_settings_use['time']['bar']['color'],
-				'time_bar_opacity' => $arr_settings_use['time']['bar']['opacity'],
-				'time_background_color' => $arr_settings_use['time']['settings']['background_color'],
-				'time_relative_graph' => $arr_settings_use['time']['settings']['relative_graph'],
-				'time_cumulative_graph' => $arr_settings_use['time']['settings']['cumulative_graph']
-			];
-		}
-		
-		$arr_settings['capture_settings'] = ($arr_settings['capture_settings'] ? (!is_array($arr_settings['capture_settings']) ? (array)json_decode($arr_settings['capture_settings'], true) : $arr_settings['capture_settings']) : []);
-		$arr_settings['location_position'] = ($arr_settings['location_position'] ? (!is_array($arr_settings['location_position']) ? (array)json_decode($arr_settings['location_position'], true) : $arr_settings['location_position']) : []);
-		$arr_settings['geo_advanced'] = ($arr_settings['geo_advanced'] ? (!is_array($arr_settings['geo_advanced']) ? (array)json_decode($arr_settings['geo_advanced'], true) : $arr_settings['geo_advanced']) : []);
-		$arr_settings['social_force'] = ($arr_settings['social_force'] ? (!is_array($arr_settings['social_force']) ? (array)json_decode($arr_settings['social_force'], true) : $arr_settings['social_force']) : []);
-		$arr_settings['social_forceatlas2'] = ($arr_settings['social_forceatlas2'] ? (!is_array($arr_settings['social_forceatlas2']) ? (array)json_decode($arr_settings['social_forceatlas2'], true) : $arr_settings['social_forceatlas2']) : []);
-		$arr_settings['social_advanced'] = ($arr_settings['social_advanced'] ? (!is_array($arr_settings['social_advanced']) ? (array)json_decode($arr_settings['social_advanced'], true) : $arr_settings['social_advanced']) : []);
-		
-		$arr = [
-			'capture' => [
-				'enable' => (int)((string)$arr_settings['capture_enable'] !== '' ? (bool)$arr_settings['capture_enable'] : false),
-				'settings' => [
-					'size' => ['width' => (float)($arr_settings['capture_settings']['size']['width'] ?? null ?: 30), 'height' => (float)($arr_settings['capture_settings']['size']['height'] ?? null ?: 20)],
-					'resolution' => (int)((string)($arr_settings['capture_settings']['resolution'] ?? '') !== '' ? $arr_settings['capture_settings']['resolution'] : 300)
-				]
-			],
-			'dot' => [
-				'show' => (int)((string)$arr_settings['dot_show'] !== '' ? (bool)$arr_settings['dot_show'] : true),
-				'color' => ($arr_settings['dot_color'] ?: ''),
-				'opacity' => (float)((string)$arr_settings['dot_opacity'] !== '' ? $arr_settings['dot_opacity'] : 1),
-				'color_condition' => ($arr_settings['dot_color_condition'] ?: ''),
-				'size' => ['min' => (float)($arr_settings['dot_size_min'] ?: 8), 'max' => (float)($arr_settings['dot_size_max'] ?: 20), 'start' => ((int)$arr_settings['dot_size_start'] ?: ''), 'stop' => ((int)$arr_settings['dot_size_stop'] ?: '')],
-				'stroke_color' => ($arr_settings['dot_stroke_color'] ?: '#f0f0f0'),
-				'stroke_opacity' => (float)($arr_settings['dot_stroke_opacity'] ?: 1),
-				'stroke_width' => ((string)$arr_settings['dot_stroke_width'] !== '' ? (float)$arr_settings['dot_stroke_width'] : 1.5)
-			],
-			'location' => [
-				'show' => (int)((string)$arr_settings['location_show'] !== '' ? (bool)$arr_settings['location_show'] : false),
-				'color' => ($arr_settings['location_color'] ?: '#000000'),
-				'opacity' => (float)($arr_settings['location_opacity'] ?: 1),
-				'size' => (float)($arr_settings['location_size'] ?: 8),
-				'threshold' => (int)($arr_settings['location_threshold'] ?: 1),
-				'offset' => ((string)$arr_settings['location_offset'] !== '' ? (int)$arr_settings['location_offset'] : -5),
-				'position' => ['mode' => (int)($arr_settings['location_position']['mode'] ?: 0), 'manual' => (bool)$arr_settings['location_position']['manual']],
-				'condition' => ($arr_settings['location_condition'] ?: '')
-			],
-			'line' => [
-				'show' => (int)((string)$arr_settings['line_show'] !== '' ? (bool)$arr_settings['line_show'] : true),
-				'color' => ($arr_settings['line_color'] ?: ''),
-				'opacity' => (float)($arr_settings['line_opacity'] ?: 1),
-				'width' =>  ['min' => (float)($arr_settings['line_width_min'] ?: 2), 'max' => (float)($arr_settings['line_width_max'] ?: 10)],
-				'offset' => (int)((string)$arr_settings['line_offset'] !== '' ? $arr_settings['line_offset'] : 6)
-			],
-			'hint' => [
-				'show' => (int)((string)$arr_settings['visual_hints_show'] !== '' ? (bool)$arr_settings['visual_hints_show'] : true),
-				'color' => ($arr_settings['visual_hints_color'] ?: '#0092d9'),
-				'opacity' => (float)((string)$arr_settings['visual_hints_opacity'] !== '' ? $arr_settings['visual_hints_opacity'] : 1),
-				'size' => (float)($arr_settings['visual_hints_size'] ?: 20),
-				'stroke_color' => ($arr_settings['visual_hints_stroke_color'] ?: '#ffffff'),
-				'stroke_opacity' => (float)($arr_settings['visual_hints_stroke_opacity'] ?: 1),
-				'stroke_width' => (float)((string)$arr_settings['visual_hints_stroke_width'] !== '' ? $arr_settings['visual_hints_stroke_width'] : 2),
-				'duration' => (float)($arr_settings['visual_hints_duration'] ?: 0.5),
-				'delay' => (float)($arr_settings['visual_hints_delay'] ?: 0)
-			],
-			'geometry' => [
-				'show' => (int)((string)$arr_settings['geometry_show'] !== '' ? (bool)$arr_settings['geometry_show'] : true),
-				'color' => ($arr_settings['geometry_color'] ?: '#666666'),
-				'opacity' => (float)((string)$arr_settings['geometry_opacity'] !== '' ? $arr_settings['geometry_opacity'] : 0.4),
-				'stroke_color' => ($arr_settings['geometry_stroke_color'] ?: '#444444'),
-				'stroke_opacity' => (float)($arr_settings['geometry_stroke_opacity'] ?: 0.6),
-				'stroke_width' => (float)((string)$arr_settings['geometry_stroke_width'] !== '' ? $arr_settings['geometry_stroke_width'] : 1)
-			],
-			'settings' => [
-				'map_show' => (int)((string)$arr_settings['map_show'] !== '' ? (bool)$arr_settings['map_show'] : true),
-				'map_url' => ($arr_settings['map_url'] ?: '//mt{s}.googleapis.com/vt?pb=!1m4!1m3!1i{z}!2i{x}!3i{y}!2m3!1e0!2sm!3i278000000!3m14!2sen-US!3sUS!5e18!12m1!1e47!12m3!1e37!2m1!1ssmartmaps!12m4!1e26!2m2!1sstyles!2zcy50OjE3fHAudjpvZmYscy50OjE4fHAudjpvZmYscy50OjIwfHMuZTpsfHAudjpvZmYscy50OjgxfHAudjpvZmYscy50OjJ8cC52Om9mZixzLnQ6NDl8cC52Om9mZixzLnQ6NTB8cy5lOmx8cC52Om9mZixzLnQ6NHxwLnY6b2ZmLHMudDo2fHMuZTpsfHAudjpvZmY!4e0!20m1!1b1'), // //mt{s}.googleapis.com/vt?lyrs=m@205000000&src=apiv3&hl=en-US&x={x}&y={y}&z={z}&s=Galil&apistyle=p.v%3Aoff%2Cs.t%3A6%7Cp.v%3Aon%7Cp.c%3A%23ffc7d7e4%2Cs.t%3A82%7Cp.v%3Aon%2Cs.t%3A19%7Cp.v%3Aon&style=api%7Csmartmaps
-				'map_attribution' => ($arr_settings['map_attribution'] ?: 'Map data ©'.date('Y').' Google'),
-				'geo_info_show' => (int)((string)$arr_settings['geo_info_show'] !== '' ? (bool)$arr_settings['geo_info_show'] : false),
-				'geo_background_color' => ($arr_settings['geo_background_color'] ?: ''),
-				'geo_mode' => (int)((string)$arr_settings['geo_mode'] !== '' ? $arr_settings['geo_mode'] : 1),
-				'geo_display' => (int)((string)$arr_settings['geo_display'] !== '' ? $arr_settings['geo_display'] : 1),
-				'geo_advanced' => $arr_settings['geo_advanced']
-			],
-			'social' => [
-				'dot' => [
-					'color' => ($arr_settings['social_dot_color'] ?: '#ffffff'),
-					'size' => ['min' => (float)($arr_settings['social_dot_size_min'] ?: 3), 'max' => (float)($arr_settings['social_dot_size_max'] ?: 20), 'start' => ((int)$arr_settings['social_dot_size_start'] ?: ''), 'stop' => ((int)$arr_settings['social_dot_size_stop'] ?: '')],
-					'stroke_color' => ($arr_settings['social_dot_stroke_color'] ?: '#aaaaaa'),
-					'stroke_width' => (float)((string)$arr_settings['social_dot_stroke_width'] !== '' ? $arr_settings['social_dot_stroke_width'] : 1)
-				],
-				'line' => [
-					'show' => (int)((string)$arr_settings['social_line_show'] !== '' ? (bool)$arr_settings['social_line_show'] : true),
-					'arrowhead_show' => (int)((string)$arr_settings['social_line_arrowhead_show'] !== '' ? (bool)$arr_settings['social_line_arrowhead_show'] : false)
-				],
-				'force' => [
-					'charge' => (int)((string)$arr_settings['social_force']['charge'] !== '' ? $arr_settings['social_force']['charge'] : -40),
-					'theta' => (float)((string)$arr_settings['social_force']['theta'] !== '' ? $arr_settings['social_force']['theta'] : 0.8),
-					'friction' => (float)((string)$arr_settings['social_force']['friction'] !== '' ? $arr_settings['social_force']['friction'] : 0.2),
-					'gravity' => (float)((string)$arr_settings['social_force']['gravity'] !== '' ? $arr_settings['social_force']['gravity'] : 0.08)
-				],
-				'forceatlas2' => [
-					'lin_log_mode' => (bool)(isset($arr_settings['social_forceatlas2']['lin_log_mode']) ? $arr_settings['social_forceatlas2']['lin_log_mode'] : false),
-					'outbound_attraction_distribution' => (bool)(isset($arr_settings['social_forceatlas2']['outbound_attraction_distribution']) ? $arr_settings['social_forceatlas2']['outbound_attraction_distribution'] : true),
-					'adjust_sizes' => (bool)(isset($arr_settings['social_forceatlas2']['adjust_sizes']) ? $arr_settings['social_forceatlas2']['adjust_sizes'] : false),
-					'edge_weight_influence' => (float)((string)$arr_settings['social_forceatlas2']['edge_weight_influence'] !== '' ? $arr_settings['social_forceatlas2']['edge_weight_influence'] : 0),
-					'scaling_ratio' => (float)($arr_settings['social_forceatlas2']['scaling_ratio'] ?: 1),
-					'strong_gravity_mode' => (bool)(isset($arr_settings['social_forceatlas2']['strong_gravity_mode']) ? $arr_settings['social_forceatlas2']['strong_gravity_mode'] : false),
-					'gravity' => (float)((string)$arr_settings['social_forceatlas2']['gravity'] !== '' ? $arr_settings['social_forceatlas2']['gravity'] : 1),
-					'slow_down' => (float)((string)$arr_settings['social_forceatlas2']['slow_down'] !== '' ? $arr_settings['social_forceatlas2']['slow_down'] : 1),
-					'optimize_theta' => (float)((string)$arr_settings['social_forceatlas2']['optimize_theta'] !== '' ? $arr_settings['social_forceatlas2']['optimize_theta'] : 0.5)
-				],
-				'settings' => [
-					'disconnected_dot_show' => (int)((string)$arr_settings['social_disconnected_dot_show'] !== '' ? (bool)$arr_settings['social_disconnected_dot_show'] : true),
-					'include_location_references' => (int)((string)$arr_settings['social_include_location_references'] !== '' ? (bool)$arr_settings['social_include_location_references'] : false),
-					'background_color' => ($arr_settings['social_background_color'] ?: ''),
-					'display' => (int)((string)$arr_settings['social_display'] !== '' ? $arr_settings['social_display'] : 1),
-					'static_layout' => (int)((string)$arr_settings['social_static_layout'] !== '' ? (bool)$arr_settings['social_static_layout'] : false),
-					'static_layout_interval' => ((string)$arr_settings['social_static_layout_interval'] !== '' ? (float)$arr_settings['social_static_layout_interval'] : ''),
-					'social_advanced' => $arr_settings['social_advanced']
-				]
-			],
-			'time' => [
-				'bar' => [
-					'color' => ($arr_settings['time_bar_color'] ?: ''),
-					'opacity' => (float)($arr_settings['time_bar_opacity'] ?: 0.5)
-				],
-				'settings' => [
-					'background_color' => ($arr_settings['time_background_color'] ?: ''),
-					'relative_graph' => (int)((string)$arr_settings['time_relative_graph'] !== '' ? (bool)$arr_settings['time_relative_graph'] : false),
-					'cumulative_graph' => (int)((string)$arr_settings['time_cumulative_graph'] !== '' ? (bool)$arr_settings['time_cumulative_graph'] : false)
-				]
-			]
-		];
-		
-		$arr['dot']['size']['min'] = min($arr['dot']['size']['min'], $arr['dot']['size']['max']);
-		$arr['dot']['size']['start'] = min($arr['dot']['size']['start'], $arr['dot']['size']['stop']);
-		$arr['line']['width']['min'] = min($arr['line']['width']['min'], $arr['line']['width']['max']);
-		$arr['social']['dot']['size']['min'] = min($arr['social']['dot']['size']['min'], $arr['social']['dot']['size']['max']);
-		$arr['social']['dot']['size']['start'] = min($arr['social']['dot']['size']['start'], $arr['social']['dot']['size']['stop']);
-		
-		return $arr;
-	}
-	
-	public static function parseVisualSettingsInputAdvanced($value) {
-		
-		$arr = [];
-		
-		if (!$value) {
-			return $arr;
-		}
-		
-		$arr_settings = explode(PHP_EOL, $value);
-			
-		foreach ($arr_settings as $value) {
-			
-			$num_pos = strpos($value, ':');
-			
-			if (!$num_pos) {
-				continue;
-			}
-			
-			$key_setting = trim(substr($value, 0, $num_pos));
-			$value_setting = trim(substr($value, $num_pos + 1));
-			
-			if ($key_setting && $value_setting != '') {
-				$arr[$key_setting] = $value_setting;
-			}
-		}
-		
-		return $arr;
-	}
-	
-	public static function parseVisualSettingsOutputAdvanced($arr) {
-		
-		$str = '';
-		
-		foreach ($arr as $key => $value) {
-			$str .= $key.':'.$value.PHP_EOL;
-		}
-		
-		return $str;
-	}
-	
 	public static function delProjectVisualSettings($project_id, $visual_settings_id) {
 		
 		$arr_cur = self::getProjectVisualSettings($project_id, false, $visual_settings_id);

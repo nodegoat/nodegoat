@@ -9,11 +9,6 @@
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
-// 1100CC Framework:
+class FormatTypeObjects extends FormatTypeObjectsBase {
 
-	$arr['js'] = [
-
-	];
-	$arr['css'] = [
-
-	];
+}

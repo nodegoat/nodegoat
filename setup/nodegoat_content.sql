@@ -43,7 +43,7 @@ CREATE TABLE `data_type_objects` (
   `id` int NOT NULL,
   `type_id` int NOT NULL,
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `version` int NOT NULL DEFAULT '1',
+  `version` smallint NOT NULL DEFAULT '1',
   `active` tinyint(1) NOT NULL DEFAULT '0',
   `status` tinyint NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -69,8 +69,8 @@ CREATE TABLE `data_type_object_definitions` (
   `value` varchar(5000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `value_int` bigint NOT NULL DEFAULT '0',
   `value_text` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `identifier` smallint NOT NULL DEFAULT '0',
-  `version` int NOT NULL DEFAULT '1',
+  `identifier` int NOT NULL DEFAULT '0',
+  `version` smallint NOT NULL DEFAULT '1',
   `active` tinyint(1) NOT NULL DEFAULT '0',
   `status` tinyint NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -81,7 +81,7 @@ CREATE TABLE `data_type_object_definitions_modules` (
   `object` json DEFAULT NULL,
   `identifier` smallint NOT NULL DEFAULT '0',
   `state` smallint NOT NULL DEFAULT '0',
-  `version` int NOT NULL DEFAULT '1',
+  `version` smallint NOT NULL DEFAULT '1',
   `active` tinyint(1) NOT NULL DEFAULT '0',
   `status` tinyint NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -97,8 +97,8 @@ CREATE TABLE `data_type_object_definitions_references` (
   `object_id` int NOT NULL,
   `object_description_id` int NOT NULL,
   `ref_object_id` int NOT NULL DEFAULT '0',
-  `identifier` smallint NOT NULL DEFAULT '0',
-  `version` int NOT NULL DEFAULT '1',
+  `identifier` int NOT NULL DEFAULT '0',
+  `version` smallint NOT NULL DEFAULT '1',
   `active` tinyint(1) NOT NULL DEFAULT '0',
   `status` tinyint NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -125,7 +125,7 @@ CREATE TABLE `data_type_object_definition_sources` (
 CREATE TABLE `data_type_object_definition_version` (
   `object_id` int NOT NULL,
   `object_description_id` int NOT NULL,
-  `version` int NOT NULL,
+  `version` smallint NOT NULL,
   `user_id` int NOT NULL,
   `system_object_id` int DEFAULT NULL,
   `date` datetime NOT NULL,
@@ -169,12 +169,12 @@ CREATE TABLE `data_type_object_subs` (
   `id` int NOT NULL,
   `object_id` int NOT NULL,
   `object_sub_details_id` int NOT NULL,
-  `date_version` int DEFAULT NULL,
-  `location_geometry_version` int DEFAULT NULL,
+  `date_version` smallint DEFAULT NULL,
+  `location_geometry_version` smallint DEFAULT NULL,
   `location_ref_object_id` int NOT NULL,
   `location_ref_type_id` int NOT NULL,
   `location_ref_object_sub_details_id` int NOT NULL,
-  `version` int NOT NULL DEFAULT '1',
+  `version` smallint NOT NULL DEFAULT '1',
   `active` tinyint(1) NOT NULL DEFAULT '0',
   `status` tinyint NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -184,7 +184,7 @@ CREATE TABLE `data_type_object_sub_date` (
   `span_period_amount` smallint NOT NULL DEFAULT '0',
   `span_period_unit` tinyint NOT NULL DEFAULT '0',
   `span_cycle_object_id` int NOT NULL DEFAULT '0',
-  `version` int NOT NULL
+  `version` smallint NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `data_type_object_sub_date_chronology` (
@@ -198,7 +198,7 @@ CREATE TABLE `data_type_object_sub_date_chronology` (
   `date_direction` tinyint NOT NULL DEFAULT '0',
   `identifier` tinyint NOT NULL,
   `active` tinyint(1) NOT NULL,
-  `version` int NOT NULL
+  `version` smallint NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `data_type_object_sub_definitions` (
@@ -207,7 +207,7 @@ CREATE TABLE `data_type_object_sub_definitions` (
   `value` varchar(5000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `value_int` bigint NOT NULL DEFAULT '0',
   `value_text` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `version` int NOT NULL DEFAULT '1',
+  `version` smallint NOT NULL DEFAULT '1',
   `active` tinyint(1) NOT NULL DEFAULT '0',
   `status` tinyint NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -217,7 +217,7 @@ CREATE TABLE `data_type_object_sub_definitions_modules` (
   `object_sub_description_id` int NOT NULL,
   `object` json DEFAULT NULL,
   `state` smallint NOT NULL DEFAULT '0',
-  `version` int NOT NULL DEFAULT '1',
+  `version` smallint NOT NULL DEFAULT '1',
   `active` tinyint(1) NOT NULL DEFAULT '0',
   `status` tinyint NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -226,7 +226,7 @@ CREATE TABLE `data_type_object_sub_definitions_references` (
   `object_sub_id` int NOT NULL,
   `object_sub_description_id` int NOT NULL,
   `ref_object_id` int NOT NULL DEFAULT '0',
-  `version` int NOT NULL DEFAULT '1',
+  `version` smallint NOT NULL DEFAULT '1',
   `active` tinyint(1) NOT NULL DEFAULT '0',
   `status` tinyint NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -253,7 +253,7 @@ CREATE TABLE `data_type_object_sub_definition_sources` (
 CREATE TABLE `data_type_object_sub_definition_version` (
   `object_sub_id` int NOT NULL,
   `object_sub_description_id` int NOT NULL,
-  `version` int NOT NULL,
+  `version` smallint NOT NULL,
   `user_id` int NOT NULL,
   `system_object_id` int DEFAULT NULL,
   `date` datetime NOT NULL,
@@ -264,7 +264,7 @@ CREATE TABLE `data_type_object_sub_definition_version` (
 CREATE TABLE `data_type_object_sub_location_geometry` (
   `object_sub_id` int NOT NULL,
   `geometry` geometry NOT NULL,
-  `version` int NOT NULL
+  `version` smallint NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `data_type_object_sub_sources` (
@@ -277,7 +277,7 @@ CREATE TABLE `data_type_object_sub_sources` (
 
 CREATE TABLE `data_type_object_sub_version` (
   `object_sub_id` int NOT NULL,
-  `version` int NOT NULL,
+  `version` smallint NOT NULL,
   `user_id` int NOT NULL,
   `system_object_id` int DEFAULT NULL,
   `date` datetime NOT NULL,
@@ -287,7 +287,7 @@ CREATE TABLE `data_type_object_sub_version` (
 
 CREATE TABLE `data_type_object_version` (
   `object_id` int NOT NULL,
-  `version` int NOT NULL,
+  `version` smallint NOT NULL,
   `user_id` int NOT NULL,
   `system_object_id` int DEFAULT NULL,
   `date` datetime NOT NULL,

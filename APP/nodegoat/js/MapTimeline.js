@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -301,15 +301,15 @@ function MapTimeline(element, obj_parent, options) {
 			elm_legends = elm_legend;
 		});
 		
-		let elm_graphs_figure = document.createElement('figure'); 
+		const elm_graphs_figure = document.createElement('figure'); 
 		elm_graphs_figure.classList.add('timeline-graphs');
 		elm_legends.appendChild(elm_graphs_figure);
-		let elm_graphs_list = document.createElement('dl'); 
+		const elm_graphs_list = document.createElement('dl'); 
 		elm_graphs_figure.appendChild(elm_graphs_list);
 		
-		let obj_graph_options = {};
+		const obj_graph_options = {};
 		
-		for (let type_id in arr_data.info.types) {
+		for (const type_id in arr_data.info.types) {
 			obj_graph_options[type_id] = arr_data.info.types[type_id];
 		}
 	
@@ -318,22 +318,22 @@ function MapTimeline(element, obj_parent, options) {
 			obj_graph_options['conditions'] = {'name' : arr_labels.lbl_conditions};
 		}
 		
-		for (let id in obj_graph_options) {
+		for (const id in obj_graph_options) {
 			
-			let elm_graphs_list_item = document.createElement('li');
+			const elm_graphs_list_item = document.createElement('div');
 			elm_graphs_list.appendChild(elm_graphs_list_item);
 			
-			let elm_graph_name = document.createElement('dt');
+			const elm_graph_name = document.createElement('dt');
 			elm_graphs_list_item.appendChild(elm_graph_name);
 			
-			let graph_name = obj_graph_options[id].name;
-			let elm_graph_name_value = document.createTextNode(graph_name);
+			const graph_name = obj_graph_options[id].name;
+			const elm_graph_name_value = document.createTextNode(graph_name);
 			elm_graph_name.appendChild(elm_graph_name_value);
 			
-			let elm_graph_options = document.createElement('dd');
+			const elm_graph_options = document.createElement('dd');
 			elm_graphs_list_item.appendChild(elm_graph_options);
 			
-			let elm_button_graph = document.createElement('button');
+			const elm_button_graph = document.createElement('button');
 			elm_button_graph.setAttribute('type', 'button');
 			elm_button_graph.classList.add('show-objects');
 			elm_graph_options.appendChild(elm_button_graph);
@@ -342,16 +342,16 @@ function MapTimeline(element, obj_parent, options) {
 				elm_button_graph.classList.add('active');
 			}
 			
-			let elm_button_graph_span = document.createElement('span');
+			const elm_button_graph_span = document.createElement('span');
 			elm_button_graph_span.classList.add('icon');
 			elm_button_graph.appendChild(elm_button_graph_span);
 			
-			let elm_button_grid = document.createElement('button');
+			const elm_button_grid = document.createElement('button');
 			elm_button_grid.setAttribute('type', 'button');
 			elm_button_grid.classList.add('show-objects-grid');
 			elm_graph_options.appendChild(elm_button_grid);
 			
-			let elm_button_grid_span = document.createElement('span');
+			const elm_button_grid_span = document.createElement('span');
 			elm_button_grid_span.classList.add('icon');
 			elm_button_grid.appendChild(elm_button_grid_span);
 			
@@ -364,6 +364,7 @@ function MapTimeline(element, obj_parent, options) {
 					});
 		
 					let do_grid_action = false;
+					
 					if (elm_button.classList.contains('show-objects-grid')) {
 						
 						if (is_grid && (id == graph_objects_type_id || (graph_conditions && id == 'conditions'))) {
@@ -445,22 +446,22 @@ function MapTimeline(element, obj_parent, options) {
 			});
 		});
 		
-		let elm_graph_options_figure = document.createElement('figure'); 
+		const elm_graph_options_figure = document.createElement('figure'); 
 		elm_graph_options_figure.classList.add('timeline-graph-options');
 		elm_legends.appendChild(elm_graph_options_figure);
-		let elm_graph_options_list = document.createElement('dl'); 
+		const elm_graph_options_list = document.createElement('dl'); 
 		elm_graph_options_figure.appendChild(elm_graph_options_list);
 
-		var elm_graph_options_list_item = document.createElement('li');
+		let elm_graph_options_list_item = document.createElement('div');
 		elm_graph_options_list.appendChild(elm_graph_options_list_item);
 				
-		let elm_button_object_subs = document.createElement('button');
+		const elm_button_object_subs = document.createElement('button');
 		elm_button_object_subs.setAttribute('type', 'button');
 		elm_button_object_subs.classList.add('object-subs');
 		elm_button_object_subs.classList.add('active');
 		elm_graph_options_list_item.appendChild(elm_button_object_subs);
 
-		let elm_button_object_subs_value = document.createTextNode(arr_labels.lbl_object_subs);
+		const elm_button_object_subs_value = document.createTextNode(arr_labels.lbl_object_subs);
 		elm_button_object_subs.appendChild(elm_button_object_subs_value);
 	
 		elm_button_object_subs.addEventListener('click', function(e) {
@@ -481,10 +482,10 @@ function MapTimeline(element, obj_parent, options) {
 		
 		if (graph_cumulative_option) {
 				
-			var elm_graph_options_list_item = document.createElement('li');
+			elm_graph_options_list_item = document.createElement('div');
 			elm_graph_options_list.appendChild(elm_graph_options_list_item);
 			
-			let elm_button_cumulative = document.createElement('button');
+			const elm_button_cumulative = document.createElement('button');
 			elm_button_cumulative.setAttribute('type', 'button');
 			elm_button_cumulative.classList.add('cumulative');
 			
@@ -494,7 +495,7 @@ function MapTimeline(element, obj_parent, options) {
 			
 			elm_graph_options_list_item.appendChild(elm_button_cumulative);
 
-			let elm_button_cumulative_value = document.createTextNode(arr_labels.lbl_cumulative);
+			const elm_button_cumulative_value = document.createTextNode(arr_labels.lbl_cumulative);
 			elm_button_cumulative.appendChild(elm_button_cumulative_value);
 			
 			elm_button_cumulative.addEventListener('click', function(e) {
@@ -516,10 +517,10 @@ function MapTimeline(element, obj_parent, options) {
 		
 		if (graph_relative_option) {
 		
-			var elm_graph_options_list_item = document.createElement('li');
+			elm_graph_options_list_item = document.createElement('div');
 			elm_graph_options_list.appendChild(elm_graph_options_list_item);
 			
-			let elm_button_relative = document.createElement('button');
+			const elm_button_relative = document.createElement('button');
 			elm_button_relative.setAttribute('type', 'button');
 			elm_button_relative.classList.add('relative');
 			
@@ -529,7 +530,7 @@ function MapTimeline(element, obj_parent, options) {
 			
 			elm_graph_options_list_item.appendChild(elm_button_relative);
 
-			let elm_button_relative_value = document.createTextNode(arr_labels.lbl_relative);
+			const elm_button_relative_value = document.createTextNode(arr_labels.lbl_relative);
 			elm_button_relative.appendChild(elm_button_relative_value);
 
 			elm_button_relative.addEventListener('click', function(e) {

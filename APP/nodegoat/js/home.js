@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -1295,7 +1295,7 @@ function UISelection() {
 
 	var arr_server_data = {'labels': {}, 'icons': {}};
 		
-	ASSETS.getIcons(false, ['close', 'plus', 'pages', 'print', 'link', 'users', 'updown', 'email'], function(response_data) {
+	ASSETS.getIcons(false, ['close', 'plus', 'print', 'link', 'users', 'updown', 'email'], function(response_data) {
 		
 		arr_server_data['icons'] = response_data;
 	});
@@ -1312,12 +1312,6 @@ function UISelection() {
 
 		func_check_external_selection();
 		func_list_selections(false);
-		
-		if (elm.attr('data-print_selection_id')) {
-			var print_selection_id = elm.attr('data-print_selection_id');
-			var arr_selection = func_get_selection(print_selection_id);
-			$('<div id="y:ui_selection:print_selection-0"></div>').appendTo(obj.elm_list_container).data({value: arr_selection, target: obj.elm_module.find('.object'), options: {'html': 'append'}}).quickCommand();
-		}
 		
 		new ResizeSensor(obj.elm_list_container[0], func_check_height);
 	}
@@ -1520,8 +1514,7 @@ function UISelection() {
 		var elm_options = $('<menu class="buttons" data-selection_id="' + selection_id + '"></menu>').appendTo(obj.elm_list_container);
 		var elm_button_add_selection = $('<button class="add-selection" value="" type="button" title="New selection"><span class="icon">'+ arr_server_data.icons['plus'] +'</span></button>').appendTo(elm_options);
 		var elm_button_remove_selection = $('<button class="remove-selection" value="" type="button" title="Remove selection"><span class="icon">'+ arr_server_data.icons['close'] +'</span></button>').appendTo(elm_options);
-		var elm_button_bookify_selection = $('<button class="bookify-selection" value="" type="button" title="Generate formatted PDF from selection"><span class="icon">'+ arr_server_data.icons['pages'] +'</span></button>').appendTo(elm_options);
-		var elm_button_print_selection = $('<button class="print-selection" value="" type="button" title="Generate local print out from selection" data-href="'+ obj.url + '/selection-print/' + selection_id + '"><span class="icon">'+ arr_server_data.icons['print'] +'</span></button>').appendTo(elm_options);
+		var elm_button_bookify_selection = $('<button class="bookify-selection" value="" type="button" title="Generate formatted PDF from selection"><span class="icon">'+ arr_server_data.icons['print'] +'</span></button>').appendTo(elm_options);
 		var elm_button_url_selection = $('<button class="url-selection" value="" type="button" title="Get selection URL"><span class="icon">'+ arr_server_data.icons['link'] +'</span></button>').appendTo(elm_options);
 		var elm_button_share_selection = $('<button class="share-selection" value="" type="button" title="Share selection"><span class="icon">'+ arr_server_data.icons['users'] +'</span></button>').appendTo(elm_options);
 		var elm_url_share_container = $('<span></span>').appendTo(elm_options);
@@ -2760,7 +2753,7 @@ function ModelGraph(elm_overview, arr_settings) {
 		
 		elm_connect.setAttribute('transform', 'translate('+arr_position_box.x+', '+arr_position_box.y+')');
 		
-		if (arr_position.connect_type_id === true) {
+		if (!arr_position.connect_type_id) {
 			return;
 		}
 		
@@ -2796,7 +2789,7 @@ function ModelGraph(elm_overview, arr_settings) {
 			
 			const arr_position = arr_positions.elements[str_identifier];
 			
-			if (arr_position.connect_type_id === true) {
+			if (!arr_position.connect_type_id) {
 				continue;
 			}
 			

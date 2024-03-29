@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -84,7 +84,7 @@ class CreateVisualisationPackage {
 				$this->arr_collect_info = ($this->arr_collect_info ? array_merge_recursive($this->arr_collect_info, $arr_collect_info) : $arr_collect_info);
 			} else {
 				
-				status(getLabel('msg_building_cache_scenario_visualisation'), false, getLabel('msg_wait'), ['identifier' => SiteStartVars::getSessionId(true).'cache_scenario_visualisation', 'duration' => 1000, 'persist' => true]);
+				status(getLabel('msg_building_cache_scenario_visualisation'), false, getLabel('msg_wait'), ['identifier' => SiteStartEnvironment::getSessionId(true).'cache_scenario_visualisation', 'duration' => 1000, 'persist' => true]);
 			}
 		}
 		
@@ -163,33 +163,49 @@ class CreateVisualisationPackage {
 																
 										if (!$s_arr) {
 											
+											$arr_value = $arr_object_definition['object_definition_value'];
+											if (!$arr_object_description['object_description_has_multi']) {
+												$arr_value = [$arr_value];
+											}
+											
 											$s_arr = [
 												'description_id' => $object_description_id,
-												'value' => [$arr_object_definition['object_definition_value']],
+												'value' => $arr_value,
 												'ref_object_id' => [],
 												'style' => []
 											];
 										}
 									}
+									
+									if ($arr_object_definition['object_definition_ref_object_id']) {
 										
-									foreach ($arr_object_definition['object_definition_ref_object_id'] as $ref_type_id => $arr_ref_objects) {
-										
-										$s_arr =& $s_arr_object_definitions[$object_description_id.'_'.$ref_type_id];
-										
-										if (!$s_arr) {
-											
-											$s_arr = [
-												'description_id' => $object_description_id.'_'.$ref_type_id,
-												'value' => [],
-												'ref_object_id' => [],
-												'style' => []
-											];
+										$arr_references = $arr_object_definition['object_definition_ref_object_id'];
+										if (!$arr_object_description['object_description_has_multi']) {
+											$arr_references = [$arr_references];
 										}
 										
-										foreach ($arr_ref_objects as $arr_ref_object) {
+										foreach ($arr_references as $key => $arr_ref_type_objects) {
 											
-											$s_arr['value'][] = $arr_ref_object['object_definition_ref_object_name'];
-											$s_arr['ref_object_id'][] = $arr_ref_object['object_definition_ref_object_id'];
+											foreach ($arr_ref_type_objects as $ref_type_id => $arr_ref_objects) {
+												
+												$s_arr =& $s_arr_object_definitions[$object_description_id.'_'.$ref_type_id];
+												
+												if (!$s_arr) {
+													
+													$s_arr = [
+														'description_id' => $object_description_id.'_'.$ref_type_id,
+														'value' => [],
+														'ref_object_id' => [],
+														'style' => []
+													];
+												}
+												
+												foreach ($arr_ref_objects as $arr_ref_object) {
+													
+													$s_arr['value'][] = $arr_ref_object['object_definition_ref_object_name'];
+													$s_arr['ref_object_id'][] = $arr_ref_object['object_definition_ref_object_id'];
+												}
+											}
 										}
 									}
 								} else {
@@ -206,8 +222,8 @@ class CreateVisualisationPackage {
 										];
 									} else if ($s_arr['ref_object_id'] !== (array)$arr_object_definition['object_definition_ref_object_id']) {
 										
-										$s_arr['value'] = arrMergeValues([$s_arr['value'], (array)$arr_object_definition['object_definition_value']]);
-										$s_arr['ref_object_id'] = arrMergeValues([$s_arr['ref_object_id'], (array)$arr_object_definition['object_definition_ref_object_id']]);
+										$s_arr['value'] = arrMergeValues($s_arr['value'], (array)$arr_object_definition['object_definition_value']);
+										$s_arr['ref_object_id'] = arrMergeValues($s_arr['ref_object_id'], (array)$arr_object_definition['object_definition_ref_object_id']);
 									}
 									
 									static::parseStyle($s_arr['style'], $arr_object_definition['object_definition_style'], $num_depth);
@@ -279,7 +295,7 @@ class CreateVisualisationPackage {
 							
 							if ($date_start) {
 								
-								if (($date_raw_start == StoreTypeObjects::DATE_INT_MIN && $date_raw_end == StoreTypeObjects::DATE_INT_MIN) || ($date_raw_start == StoreTypeObjects::DATE_INT_MAX && $date_raw_end == StoreTypeObjects::DATE_INT_MAX)) {
+								if (($date_raw_start == FormatTypeObjects::DATE_INT_MIN && $date_raw_end == FormatTypeObjects::DATE_INT_MIN) || ($date_raw_start == FormatTypeObjects::DATE_INT_MAX && $date_raw_end == FormatTypeObjects::DATE_INT_MAX)) {
 									
 									$arr_post_process_date[$object_sub_id] = $date_raw_start;
 									
@@ -292,12 +308,12 @@ class CreateVisualisationPackage {
 										$this->arr_pack_data['date'][$date_start][] = $object_sub_id;
 									}
 									
-									$date_start = ($date_raw_start == StoreTypeObjects::DATE_INT_MIN || $date_raw_start == StoreTypeObjects::DATE_INT_MAX ? ($date_raw_end == StoreTypeObjects::DATE_INT_MIN || $date_raw_end == StoreTypeObjects::DATE_INT_MAX ? false : $date_end) : $date_start);
-									if ($date_start && (empty($this->arr_pack_data['date_range']['min']) || StoreTypeObjects::dateInt2Absolute($date_start) < StoreTypeObjects::dateInt2Absolute($this->arr_pack_data['date_range']['min']))) {
+									$date_start = ($date_raw_start == FormatTypeObjects::DATE_INT_MIN || $date_raw_start == FormatTypeObjects::DATE_INT_MAX ? ($date_raw_end == FormatTypeObjects::DATE_INT_MIN || $date_raw_end == FormatTypeObjects::DATE_INT_MAX ? false : $date_end) : $date_start);
+									if ($date_start && (empty($this->arr_pack_data['date_range']['min']) || FormatTypeObjects::dateInt2Absolute($date_start) < FormatTypeObjects::dateInt2Absolute($this->arr_pack_data['date_range']['min']))) {
 										$this->arr_pack_data['date_range']['min'] = $date_start;
 									}
-									$date_end = ($date_raw_end == StoreTypeObjects::DATE_INT_MIN || $date_raw_end == StoreTypeObjects::DATE_INT_MAX ? ($date_raw_start == StoreTypeObjects::DATE_INT_MIN || $date_raw_start == StoreTypeObjects::DATE_INT_MAX ? false : $date_start) : $date_end);
-									if ($date_end && (empty($this->arr_pack_data['date_range']['max']) || StoreTypeObjects::dateInt2Absolute($date_end) > StoreTypeObjects::dateInt2Absolute($this->arr_pack_data['date_range']['max']))) {
+									$date_end = ($date_raw_end == FormatTypeObjects::DATE_INT_MIN || $date_raw_end == FormatTypeObjects::DATE_INT_MAX ? ($date_raw_start == FormatTypeObjects::DATE_INT_MIN || $date_raw_start == FormatTypeObjects::DATE_INT_MAX ? false : $date_start) : $date_end);
+									if ($date_end && (empty($this->arr_pack_data['date_range']['max']) || FormatTypeObjects::dateInt2Absolute($date_end) > FormatTypeObjects::dateInt2Absolute($this->arr_pack_data['date_range']['max']))) {
 										$this->arr_pack_data['date_range']['max'] = $date_end;
 									}
 								}
@@ -375,8 +391,8 @@ class CreateVisualisationPackage {
 											];
 										} else if ($s_arr['ref_object_id'] !== (array)$arr_object_sub_definition['object_sub_definition_ref_object_id']) {
 											
-											$s_arr['value'] = arrMergeValues([$s_arr['value'], (array)$arr_object_sub_definition['object_sub_definition_value']]);
-											$s_arr['ref_object_id'] = arrMergeValues([$s_arr['ref_object_id'], (array)$arr_object_sub_definition['object_sub_definition_ref_object_id']]);
+											$s_arr['value'] = arrMergeValues($s_arr['value'], (array)$arr_object_sub_definition['object_sub_definition_value']);
+											$s_arr['ref_object_id'] = arrMergeValues($s_arr['ref_object_id'], (array)$arr_object_sub_definition['object_sub_definition_ref_object_id']);
 										}
 										
 										static::parseStyle($s_arr['style'], $arr_object_sub_definition['object_sub_definition_style'], $num_depth);
@@ -557,7 +573,7 @@ class CreateVisualisationPackage {
 						
 				$s_arr_object_sub =& $this->arr_pack_data['object_subs'][$object_sub_id];
 				
-				if ($date_start_raw == StoreTypeObjects::DATE_INT_MIN) {
+				if ($date_start_raw == FormatTypeObjects::DATE_INT_MIN) {
 					$s_arr_object_sub['date_end'] = ($this->arr_pack_data['date_range']['min'] ?? null);
 				} else {
 					$s_arr_object_sub['date_start'] = ($this->arr_pack_data['date_range']['max'] ?? null);
@@ -587,7 +603,7 @@ class CreateVisualisationPackage {
 			
 			$cache_scenario->updateCache($str);
 			
-			clearStatus(SiteStartVars::getSessionId(true).'cache_scenario_visualisation');
+			clearStatus(SiteStartEnvironment::getSessionId(true).'cache_scenario_visualisation');
 		}
 		
 		if ($this->arr_pack_data) {
@@ -638,8 +654,8 @@ class CreateVisualisationPackage {
 			
 		} else if ($s_arr_new['ref_object_id'] !== $arr_ref_object_id) {
 		
-			$s_arr_new['value'] = arrMergeValues([$s_arr_new['value'], $arr_value]);
-			$s_arr_new['ref_object_id'] = arrMergeValues([$s_arr_new['ref_object_id'], $arr_ref_object_id]);
+			$s_arr_new['value'] = arrMergeValues($s_arr_new['value'], $arr_value);
+			$s_arr_new['ref_object_id'] = arrMergeValues($s_arr_new['ref_object_id'], $arr_ref_object_id);
 		}
 	}
 	
@@ -683,7 +699,7 @@ class CreateVisualisationPackage {
 			
 			if ($count_objects) {
 									
-				$date_now = (int)(date('Ymd').StoreTypeObjects::DATE_INT_SEQUENCE_NULL);
+				$date_now = (int)(date('Ymd').FormatTypeObjects::DATE_INT_SEQUENCE_NULL);
 				if (!$this->arr_package_data['date_range']['min']) {
 					$this->arr_package_data['date_range']['min'] = $date_now;
 				}
@@ -792,7 +808,7 @@ class CreateVisualisationPackage {
 					];
 					
 					$arr_info = $this->arr_package_data['legend']['object_subs'][$object_sub_details_id];
-					$arr_html_legend['object_sub_details'][$object_sub_details_id] = '<li data-identifier="'.$object_sub_details_id.'"><dt>'.$arr_legend['object_sub_details'][$object_sub_details_id].'</dt><dd><span style="background-color: rgb('.$arr_info['color']['r'].','.$arr_info['color']['g'].','.$arr_info['color']['b'].');"></span></dd></li>';
+					$arr_html_legend['object_sub_details'][$object_sub_details_id] = '<div data-identifier="'.$object_sub_details_id.'"><dt>'.$arr_legend['object_sub_details'][$object_sub_details_id].'</dt><dd><span style="background-color: rgb('.$arr_info['color']['r'].','.$arr_info['color']['g'].','.$arr_info['color']['b'].');"></span></dd></div>';
 					
 					$i++;
 				}
@@ -810,7 +826,7 @@ class CreateVisualisationPackage {
 						$this->arr_package_data['legend']['types'][$type_id] = [
 							'color' => $str_color
 						];
-						$arr_html_legend['types'][$type_id] = '<li data-identifier="'.$type_id.'"><dt>'.Labels::parseTextVariables($this->arr_types_all[$type_id]['name']).'</dt><dd><span style="background-color: '.$str_color.';"></span></dd></li>';
+						$arr_html_legend['types'][$type_id] = '<div data-identifier="'.$type_id.'"><dt>'.Labels::parseTextVariables($this->arr_types_all[$type_id]['name']).'</dt><dd><span style="background-color: '.$str_color.';"></span></dd></div>';
 					}
 				}
 				
@@ -858,7 +874,6 @@ class CreateVisualisationPackage {
 					$str_icon = ($arr_condition_setting['condition_actions']['icon']['image'] ?? null);
 					
 					if ($str_icon) {
-						
 						$str_icon = '/'.DIR_CUSTOM_PROJECT_WORKSPACE.$str_icon;
 					}
 					
@@ -871,11 +886,11 @@ class CreateVisualisationPackage {
 						'icon' => $str_icon
 					];
 					
-					if (!$arr_condition_setting['condition_label'] || !$str_color) {
+					if (!$arr_condition_setting['condition_label'] || (!$str_color && !$str_icon)) {
 						continue;
 					}
 				
-					$arr_html_legend['conditions'][] = '<li data-identifier="'.strEscapeHTML($str_identifier).'"><dt>'.$str_label.'</dt><dd><span style="background-color: '.$str_color.';"></span></dd></li>';
+					$arr_html_legend['conditions'][] = '<div data-identifier="'.strEscapeHTML($str_identifier).'"><dt>'.$str_label.'</dt><dd><span style="background-color: '.$str_color.';"></span></dd></div>';
 				}
 				
 				$this->arr_package_html = '<div class="labmap">
@@ -922,6 +937,7 @@ class CreateVisualisationPackage {
 		
 		$this->arr_package_data['center'] = false;
 		if ($this->arr_frame['area']['geo']['latitude'] || $this->arr_frame['area']['geo']['longitude']) {
+			$this->arr_package_data['center'] = [];
 			$this->arr_package_data['center']['coordinates']['latitude'] = $this->arr_frame['area']['geo']['latitude'];
 			$this->arr_package_data['center']['coordinates']['longitude'] = $this->arr_frame['area']['geo']['longitude'];
 		}

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -57,7 +57,7 @@ class cms_nodegoat_api extends base_module {
 	
 	public static function handleAPIConfiguration($api_id, $arr) {
 		
-		if (!$api_id) {
+		if (!$api_id || !is_array($arr)) {
 			error(getLabel('msg_missing_information'));
 		}
 		
@@ -67,7 +67,7 @@ class cms_nodegoat_api extends base_module {
 			(
 				".(int)$api_id."
 			)
-			".DBFunctions::onConflict('api_id', ['api_id'])."
+			".DBFunctions::onConflict('api_id', false)."
 		");
 		
 		$arr_sql_keys = [];
@@ -86,7 +86,7 @@ class cms_nodegoat_api extends base_module {
 				(api_id".", project_id)
 					VALUES
 				".implode(",", $arr_sql_insert)."
-				".DBFunctions::onConflict('api_id'.', project_id', ['api_id'])."
+				".DBFunctions::onConflict('api_id'.', project_id', false)."
 			");
 
 			$i = 0;
@@ -94,7 +94,7 @@ class cms_nodegoat_api extends base_module {
 			foreach ($arr['projects'] as $project_id) {
 				
 				$project_id = (int)$project_id;
-				$arr_definition = $arr['projects_organise']['project_id-'.$project_id];
+				$arr_definition = $arr['projects_organise'][$project_id];
 				
 				$res = DB::query("UPDATE ".DB::getTable('DEF_NODEGOAT_API_CUSTOM_PROJECTS')." SET
 						is_default = ".((int)$arr['default_project'] == $project_id ? 1 : 0).",
@@ -103,11 +103,11 @@ class cms_nodegoat_api extends base_module {
 					WHERE api_id = ".(int)$api_id." AND project_id = ".(int)$project_id."
 				");
 			}
-			
-			$res = DB::query("DELETE FROM ".DB::getTable('DEF_NODEGOAT_API_CUSTOM_PROJECTS')."
-				WHERE api_id = ".(int)$api_id."
-					".($arr_sql_keys['projects'] ? "AND project_id NOT IN (".implode(",", $arr_sql_keys['projects']).")" : "")."
-			");
 		}
+			
+		$res = DB::query("DELETE FROM ".DB::getTable('DEF_NODEGOAT_API_CUSTOM_PROJECTS')."
+			WHERE api_id = ".(int)$api_id."
+				".($arr_sql_keys['projects'] ? "AND project_id NOT IN (".implode(",", $arr_sql_keys['projects']).")" : "")."
+		");
 	}
 }

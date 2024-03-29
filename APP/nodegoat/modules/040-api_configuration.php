@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -64,7 +64,7 @@ class api_configuration extends api {
 										</li>
 										<li>
 											<label>'.getLabel('lbl_authentication').'</label>
-											<div><input type="checkbox" name="projects_organise[project_id-'.$project_id.'][require_authentication]" value="1"'.($arr_api_project['require_authentication'] ? ' checked="checked"' : '').' /></div>
+											<div><input type="checkbox" name="projects_organise['.$project_id.'][require_authentication]" value="1"'.($arr_api_project['require_authentication'] ? ' checked="checked"' : '').' /></div>
 										</li>
 										<li>
 											<label></label>
@@ -72,7 +72,7 @@ class api_configuration extends api {
 										</li>
 										<li>
 											<label>'.getLabel('lbl_api_nodegoat_identifier_url').'</label>
-											<div><input type="text" name="projects_organise[project_id-'.$project_id.'][identifier_url]" value="'.($arr_api_project['identifier_url']).'" /></div>
+											<div><input type="text" name="projects_organise['.$project_id.'][identifier_url]" value="'.($arr_api_project['identifier_url']).'" /></div>
 										</li>
 									</ul></fieldset>
 																		
@@ -105,7 +105,7 @@ class api_configuration extends api {
 	
 		$return = parent::css();
 		
-		$return = '
+		$return .= '
 			.api_configuration fieldset > ul > li > label:first-child + section { margin: 0px; width: 600px; }
 			.api_configuration fieldset > ul > li > label:first-child + div input[name*=identifier_url] { width: 400px; }
 		';

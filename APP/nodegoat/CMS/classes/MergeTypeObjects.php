@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -158,7 +158,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 			
 			// Bring new object into existence
 			$this->save();
-			$this->addObjectUpdate();
+			$this->addTypeObjectUpdate();
 			$this->commit(true);
 			
 			$hash = value2Hash('');
@@ -176,7 +176,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 				
 				$value = $arr_version['object_name_plain'];
 				
-				$hash = value2Hash($value);
+				$hash = value2Hash(($value ?? ''));
 
 				$version = $arr_version['object_version'];
 					
@@ -193,7 +193,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 				
 				$value = $arr_version['object_name_plain'];
 				
-				$hash = value2Hash($value);
+				$hash = value2Hash(($value ?? ''));
 				
 				if (!$arr_collect_versions[$hash]) {
 					
@@ -298,7 +298,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 					foreach ($this->getTypeObjectSubVersions($object_sub_id) as $arr_version) {
 						
 						// Prepare values that need processing when storing internal values
-						$arr_version['object_sub_date_chronology'] = static::formatToSQLValue('chronology', $arr_version['object_sub_date_chronology']);
+						$arr_version['object_sub_date_chronology'] = FormatTypeObjects::formatToSQLValue('chronology', $arr_version['object_sub_date_chronology']);
 						
 						$arr_value = [
 							'object_sub_date_chronology' => $arr_version['object_sub_date_chronology'],
@@ -398,7 +398,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 					foreach (array_reverse($storage->getTypeObjectSubVersions($cur_object_sub_id), true) as $arr_version) {
 						
 						// Prepare values that need processing when storing internal values
-						$arr_version['object_sub_date_chronology'] = static::formatToSQLValue('chronology', $arr_version['object_sub_date_chronology']);
+						$arr_version['object_sub_date_chronology'] = FormatTypeObjects::formatToSQLValue('chronology', $arr_version['object_sub_date_chronology']);
 						
 						$arr_value = [
 							'object_sub_date_chronology' => $arr_version['object_sub_date_chronology'],
@@ -516,9 +516,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 		if (!$this->object_id) {
 			error(getLabel('msg_missing_information'));
 		}
-		
-		timeLimit(120);
-		
+				
 		$arr_str_replace = $arr_str_replace_old = [];
 		foreach ($this->arr_merge_object_ids as $merge_object_id) {
 			$arr_str_replace[] = '_'.$merge_object_id.'_';
@@ -596,16 +594,37 @@ class MergeTypeObjects extends StoreTypeObjects {
 			}
 		}
 				
-		$func_parse_references = function($type, $arr_referencing) { // Works for both sources and dynamic references
+		$func_parse_references = function($type, $arr_referencing, $has_multi = false) { // Works for both sources and dynamic references
 			
-			foreach ($arr_referencing[$this->type_id] as &$arr_reference) {
+			if ($has_multi) {
+								
+				foreach ($arr_referencing as $key => &$arr_referencing_group) {
+					
+					if (!isset($arr_referencing_group[$this->type_id])) {
+						continue;
+					}
 				
-				if (in_array($arr_reference[$type.'_ref_object_id'], $this->arr_merge_object_ids)) {
+					foreach ($arr_referencing_group[$this->type_id] as &$arr_reference) {
+						
+						if (!in_array($arr_reference[$type.'_ref_object_id'], $this->arr_merge_object_ids)) {
+							continue;
+						}
+						
+						$arr_reference[$type.'_ref_object_id'] = $this->object_id;
+					}
+				}
+			} else {
+				
+				foreach ($arr_referencing[$this->type_id] as &$arr_reference) {
+					
+					if (!in_array($arr_reference[$type.'_ref_object_id'], $this->arr_merge_object_ids)) {
+						continue;
+					}
+					
 					$arr_reference[$type.'_ref_object_id'] = $this->object_id;
 				}
 			}
-			unset($arr_reference);
-
+			
 			return $arr_referencing;
 		};
 		
@@ -662,7 +681,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 							
 							if ($arr_object_description['object_description_is_dynamic']) { // Not necessarily updated in storage, i.e. Processes, Reversal
 									
-								$value = $func_parse_references('object_definition', $arr_object['object_definitions'][$object_description_id]['object_definition_ref_object_id']);
+								$value = $func_parse_references('object_definition', $arr_object['object_definitions'][$object_description_id]['object_definition_ref_object_id'], $arr_object_description['object_description_has_multi']);
 							} else if ($arr_object_description['object_description_has_multi']) {
 								
 								$value = $arr_object['object_definitions'][$object_description_id]['object_definition_ref_object_id'];
@@ -702,7 +721,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 					if ($arr_object_sub['object_sub_date_chronology_object_sub'] || $arr_object_sub['object_sub_date_chronology_cycle'] || $arr_object_sub['object_sub_date_span_cycle']) {
 
 						$arr_chronology = $arr_object['object_subs'][$object_sub_id]['object_sub']['object_sub_date_chronology'];
-						$arr_chronology = StoreTypeObjects::formatToChronology($arr_chronology);
+						$arr_chronology = FormatTypeObjects::formatToChronology($arr_chronology);
 						
 						if ($arr_object_sub['object_sub_date_chronology_object_sub']) {
 								
@@ -873,6 +892,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 		$version_select_to_def = GenerateTypeObjects::generateVersioning($versioning, 'record', 'nodegoat_to_def');
 		$version_select_tos_def = GenerateTypeObjects::generateVersioning($versioning, 'record', 'nodegoat_tos_def');
 		$version_select_tos_to = GenerateTypeObjects::generateVersioning($versioning, 'object_sub', 'nodegoat_tos_to');
+		$arr_table_names_references = StoreType::getValueTypeTablesReferences();
 		
 		$sql_primary_key = 'id, object_sub_id, object_description_id, object_sub_details_id, object_sub_description_id, type';
 		
@@ -898,17 +918,24 @@ class MergeTypeObjects extends StoreTypeObjects {
 					WHERE nodegoat_to_src.ref_object_id IN (".$sql_merge_object_ids.")
 				".DBFunctions::onConflict($sql_primary_key, ['id'])."
 			;
-				
-			INSERT INTO ".$this->table_name_referenced_objects."
-				(id, type_id, object_description_id, type)
-				SELECT nodegoat_to_def.object_id AS id, nodegoat_to.type_id, nodegoat_to_def.object_description_id, 'object_definition' AS type
-						FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable('type')." nodegoat_to_def
-						JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = nodegoat_to_def.object_id AND ".$version_select_to.")
-					WHERE nodegoat_to_def.ref_object_id IN (".$sql_merge_object_ids.")
-						AND ".$version_select_to_def."
-				".DBFunctions::onConflict($sql_primary_key, ['id'])."
-			;
+		";
 			
+		foreach ($arr_table_names_references as $str_sql_table_name => $arr_value_type_table) {
+			
+			$sql .= "
+				INSERT INTO ".$this->table_name_referenced_objects."
+					(id, type_id, object_description_id, type)
+					SELECT nodegoat_to_def.object_id AS id, nodegoat_to.type_id, nodegoat_to_def.object_description_id, 'object_definition' AS type
+							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').$str_sql_table_name." nodegoat_to_def
+							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = nodegoat_to_def.object_id AND ".$version_select_to.")
+						WHERE nodegoat_to_def.ref_object_id IN (".$sql_merge_object_ids.")
+							AND ".$version_select_to_def."
+					".DBFunctions::onConflict($sql_primary_key, ['id'])."
+				;
+			";
+		}
+			
+		$sql .= "
 			INSERT INTO ".$this->table_name_referenced_objects."
 				(id, type_id, object_description_id, type)
 				SELECT nodegoat_to_def_ref.object_id AS id, nodegoat_to.type_id, nodegoat_to_def_ref.object_description_id, 'object_definition' AS type
@@ -980,17 +1007,24 @@ class MergeTypeObjects extends StoreTypeObjects {
 					WHERE nodegoat_tos_src.ref_object_id IN (".$sql_merge_object_ids.")
 				".DBFunctions::onConflict($sql_primary_key, ['id'])."
 			;
+		";
+		
+		foreach ($arr_table_names_references as $str_sql_table_name => $arr_value_type_table) {
 			
-			INSERT INTO ".$this->table_name_referenced_objects."
-				(id, type_id, object_sub_id, object_sub_details_id, object_sub_description_id, type)
-				SELECT nodegoat_tos.object_id AS id, nodegoat_to.type_id, nodegoat_tos_def.object_sub_id, nodegoat_tos.object_sub_details_id, nodegoat_tos_def.object_sub_description_id, 'object_sub_definition' AS type
-						FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').StoreType::getValueTypeTable('type')." nodegoat_tos_def
-						JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.id = nodegoat_tos_def.object_sub_id AND ".$version_select_tos.")
-						JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = nodegoat_tos.object_id AND ".$version_select_to.")
-					WHERE nodegoat_tos_def.ref_object_id IN (".$sql_merge_object_ids.")
-						AND ".$version_select_tos_def."
-			;
-			
+			$sql .= "
+				INSERT INTO ".$this->table_name_referenced_objects."
+					(id, type_id, object_sub_id, object_sub_details_id, object_sub_description_id, type)
+					SELECT nodegoat_tos.object_id AS id, nodegoat_to.type_id, nodegoat_tos_def.object_sub_id, nodegoat_tos.object_sub_details_id, nodegoat_tos_def.object_sub_description_id, 'object_sub_definition' AS type
+							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').$str_sql_table_name." nodegoat_tos_def
+							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.id = nodegoat_tos_def.object_sub_id AND ".$version_select_tos.")
+							JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to ON (nodegoat_to.id = nodegoat_tos.object_id AND ".$version_select_to.")
+						WHERE nodegoat_tos_def.ref_object_id IN (".$sql_merge_object_ids.")
+							AND ".$version_select_tos_def."
+				;
+			";
+		}
+		
+		$sql .= "
 			INSERT INTO ".$this->table_name_referenced_objects."
 				(id, type_id, object_sub_id, object_sub_details_id, object_sub_description_id, type)
 				SELECT nodegoat_tos.object_id AS id, nodegoat_to.type_id, nodegoat_tos_def_ref.object_sub_id, nodegoat_tos.object_sub_details_id, nodegoat_tos_def_ref.object_sub_description_id, 'object_sub_definition' AS type

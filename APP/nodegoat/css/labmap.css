@@ -23,6 +23,7 @@
 .labmap.soc > .controls .legends > figure.run-layout:not(.running) > select + button + button { display: none; }
 .labmap.soc > .controls .legends > figure.run-layout.running > select + button { display: none; }
 .labmap.soc > .controls .legends > figure.run-layout p { text-align: right; }
+.labmap.soc > .controls .legends > figure.run-layout > div:first-child > p { margin-top: 0px; }
 
 .labmap.soc div.hover-node-label,
 .labmap.soc div.top-node-label { position: absolute; display: block; padding: 2px; font-size: 11px; background: rgba(245, 245, 245, 0.6); white-space: nowrap; }
@@ -64,17 +65,17 @@
 .labmap > .controls .legends > figure { margin: 0px; margin-top: 10px; float: right; clear: both; padding: 10px; font-size: 11px; background: rgba(245, 245, 245, 0.75); }
 
 .labmap > .controls .legends > figure dl { margin: -5px 0; display: table; border-collapse: separate; border-spacing: 0px 5px; }
-.labmap > .controls .legends > figure dl > li { display: table-row; }
-.labmap > .controls .legends > figure dl > li > dt { display: table-cell; vertical-align: middle; text-align: right; white-space: nowrap; }
-.labmap > .controls .legends > figure dl > li > dt + dd { display: table-cell; vertical-align: middle; padding-left: 8px; }
-.labmap > .controls .legends > figure dl > li > dt + dd > span { display: inline-block; width: 50px; height: 5px; }
+.labmap > .controls .legends > figure dl > div { display: table-row; }
+.labmap > .controls .legends > figure dl > div > dt { display: table-cell; vertical-align: middle; text-align: right; white-space: nowrap; }
+.labmap > .controls .legends > figure dl > div > dt + dd { display: table-cell; vertical-align: middle; padding-left: 8px; }
+.labmap > .controls .legends > figure dl > div > dt + dd > span { display: inline-block; width: 50px; height: 5px; }
 
-.labmap > .controls .legends > figure.types dl > li,
-.labmap > .controls .legends > figure.object-sub-details dl > li,
-.labmap > .controls .legends > figure.conditions dl > li { cursor: pointer; }
-.labmap > .controls .legends > figure.types dl > li[data-state="0"],
-.labmap > .controls .legends > figure.object-sub-details dl > li[data-state="0"],
-.labmap > .controls .legends > figure.conditions dl > li[data-state="0"] { opacity: 0.3; }
+.labmap > .controls .legends > figure.types dl > div,
+.labmap > .controls .legends > figure.object-sub-details dl > div,
+.labmap > .controls .legends > figure.conditions dl > div { cursor: pointer; }
+.labmap > .controls .legends > figure.types dl > div[data-state="0"],
+.labmap > .controls .legends > figure.object-sub-details dl > div[data-state="0"],
+.labmap > .controls .legends > figure.conditions dl > div[data-state="0"] { opacity: 0.3; }
 
 .labmap > .controls .legends > figure.metrics-container { display: table-row;text-align: left; white-space: nowrap; vertical-align: top; }
 .labmap > .controls .legends > figure.metrics-container > ul { display: table-cell; display: inline-block; vertical-align: top; margin-right: 3px; }

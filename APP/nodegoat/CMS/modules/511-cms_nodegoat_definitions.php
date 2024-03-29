@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -130,6 +130,10 @@ class cms_nodegoat_definitions extends base_module {
 							<label>'.getLabel('lbl_reversals').'</label>
 							<div>'.cms_general::createMultiSelect('options[type_ids]', 'y:cms_nodegoat_definitions:get_type-reversal', $arr_values, false, ['list' => true]).'</div>
 						</li>
+						<li>
+							<label>'.getLabel('lbl_reset').'</label>
+							<input type="checkbox" name="options[reset]" value="1"'.($arr_options['reset'] ? ' checked="checked"' :'').' />
+						</li>
 					</ul></fieldset>';
 				}
 			],
@@ -164,41 +168,6 @@ class cms_nodegoat_definitions extends base_module {
 		];
 	}
 	
-	public static function getSetConditionActions($type = false, $action = false) {
-		
-		$arr = [
-			'background_color' => ['id' => 'background_color', 'name' => getLabel('lbl_background_color'), 'value' => ['color']],
-			'text_emphasis' => ['id' => 'text_emphasis', 'name' => getLabel('lbl_text_emphasis'), 'value' => ['emphasis']],
-			'text_color' => ['id' => 'text_color', 'name' => getLabel('lbl_text_color'), 'value' => ['color']],
-			'limit_text' => ['id' => 'limit_text', 'name' => getLabel('lbl_limit').' '.getLabel('lbl_text'), 'value' => ['number', ['type' => 'value', 'info' => getLabel('inf_replace_text_value')]]],
-			'add_text_prefix' => ['id' => 'add_text_prefix', 'name' => getLabel('lbl_prefix').' '.getLabel('lbl_text'), 'value' => ['value', ['type' => 'check', 'info' => getLabel('inf_override_default_or_previous')]]],
-			'add_text_affix' => ['id' => 'add_text_affix', 'name' => getLabel('lbl_affix').' '.getLabel('lbl_text'), 'value' => ['value', ['type' => 'check', 'info' => getLabel('inf_override_default_or_previous')]]],
-			'regex_replace' => ['id' => 'regex_replace', 'name' => getLabel('lbl_regular_expression'), 'value' => [['type' => 'regex', 'info' => getLabel('inf_regular_expression_replace')], ['type' => 'check', 'info' => getLabel('inf_override_default_or_previous')]]],
-			'color' => ['id' => 'color', 'name' => getLabel('lbl_highlight_color'), 'value' => ['color', ['type' => 'check', 'info' => getLabel('inf_add_to_previous')]]],
-			'weight' => ['id' => 'weight', 'name' => getLabel('lbl_weight').' ('.getLabel('lbl_multiply').')', 'value' => ['number', ['type' => 'number_use_object_description_id', 'info' => getLabel('lbl_multiply_with').' '.getLabel('lbl_object_description')], ['type' => 'number_use_object_analysis_id', 'info' => getLabel('lbl_multiply_with').' '.getLabel('lbl_analysis')], ['type' => 'check', 'info' => getLabel('inf_add_to_previous')]]],
-			'remove' => ['id' => 'remove', 'name' => getLabel('lbl_remove').' '.getLabel('lbl_value'), 'value' => ['check']],
-			'geometry_color' => ['id' => 'geometry_color', 'name' => getLabel('lbl_geometry').' '.getLabel('lbl_color'), 'value' => ['color', 'opacity']],
-			'geometry_stroke_color' => ['id' => 'geometry_stroke_color', 'name' => getLabel('lbl_geometry').' '.getLabel('lbl_stroke_color'), 'value' => ['color', 'opacity']],
-			'icon' => ['id' => 'icon', 'name' => getLabel('lbl_icon'), 'value' => ['image', ['type' => 'check', 'info' => getLabel('inf_add_to_previous')]]]
-		];
-		
-		if ($type == 'object_name') {
-			
-			return ['background_color' => $arr['background_color'], 'text_emphasis' => $arr['text_emphasis'], 'text_color' => $arr['text_color'], 'limit_text' => $arr['limit_text'], 'add_text_prefix' => $arr['add_text_prefix'], 'add_text_affix' => $arr['add_text_affix'], 'regex_replace' => $arr['regex_replace']];
-		} else if ($type == 'object_values') {
-			
-			return ['background_color' => $arr['background_color'], 'text_emphasis' => $arr['text_emphasis'], 'text_color' => $arr['text_color'], 'regex_replace' => $arr['regex_replace'], 'remove' => $arr['remove']];
-		} else if ($type == 'object_nodes') {
-			
-			return ['color' => $arr['color'], 'weight' => $arr['weight'], 'geometry_color' => $arr['geometry_color'], 'geometry_stroke_color' => $arr['geometry_stroke_color'], 'icon' => $arr['icon']];
-		} else if ($type == 'object_nodes_referencing') {
-			
-			return ['color' => $arr['color'], 'weight' => $arr['weight']];
-		} else {
-			
-			return $arr;
-		}
-	}
 
 	public static function cleanupOrphansModel() {
 					
@@ -340,7 +309,7 @@ class cms_nodegoat_definitions extends base_module {
 			
 			$str_file = $file->getFilename();
 					
-			if ($arr_files_collect[$str_file]) {
+			if (isset($arr_files_collect[$str_file])) {
 				continue;
 			}
 			
@@ -390,19 +359,30 @@ class cms_nodegoat_definitions extends base_module {
 	
 	public static function runReversals($arr_options = []) {
 		
-		$is_updated = FilterTypeObjects::getTypesUpdatedAfter($arr_options['date_executed']['previous'], [], true);
+		$date = $arr_options['date_executed']['previous'];
 		
-		if (!$is_updated) {
-			return;
+		if ($arr_options['reset']) {
+			
+			$date = false;
+		} else {
+		
+			$is_updated = FilterTypeObjects::getTypesUpdatedAfter($date, [], true);
+			
+			if (!$is_updated) {
+				return;
+			}
 		}
 		
 		if ($arr_options['type_ids']) {
-			$arr_types = StoreType::getTypes(false, $arr_options['type_ids'], StoreType::TYPE_CLASS_REVERSAL);
+			$arr_reversals = StoreType::getTypes(false, $arr_options['type_ids'], StoreType::TYPE_CLASS_REVERSAL);
 		} else {
-			$arr_types = StoreType::getTypes(false, false, StoreType::TYPE_CLASS_REVERSAL);
+			$arr_reversals = StoreType::getTypes(false, false, StoreType::TYPE_CLASS_REVERSAL);
 		}
 		
-		StoreTypeObjectsProcessing::setReversals($arr_types);
+		memoryBoost(false);
+		
+		$run_reversals = new StoreTypeObjectsReversals($arr_reversals, $date);
+		$run_reversals->run();
 	}
 	
 	public static function runReversalsSelection($arr_options = []) {
@@ -410,6 +390,7 @@ class cms_nodegoat_definitions extends base_module {
 		$arr_job = cms_jobs::getJob('cms_nodegoat_definitions', 'runReversals');
 		
 		$arr_job['type_ids'] = $arr_options['type_ids'];
+		$arr_job['reset'] = $arr_options['reset'];
 				
 		cms_jobs::runJob('cms_nodegoat_definitions', 'runReversals', false, $arr_job);
 	}

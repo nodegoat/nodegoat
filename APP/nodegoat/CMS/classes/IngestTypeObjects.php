@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -51,7 +51,7 @@ class IngestTypeObjects {
 	
 	protected $arr_object_id_row_identifier = [];
 	
-	protected static $nr_store_objects_buffer = 1000;
+	protected static $num_store_objects_buffer = 1000;
 	
 	const TIMEOUT_STATUS = 5; // Seconds
 			
@@ -194,7 +194,7 @@ class IngestTypeObjects {
 			$arr_objects_buffers[$count_buffer][] = $object_id;
 			$count++;
 			
-			if ($count == static::$nr_store_objects_buffer) {
+			if ($count == static::$num_store_objects_buffer) {
 				
 				$count_buffer++;
 				$count = 0;
@@ -307,6 +307,8 @@ class IngestTypeObjects {
 
 			if ($str_error === false) {
 				
+				$storage->touch(); // Make sure the objects get a status update as late as possible
+				
 				DB::commitTransaction('ingest_store');
 			}
 			
@@ -375,6 +377,8 @@ class IngestTypeObjects {
 			}
 
 			if ($str_error === false) {
+				
+				$storage->touch(); // Make sure the objects get a status update as late as possible
 				
 				DB::commitTransaction('ingest_store');	
 			}		
@@ -1417,13 +1421,13 @@ class IngestTypeObjects {
 				}
 			} else if ($arr_object_sub['object_sub']['object_sub_date_start'] || $arr_object_sub['object_sub']['object_sub_date_end']) {
 				
-				$arr_stored_date_chronology = StoreTypeObjects::formatToChronology($arr_stored_object_sub['object_sub']['object_sub_date_chronology']);
+				$arr_stored_date_chronology = FormatTypeObjects::formatToChronology($arr_stored_object_sub['object_sub']['object_sub_date_chronology']);
 				
 				if ($arr_object_sub['object_sub']['object_sub_date_start']) {
 					
 					$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id]['date_start'];
 					
-					if ($arr_options['ignore_identical'] && $arr_stored_date_chronology['start']['start']['date_value'] == StoreTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub']['object_sub_date_start'])) {
+					if ($arr_options['ignore_identical'] && $arr_stored_date_chronology['start']['start']['date_value'] == FormatTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub']['object_sub_date_start'])) {
 
 						unset($arr_object_sub['object_sub']['object_sub_date_start']);
 						
@@ -1437,7 +1441,7 @@ class IngestTypeObjects {
 					
 					$arr_options = $this->arr_options[$this->type_id][$object_sub_details_id]['date_end'];
 					
-					if ($arr_options['ignore_identical'] && $arr_stored_date_chronology['end']['end']['date_value'] == StoreTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub']['object_sub_date_end'])) {
+					if ($arr_options['ignore_identical'] && $arr_stored_date_chronology['end']['end']['date_value'] == FormatTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub']['object_sub_date_end'])) {
 
 						unset($arr_object_sub['object_sub']['object_sub_date_end']);
 						

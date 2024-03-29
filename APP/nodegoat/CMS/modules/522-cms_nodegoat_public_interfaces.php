@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -337,31 +337,31 @@ class cms_nodegoat_public_interfaces extends base_module {
 				ORDER BY ips.sort;
 		");
 
-		while($row = $arr_res[0]->fetchAssoc()) {
+		while ($arr_row = $arr_res[0]->fetchAssoc()) {
 
-			if (!$arr[$row['id']]) {
+			if (!$arr[$arr_row['id']]) {
 				
-				$row['settings'] = json_decode($row['settings'], true);
+				$arr_row['settings'] = json_decode($arr_row['settings'], true);
 				
-				$arr[$row['id']] = ['interface' => $row, 'projects' => [], 'texts' => []];
+				$arr[$arr_row['id']] = ['interface' => $arr_row, 'projects' => [], 'texts' => []];
 			}
-			if ($row['text_id']) {
-				$arr[$row['id']]['texts'][$row['text_id']] = $row;
+			if ($arr_row['text_id']) {
+				$arr[$arr_row['id']]['texts'][$arr_row['text_id']] = $arr_row;
 			}
 		}
 		
-		while($row = $arr_res[1]->fetchAssoc()) {
+		while ($arr_row = $arr_res[1]->fetchAssoc()) {
 
-			$arr[$row['id']]['projects'][$row['project_id']] = $row;
+			$arr[$arr_row['id']]['projects'][$arr_row['project_id']] = $arr_row;
 			
-			if ($row['type_id']) {
-				$arr[$row['id']]['project_types'][$row['type_project_id']][$row['type_id']] = $row;
+			if ($arr_row['type_id']) {
+				$arr[$arr_row['id']]['project_types'][$arr_row['type_project_id']][$arr_row['type_id']] = $arr_row;
 			}
 		}
 		
-		while($row = $arr_res[2]->fetchAssoc()) {
+		while ($arr_row = $arr_res[2]->fetchAssoc()) {
 
-			$arr[$row['id']]['project_scenarios'][$row['scenario_project_id']][$row['scenario_id']] = $row;
+			$arr[$arr_row['id']]['project_scenarios'][$arr_row['scenario_project_id']][$arr_row['scenario_id']] = $arr_row;
 		}
 		
 		$arr = ((int)$public_interface_id ? current($arr) : $arr);
@@ -607,7 +607,7 @@ class cms_nodegoat_public_interfaces extends base_module {
 			WHERE pe.selection_id = '".DBFunctions::strEscape($selection_url_id)."'");
 		
 		$arr_elements = $arr_selection['elements'];
-		usort($arr_elements, function($a, $b) { return $a['sort'] > $b['sort']; }); 
+		usort($arr_elements, function($a, $b) { return $a['sort'] <=> $b['sort']; }); 
 
 		$sort = 0;
 		foreach ((array)$arr_elements as $arr_element) {	

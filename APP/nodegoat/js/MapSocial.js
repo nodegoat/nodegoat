@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -117,11 +117,13 @@ function MapSocial(elm_draw, PARENT, options) {
 	width_line = 1.5,
 	show_line = true,
 	show_arrowhead = false,
-	num_label_threshold = 0.1,
+	label_threshold = 0.1,
+	label_condition = false,
 	show_icon_as_node = false,
 	num_size_dot_icons = 15,
 	num_offset_dot_icons = 4,
-	spacer_elm_icons = 2,
+	num_spacer_dot_icons = 2,
+	num_offset_dot_text = 3,
 
 	key_animate = false,
 	
@@ -190,6 +192,14 @@ function MapSocial(elm_draw, PARENT, options) {
 		color_node = options.arr_visual.social.dot.color;
 		color_node_stroke = options.arr_visual.social.dot.stroke_color;
 		width_node_stroke = options.arr_visual.social.dot.stroke_width;
+
+		if (!options.arr_visual.social.label.show) {
+			label_threshold = 1;
+		} else {
+			label_threshold = parseFloat(options.arr_visual.social.label.threshold);
+			label_condition = options.arr_visual.social.label.condition;
+			label_condition = (label_condition ? label_condition : false);
+		}
 		
 		force_options = {
 			friction: parseFloat(options.arr_visual.social.force.friction),
@@ -236,7 +246,7 @@ function MapSocial(elm_draw, PARENT, options) {
 		}
 		
 		if (typeof arr_setting_advanced.label_threshold != 'undefined') {
-			num_label_threshold = parseBool(arr_setting_advanced.label_threshold, true);
+			label_threshold = parseFloat(arr_setting_advanced.label_threshold);
 		}
 		if (typeof arr_setting_advanced.metrics != 'undefined') {
 			//use_metrics = parseBool(arr_setting_advanced.metrics, false);
@@ -304,9 +314,9 @@ function MapSocial(elm_draw, PARENT, options) {
 				
 				var arr_media = [];
 				
-				for (var key in arr_data.legend.conditions) {
+				for (const key in arr_data.legend.conditions) {
 					
-					var arr_condition = arr_data.legend.conditions[key];
+					const arr_condition = arr_data.legend.conditions[key];
 					
 					if (arr_condition.icon) {			
 						arr_media.push(arr_condition.icon);
@@ -325,13 +335,13 @@ function MapSocial(elm_draw, PARENT, options) {
 						
 						if (display == DISPLAY_PIXEL) {
 							
-							for (var i = 0, len = arr_media.length; i < len; i++) {
+							for (let i = 0, len = arr_media.length; i < len; i++) {
 							
-								var resource = arr_media[i];
-								var arr_medium = ASSETS.getMedia(resource);
-								var elm_image = arr_medium.image.cloneNode(false);
+								const resource = arr_media[i];
+								const arr_medium = ASSETS.getMedia(resource);
+								const elm_image = arr_medium.image.cloneNode(false);
 								
-								var texture = new PIXI.Texture.from(elm_image);
+								const texture = PIXI.Texture.from(elm_image);
 								
 								arr_assets_texture_icons[resource] = {texture: texture, width: arr_medium.width, height: arr_medium.height};
 							}
@@ -1849,10 +1859,9 @@ function MapSocial(elm_draw, PARENT, options) {
 	
 	var drawNodeElm = function(arr_node) {
 			
-		var elm = arr_node.elm;
-		var num_radius = 0;
-		var do_highlight = false;
-		var str_identifier = '';
+		let elm = arr_node.elm;
+		let do_highlight = false;
+		let str_identifier = '';
 			
 		// Set the primary color of the node
 		if (!arr_node.color) {
@@ -1898,6 +1907,8 @@ function MapSocial(elm_draw, PARENT, options) {
 			str_identifier += arr_node.identifier_condition;
 		}
 		
+		const num_count_links = (arr_node.count_in + arr_node.count_out);
+		
 		if (is_weighted) {
 
 			var weight_conditions = arr_node.weight_conditions;
@@ -1915,29 +1926,33 @@ function MapSocial(elm_draw, PARENT, options) {
 			arr_node.weight = weight_conditions;
 		} else {
 			
-			arr_node.weight = arr_node.count_in + arr_node.count_out;
+			arr_node.weight = num_count_links;
 		}
 		
-		// Set Radius to 0 when node has no position (has been removed when it fell out of the selection)
-		if (!arr_node.is_alive) {
+		let num_size = 0;
+		
+		if (num_count_links == 0 && !show_disconnected_node) {
 			
-			num_radius = 0;
+			num_size = 0;
+		} else if (!arr_node.is_alive) { // Set Radius to 0 when node has no position (has been removed when it fell out of the selection)
+			
+			num_size = (show_disconnected_node ? size_node_min : 0);
 		} else {
 			
-			num_radius = (arr_node.weight / num_node_weight_max) * size_node_max;
+			num_size = (arr_node.weight / num_node_weight_max) * size_node_max;
 
-			if (num_radius > 0 && num_radius < size_node_min) {
+			if (num_size > 0 && num_size < size_node_min) {
 				
-				num_radius = size_node_min;
+				num_size = size_node_min;
+			} else if (num_size == 0 && show_disconnected_node) {
+			
+				num_size = size_node_min;
 			}
 		}
-
-		if (num_radius == 0 && show_disconnected_node == true) {
-			
-			num_radius = size_node_min;
-		}
 		
-		str_identifier += num_radius+'-'+num_scale;
+		const num_size_radius = (num_size / 2); // Diameter to radius
+		
+		str_identifier += num_size_radius+'-'+num_scale;
 		
 		if (str_identifier == arr_node.identifier) {
 
@@ -1951,7 +1966,7 @@ function MapSocial(elm_draw, PARENT, options) {
 			}
 		} else {
 
-			arr_node.radius = Math.round(num_radius);
+			arr_node.radius = Math.round(num_size_radius + width_node_stroke);
 
 			if (display == DISPLAY_PIXEL) {
 				
@@ -1972,7 +1987,7 @@ function MapSocial(elm_draw, PARENT, options) {
 					
 					if (arr_node.show_text) {
 						
-						var elm_text = new PIXI.Text(arr_node.name_text, {fontSize: size_text, fontFamily: font_family});
+						const elm_text = new PIXI.Text(arr_node.name_text, {fontSize: size_text, fontFamily: font_family});
 						
 						elm_text.anchor.x = 0;
 						elm_text.anchor.y = 0.5;
@@ -1993,52 +2008,52 @@ function MapSocial(elm_draw, PARENT, options) {
 					
 					elm.visible = true;
 					
-					if (arr_node.show_text) {
-						arr_node.elm_text.visible = true;
+					if (arr_node.elm_text) {
+						arr_node.elm_text.visible = arr_node.show_text;
 					}
 
 					pos_elm = elm.position;
 				}
 				
-				if (num_radius) {
+				if (num_size_radius) {
 					
-					const num_size = num_radius * num_scale;
-					const num_width_stroke = width_node_stroke * num_scale;
+					const num_size_radius_scaled = num_size_radius * num_scale;
+					const num_width_stroke_scaled = width_node_stroke * num_scale;
 					
 					if (arr_node.has_conditions) {
 						
 						if (!show_icon_as_node) {
 							
 							let elm_stroke = new PIXI.Graphics();
-							elm_stroke.lineStyle(num_width_stroke, parseColor(color_node_stroke), 1);
+							elm_stroke.lineStyle(num_width_stroke_scaled, parseColor(color_node_stroke), 1);
 							
 							if (arr_node.colors === false) {
 								
 								elm_stroke.beginFill(parseColor(color), 1);
-								elm_stroke.drawCircle(0, 0, (num_size + (num_width_stroke/2)));
+								elm_stroke.drawCircle(0, 0, num_size_radius_scaled + num_width_stroke_scaled / 2);
 								elm_stroke.endFill();
 							} else {
 								
-								elm_stroke.drawCircle(0, 0, (num_size + (num_width_stroke/2)));
+								elm_stroke.drawCircle(0, 0, num_size_radius_scaled + num_width_stroke_scaled / 2);
 								
 								if (do_highlight) {
 									
 									arr_node.colors = [{color: color, portion: 1}];
 								}
 
-								var current_portion = 0; 
+								let current_portion = 0; 
 								
-								for (var i = 0; i < arr_node.colors.length; i++) {
+								for (let i = 0; i < arr_node.colors.length; i++) {
 									
-									var num_start = current_portion * 2 * Math.PI;
+									const num_start = current_portion * 2 * Math.PI;
 									current_portion = current_portion + arr_node.colors[i].portion;
-									var num_end = current_portion * 2 * Math.PI;
+									const num_end = current_portion * 2 * Math.PI;
 									
-									var elm_portion = new PIXI.Graphics();
+									const elm_portion = new PIXI.Graphics();
 									elm_portion.beginFill(parseColor(arr_node.colors[i].color), 1);
 									elm_portion.moveTo(0, 0)
-										.lineTo(num_size * Math.cos(num_start), num_size * Math.sin(num_start))
-										.arc(0, 0, num_size, num_start, num_end, false)
+										.lineTo(num_size_radius_scaled * Math.cos(num_start), num_size_radius_scaled * Math.sin(num_start))
+										.arc(0, 0, num_size_radius_scaled, num_start, num_end, false)
 										.lineTo(0, 0);
 									elm_portion.endFill();
 									
@@ -2051,10 +2066,10 @@ function MapSocial(elm_draw, PARENT, options) {
 		
 						if (arr_node.icons !== false && arr_node.icons.length) {
 							
+							let elms_icon = null;
 							let num_height_sum = 0;
 							let num_width_sum = 0;
-							
-							const num_size_icon = (show_icon_as_node ? num_size * 2 : num_size_dot_icons * num_scale);
+							const num_size_icon_scaled = (show_icon_as_node ? num_size_radius_scaled * 2 : num_size_dot_icons * num_scale);
 							
 							for (let i = 0, len = arr_node.icons.length; i < len; i++) {
 								
@@ -2064,11 +2079,11 @@ function MapSocial(elm_draw, PARENT, options) {
 								const elm_icon = new PIXI.Sprite(arr_resource.texture);
 								const num_scale_icon = (arr_resource.width / arr_resource.height);
 								
-								const num_width_icon = (num_size_icon * num_scale_icon);
-								elm_icon.height = num_size_icon;
+								const num_width_icon = (num_size_icon_scaled * num_scale_icon);
+								elm_icon.height = num_size_icon_scaled;
 								elm_icon.width = num_width_icon;
 								if (i > 0) {
-									num_width_sum += spacer_elm_icons;
+									num_width_sum += num_spacer_dot_icons;
 								}
 								elm_icon.position.x = num_width_sum;
 								elm_icon.position.y = num_height_sum;
@@ -2079,43 +2094,44 @@ function MapSocial(elm_draw, PARENT, options) {
 									
 									if (len > 1) {
 										
-										var elm_icons = new PIXI.Container();
-										elm_icons.addChild(elm_icon);
+										elms_icon = new PIXI.Container();
+										elms_icon.addChild(elm_icon);
 									} else {
 										
-										var elm_icons = elm_icon;
+										elms_icon = elm_icon;
 									}
 								} else {
 									
-									elm_icons.addChild(elm_icon);
+									elms_icon.addChild(elm_icon);
 								}
 							}
+							
+							let num_offset = 0;
 							
 							if (show_icon_as_node) {
 								
-								var num_offset = -(num_size_icon / 2);
-							
+								num_offset = -(num_size_icon_scaled / 2);
 							} else {
 								
 								if (num_offset_dot_icons == 0) {
-									var num_offset = -(num_size_icon / 2);
+									num_offset = -(num_size_icon_scaled / 2);
 								} else if (num_offset_dot_icons < 0) {
-									var num_offset = -((num_size + num_width_stroke) / 2) + num_offset_dot_icons - num_size_icon;
+									num_offset = (-(num_size_radius_scaled + num_width_stroke_scaled) + (num_offset_dot_icons * num_scale) - num_size_icon_scaled);
 								} else {
-									var num_offset = ((num_size + num_width_stroke) / 2) + num_offset_dot_icons;
+									num_offset = (num_size_radius_scaled + num_width_stroke_scaled + (num_offset_dot_icons * num_scale));
 								}
 							}
 							
-							elm_icons.position.x = Math.floor(-(num_width_sum / 2));
-							elm_icons.position.y = Math.floor(num_offset);
+							elms_icon.position.x = Math.floor(-(num_width_sum / 2));
+							elms_icon.position.y = Math.floor(num_offset);
 							
-							elm.addChild(elm_icons);
+							elm.addChild(elms_icon);
 						}
 					} else {
 					
-						elm.lineStyle(num_width_stroke, parseColor(color_node_stroke), 1);
+						elm.lineStyle(num_width_stroke_scaled, parseColor(color_node_stroke), 1);
 						elm.beginFill(parseColor(color), 1);
-						elm.drawCircle(0, 0, (num_size + (num_width_stroke/2)));
+						elm.drawCircle(0, 0, num_size_radius_scaled + num_width_stroke_scaled / 2);
 						elm.endFill();
 					}
 					
@@ -2140,23 +2156,28 @@ function MapSocial(elm_draw, PARENT, options) {
 			
 			} else {
 				
+				let elm_circle = null;
+				
 				if (!elm) {
 					
-					var elm = stage.createElementNS(stage_ns, 'g');
+					elm = stage.createElementNS(stage_ns, 'g');
 					svg_group.appendChild(elm);
 					
 					if (arr_node.show_text) {
-						var elm_text = stage.createElementNS(stage_ns, 'text');
+						
+						const elm_text = stage.createElementNS(stage_ns, 'text');
 						elm_text.style.fontSize = size_text+'px';
 						elm_text.style.fontFamily = font_family;
 						elm_text.style.fill = color_text;
 						elm_text.style.dominantBaseline = 'central';
-						var node_text = stage.createTextNode(arr_node.name_text);
+						const node_text = stage.createTextNode(arr_node.name_text);
 						elm_text.appendChild(node_text);
 						elm.appendChild(elm_text);
+						
+						arr_node.elm_text = elm_text;
 					}
 				
-					var elm_circle = stage.createElementNS(stage_ns, 'circle');
+					elm_circle = stage.createElementNS(stage_ns, 'circle');
 					elm.appendChild(elm_circle);
 					elm_circle.setAttribute('stroke', parseColor(color_node_stroke));
 					elm_circle.setAttribute('stroke-width', width_node_stroke);
@@ -2164,15 +2185,14 @@ function MapSocial(elm_draw, PARENT, options) {
 					arr_node.elm = elm;
 				} else {
 					
-					var elms_circle = elm.getElementsByTagName('circle');
-					var elm_circle = elms_circle[0];
-					
-					if (arr_node.show_text) {
-						var elms_text = elm.getElementsByTagName('text');
-						var elm_text = elms_text[0];
-					}
+					const elms_circle = elm.getElementsByTagName('circle');
+					elm_circle = elms_circle[0];
 					
 					elm.dataset.visible = 1;
+					
+					if (arr_node.elm_text) {
+						arr_node.elm_text.dataset.visible = (arr_node.show_text ? 1 : 0);
+					}
 				}
 				
 				elm.dataset.node_id = arr_node.id;
@@ -2180,7 +2200,7 @@ function MapSocial(elm_draw, PARENT, options) {
 				if (arr_node.has_conditions) {
 				
 					// Remove possible previous pie and icons
-					var elm_paths = arr_node.elm.getElementsByTagName('g');
+					const elm_paths = arr_node.elm.getElementsByTagName('g');
 					
 					while (elm_paths.length) {
 						arr_node.elm.removeChild(elm_paths[elm_paths.length - 1]);
@@ -2197,101 +2217,101 @@ function MapSocial(elm_draw, PARENT, options) {
 							
 							if (!show_icon_as_node) {
 
-								var current_portion = 0; 
-								var x = 0;
-								var y = 0;
-								var elm_pie = stage.createElementNS(stage_ns, 'g');
+								let current_portion = 0; 
+								const num_x = 0;
+								const num_y = 0;
+								const elms_pie = stage.createElementNS(stage_ns, 'g');
 			
-								for (var i = 0; i < arr_node.colors.length; i++) {
+								for (let i = 0; i < arr_node.colors.length; i++) {
 
-									var num_start = current_portion * 2 * Math.PI;
+									const num_start = current_portion * 2 * Math.PI;
 									current_portion = current_portion + arr_node.colors[i].portion;
-									var num_end = current_portion * 2 * Math.PI;
+									const num_end = current_portion * 2 * Math.PI;
 
-									var elm_path = stage.createElementNS(stage_ns, 'path');
+									const elm_path = stage.createElementNS(stage_ns, 'path');
 									
-									elm_path.setAttribute('d','M '+Math.floor(x)+','+Math.floor(y)+' L '+(Math.floor(x) + num_radius * Math.cos(num_start))+','+(Math.floor(y) + num_radius * Math.sin(num_start))+' A '+num_radius+','+num_radius+' 0 '+(num_end - num_start < Math.PI ? 0 : 1)+',1 '+(Math.floor(x) + num_radius * Math.cos(num_end))+','+(Math.floor(y) + num_radius * Math.sin(num_end))+' z');
+									elm_path.setAttribute('d','M '+Math.floor(num_x)+','+Math.floor(num_y)+' L '+(Math.floor(num_x) + num_size_radius * Math.cos(num_start))+','+(Math.floor(num_y) + num_size_radius * Math.sin(num_start))+' A '+num_size_radius+','+num_size_radius+' 0 '+(num_end - num_start < Math.PI ? 0 : 1)+',1 '+(Math.floor(num_x) + num_size_radius * Math.cos(num_end))+','+(Math.floor(num_y) + num_size_radius * Math.sin(num_end))+' z');
 									elm_path.style.fill = arr_node.colors[i].color;
 									
-									elm_pie.appendChild(elm_path);
+									elms_pie.appendChild(elm_path);
 								}
 								
-								arr_node.elm.appendChild(elm_pie);
+								arr_node.elm.appendChild(elms_pie);
 							}
 						}
 					}
 						
 					if (arr_node.icons !== false && arr_node.icons.length) {
 						
-						var num_height_sum = 0;
-						var num_width_sum = 0;
-						var elm_icons = stage.createElementNS(stage_ns, 'g');
-				
-						for (var i = 0, len = arr_node.icons.length; i < len; i++) {
+						const elms_icon = stage.createElementNS(stage_ns, 'g');
+						let num_height_sum = 0;
+						let num_width_sum = 0;
+						const num_size_icon = (show_icon_as_node ? num_size_radius * 2 : num_size_dot_icons);
 						
-							var resource = arr_node.icons[i];
-							var arr_resource = ASSETS.getMedia(resource);
+						for (let i = 0, len = arr_node.icons.length; i < len; i++) {
+						
+							const resource = arr_node.icons[i];
+							const arr_resource = ASSETS.getMedia(resource);
 
-							var elm_icon = stage.createElementNS(stage_ns, 'image');
+							const elm_icon = stage.createElementNS(stage_ns, 'image');
 							elm_icon.setAttribute('href', arr_resource.resource);
-							var num_scale_icon = (arr_resource.width / arr_resource.height);
+							const num_scale_icon = (arr_resource.width / arr_resource.height);
 							
-							var num_size_icon = (show_icon_as_node ? num_radius * 2 : num_size_dot_icons);
-							var num_width_icon = num_size_icon * num_scale_icon;
+							const num_width_icon = num_size_icon * num_scale_icon;
 							elm_icon.setAttribute('height', num_size_icon);
 							elm_icon.setAttribute('width', num_width_icon);
 							if (i > 0) {
-								num_width_sum += spacer_elm_icons;
+								num_width_sum += num_spacer_dot_icons;
 							}
 							elm_icon.setAttribute('x', num_width_sum);
 							elm_icon.setAttribute('y', num_height_sum);
 							num_height_sum += 0;
 							num_width_sum += num_width_icon;
 
-							elm_icons.appendChild(elm_icon);
+							elms_icon.appendChild(elm_icon);
 						}
+						
+						let num_offset = 0;
 						
 						if (show_icon_as_node) {
 							
-							var num_offset = -(num_size_icon / 2);
-						
+							num_offset = -(num_size_icon / 2);
 						} else {
 							
 							if (num_offset_dot_icons == 0) {
-								var num_offset = -(num_size_icon / 2);
+								num_offset = -(num_size_icon / 2);
 							} else if (num_offset_dot_icons < 0) {
-								var num_offset = -((num_radius + width_node_stroke) / 2) + num_offset_dot_icons - num_size_icon;
+								num_offset = (-(num_size_radius + width_node_stroke) + num_offset_dot_icons - num_size_icon);
 							} else {
-								var num_offset = ((num_radius + width_node_stroke) / 2) + num_offset_dot_icons;
+								num_offset = (num_size_radius + width_node_stroke + num_offset_dot_icons);
 							}
 						}
 						
-						elm_icons.setAttribute('transform', 'translate('+(-(num_width_sum / 2))+' '+(num_offset)+')');
+						elms_icon.setAttribute('transform', 'translate('+(-(num_width_sum / 2))+' '+(num_offset)+')');
 						
-						arr_node.elm.appendChild(elm_icons);
+						arr_node.elm.appendChild(elms_icon);
 					}
 				}
 
 				if (arr_node.icons !== false && arr_node.icons.length && show_icon_as_node) {
 
 					elm_circle.setAttribute('r', 0);
-				
 				} else {
 					
-					elm_circle.setAttribute('r', (num_radius ? (num_radius + width_node_stroke/2) : 0));
+					elm_circle.setAttribute('r', (num_size_radius ? (num_size_radius + width_node_stroke / 2) : 0));
 				}
 				
 				elm_circle.setAttribute('fill', color);
 				
-				if (arr_node.show_text) {
+				if (arr_node.elm_text) {
 					
-					if (num_radius) {
+					if (num_size_radius) {
 						
-						elm_text.setAttribute('opacity', 1);		
-						elm_text.setAttribute('dx', (num_radius ? (num_radius + width_node_stroke/2) + 3 : 0));
+						arr_node.elm_text.setAttribute('opacity', 1);		
+						arr_node.elm_text.setAttribute('dx', (num_size_radius + width_node_stroke) + num_offset_dot_text);
 					} else {
 						
-						elm_text.setAttribute('opacity', 0);
+						arr_node.elm_text.setAttribute('opacity', 0);
 					}
 				}
 			}
@@ -2346,6 +2366,7 @@ function MapSocial(elm_draw, PARENT, options) {
 			arr_node.weight_conditions = 1;
 			arr_node.colors = false;
 			arr_node.icons = false;
+			arr_node.show_text = arr_node.has_text_threshold;
 			arr_node.identifier_condition = '';
 			
 			return;
@@ -2359,10 +2380,10 @@ function MapSocial(elm_draw, PARENT, options) {
 		var num_parts_condition_referenced = 0;
 		var num_parts_self = 0;
 		var num_weight_conditions = 0;
+		var do_show_text = null; 
 		
 		// Cross referenced conditions based on referenced object definitions
 		
-		str_identifier += 'od';
 		for (let i = 0, len = arr_node.conditions.object_parent.length; i < len; i++) {
 
 			const arr_condition = arr_node.conditions.object_parent[i];
@@ -2370,9 +2391,7 @@ function MapSocial(elm_draw, PARENT, options) {
 			if (!arr_node.object_parents[arr_condition.source_id]) {
 				continue;
 			}
-			
-			str_identifier += arr_condition.source_id;
-			
+						
 			if (!arr_parts['o_'+arr_condition.source_id]) {
 				arr_parts['o_'+arr_condition.source_id] = {colors: []};
 				num_parts_condition_referenced++;
@@ -2387,11 +2406,13 @@ function MapSocial(elm_draw, PARENT, options) {
 			if (arr_condition.icon !== null) {
 				arr_condition_icons.push(arr_condition.icon);
 			}
+			
+			if (label_condition !== false) {
+				do_show_text = (do_show_text === true || arr_condition.identifier === label_condition);
+			}
 		}
 		
 		// Cross referenced conditions based on referenced sub object definitions
-		
-		str_identifier += 'sod';
 			
 		for (let i = 0, len = arr_node.conditions.object_sub_parent.length; i < len; i++) {
 			
@@ -2402,8 +2423,6 @@ function MapSocial(elm_draw, PARENT, options) {
 			}
 			
 			const object_id = arr_data.object_subs[arr_condition.source_id].object_id; // Need object_id as identifier for the part as sub object references can be multiple
-			
-			str_identifier += object_id;
 			
 			if (!arr_parts['s_'+object_id]) {
 				arr_parts['s_'+object_id] = {colors: []};
@@ -2419,11 +2438,13 @@ function MapSocial(elm_draw, PARENT, options) {
 			if (arr_condition.icon !== null) {
 				arr_condition_icons.push(arr_condition.icon);
 			}
+			
+			if (label_condition !== false) {
+				do_show_text = (do_show_text === true || arr_condition.identifier === label_condition);
+			}
 		}
 
 		if (has_part_condition_object) {
-			
-			str_identifier += 'o';
 			
 			arr_parts.object = {colors: []};
 				
@@ -2433,7 +2454,6 @@ function MapSocial(elm_draw, PARENT, options) {
 				const arr_condition = arr_node.conditions.object[i];
 								
 				if (arr_condition.color !== null) {
-					
 					arr_parts.object.colors.push({color: arr_condition.color, portion: arr_condition.weight});
 				}
 				
@@ -2442,11 +2462,13 @@ function MapSocial(elm_draw, PARENT, options) {
 				if (arr_condition.icon !== null) {
 					arr_condition_icons.push(arr_condition.icon);
 				}
+				
+				if (label_condition !== false) {
+					do_show_text = (do_show_text === true || arr_condition.identifier === label_condition);
+				}
 			}
 
 			// Conditions based on object subs
-			
-			str_identifier += 's';
 			
 			for (let i = 0, len = arr_node.conditions.object_sub.length; i < len; i++) {
 				
@@ -2456,10 +2478,7 @@ function MapSocial(elm_draw, PARENT, options) {
 					continue;
 				}
 				
-				str_identifier += arr_condition.source_id;
-				
 				if (arr_condition.color !== null) {
-
 					arr_parts.object.colors.push({color: arr_condition.color, portion: arr_condition.weight});
 				}
 				
@@ -2467,6 +2486,10 @@ function MapSocial(elm_draw, PARENT, options) {
 				
 				if (arr_condition.icon !== null) {
 					arr_condition_icons.push(arr_condition.icon);
+				}
+				
+				if (label_condition !== false) {
+					do_show_text = (do_show_text === true || arr_condition.identifier === label_condition);
 				}
 			}
 		}
@@ -2512,12 +2535,27 @@ function MapSocial(elm_draw, PARENT, options) {
 		}
 
 		if (!arr_condition_colors.length) {
-			arr_condition_colors.push({color: arr_node.color, portion: 1})
+			
+			arr_condition_colors.push({color: arr_node.color, portion: 1});
+			
+			str_identifier += arr_node.color;
+		} else {
+			
+			for (let i = 0, len = arr_condition_colors.length; i < len; i++) {
+				str_identifier += arr_condition_colors[i].color+arr_condition_colors[i].portion;
+			}
 		}
-		
+		if (arr_condition_icons.length) {
+			
+			for (let i = 0, len = arr_condition_icons.length; i < len; i++) {
+				str_identifier += arr_condition_icons[i].icon;
+			}
+		}
+
 		arr_node.weight_conditions = 1 + num_weight_conditions;
 		arr_node.colors = arr_condition_colors;
 		arr_node.icons = arr_condition_icons;
+		arr_node.show_text = (do_show_text !== null ? do_show_text : arr_node.has_text_threshold);
 		arr_node.identifier_condition = str_identifier;
 	}
 	
@@ -2588,7 +2626,7 @@ function MapSocial(elm_draw, PARENT, options) {
 		for (let i = 0, len = arr_active_nodes.length; i < len; i++) {
 			
 			const arr_node = arr_active_nodes[i];			
-			const num_radius = arr_node.radius;
+			const num_size_radius = arr_node.radius;
 			const pos_x = arr_node.x;
 			const pos_y = arr_node.y;
 			
@@ -2603,7 +2641,7 @@ function MapSocial(elm_draw, PARENT, options) {
 				arr_node.elm.position.y = (pos_y + pos_translation.y) * num_scale;
 				
 				if (arr_node.elm_text) {
-					arr_node.elm_text.position.x = arr_node.elm.position.x + (num_radius * num_scale) + 3;
+					arr_node.elm_text.position.x = arr_node.elm.position.x + (num_size_radius * num_scale) + num_offset_dot_text;
 					arr_node.elm_text.position.y = arr_node.elm.position.y;
 				}
 			} else {
@@ -3072,7 +3110,7 @@ function MapSocial(elm_draw, PARENT, options) {
 				
 				for (const key in info) {
 					
-					const li = $('<li />').appendTo(list);
+					const li = $('<div />').appendTo(list);
 					const dt = $('<dt />').html(info[key].label).appendTo(li);
 					const dd = $('<dd />').html(info[key].elm).appendTo(li);
 				}
@@ -3143,13 +3181,15 @@ function MapSocial(elm_draw, PARENT, options) {
 					num_weight_conditions = size_node_stop;
 				}
 
-				if (num_weight_conditions / num_node_weight_max > num_label_threshold) {
+				if (num_weight_conditions / num_node_weight_max > label_threshold) {
+					arr_node.has_text_threshold = true;
 					arr_node.show_text = true;
 				}
 							
 			} else {
 				
-				if ((arr_node.count_out + arr_node.count_in) / num_node_weight_max > num_label_threshold) {
+				if ((arr_node.count_out + arr_node.count_in) / num_node_weight_max > label_threshold) {
+					arr_node.has_text_threshold = true;
 					arr_node.show_text = true;
 				}
 			}
@@ -3873,17 +3913,20 @@ function MapSocial(elm_draw, PARENT, options) {
 								
 							arr_node.child_links.push(link_id);	
 
-							// Weight of object applied to target node 
+							// Weight and other conditions of object applied to target node
+							
 							if (arr_object_definition.style && arr_object_definition.style.weight != null) {
 
 								arr_target_node.weight_conditions += arr_object_definition.style.weight;
 								arr_target_node.weight_total += arr_object_definition.style.weight;
 							}
 							
-							if (arr_object_definition.style && arr_object_definition.style.color) {
+							const arr_conditions = setCondition(arr_object_definition.style, arr_object.style, object_id);
+							
+							if (arr_conditions) {
 								
 								arr_target_node.has_conditions = true;
-								arr_target_node.conditions.object_parent = arr_target_node.conditions.object_parent.concat(setCondition(arr_object_definition.style, arr_object.style, object_id));
+								arr_target_node.conditions.object_parent = arr_target_node.conditions.object_parent.concat(arr_conditions);
 								
 								has_conditions = true;
 							}
@@ -3937,18 +3980,20 @@ function MapSocial(elm_draw, PARENT, options) {
 								
 								arr_object_sub_children.child_links.push(link_id);
 
-								// Cross Referencing weight added to target node
+								// Cross Referencing weight and other conditions added to target node
+								
 								if (arr_object_sub_definition.style && arr_object_sub_definition.style.weight != null) {
 
 									arr_target_node.weight_conditions += arr_object_sub_definition.style.weight;
 									arr_target_node.weight_total += arr_object_sub_definition.style.weight;
 								}	
+																
+								const arr_conditions = setCondition(arr_object_sub_definition.style, arr_object_sub.style, object_sub_id);
 								
-								// Cross Referencing color added to target node
-								if (arr_object_sub_definition.style && arr_object_sub_definition.style.color) {
+								if (arr_conditions) {
 									
 									arr_target_node.has_conditions = true;
-									arr_target_node.conditions.object_sub_parent = arr_target_node.conditions.object_sub_parent.concat(setCondition(arr_object_sub_definition.style, arr_object_sub.style, object_sub_id));
+									arr_target_node.conditions.object_sub_parent = arr_target_node.conditions.object_sub_parent.concat(arr_conditions);
 									
 									has_conditions = true;
 								}
@@ -3966,18 +4011,20 @@ function MapSocial(elm_draw, PARENT, options) {
 				}
 			} 
 			
-			// Weight of sub-object applied to current node
+			// Weight and other conditions of sub-object applied to current node
+			
 			if (arr_object_sub.style && arr_object_sub.style.weight != null) {
 	
 				arr_node.weight_conditions += arr_object_sub.style.weight;
 				arr_node.weight_total += arr_object_sub.style.weight;
 			}
 										
-			// Color of sub-object applied to current node
-			if (arr_object_sub.style && arr_object_sub.style.color) {
+			const arr_conditions = setCondition(arr_object_sub.style, arr_object_sub.style, object_sub_id);
+			
+			if (arr_conditions) {
 				
 				arr_node.has_conditions = true;
-				arr_node.conditions.object_sub = arr_node.conditions.object_sub.concat(setCondition(arr_object_sub.style, arr_object_sub.style, object_sub_id));
+				arr_node.conditions.object_sub = arr_node.conditions.object_sub.concat(arr_conditions);
 			}
 			
 			if (include_location_nodes && arr_object_sub.location_object_id) {
@@ -4001,6 +4048,10 @@ function MapSocial(elm_draw, PARENT, options) {
 	}
 	
 	var setCondition = function(arr_style, arr_parent_style, source_id) {
+		
+		if (!arr_style || (!arr_style.color && !arr_style.icon)) {
+			return false;
+		}
 
 		arr_conditions = [];
 		
@@ -4153,10 +4204,12 @@ function MapSocial(elm_draw, PARENT, options) {
 					arr_node.weight_total += arr_object.style.weight;
 				}
 				
-				if (arr_object.style && arr_object.style.color) {
+				const arr_conditions = setCondition(arr_object.style, arr_object.style, false);
+				
+				if (arr_conditions) {
 					
 					arr_node.has_conditions = true;
-					arr_node.conditions.object = arr_node.conditions.object.concat(setCondition(arr_object.style, arr_object.style, false));
+					arr_node.conditions.object = arr_node.conditions.object.concat(arr_conditions);
 				}
 			}
 			
@@ -4186,6 +4239,7 @@ function MapSocial(elm_draw, PARENT, options) {
 			arr_node.color = false;
 			arr_node.redraw_node = false;
 			arr_node.show_text = false;
+			arr_node.has_text_threshold = false;
 			
 			if (focus_object_id == object_id) {
 				

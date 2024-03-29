@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -115,11 +115,11 @@ class ExportTypesObjectsNetworkODT extends ExportTypesObjectsNetwork {
 								if ($arr_object_sub_value['object_sub_date_chronology']) {
 										
 									$arr_date_all = $arr_object_sub_value['object_sub_date_all'];
-									$arr_chronology = StoreTypeObjects::formatToChronology($arr_object_sub_value['object_sub_date_chronology']);
+									$arr_chronology = FormatTypeObjects::formatToChronology($arr_object_sub_value['object_sub_date_chronology']);
 						
-									$str_object_sub_date_start = (StoreTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_START_START], ($arr_chronology['start']['start'] ?? null), StoreType::DATE_START_START) ?: '-');
+									$str_object_sub_date_start = (FormatTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_START_START], ($arr_chronology['start']['start'] ?? null), StoreType::DATE_START_START) ?: '-');
 									if ($arr_date_all[StoreType::DATE_START_END]) {
-										$str_object_sub_date_start .= ' / '.StoreTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_START_END], ($arr_chronology['start']['end'] ?? null), StoreType::DATE_START_END);
+										$str_object_sub_date_start .= ' / '.FormatTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_START_END], ($arr_chronology['start']['end'] ?? null), StoreType::DATE_START_END);
 									}
 								}
 								
@@ -134,11 +134,11 @@ class ExportTypesObjectsNetworkODT extends ExportTypesObjectsNetwork {
 								if ($arr_object_sub_value['object_sub_date_start'] != $arr_object_sub_value['object_sub_date_end']) {
 									
 									$arr_date_all = $arr_object_sub_value['object_sub_date_all'];
-									$arr_chronology = StoreTypeObjects::formatToChronology($arr_object_sub_value['object_sub_date_chronology']);
+									$arr_chronology = FormatTypeObjects::formatToChronology($arr_object_sub_value['object_sub_date_chronology']);
 									
-									$str_object_sub_date_end = StoreTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_END_END], ($arr_chronology['end']['end'] ?? null), StoreType::DATE_END_END);
+									$str_object_sub_date_end = FormatTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_END_END], ($arr_chronology['end']['end'] ?? null), StoreType::DATE_END_END);
 									if ($arr_date_all[StoreType::DATE_END_START]) {
-										$str_object_sub_date_end = StoreTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_END_START], ($arr_chronology['end']['start'] ?? null), StoreType::DATE_END_START).' / '.$str_object_sub_date_end;
+										$str_object_sub_date_end = FormatTypeObjects::chronologyDateInt2Date($arr_date_all[StoreType::DATE_END_START], ($arr_chronology['end']['start'] ?? null), StoreType::DATE_END_START).' / '.$str_object_sub_date_end;
 									}
 								}
 								
@@ -151,7 +151,7 @@ class ExportTypesObjectsNetworkODT extends ExportTypesObjectsNetwork {
 								$str_object_sub_date_chronology = '';
 								
 								if ($arr_object_sub_value['object_sub_date_chronology']) {
-									$str_object_sub_date_chronology = StoreTypeObjects::formatToChronology($arr_object_sub_value['object_sub_date_chronology']);
+									$str_object_sub_date_chronology = FormatTypeObjects::formatToChronology($arr_object_sub_value['object_sub_date_chronology']);
 									$str_object_sub_date_chronology = value2JSON($str_object_sub_date_chronology, JSON_PRETTY_PRINT);
 								}
 								
@@ -294,6 +294,7 @@ class ExportTypesObjectsNetworkODT extends ExportTypesObjectsNetwork {
 			$key_value = 'object_definition_value';
 			
 			$arr_object_description = $arr_type_set['object_descriptions'][$arr_options['object_description_id']];
+			$has_multi = $arr_object_description['object_description_has_multi'];
 			
 			if ($arr_object_description['object_description_ref_type_id'] && !$arr_object_description['object_description_is_dynamic']) {
 				$value_type = 'ref_object_id';
@@ -309,6 +310,7 @@ class ExportTypesObjectsNetworkODT extends ExportTypesObjectsNetwork {
 			$key_value = 'object_sub_definition_value';
 			
 			$arr_object_sub_description = $arr_type_set['object_sub_details'][$arr_options['object_sub_details_id']]['object_sub_descriptions'][$arr_options['object_sub_description_id']];
+			$has_multi = false;
 			
 			if ($arr_object_sub_description['object_sub_description_ref_type_id'] && !$arr_object_sub_description['object_sub_description_is_dynamic']) {
 				$value_type = 'ref_object_id';
@@ -348,17 +350,30 @@ class ExportTypesObjectsNetworkODT extends ExportTypesObjectsNetwork {
 		
 		// Values
 		
-		if ($arr_options['use_id']) { // Values with IDs
-							
-			if ($arr_definition[$key_ref_object_id]) {
+		if ($arr_options['use_id']) { // Dynamic values with IDs
 			
-				foreach ($arr_definition[$key_ref_object_id] as $arr_definition_dynamic) {
+			$arr_value_type_ref_object_ids = $arr_definition[$key_ref_object_id];
+			
+			if ($arr_value_type_ref_object_ids) {
+				
+				if (!$has_multi) {
+					$arr_value_type_ref_object_ids = [$arr_value_type_ref_object_ids];
+				}
+				
+				foreach ($arr_value_type_ref_object_ids as $key => $arr_type_ref_object_ids) {
+					
+					if (!$arr_type_ref_object_ids) {
+						continue;
+					}
 						
-					foreach ($arr_definition_dynamic as $ref_type_id => $arr_dynamic) {
+					foreach ($arr_type_ref_object_ids as $ref_type_id => $arr_ref_object_ids) {
 						
-						$ref_object_id = $arr_dynamic[$key_ref_object_id];
+						foreach ($arr_ref_object_ids as $arr_dynamic) {
 						
-						$this->xhtml .= '<p>'.($arr_definition_style ? '<span style="'.$arr_definition_style.'">'.$ref_object_id.'</span>' : $ref_object_id).'</p>';
+							$ref_object_id = $arr_dynamic[$key_ref_object_id];
+						
+							$this->xhtml .= '<p>'.($arr_definition_style ? '<span style="'.$arr_definition_style.'">'.$ref_object_id.'</span>' : $ref_object_id).'</p>';
+						}
 					}
 				}
 			} else {
@@ -373,16 +388,16 @@ class ExportTypesObjectsNetworkODT extends ExportTypesObjectsNetwork {
 		if ($arr_definition[$key_value]) {
 			
 			if ($value_type == 'media') {
-				$extra = ['arr_path_media' => &$this->arr_media]; // Capture local media files
+				$arr_extra = ['arr_path_media' => &$this->arr_media]; // Capture local media files
 			} else {
-				$extra = false;
+				$arr_extra = [];
 			}
 			
 			$no_paragraph = ($value_type == 'text_tags' || $value_type == 'text_layout');
 				
 			foreach ($arr_definition[$key_value] as $key => $value) {
 				
-				$value = StoreTypeObjects::formatToHTMLPlainValue($value_type, $value, $arr_value_type_settings, $extra);
+				$value = FormatTypeObjects::formatToHTMLPlainValue($value_type, $value, false, $arr_value_type_settings, $arr_extra);
 				$value = ($arr_definition_style ? '<span style="'.$arr_definition_style.'">'.$value.'</span>' : $value);
 				
 				if (!$no_paragraph) {
@@ -536,7 +551,7 @@ class ExportTypesObjectsNetworkODT extends ExportTypesObjectsNetwork {
 		}
 		
 		// See xls/param.xls for parameter options
-		$this->arr_xsl_parameters['url'] = SiteStartVars::getBasePath(0, false);
+		$this->arr_xsl_parameters['url'] = SiteStartEnvironment::getBasePath(0, false);
 		
 		$this->createODT();
 		

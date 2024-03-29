@@ -577,3 +577,83 @@ Run SQL queries in database nodegoat_content:
 ```sql
 ALTER TABLE `data_type_object_definition_version` DROP PRIMARY KEY, ADD PRIMARY KEY (`object_id`, `object_description_id`, `version`, `user_id`, `date`) USING BTREE;
 ```
+
+## VERSION 8.3
+
+Update 1100CC to 10.7 ([1100CC UPDATE](https://github.com/LAB1100/1100CC/blob/master/UPDATE.md)).
+
+Update nodegoat [nodegoat_cms.cms_labels.sql](/setup/nodegoat_cms.cms_labels.sql).
+
+---
+
+Run SQL queries in database nodegoat_cms:
+
+```sql
+UPDATE site_page_modules SET var = '{"user_group_id":"1"}' WHERE module = 'register_by_user';
+
+INSERT INTO `site_pages` (`id`, `name`, `title`, `directory_id`, `template_id`, `master_id`, `url`, `html`, `script`, `publish`, `clearance`, `sort`) VALUES
+(48, 'publish', 'Publish', 6, 0, 11, '', '', '', 1, 1, 4),
+(49, 'publication', 'Publication', 4, 17, 0, '', '', '', 0, 0, 2);
+
+INSERT INTO `site_page_modules` (`id`, `page_id`, `x`, `y`, `module`, `var`, `shortcut`, `shortcut_root`) VALUES
+(120, 49, 0, 0, 'publish', '', 'publication', 0),
+(121, 48, 0, 1, 'publish_instances', '', '', 0);
+
+INSERT INTO user_page_clearance
+	(user_id, page_id)
+	SELECT user_id, 48 AS page_id
+		FROM user_page_clearance
+		WHERE page_id = 46
+		GROUP BY user_id;
+```
+
+Run SQL queries in database nodegoat_home:
+
+```sql
+ALTER TABLE `def_nodegoat_custom_project_visual_settings` ADD `social_label_show` TINYINT NULL DEFAULT NULL AFTER `social_dot_stroke_width`, ADD `social_label_threshold` FLOAT NULL DEFAULT NULL AFTER `social_label_show`, ADD `social_label_condition` VARCHAR(50) NOT NULL AFTER `social_label_threshold`;
+
+ALTER TABLE `def_nodegoat_custom_project_type_configuration` ADD `filter_id` INT NOT NULL AFTER `view`;
+ALTER TABLE `def_nodegoat_custom_project_type_include_referenced_types` ADD `filter_id` INT NOT NULL AFTER `view`;
+
+CREATE TABLE `def_nodegoat_publish_custom_projects` (
+  `project_id` int NOT NULL,
+  `is_default` tinyint(1) NOT NULL DEFAULT '0',
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `public_interface_id` int NOT NULL DEFAULT '0',
+  `date` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `def_nodegoat_publish_custom_projects`
+  ADD PRIMARY KEY (`project_id`);
+
+UPDATE `def_nodegoat_custom_project_visual_settings` SET social_dot_size_min = social_dot_size_min*2, social_dot_size_max = social_dot_size_max*2, social_dot_size_start = social_dot_size_start*2, social_dot_size_stop = social_dot_size_stop*2;
+```
+
+---
+
+Run SQL queries in database nodegoat_content:
+
+```sql
+ALTER TABLE `data_type_objects` CHANGE `version` `version` SMALLINT NOT NULL DEFAULT '1'; 
+
+ALTER TABLE `data_type_object_definitions` CHANGE `identifier` `identifier` INT NOT NULL DEFAULT '0', CHANGE `version` `version` SMALLINT NOT NULL DEFAULT '1';
+ALTER TABLE `data_type_object_definitions_references` CHANGE `identifier` `identifier` INT NOT NULL DEFAULT '0', CHANGE `version` `version` SMALLINT NOT NULL DEFAULT '1';
+ALTER TABLE `data_type_object_definitions_modules` CHANGE `version` `version` SMALLINT NOT NULL DEFAULT '1'; 
+
+ALTER TABLE `data_type_object_subs` CHANGE `version` `version` SMALLINT NOT NULL DEFAULT '1', CHANGE `date_version` `date_version` SMALLINT NULL DEFAULT NULL, CHANGE `location_geometry_version` `location_geometry_version` SMALLINT NULL DEFAULT NULL;
+ALTER TABLE `data_type_object_sub_date` CHANGE `version` `version` SMALLINT NOT NULL;
+ALTER TABLE `data_type_object_sub_date_chronology` CHANGE `version` `version` SMALLINT NOT NULL; 
+ALTER TABLE `data_type_object_sub_location_geometry` CHANGE `version` `version` SMALLINT NOT NULL; 
+
+ALTER TABLE `data_type_object_sub_definitions` CHANGE `version` `version` SMALLINT NOT NULL DEFAULT '1';
+ALTER TABLE `data_type_object_sub_definitions_references` CHANGE `version` `version` SMALLINT NOT NULL DEFAULT '1';
+ALTER TABLE `data_type_object_sub_definitions_modules` CHANGE `version` `version` SMALLINT NOT NULL DEFAULT '1'; 
+
+ALTER TABLE `data_type_object_version` CHANGE `version` `version` SMALLINT NOT NULL; 
+ALTER TABLE `data_type_object_definition_version` CHANGE `version` `version` SMALLINT NOT NULL;
+ALTER TABLE `data_type_object_sub_version` CHANGE `version` `version` SMALLINT NOT NULL; 
+ALTER TABLE `data_type_object_sub_definition_version` CHANGE `version` `version` SMALLINT NOT NULL;
+
+UPDATE def_type_object_descriptions SET value_type_settings = '{"html":true}' WHERE value_type_settings = '' AND (value_type_base = 'text_tags' OR value_type_base = 'text_layout')
+	AND EXISTS (SELECT TRUE FROM data_type_object_definitions AS test WHERE test.object_description_id = id AND test.value_text LIKE '%</%>');
+```

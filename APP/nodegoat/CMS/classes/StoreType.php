@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -150,7 +150,7 @@ class StoreType {
 				$arr_details['use_object_name'] = $arr_system_type_set['type']['use_object_name'];
 				$arr_details['object_name_in_overview'] = $arr_system_type_set['type']['object_name_in_overview'];
 				
-				$num_type_mode = bitUpdateMode($num_type_mode, BIT_MODE_ADD, ($arr_details['reversal_mode'] ? static::TYPE_MODE_REVERSAL_COLLECTION : static::TYPE_MODE_REVERSAL_CLASSIFICATION));
+				$num_type_mode = bitUpdateMode($num_type_mode, BIT_MODE_ADD, ($arr_details['reversal_mode'] == static::TYPE_MODE_REVERSAL_COLLECTION ? static::TYPE_MODE_REVERSAL_COLLECTION : static::TYPE_MODE_REVERSAL_CLASSIFICATION));
 			}
 
 			// Type
@@ -209,6 +209,8 @@ class StoreType {
 			
 			foreach ($arr_definitions as $arr_definition) {
 				
+				$arr_definition['definition_id'] = $this->getTypeDefinitionID($this->type_id, $arr_definition['definition_id']);
+				
 				if (!$arr_definition['definition_name']) {
 					
 					if ($this->mode == self::MODE_UPDATE && $arr_definition['definition_id']) {
@@ -264,18 +266,40 @@ class StoreType {
 			
 			if ($this->mode == self::MODE_OVERWRITE || ($this->mode == self::MODE_UPDATE && $arr_details !== null)) {
 				
-				$reversal_ref_type_id = 0;
 				if (bitHasMode($num_type_mode, static::TYPE_MODE_REVERSAL_CLASSIFICATION)) {
+					
 					$reversal_ref_type_id = $this->getTypeID($arr_details['reversal_ref_type_id']);
+					
+					$res = DB::queryMulti("
+						INSERT INTO ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS')."
+							(id_id, type_id, ref_type_id, in_name)
+								VALUES
+							(".StoreType::getSystemTypeObjectDescriptionID(StoreType::getSystemTypeID('reversal'), 'reference').", ".$this->type_id.", ".(int)$reversal_ref_type_id.", ".DBFunctions::escapeAs($reversal_ref_type_id, DBFunctions::TYPE_BOOLEAN).")
+						".DBFunctions::onConflict('id_id, type_id', ['ref_type_id', 'in_name'])."
+						;
+						DELETE FROM ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS')."
+							WHERE type_id = ".$this->type_id." AND id_id = ".StoreType::getSystemTypeObjectDescriptionID(StoreType::getSystemTypeID('reversal'), 'module')."
+						;
+					");
+				} else {
+					
+					$reversal_module_settings = value2JSON([
+						'resource_path' => (bool)$arr_details['reversal_resource_path']
+					]);
+
+					$res = DB::queryMulti("
+						INSERT INTO ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS')."
+							(id_id, type_id, value_type_settings, ref_type_id, in_name)
+								VALUES
+							(".StoreType::getSystemTypeObjectDescriptionID(StoreType::getSystemTypeID('reversal'), 'module').", ".$this->type_id.", '".DBFunctions::strEscape($reversal_module_settings)."', 0, FALSE)
+						".DBFunctions::onConflict('id_id, type_id', ['value_type_settings'])."
+						;
+						DELETE FROM ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS')."
+							WHERE type_id = ".$this->type_id." AND id_id = ".StoreType::getSystemTypeObjectDescriptionID(StoreType::getSystemTypeID('reversal'), 'reference')."
+						;
+					");
 				}
-				
-				$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS')."
-						(id_id, type_id, ref_type_id, in_name)
-							VALUES
-						(".StoreType::getSystemTypeObjectDescriptionID(StoreType::getSystemTypeID('reversal'), 'reference').", ".$this->type_id.", ".(int)$reversal_ref_type_id.", ".DBFunctions::escapeAs($reversal_ref_type_id, DBFunctions::TYPE_BOOLEAN).")
-					".DBFunctions::onConflict('id_id, type_id', ['ref_type_id', 'in_name'])."
-				");
-			}				
+			}
 		} else {
 				
 			$arr_ids = [];
@@ -369,14 +393,13 @@ class StoreType {
 						");
 						
 						if ($this->mode == self::MODE_OVERWRITE) {
-							
 							$arr_ids[] = $arr_object_description['object_description_id'];
 						}
 						
 						if ($arr_convert_objects) {
 							
 							timeLimit(300);
-							self::$arr_types_storage[$this->type_id] = false; // Reload type set on next call
+							self::$arr_types_storage[$this->type_id] = null; // Reload type set on next call
 							
 							$storage = new StoreTypeObjects($this->type_id, false, $this->user_id);
 				
@@ -412,7 +435,6 @@ class StoreType {
 						");
 						
 						if ($this->mode == self::MODE_OVERWRITE) {
-							
 							$arr_ids[] = DB::lastInsertID();
 						}
 					}
@@ -457,7 +479,11 @@ class StoreType {
 				$arr_object_sub_details_self = $arr_object_sub_details['object_sub_details'];
 				
 				$object_sub_details_date_type = ($arr_object_sub_details_self['object_sub_details_date_type'] ?? null ?: (!$arr_object_sub_details_self['object_sub_details_has_date'] ? 'none' : ($arr_object_sub_details_self['object_sub_details_is_date_period'] ? 'period' : 'date')));
-				$object_sub_details_date_usage = ($arr_object_sub_details_self['object_sub_details_date_usage'] ?? null ?: ($arr_object_sub_details_self['object_sub_details_date_use_object_sub_details_id'] ? 'object_sub_details' : ($arr_object_sub_details_self['object_sub_details_date_start_use_object_sub_description_id'] ? 'object_sub_description' : ($arr_object_sub_details_self['object_sub_details_date_start_use_object_description_id'] ? 'object_description' : ''))));
+				if (isset($arr_object_sub_details_self['object_sub_details_date_usage'])) {
+					$object_sub_details_date_usage = $arr_object_sub_details_self['object_sub_details_date_usage'];
+				} else {
+					$object_sub_details_date_usage = ($arr_object_sub_details_self['object_sub_details_date_use_object_sub_details_id'] ? 'object_sub_details' : ($arr_object_sub_details_self['object_sub_details_date_start_use_object_sub_description_id'] ? 'object_sub_description' : ($arr_object_sub_details_self['object_sub_details_date_start_use_object_description_id'] ? 'object_description' : '')));
+				}
 				
 				$object_sub_details_has_date = true;
 				$object_sub_details_is_date_period = ($object_sub_details_date_type == 'period');
@@ -500,8 +526,12 @@ class StoreType {
 				$object_sub_details_date_setting = ($arr_date_options[$object_sub_details_date_setting]['id'] ?? 0);
 				
 				$object_sub_details_location_type = ($arr_object_sub_details_self['object_sub_details_location_type'] ?? null ?: (!$arr_object_sub_details_self['object_sub_details_has_location'] ? 'none' : 'default'));
-				$object_sub_details_location_usage = ($arr_object_sub_details_self['object_sub_details_location_usage'] ?? null ?: ($arr_object_sub_details_self['object_sub_details_location_use_object_id'] ? 'object' : ($arr_object_sub_details_self['object_sub_details_location_use_object_description_id'] ? 'object_description' : ($arr_object_sub_details_self['object_sub_details_location_use_object_sub_details_id'] ? 'object_sub_details' : ($arr_object_sub_details_self['object_sub_details_location_use_object_sub_description_id'] ? 'object_sub_description' : '')))));
-		
+				if (isset($arr_object_sub_details_self['object_sub_details_location_usage'])) {
+					$object_sub_details_location_usage = $arr_object_sub_details_self['object_sub_details_location_usage'];
+				} else {
+					$object_sub_details_location_usage = ($arr_object_sub_details_self['object_sub_details_location_use_object_id'] ? 'object' : ($arr_object_sub_details_self['object_sub_details_location_use_object_description_id'] ? 'object_description' : ($arr_object_sub_details_self['object_sub_details_location_use_object_sub_details_id'] ? 'object_sub_details' : ($arr_object_sub_details_self['object_sub_details_location_use_object_sub_description_id'] ? 'object_sub_description' : ''))));
+				}				
+				
 				$object_sub_details_has_location = true;
 				if ($object_sub_details_location_type == 'none') {
 					$object_sub_details_has_location = false;
@@ -650,7 +680,6 @@ class StoreType {
 				}
 				
 				if ($this->mode == self::MODE_OVERWRITE) {
-										
 					$arr_ids[] = $object_sub_details_id;
 				}
 				
@@ -725,14 +754,13 @@ class StoreType {
 							");
 							
 							if ($this->mode == self::MODE_OVERWRITE) {
-								
 								$arr_sub_description_ids[] = $arr_object_sub_description['object_sub_description_id'];
 							}
 							
 							if ($arr_convert_objects) {
 						
 								timeLimit(300);
-								self::$arr_types_storage[$this->type_id] = false; // Reload type set on next call
+								self::$arr_types_storage[$this->type_id] = null; // Reload type set on next call
 								
 								$storage = new StoreTypeObjects($this->type_id, false, $this->user_id);
 						
@@ -766,7 +794,6 @@ class StoreType {
 							");
 							
 							if ($this->mode == self::MODE_OVERWRITE) {
-								
 								$arr_sub_description_ids[] = DB::lastInsertID();
 							}
 						}
@@ -827,7 +854,7 @@ class StoreType {
 			StoreTypeObjects::touchTypeObjects($this->type_id, $sql_table_name);
 		}
 		
-		self::$arr_types_storage[$this->type_id] = false; // Invalidate Type configuration cache
+		self::$arr_types_storage[$this->type_id] = null; // Invalidate Type configuration cache
 		
 		self::$arr_types_touched[$this->type_id] = $this->type_id;
 
@@ -929,9 +956,13 @@ class StoreType {
 						$arr_value['id'] = (int)$arr_value_type_settings['id'];
 					}	
 					break;
+				case 'text_layout':
 				case 'text_tags':
-				
-					if ($arr_value_type_settings['marginalia']) {
+					
+					if ($arr_value_type_settings['html']) {
+						$arr_value['html'] = true;
+					}
+					if ($value_type_base == 'text_tags' && $arr_value_type_settings['marginalia']) {
 						$arr_value['marginalia'] = true;
 					}
 					break;
@@ -959,7 +990,7 @@ class StoreType {
 					$value_default = arrParseRecursive($value_default, TYPE_INTEGER);
 				} else {
 
-					$default_value = StoreTypeObjects::formatToSQLValue($value_type_base, $value_default);
+					$default_value = FormatTypeObjects::formatToSQLValue($value_type_base, $value_default);
 					
 					if ($value_default === false || $value_default === '') {
 						$value_default = null;
@@ -1398,6 +1429,45 @@ class StoreType {
 		return $type_id;
 	}
 	
+	public function getTypeDefinitionID($type_id, $value) {
+		
+		if (!$value) {
+			return false;
+		}
+		
+		$type_id = $this->getTypeID($type_id);
+		$arr_type_set = self::getTypeSet($type_id);
+		
+		$is_name = (is_numeric($value) ? false : true);
+		
+		$definition_id = false;
+	
+		if ($is_name) {
+			
+			if ($arr_type_set) {
+				
+				foreach ($arr_type_set['definitions'] as $arr_definition) {
+					
+					if ($arr_definition['definition_name'] != $value) {
+						continue;
+					}
+					
+					$definition_id = $arr_definition['definition_id'];
+					break;
+				}
+			}		
+			
+			if (!$definition_id) {
+				// Nothing to be resolved, Type Definitions are not referenced
+			}
+		} else {
+			
+			$definition_id = ($arr_type_set['definitions'][$value]['definition_id'] ?? null);
+		}
+		
+		return $definition_id;
+	}
+	
 	public function getTypeObjectDescriptionID($type_id, $value) {
 		
 		if (!$value) {
@@ -1431,7 +1501,7 @@ class StoreType {
 			}
 		} else {
 			
-			$object_description_id = $arr_type_set['object_descriptions'][$value]['object_description_id'];
+			$object_description_id = ($arr_type_set['object_descriptions'][$value]['object_description_id'] ?? null);
 		}
 		
 		return $object_description_id;
@@ -1470,7 +1540,7 @@ class StoreType {
 			}
 		} else {
 			
-			$object_sub_details_id = $arr_type_set['object_sub_details'][$value]['object_sub_details']['object_sub_details_id'];
+			$object_sub_details_id = ($arr_type_set['object_sub_details'][$value]['object_sub_details']['object_sub_details_id'] ?? null);
 		}
 		
 		return $object_sub_details_id;
@@ -1511,7 +1581,7 @@ class StoreType {
 			}
 		} else {
 			
-			$object_sub_description_id = $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$value]['object_sub_description_id'];
+			$object_sub_description_id = ($arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$value]['object_sub_description_id'] ?? null);
 		}
 		
 		return $object_sub_description_id;
@@ -1768,15 +1838,19 @@ class StoreType {
 	public static function getTypeSet($type_id) {
 
 		$cache = (self::$arr_types_storage[$type_id] ?? null);
-		if ($cache) {
+		
+		if (isset($cache)) {
 			return $cache;
 		}
 		
 		if ($type_id < 0) { // System Type
 			return self::getSystemTypeSet($type_id);
 		}
+		
+		$system_reversal_type_id = static::getSystemTypeID('reversal');
+		$system_reversal_module_object_description_id = static::getSystemTypeObjectDescriptionID($system_reversal_type_id, 'module');
 	
-		$arr = ['definitions' => [], 'object_descriptions' => [], 'object_sub_details' => []];
+		$arr = ['type' => null, 'definitions' => [], 'object_descriptions' => [], 'object_sub_details' => []];
 		
 		$arr_res = DB::queryMulti("
 			SELECT nodegoat_t.*,
@@ -1787,16 +1861,18 @@ class StoreType {
 						CASE
 							WHEN nodegoat_to_des.value_type_base = 'reversal' THEN
 								CASE
-									WHEN (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_to_des.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN 'reversed_collection'
+									WHEN EXISTS (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_to_des.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN CASE
+										WHEN EXISTS (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS')." WHERE type_id = nodegoat_to_des.ref_type_id AND id_id = ".$system_reversal_module_object_description_id." AND value_type_settings LIKE '%\"resource_path\":true%') THEN 'reversed_collection_resource_path'
+										ELSE 'reversed_collection'
+									END
 									ELSE 'reversed_classification'
 								END
 							WHEN nodegoat_to_des.value_type_base != '' THEN nodegoat_to_des.value_type_base
-							WHEN nodegoat_to_des.id_id = ".static::getSystemTypeObjectDescriptionID(static::getSystemTypeID('reversal'), 'reference')." THEN 'reference'
 							ELSE ''
 						END AS object_description_value_type,
 						CASE 
 							WHEN nodegoat_to_des.value_type_base = 'text_tags' THEN TRUE
-							WHEN nodegoat_to_des.value_type_base = 'reversal' AND (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_to_des.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN TRUE
+							WHEN nodegoat_to_des.value_type_base = 'reversal' AND EXISTS (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_to_des.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN TRUE
 							ELSE FALSE
 						END AS object_description_is_dynamic,
 						nodegoat_to_des.is_required AS object_description_is_required, nodegoat_to_des.is_unique AS object_description_is_unique, nodegoat_to_des.has_multi AS object_description_has_multi, nodegoat_to_des.ref_type_id AS object_description_ref_type_id, nodegoat_to_des.in_name AS object_description_in_name, nodegoat_to_des.in_search AS object_description_in_search, nodegoat_to_des.in_overview AS object_description_in_overview, nodegoat_to_des.is_identifier AS object_description_is_identifier, nodegoat_to_des.clearance_edit AS object_description_clearance_edit, nodegoat_to_des.clearance_view AS object_description_clearance_view
@@ -1822,14 +1898,17 @@ class StoreType {
 					CASE
 						WHEN nodegoat_tos_des.value_type_base = 'reversal' THEN
 							CASE
-								WHEN (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_tos_des.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN 'reversed_collection'
+								WHEN EXISTS (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_tos_des.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN CASE
+									WHEN EXISTS (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS')." WHERE type_id = nodegoat_tos_des.ref_type_id AND id_id = ".$system_reversal_module_object_description_id." AND value_type_settings LIKE '%\"resource_path\":true%') THEN 'reversed_collection_resource_path'
+									ELSE 'reversed_collection'
+								END
 								ELSE 'reversed_classification'
 							END
 						ELSE nodegoat_tos_des.value_type_base
 					END AS object_sub_description_value_type,
 					CASE 
 						WHEN nodegoat_tos_des.value_type_base = 'text_tags' THEN TRUE
-						WHEN nodegoat_tos_des.value_type_base = 'reversal' AND (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_tos_des.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN TRUE
+						WHEN nodegoat_tos_des.value_type_base = 'reversal' AND EXISTS (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_tos_des.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN TRUE
 						ELSE FALSE
 					END AS object_sub_description_is_dynamic,
 					nodegoat_tos_des.is_required AS object_sub_description_is_required, nodegoat_tos_des.use_object_description_id AS object_sub_description_use_object_description_id, nodegoat_tos_des.ref_type_id AS object_sub_description_ref_type_id, nodegoat_tos_des.in_name AS object_sub_description_in_name, nodegoat_tos_des.in_search AS object_sub_description_in_search, nodegoat_tos_des.in_overview AS object_sub_description_in_overview, nodegoat_tos_des.clearance_edit AS object_sub_description_clearance_edit, nodegoat_tos_des.clearance_view AS object_sub_description_clearance_view
@@ -1842,7 +1921,7 @@ class StoreType {
 		
 		while ($arr_row = $arr_res[0]->fetchAssoc()) {
 			
-			if (!$arr['type']) {
+			if (!isset($arr['type'])) {
 				
 				$arr_row['class'] = (int)$arr_row['class'];
 				$arr_row['mode'] = (int)$arr_row['mode'];
@@ -1869,23 +1948,24 @@ class StoreType {
 				
 				if ($arr_row['class'] == static::TYPE_CLASS_REVERSAL) {
 					
-					if ($arr_row['mode'] & static::TYPE_MODE_REVERSAL_CLASSIFICATION) {
-						
-						$system_type_id = static::getSystemTypeID('reversal');
-						$arr_system_type_set = static::getSystemTypeSet($system_type_id);
-						
-						if ($arr_row['object_description_id_id'] == static::getSystemTypeObjectDescriptionID($system_type_id, 'reference') && $arr_row['object_description_ref_type_id']) {
-							
-							$arr_system_object_description = $arr_system_type_set['object_descriptions'][static::getSystemTypeObjectDescriptionID($system_type_id, 'reference')];
+					$arr_system_type_set = static::getSystemTypeSet($system_reversal_type_id);
 
-							$arr_system_object_description['object_description_id'] = $arr_row['object_description_id'];
-							$arr_system_object_description['object_description_ref_type_id'] = $arr_row['object_description_ref_type_id'];
-							$arr_system_object_description['object_description_in_name'] = $arr_row['object_description_in_name'];
-							
-							$arr_row = $arr_system_object_description;
-						} else {
-							continue;
-						}
+					if ($arr_row['mode'] & static::TYPE_MODE_REVERSAL_CLASSIFICATION && $arr_row['object_description_id_id'] == static::getSystemTypeObjectDescriptionID($system_reversal_type_id, 'reference') && $arr_row['object_description_ref_type_id']) {
+					
+						$arr_system_object_description = $arr_system_type_set['object_descriptions'][static::getSystemTypeObjectDescriptionID($system_reversal_type_id, 'reference')];
+
+						$arr_system_object_description['object_description_id'] = $arr_row['object_description_id'];
+						$arr_system_object_description['object_description_ref_type_id'] = $arr_row['object_description_ref_type_id'];
+						$arr_system_object_description['object_description_in_name'] = $arr_row['object_description_in_name'];
+						
+						$arr_row = $arr_system_object_description;
+					} else if ($arr_row['mode'] & static::TYPE_MODE_REVERSAL_COLLECTION && $arr_row['object_description_id_id'] == $system_reversal_module_object_description_id) {
+					
+						$arr_system_object_description = $arr_system_type_set['object_descriptions'][$system_reversal_module_object_description_id];
+
+						$arr_system_object_description['object_description_value_type_settings'] = ($arr_row['object_description_value_type_settings'] ? json_decode($arr_row['object_description_value_type_settings'], true) : []);
+						
+						$arr_row = $arr_system_object_description;
 					} else {
 						continue;
 					}
@@ -1909,12 +1989,14 @@ class StoreType {
 		}
 		
 		if ($arr['type']['class'] == StoreType::TYPE_CLASS_REVERSAL) {
+						
+			if (!isset($arr['object_descriptions'][$system_reversal_module_object_description_id])) {
 			
-			$system_type_id = static::getSystemTypeID('reversal');
-			$arr_system_object_description = static::getSystemTypeSet($system_type_id);
-			$arr_system_object_description = $arr_system_object_description['object_descriptions'][static::getSystemTypeObjectDescriptionID($system_type_id, 'module')];
-			
-			$arr['object_descriptions'][static::getSystemTypeObjectDescriptionID($system_type_id, 'module')] = $arr_system_object_description;
+				$arr_system_object_description = static::getSystemTypeSet($system_reversal_type_id);
+				$arr_system_object_description = $arr_system_object_description['object_descriptions'][$system_reversal_module_object_description_id];
+				
+				$arr['object_descriptions'][$system_reversal_module_object_description_id] = $arr_system_object_description;
+			}
 		}
 		
 		while ($arr_row = $arr_res[1]->fetchAssoc()) {
@@ -2005,7 +2087,7 @@ class StoreType {
 					-3 => [
 						'object_description_id' => -3,
 						'object_description_name' => getLabel('lbl_resource'),
-						'object_description_value_type_base' => 'external',
+						'object_description_value_type_base' => 'module',
 						'object_description_value_type' => 'external_module',
 						'object_description_has_multi' => false,
 						'object_description_in_name' => false,
@@ -2040,7 +2122,7 @@ class StoreType {
 					-6 => [
 						'object_description_id' => -6,
 						'object_description_name' => getLabel('lbl_reconcile'),
-						'object_description_value_type_base' => 'external',
+						'object_description_value_type_base' => 'module',
 						'object_description_value_type' => 'reconcile_module',
 						'object_description_has_multi' => false,
 						'object_description_in_name' => false,
@@ -2075,7 +2157,7 @@ class StoreType {
 					-9 => [
 						'object_description_id' => -9,
 						'object_description_name' => getLabel('lbl_reversed_classification_reference'),
-						'object_description_value_type_base' => '',
+						'object_description_value_type_base' => false,
 						'object_description_value_type' => 'reference',
 						'object_description_ref_type_id' => 0,
 						'object_description_has_multi' => false,
@@ -2085,7 +2167,7 @@ class StoreType {
 					-10 => [
 						'object_description_id' => -10,
 						'object_description_name' => getLabel('lbl_reversal'),
-						'object_description_value_type_base' => 'external',
+						'object_description_value_type_base' => 'module',
 						'object_description_value_type' => 'reversal_module',
 						'object_description_has_multi' => false,
 						'object_description_in_name' => false,
@@ -2103,7 +2185,7 @@ class StoreType {
 	
 	public static function getSystemTypeID($name, bool $flip = false) {
 		
-		if (static::$arr_system_type_ids[$flip]) {
+		if (isset(static::$arr_system_type_ids[$flip])) {
 			return static::$arr_system_type_ids[$flip][$name];
 		}
 		
@@ -2121,7 +2203,7 @@ class StoreType {
 	
 	public static function getSystemTypeObjectDescriptionID($type_id, $name, bool $flip = false) {
 		
-		if (static::$arr_system_type_object_description_ids[$flip]) {
+		if (isset(static::$arr_system_type_object_description_ids[$flip])) {
 			return static::$arr_system_type_object_description_ids[$flip][$type_id][$name];
 		}
 		
@@ -2383,14 +2465,14 @@ class StoreType {
 				
 				if ($has_select) {
 					
-					if ($arr_select['value'] !== null) {
-						$arr_collect['object_description_value'] = $arr_select['value'];
+					if (isset($arr_select['use_value'])) {
+						$arr_collect['object_description_value'] = $arr_select['use_value'];
 					}
-					if ($arr_select['reference'] !== null) {
-						$arr_collect['object_description_reference'] = $arr_select['reference'];
+					if (isset($arr_select['use_reference'])) {
+						$arr_collect['object_description_reference'] = $arr_select['use_reference'];
 					}
-					if ($arr_select['reference_value'] !== null) {
-						$arr_collect['object_description_reference_value'] = $arr_select['reference_value'];
+					if (isset($arr_select['use_reference_value'])) {
+						$arr_collect['object_description_reference_value'] = $arr_select['use_reference_value'];
 					}
 					
 					$arr_collect = ['object_description_id' => $object_description_id];
@@ -2449,14 +2531,14 @@ class StoreType {
 						
 						if ($has_select) {
 							
-							if ($arr_select['value'] !== null) {
-								$arr_collect['object_sub_description_value'] = $arr_select['value'];
+							if (isset($arr_select['use_value'])) {
+								$arr_collect['object_sub_description_value'] = $arr_select['use_value'];
 							}
-							if ($arr_select['reference'] !== null) {
-								$arr_collect['object_sub_description_reference'] = $arr_select['reference'];
+							if (isset($arr_select['use_reference'])) {
+								$arr_collect['object_sub_description_reference'] = $arr_select['use_reference'];
 							}
-							if ($arr_select['reference_value'] !== null) {
-								$arr_collect['object_sub_description_reference_value'] = $arr_select['reference_value'];
+							if (isset($arr_select['use_reference_value'])) {
+								$arr_collect['object_sub_description_reference_value'] = $arr_select['use_reference_value'];
 							}
 							
 							$arr_collect['object_sub_description_id'] = $object_sub_description_id;
@@ -2629,6 +2711,72 @@ class StoreType {
 		return $arr;
 	}
 	
+	public static function getTypeObjectDescriptionValueType($type_id, $object_description_id) {
+		
+		if (!$object_description_id) {
+			return '';
+		}
+		
+		if (!$type_id) {
+			
+			static $arr_type_ids = [];
+			
+			if (!isset($arr_type_ids[$object_description_id])) {
+				
+				$res = DB::query("				
+					SELECT type_id
+						FROM ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS')."
+					WHERE id = ".(int)$object_description_id."
+				");
+				
+				$arr_row = $res->fetchRow();
+				$arr_type_ids[$object_description_id] = (int)$arr_row[0];
+			}
+			
+			$type_id = $arr_type_ids[$object_description_id];
+		}
+		
+		$arr_type_set = self::getTypeSet($type_id);
+		$arr = $arr_type_set['object_descriptions'][$object_description_id];
+		
+		$str_value_type = $arr['object_description_value_type'];
+
+		return $str_value_type;
+	}
+	
+	public static function getTypeObjectSubDescriptionValueType($type_id, $object_sub_details_id, $object_sub_description_id) {
+		
+		if (!$object_sub_description_id) {
+			return '';
+		}
+		
+		if (!$type_id) {
+			
+			static $arr_type_ids = [];
+			
+			if (!isset($arr_type_ids[$object_sub_details_id])) {
+				
+				$res = DB::query("				
+					SELECT type_id
+						FROM ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DETAILS')."
+					WHERE id = ".(int)$object_sub_details_id."
+				");
+				
+				$arr_row = $res->fetchRow();
+				$arr_type_ids[$object_sub_details_id] = (int)$arr_row[0];
+			}
+			
+			$type_id = $arr_type_ids[$object_sub_details_id];
+		}
+
+		$arr_type_set = self::getTypeSet($type_id);
+		$arr = $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
+
+		$str_value_type = $arr['object_sub_description_value_type'];
+
+		return $str_value_type;
+	}
+	
 	public static function isAppendableTypeObjectDescription($type_id, $object_description_id) {
 		
 		if (!$object_description_id) {
@@ -2638,14 +2786,14 @@ class StoreType {
 		$arr_type_set = self::getTypeSet($type_id);
 		$arr = $arr_type_set['object_descriptions'][$object_description_id];
 		
-		$base = $arr['object_description_value_type_base'];
+		$str_value_type_base = $arr['object_description_value_type_base'];
 		$has_multi = $arr['object_description_has_multi'];
 			
 		if ($has_multi) {
 			return true;
 		}
 		
-		if (!$base || $base == 'int' || strpos($base, 'text') !== false) {
+		if (!$str_value_type_base || $str_value_type_base == 'int' || strpos($str_value_type_base, 'text') !== false) {
 			return true;
 		}
 		
@@ -2661,14 +2809,14 @@ class StoreType {
 		$arr_type_set = self::getTypeSet($type_id);
 		$arr = $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
 
-		$base = $arr['object_sub_description_value_type_base'];
+		$str_value_type_base = $arr['object_sub_description_value_type_base'];
 		$has_multi = false;
 			
 		if ($has_multi) {
 			return true;
 		}
 		
-		if (!$base || $base == 'int' || strpos($base, 'text') !== false) {
+		if (!$str_value_type_base || $str_value_type_base == 'int' || strpos($str_value_type_base, 'text') !== false) {
 			return true;
 		}
 		
@@ -2681,6 +2829,8 @@ class StoreType {
 			return self::$arr_types_object_path_storage[$path][$type_id];
 		}
 		
+		$system_reversal_module_object_description_id = static::getSystemTypeObjectDescriptionID(static::getSystemTypeID('reversal'), 'module');
+		
 		$arr = [];
 
 		$res = DB::query("SELECT
@@ -2690,7 +2840,10 @@ class StoreType {
 					CASE
 						WHEN nodegoat_tos_des_ref.value_type_base = 'reversal' THEN
 							CASE
-								WHEN (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_tos_des_ref.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN 'reversed_collection'
+								WHEN EXISTS (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_tos_des_ref.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN CASE
+									WHEN EXISTS (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS')." WHERE type_id = nodegoat_tos_des_ref.ref_type_id AND id_id = ".$system_reversal_module_object_description_id." AND value_type_settings LIKE '%\"resource_path\":true%') THEN 'reversed_collection_resource_path'
+									ELSE 'reversed_collection'
+								END
 								ELSE 'reversed_classification'
 							END
 						WHEN nodegoat_tos_des_ref.value_type_base != '' THEN nodegoat_tos_des_ref.value_type_base
@@ -2700,7 +2853,10 @@ class StoreType {
 					CASE
 						WHEN nodegoat_to_des_ref.value_type_base = 'reversal' THEN
 							CASE
-								WHEN (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_to_des_ref.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN 'reversed_collection'
+								WHEN EXISTS (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_to_des_ref.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN CASE
+									WHEN EXISTS (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS')." WHERE type_id = nodegoat_to_des_ref.ref_type_id AND id_id = ".$system_reversal_module_object_description_id." AND value_type_settings LIKE '%\"resource_path\":true%') THEN 'reversed_collection_resource_path'
+									ELSE 'reversed_collection'
+								END
 								ELSE 'reversed_classification'
 							END
 						WHEN nodegoat_to_des_ref.value_type_base != '' THEN nodegoat_to_des_ref.value_type_base
@@ -2712,13 +2868,13 @@ class StoreType {
 				WHEN nodegoat_tos_des_ref.id != 0 THEN
 					CASE 
 						WHEN nodegoat_tos_des_ref.value_type_base = 'text_tags' THEN TRUE
-						WHEN nodegoat_tos_des_ref.value_type_base = 'reversal' AND (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_tos_des_ref.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN TRUE
+						WHEN nodegoat_tos_des_ref.value_type_base = 'reversal' AND EXISTS (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_tos_des_ref.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN TRUE
 						ELSE FALSE
 					END
 				ELSE
 					CASE 
 						WHEN nodegoat_to_des_ref.value_type_base = 'text_tags' THEN TRUE
-						WHEN nodegoat_to_des_ref.value_type_base = 'reversal' AND (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_to_des_ref.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN TRUE
+						WHEN nodegoat_to_des_ref.value_type_base = 'reversal' AND EXISTS (SELECT TRUE FROM ".DB::getTable('DEF_NODEGOAT_TYPES')." WHERE id = nodegoat_to_des_ref.ref_type_id AND mode & ".static::TYPE_MODE_REVERSAL_COLLECTION." != 0) THEN TRUE
 						ELSE FALSE
 					END
 			END AS is_dynamic
@@ -2794,30 +2950,31 @@ class StoreType {
 		}
 		
 		self::$arr_value_types = [
-			'' => ['id' => '', 'name' => getLabel('unit_data_string'), 'table' => '', 'value' => 'value'],
-			'reference' => ['id' => 'reference', 'name' => getLabel('lbl_reference'), 'table' => '_references', 'value' => 'ref_object_id'],
-			'type' => ['id' => 'type', 'name' => getLabel('lbl_type'), 'table' => '_references', 'value' => 'ref_object_id'],
-			'classification' => ['id' => 'classification', 'name' => getLabel('lbl_classification'), 'table' => '_references', 'value' => 'ref_object_id'],
-			'reversed_classification' => ['id' => 'reversed_classification', 'name' => getLabel('lbl_reversed_classification'), 'table' => '_references', 'value' => 'ref_object_id'],
-			'reversed_collection' => ['id' => 'reversed_collection', 'name' => getLabel('lbl_reversed_collection'), 'table' => '_references', 'value' => 'ref_object_id', 'purpose' => ['name' => ['table' => '', 'value' => 'value_text'], 'search' => ['table' => '', 'value' => 'value_text']]],
-			'int' => ['id' => 'int', 'name' => getLabel('unit_data_number'), 'table' => '', 'value' => 'value_int'],
-			'numeric' => ['id' => 'numeric', 'name' => getLabel('unit_data_numeric_decimal'), 'table' => '', 'value' => 'value_int'],
-			'text' => ['id' => 'text', 'name' => getLabel('unit_data_text'), 'table' => '', 'value' => 'value_text'],
-			'text_layout' => ['id' => 'text_layout', 'name' => getLabel('unit_data_text').' ('.getLabel('lbl_layout').')', 'table' => '', 'value' => 'value_text'],
-			'text_tags' => ['id' => 'text_tags', 'name' => getLabel('unit_data_text').' ('.getLabel('lbl_tags').' & '.getLabel('lbl_layout').')', 'table' => '', 'value' => 'value_text'],
-			'boolean' => ['id' => 'boolean', 'name' => getLabel('unit_data_boolean_true_false'), 'table' => '', 'value' => 'value_int'],
-			'date' => ['id' => 'date', 'name' => getLabel('unit_data_date'), 'table' => '', 'value' => 'value_int'],
-			'date_cycle' => ['id' => 'date_cycle', 'name' => getLabel('unit_data_date').' '.getLabel('lbl_date_cycle'), 'table' => '', 'value' => 'value_int'],
-			'date_compute' => ['id' => 'date_compute', 'name' => getLabel('unit_data_date').' '.getLabel('lbl_date_compute'), 'table' => '', 'value' => 'value_int'],
-			'serial_varchar' => ['id' => 'serial_varchar', 'name' => getLabel('unit_data_serial_varchar'), 'table' => '', 'value' => 'value'],
-			'media' => ['id' => 'media', 'name' => getLabel('lbl_media'), 'table' => '', 'value' => 'value'],
-			'media_external' => ['id' => 'media_external', 'name' => getLabel('lbl_media').' ('.getLabel('lbl_external').')', 'table' => '', 'value' => 'value'],
-			'module' => ['id' => 'module', 'name' => '', 'table' => '_modules', 'value' => 'object', 'is_module' => true],
-			'external' => ['id' => 'external', 'name' => getLabel('lbl_external'), 'table' => '', 'value' => 'value'],
-			'external_module' => ['id' => 'external_module', 'name' => '', 'table' => '_modules', 'value' => 'object', 'is_module' => true, 'module_class' => 'data_ingest'],
-			'object_description' => ['id' => 'object_description', 'name' => getLabel('lbl_object_description'), 'table' => '', 'value' => 'value'],
-			'reconcile_module' => ['id' => 'reconcile_module', 'name' => '', 'table' => '_modules', 'value' => 'object', 'is_module' => true, 'module_class' => 'data_reconcile'],
-			'reversal_module' => ['id' => 'reversal_module', 'name' => '', 'table' => '_modules', 'value' => 'object', 'is_module' => true]
+			'' => ['id' => '', 'name' => getLabel('unit_data_string'), 'base' => '', 'table' => '', 'value' => 'value'],
+			'reference' => ['id' => 'reference', 'name' => getLabel('lbl_reference'), 'base' => 'type', 'table' => '_references', 'value' => 'ref_object_id'],
+			'type' => ['id' => 'type', 'name' => getLabel('lbl_type'), 'base' => 'type', 'table' => '_references', 'value' => 'ref_object_id'],
+			'classification' => ['id' => 'classification', 'name' => getLabel('lbl_classification'), 'base' => 'classification', 'table' => '_references', 'value' => 'ref_object_id'],
+			'reversed_classification' => ['id' => 'reversed_classification', 'name' => getLabel('lbl_reversed_classification'), 'base' => 'reversal', 'table' => '_references', 'value' => 'ref_object_id'],
+			'reversed_collection' => ['id' => 'reversed_collection', 'name' => getLabel('lbl_reversed_collection'), 'base' => 'reversal', 'table' => '_references', 'value' => 'ref_object_id', 'purpose' => ['name' => ['table' => '', 'value' => 'value_text'], 'search' => ['table' => '', 'value' => 'value_text'], 'view' => null]],
+			'reversed_collection_resource_path' => ['id' => 'reversed_collection_resource_path', 'name' => getLabel('lbl_reversed_collection_resource_path'), 'base' => 'reversal', 'table' => '_references', 'value' => 'ref_object_id', 'purpose' => ['name' => ['table' => '', 'value' => 'value_text'], 'search' => ['table' => '', 'value' => 'value_text'], 'view' => ['table' => '', 'value' => 'value_text']]],
+			'int' => ['id' => 'int', 'name' => getLabel('unit_data_number'), 'base' => 'int', 'table' => '', 'value' => 'value_int'],
+			'numeric' => ['id' => 'numeric', 'name' => getLabel('unit_data_numeric_decimal'), 'base' => 'numeric', 'table' => '', 'value' => 'value_int'],
+			'text' => ['id' => 'text', 'name' => getLabel('unit_data_text'), 'base' => 'text', 'table' => '', 'value' => 'value_text'],
+			'text_layout' => ['id' => 'text_layout', 'name' => getLabel('unit_data_text').' ('.getLabel('lbl_layout').')', 'base' => 'text_layout', 'table' => '', 'value' => 'value_text'],
+			'text_tags' => ['id' => 'text_tags', 'name' => getLabel('unit_data_text').' ('.getLabel('lbl_tags').' & '.getLabel('lbl_layout').')', 'base' => 'text_tags', 'table' => '', 'value' => 'value_text'],
+			'boolean' => ['id' => 'boolean', 'name' => getLabel('unit_data_boolean_true_false'), 'base' => 'boolean', 'table' => '', 'value' => 'value_int'],
+			'date' => ['id' => 'date', 'name' => getLabel('unit_data_date'), 'base' => 'date', 'table' => '', 'value' => 'value_int'],
+			'date_cycle' => ['id' => 'date_cycle', 'name' => getLabel('unit_data_date').' '.getLabel('lbl_date_cycle'), 'base' => 'date', 'table' => '', 'value' => 'value_int'],
+			'date_compute' => ['id' => 'date_compute', 'name' => getLabel('unit_data_date').' '.getLabel('lbl_date_compute'), 'base' => 'date', 'table' => '', 'value' => 'value_int'],
+			'serial_varchar' => ['id' => 'serial_varchar', 'name' => getLabel('unit_data_serial_varchar'), 'base' => 'serial_varchar', 'table' => '', 'value' => 'value'],
+			'media' => ['id' => 'media', 'name' => getLabel('lbl_media'), 'base' => 'media', 'table' => '', 'value' => 'value'],
+			'media_external' => ['id' => 'media_external', 'name' => getLabel('lbl_media').' ('.getLabel('lbl_external').')', 'base' => 'media_external', 'table' => '', 'value' => 'value'],
+			'module' => ['id' => 'module', 'name' => '', 'base' => 'module', 'table' => '_modules', 'value' => 'object', 'is_module' => true],
+			'external' => ['id' => 'external', 'name' => getLabel('lbl_external'), 'base' => 'external', 'table' => '', 'value' => 'value'],
+			'external_module' => ['id' => 'external_module', 'name' => '', 'base' => 'module', 'table' => '_modules', 'value' => 'object', 'is_module' => true, 'module_class' => 'data_ingest'],
+			'object_description' => ['id' => 'object_description', 'name' => getLabel('lbl_object_description'), 'base' => 'object_description', 'table' => '', 'value' => 'value'],
+			'reconcile_module' => ['id' => 'reconcile_module', 'name' => '', 'base' => 'module', 'table' => '_modules', 'value' => 'object', 'is_module' => true, 'module_class' => 'data_reconcile'],
+			'reversal_module' => ['id' => 'reversal_module', 'name' => '', 'base' => 'module', 'table' => '_modules', 'value' => 'object', 'is_module' => true]
 		];
 		
 		return self::$arr_value_types;
@@ -2864,7 +3021,27 @@ class StoreType {
 		
 		foreach (self::$arr_value_types as $value_type => $arr_value_type) {
 			
-			$arr_tables[$arr_value_type['table']] = $arr_value_type['table'];
+			$arr_tables[$arr_value_type['table']]['value_types_base'][$arr_value_type['base']] = $arr_value_type['base'];
+		}	
+		
+		return $arr_tables;
+	}
+	
+	public static function getValueTypeTablesReferences() {
+		
+		if (!self::$arr_value_types) {
+			self::getValueTypes();
+		}
+		
+		$arr_tables = [];
+		
+		foreach (self::$arr_value_types as $value_type => $arr_value_type) {
+			
+			if ($arr_value_type['value'] != 'ref_object_id') {
+				continue;
+			}
+			
+			$arr_tables[$arr_value_type['table']]['value_types_base'][$arr_value_type['base']] = $arr_value_type['base'];
 		}	
 		
 		return $arr_tables;
@@ -3011,6 +3188,7 @@ class StoreType {
 	
 	public static function parseTypeNetwork($arr, $value_type = false, $num_user_clearance = 0) {
 		
+		$arr = ($arr ?? []);
 		$arr = ['paths' => ($arr['paths'] ?: []), 'types' => ($arr['types'] ?: [])];
 		
 		$arr['paths'] = static::parseTypeNetworkPaths($arr['paths']);
@@ -3064,7 +3242,7 @@ class StoreType {
 								continue;
 							}
 							
-							$arr_ref_type_ids = ($arr_selected['object_description_reference'] ?: $arr_selected['object_sub_description_reference']);
+							$arr_ref_type_ids = $arr_selected['use_reference'];
 							
 							if ($arr_ref_type_ids) {
 								
@@ -3073,7 +3251,7 @@ class StoreType {
 							}
 						}
 
-						if ($arr_selection[$str_id] === null) {
+						if (!isset($arr_selection[$str_id])) {
 							$arr_selection[$str_id] = [];
 						}
 					}
@@ -3084,7 +3262,7 @@ class StoreType {
 						
 						$str_id = 'object_description_'.$object_description_id;
 						$is_dynamic = $arr_object_description['object_description_is_dynamic'];
-						$in_selection = ($arr_selection[$str_id] !== null || ($is_dynamic && ($arr_selection[$str_id.'_reference'] !== null || $arr_selection[$str_id.'_value'] !== null)));
+						$in_selection = (isset($arr_selection[$str_id]) || ($is_dynamic && (isset($arr_selection[$str_id.'_reference']) || isset($arr_selection[$str_id.'_value']))));
 						
 						if ($in_selection && !static::checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, $object_description_id, false, false, self::CLEARANCE_PURPOSE_VIEW)) {
 						
@@ -3094,24 +3272,24 @@ class StoreType {
 							}
 						} else if ($in_selection) {
 							
-							if ($arr_selection[$str_id] !== null) {
+							if (isset($arr_selection[$str_id])) {
 								$arr_selection[$str_id]['object_description_id'] = $object_description_id;
 							}
 							
 							if ($is_dynamic) {
 								
-								if ($arr_selection[$str_id.'_reference'] !== null) {
+								if (isset($arr_selection[$str_id.'_reference'])) {
 									
 									$arr_selection[$str_id.'_reference']['object_description_id'] = $object_description_id;
-									$arr_selection[$str_id.'_reference']['object_description_reference'] = ($arr_selection[$str_id.'_reference']['ref_type_ids'] ?: true);
-									$arr_selection[$str_id.'_reference']['object_description_reference_value'] = true;
+									$arr_selection[$str_id.'_reference']['use_reference'] = ($arr_selection[$str_id.'_reference']['ref_type_ids'] ?: true);
+									$arr_selection[$str_id.'_reference']['use_reference_value'] = true;
 									
 									unset($arr_selection[$str_id.'_reference']['ref_type_ids']);
 								}
-								if ($arr_selection[$str_id.'_value'] !== null) {
+								if (isset($arr_selection[$str_id.'_value'])) {
 									
 									$arr_selection[$str_id.'_value']['object_description_id'] = $object_description_id;
-									$arr_selection[$str_id.'_value']['object_description_value'] = true;
+									$arr_selection[$str_id.'_value']['use_value'] = true;
 								}
 							}
 						}
@@ -3120,27 +3298,28 @@ class StoreType {
 					foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 						
 						$str_id = 'object_sub_details_'.$object_sub_details_id.'_id';
-						if ($arr_selection[$str_id] !== null) {
+						if (isset($arr_selection[$str_id])) {
 							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+							$arr_selection[$str_id]['attribute'] = 'id';
 						}
 						
 						// For specific date selection purposes
 						$str_id = 'object_sub_details_'.$object_sub_details_id.'_date_start';
-						if ($arr_selection[$str_id] !== null) {
+						if (isset($arr_selection[$str_id])) {
 							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
-							$arr_selection[$str_id]['object_sub_details_date_start'] = true;
+							$arr_selection[$str_id]['attribute'] = 'date_start';
 						}
 						$str_id = 'object_sub_details_'.$object_sub_details_id.'_date_end';
-						if ($arr_selection[$str_id] !== null) {
+						if (isset($arr_selection[$str_id])) {
 							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
-							$arr_selection[$str_id]['object_sub_details_date_end'] = true;
+							$arr_selection[$str_id]['attribute'] = 'date_end';
 						}
 						
 						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 							
 							$str_id = 'object_sub_description_'.$object_sub_description_id;
 							$is_dynamic = $arr_object_sub_description['object_sub_description_is_dynamic'];
-							$in_selection = ($arr_selection[$str_id] !== null || ($is_dynamic && ($arr_selection[$str_id.'_reference'] !== null || $arr_selection[$str_id.'_value'] !== null)));
+							$in_selection = (isset($arr_selection[$str_id]) || ($is_dynamic && (isset($arr_selection[$str_id.'_reference']) || isset($arr_selection[$str_id.'_value']))));
 							
 							if ($in_selection && !static::checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, false, $object_sub_details_id, $object_sub_description_id, self::CLEARANCE_PURPOSE_VIEW)) {
 								
@@ -3150,7 +3329,7 @@ class StoreType {
 								}
 							} else if ($in_selection) {
 								
-								if ($arr_selection[$str_id] !== null) {
+								if (isset($arr_selection[$str_id])) {
 									
 									$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
 									$arr_selection[$str_id]['object_sub_description_id'] = $object_sub_description_id;
@@ -3158,20 +3337,20 @@ class StoreType {
 								
 								if ($is_dynamic) {
 									
-									if ($arr_selection[$str_id.'_reference'] !== null) {
+									if (isset($arr_selection[$str_id.'_reference'])) {
 										
 										$arr_selection[$str_id.'_reference']['object_sub_details_id'] = $object_sub_details_id;
 										$arr_selection[$str_id.'_reference']['object_sub_description_id'] = $object_sub_description_id;
-										$arr_selection[$str_id.'_reference']['object_sub_description_reference'] = ($arr_selection[$str_id.'_reference']['ref_type_ids'] ?: true);
-										$arr_selection[$str_id.'_reference']['object_sub_description_reference_value'] = true;
+										$arr_selection[$str_id.'_reference']['use_reference'] = ($arr_selection[$str_id.'_reference']['ref_type_ids'] ?: true);
+										$arr_selection[$str_id.'_reference']['use_reference_value'] = true;
 										
 										unset($arr_selection[$str_id.'_reference']['ref_type_ids']);
 									}
-									if ($arr_selection[$str_id.'_value'] !== null) {
+									if (isset($arr_selection[$str_id.'_value'])) {
 										
 										$arr_selection[$str_id.'_value']['object_sub_details_id'] = $object_sub_details_id;
 										$arr_selection[$str_id.'_value']['object_sub_description_id'] = $object_sub_description_id;
-										$arr_selection[$str_id.'_value']['object_sub_description_value'] = true;
+										$arr_selection[$str_id.'_value']['use_value'] = true;
 									}
 								}
 							}			
@@ -3201,11 +3380,10 @@ class StoreType {
 	
 	public static function parseTypeNetworkModePick($arr, $num_user_clearance = 0) {
 		
+		$arr = ($arr ?? []);
 		$arr = ['paths' => ($arr['paths'] ?: []), 'types' => ($arr['types'] ?: [])];
 		
 		$arr['paths'] = static::parseTypeNetworkPaths($arr['paths']);
-
-		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		
 		foreach ($arr['types'] as $source_path => $arr_source_type) {
 			
@@ -3240,19 +3418,19 @@ class StoreType {
 						
 						$str_id = 'object_description_'.$object_description_id;
 						
-						if (($arr_selection[$str_id] || $arr_selection[$str_id.'_id'] || $arr_selection[$str_id.'_text']) && (!static::checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, $object_description_id, false, false, self::CLEARANCE_PURPOSE_VIEW) || !StoreCustomProject::checkTypeConfigurationAccess($arr_project['types'], $arr_type_set, $object_description_id, false, false, StoreCustomProject::ACCESS_PURPOSE_VIEW))) {
+						if ((isset($arr_selection[$str_id]) || isset($arr_selection[$str_id.'_id']) || isset($arr_selection[$str_id.'_text'])) && !static::checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, $object_description_id, false, false, self::CLEARANCE_PURPOSE_VIEW)) {
 							unset($arr_selection[$str_id], $arr_selection[$str_id.'_id'], $arr_selection[$str_id.'_text']);
 							continue;
 						}
 						
-						if ($arr_selection[$str_id]) {
+						if (isset($arr_selection[$str_id])) {
 							$arr_selection[$str_id]['object_description_id'] = $object_description_id;
 						}
-						if ($arr_selection[$str_id.'_id']) {
+						if (isset($arr_selection[$str_id.'_id'])) {
 							$arr_selection[$str_id.'_id']['object_description_id'] = $object_description_id;
 							$arr_selection[$str_id.'_id']['use_id'] = true;
 						}
-						if ($arr_selection[$str_id.'_text']) {
+						if (isset($arr_selection[$str_id.'_text'])) {
 							$arr_selection[$str_id.'_text']['object_description_id'] = $object_description_id;
 							$arr_selection[$str_id.'_text']['use_text'] = true;
 						}
@@ -3260,7 +3438,7 @@ class StoreType {
 					
 					foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
 						
-						if (!static::checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, false, $object_sub_details_id, false, self::CLEARANCE_PURPOSE_VIEW) || !StoreCustomProject::checkTypeConfigurationAccess($arr_project['types'], $arr_type_set, false, $object_sub_details_id, false, StoreCustomProject::ACCESS_PURPOSE_VIEW)) {
+						if (!static::checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, false, $object_sub_details_id, false, self::CLEARANCE_PURPOSE_VIEW)) {
 							
 							$str_id = 'object_sub_details_'.$object_sub_details_id.'_';
 							
@@ -3272,52 +3450,69 @@ class StoreType {
 						}
 						
 						$str_id = 'object_sub_details_'.$object_sub_details_id.'_id';
-						if ($arr_selection[$str_id]) {
+						if (isset($arr_selection[$str_id])) {
 							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+							$arr_selection[$str_id]['attribute'] = 'id';
+						}
+						$str_id = 'object_sub_details_'.$object_sub_details_id.'_date';
+						if (isset($arr_selection[$str_id])) {
+							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+							$arr_selection[$str_id]['attribute'] = 'date';
 						}
 						$str_id = 'object_sub_details_'.$object_sub_details_id.'_date_start';
-						if ($arr_selection[$str_id]) {
+						if (isset($arr_selection[$str_id])) {
 							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+							$arr_selection[$str_id]['attribute'] = 'date_start';
 						}
 						$str_id = 'object_sub_details_'.$object_sub_details_id.'_date_end';
-						if ($arr_selection[$str_id]) {
+						if (isset($arr_selection[$str_id])) {
 							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+							$arr_selection[$str_id]['attribute'] = 'date_end';
 						}
 						$str_id = 'object_sub_details_'.$object_sub_details_id.'_date_chronology';
-						if ($arr_selection[$str_id]) {
+						if (isset($arr_selection[$str_id])) {
 							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+							$arr_selection[$str_id]['attribute'] = 'date_chronology';
+						}
+						$str_id = 'object_sub_details_'.$object_sub_details_id.'_location';
+						if (isset($arr_selection[$str_id])) {
+							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+							$arr_selection[$str_id]['attribute'] = 'location';
 						}
 						$str_id = 'object_sub_details_'.$object_sub_details_id.'_location_ref_type_id';
-						if ($arr_selection[$str_id]) {
+						if (isset($arr_selection[$str_id])) {
 							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+							$arr_selection[$str_id]['attribute'] = 'location_ref_type_id';
 						}
-						if ($arr_selection[$str_id.'_id']) {
+						if (isset($arr_selection[$str_id.'_id'])) {
 							$arr_selection[$str_id.'_id']['object_sub_details_id'] = $object_sub_details_id;
 							$arr_selection[$str_id.'_id']['use_id'] = true;
+							$arr_selection[$str_id.'_id']['attribute'] = 'location_ref_type_id';
 						}
 						$str_id = 'object_sub_details_'.$object_sub_details_id.'_location_geometry';
-						if ($arr_selection[$str_id]) {
+						if (isset($arr_selection[$str_id])) {
 							$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
+							$arr_selection[$str_id]['attribute'] = 'location_geometry';
 						}	
 						
 						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 							
 							$str_id = 'object_sub_description_'.$object_sub_description_id;
-							if (($arr_selection[$str_id] || $arr_selection[$str_id.'_id'] || $arr_selection[$str_id.'_text']) && (!static::checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, false, $object_sub_details_id, $object_sub_description_id, self::CLEARANCE_PURPOSE_VIEW) || !StoreCustomProject::checkTypeConfigurationAccess($arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id, StoreCustomProject::ACCESS_PURPOSE_VIEW))) {
+							if ((isset($arr_selection[$str_id]) || isset($arr_selection[$str_id.'_id']) || isset($arr_selection[$str_id.'_text'])) && !static::checkTypeConfigurationUserClearance($arr_type_set, $num_user_clearance, false, $object_sub_details_id, $object_sub_description_id, self::CLEARANCE_PURPOSE_VIEW)) {
 								unset($arr_selection[$str_id], $arr_selection[$str_id.'_id'], $arr_selection[$str_id.'_text']);
 								continue;
 							}
 							
-							if ($arr_selection[$str_id]) {
+							if (isset($arr_selection[$str_id])) {
 								$arr_selection[$str_id]['object_sub_details_id'] = $object_sub_details_id;
 								$arr_selection[$str_id]['object_sub_description_id'] = $object_sub_description_id;
 							}
-							if ($arr_selection[$str_id.'_id']) {
+							if (isset($arr_selection[$str_id.'_id'])) {
 								$arr_selection[$str_id.'_id']['object_sub_details_id'] = $object_sub_details_id;
 								$arr_selection[$str_id.'_id']['object_sub_description_id'] = $object_sub_description_id;
 								$arr_selection[$str_id.'_id']['use_id'] = true;
 							}
-							if ($arr_selection[$str_id.'_text']) {
+							if (isset($arr_selection[$str_id.'_text'])) {
 								$arr_selection[$str_id.'_text']['object_sub_details_id'] = $object_sub_details_id;
 								$arr_selection[$str_id.'_text']['object_sub_description_id'] = $object_sub_description_id;
 								$arr_selection[$str_id.'_text']['use_text'] = true;
@@ -3387,7 +3582,7 @@ class StoreType {
 						$arr_date_settings['date_value'] = 1; // Use a fictive date for a viable parse
 						
 						$arr_chronology_statement = [];
-						StoreTypeObjects::parseChronologyStatementJSON($arr_chronology_statement, $arr_date_settings);
+						FormatTypeObjects::parseChronologyStatementJSON($arr_chronology_statement, $arr_date_settings);
 						
 						if ($arr_chronology_statement) {
 							

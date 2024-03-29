@@ -127,6 +127,7 @@ CREATE TABLE `def_nodegoat_custom_project_type_configuration` (
   `object_sub_description_id` int NOT NULL,
   `edit` tinyint(1) NOT NULL,
   `view` tinyint(1) NOT NULL,
+  `filter_id` int NOT NULL,
   `information` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -196,6 +197,7 @@ CREATE TABLE `def_nodegoat_custom_project_type_include_referenced_types` (
   `object_sub_description_id` int NOT NULL,
   `edit` tinyint(1) NOT NULL,
   `view` tinyint(1) NOT NULL,
+  `filter_id` int NOT NULL,
   `information` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -304,6 +306,9 @@ CREATE TABLE `def_nodegoat_custom_project_visual_settings` (
   `social_dot_size_stop` int NOT NULL,
   `social_dot_stroke_color` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `social_dot_stroke_width` float DEFAULT NULL,
+  `social_label_show` tinyint DEFAULT NULL,
+  `social_label_threshold` float DEFAULT NULL,
+  `social_label_condition` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `social_line_arrowhead_show` tinyint(1) DEFAULT NULL,
   `social_line_show` tinyint(1) DEFAULT NULL,
   `social_force` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -480,6 +485,14 @@ CREATE TABLE `user_preferences` (
   `user_id` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `def_nodegoat_publish_custom_projects` (
+  `project_id` int NOT NULL,
+  `is_default` tinyint(1) NOT NULL DEFAULT '0',
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `public_interface_id` int NOT NULL DEFAULT '0',
+  `date` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 ALTER TABLE `data_nodegoat_custom_project_type_scenario_cache`
   ADD PRIMARY KEY (`project_id`,`scenario_id`,`use_project_id`);
 
@@ -645,3 +658,6 @@ ALTER TABLE `def_nodegoat_public_interfaces`
 
 ALTER TABLE `def_nodegoat_public_interface_texts`
   MODIFY `id` int NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `def_nodegoat_publish_custom_projects`
+  ADD PRIMARY KEY (`project_id`);

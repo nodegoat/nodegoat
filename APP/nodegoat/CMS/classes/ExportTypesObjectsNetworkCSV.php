@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -12,6 +12,7 @@
 class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 	
 	protected $package = false;
+	protected $str_escape = false;
 		
 	protected $arr_column_names = [];
 	protected $arr_column_identifiers = [];
@@ -74,7 +75,7 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 			$this->arr_collector_connections[$str_identifier_column_base][null] = $cur_target_object_id; // The source/starting object
 		}
 		
-		$arr_column_base[] = $str_identifier_column_base_source_lineage;
+		$arr_column_base[2] = $str_identifier_column_base_source_lineage;
 	
 		$arr_object = $collect->getPathObject($cur_path, $arr_info['in_out'], $cur_target_object_id, $arr_info['object_id']);
 
@@ -191,39 +192,40 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 							
 							$this->addColumn('object_sub_description', $cur_target_type_id, $str_identifier_column, $arr_column_base, $arr_options);
 						} else {
-														
+							
+							$str_attribute = $arr_selected['attribute'];
 							$arr_object_sub_value = $arr_object_sub['object_sub'];
 							
-							if ($id == 'object_sub_details_'.$arr_selected['object_sub_details_id'].'_id') {
+							if ($str_attribute == 'id') {
 								$s_cur_arr[$object_sub_id] = $object_sub_id;
 								$this->addColumn('object_sub_id', $cur_target_type_id, $str_identifier_column, $arr_column_base, $arr_options);
 							}
-							if ($id == 'object_sub_details_'.$arr_selected['object_sub_details_id'].'_date_start') {
-								$s_cur_arr[$object_sub_id] = StoreTypeObjects::formatToCleanValue('date', $arr_object_sub_value['object_sub_date_start'], [], StoreTypeObjects::FORMAT_DATE_YMD);
+							if ($str_attribute == 'date_start') {
+								$s_cur_arr[$object_sub_id] = FormatTypeObjects::formatToCleanValue('date', $arr_object_sub_value['object_sub_date_start'], [], FormatTypeObjects::FORMAT_DATE_YMD);
 								$this->addColumn('object_sub_details_date_start', $cur_target_type_id, $str_identifier_column, $arr_column_base, $arr_options);
 							}
-							if ($id == 'object_sub_details_'.$arr_selected['object_sub_details_id'].'_date_end') {
-								$s_cur_arr[$object_sub_id] = ($arr_object_sub_value['object_sub_date_start'] != $arr_object_sub_value['object_sub_date_end'] ? StoreTypeObjects::formatToCleanValue('date', $arr_object_sub_value['object_sub_date_end'], [], StoreTypeObjects::FORMAT_DATE_YMD) : '');
+							if ($str_attribute == 'date_end') {
+								$s_cur_arr[$object_sub_id] = ($arr_object_sub_value['object_sub_date_start'] != $arr_object_sub_value['object_sub_date_end'] ? FormatTypeObjects::formatToCleanValue('date', $arr_object_sub_value['object_sub_date_end'], [], FormatTypeObjects::FORMAT_DATE_YMD) : '');
 								$this->addColumn('object_sub_details_date_end', $cur_target_type_id, $str_identifier_column, $arr_column_base, $arr_options);
 							}
-							if ($id == 'object_sub_details_'.$arr_selected['object_sub_details_id'].'_date_chronology') {
+							if ($str_attribute == 'date_chronology') {
 								if ($arr_object_sub_value['object_sub_date_chronology']) {
-									$arr_object_sub_value['object_sub_date_chronology'] = StoreTypeObjects::formatToChronology($arr_object_sub_value['object_sub_date_chronology']);
+									$arr_object_sub_value['object_sub_date_chronology'] = FormatTypeObjects::formatToChronology($arr_object_sub_value['object_sub_date_chronology']);
 									$arr_object_sub_value['object_sub_date_chronology'] = value2JSON($arr_object_sub_value['object_sub_date_chronology'], JSON_PRETTY_PRINT);
 								}
 								$s_cur_arr[$object_sub_id] = $arr_object_sub_value['object_sub_date_chronology'];
 								$this->addColumn('object_sub_details_date_chronology', $cur_target_type_id, $str_identifier_column, $arr_column_base, $arr_options);
 							}
-							if ($id == 'object_sub_details_'.$arr_selected['object_sub_details_id'].'_location_ref_type_id') {
-								$s_cur_arr[$object_sub_id] = $arr_object_sub_value['object_sub_location_ref_object_name'];
-								$this->addColumn('object_sub_details_location_ref', $cur_target_type_id, $str_identifier_column, $arr_column_base, $arr_options);
+							if ($str_attribute == 'location_ref_type_id') {
+								if ($arr_options['use_id']) {
+									$s_cur_arr[$object_sub_id] = $arr_object_sub_value['object_sub_location_ref_object_id'];
+									$this->addColumn('object_sub_details_location_ref', $cur_target_type_id, $str_identifier_column, $arr_column_base, $arr_options);
+								} else {
+									$s_cur_arr[$object_sub_id] = $arr_object_sub_value['object_sub_location_ref_object_name'];
+									$this->addColumn('object_sub_details_location_ref', $cur_target_type_id, $str_identifier_column, $arr_column_base, $arr_options);
+								}
 							}
-							if ($id == 'object_sub_details_'.$arr_selected['object_sub_details_id'].'_location_ref_type_id_id') {
-								$arr_options['use_id'] = true;
-								$s_cur_arr[$object_sub_id] = $arr_object_sub_value['object_sub_location_ref_object_id'];
-								$this->addColumn('object_sub_details_location_ref', $cur_target_type_id, $str_identifier_column, $arr_column_base, $arr_options);
-							}
-							if ($id == 'object_sub_details_'.$arr_selected['object_sub_details_id'].'_location_geometry') {
+							if ($str_attribute == 'location_geometry') {
 								$s_cur_arr[$object_sub_id] = $arr_object_sub_value['object_sub_location_geometry'];
 								$this->addColumn('object_sub_details_location_geometry', $cur_target_type_id, $str_identifier_column, $arr_column_base, $arr_options);
 							}
@@ -257,6 +259,7 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 			$key_value = 'object_definition_value';
 			
 			$arr_object_description = $arr_type_set['object_descriptions'][$arr_options['object_description_id']];
+			$has_multi = $arr_object_description['object_description_has_multi'];
 			
 			if ($arr_object_description['object_description_ref_type_id'] && !$arr_object_description['object_description_is_dynamic']) {
 				$value_type = 'ref_object_id';
@@ -269,6 +272,7 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 			$key_value = 'object_sub_definition_value';
 			
 			$arr_object_sub_description = $arr_type_set['object_sub_details'][$arr_options['object_sub_details_id']]['object_sub_descriptions'][$arr_options['object_sub_description_id']];
+			$has_multi = false;
 			
 			if ($arr_object_sub_description['object_sub_description_ref_type_id'] && !$arr_object_sub_description['object_sub_description_is_dynamic']) {
 				$value_type = 'ref_object_id';
@@ -306,19 +310,27 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 		
 		// Values
 							
-		if ($arr_options['use_id']) { // Values with IDs
+		if ($arr_options['use_id']) { // Dynamic values with IDs
 			
 			$arr_value = [];
+			$arr_value_type_ref_object_ids = (!$has_multi ? [$arr_definition[$key_ref_object_id]] : $arr_definition[$key_ref_object_id]);
 			
-			foreach ($arr_definition[$key_ref_object_id] as $arr_definition_dynamic) {
+			foreach ($arr_value_type_ref_object_ids as $key => $arr_type_ref_object_ids) {
+				
+				if (!$arr_type_ref_object_ids) {
+					continue;
+				}
 					
-				foreach ($arr_definition_dynamic as $ref_type_id => $arr_dynamic) {
+				foreach ($arr_type_ref_object_ids as $ref_type_id => $arr_ref_object_ids) {
 					
-					$ref_object_id = $arr_dynamic[$key_ref_object_id];
-					
-					$str_identifier_row = ($type == 'object_description' ? $ref_object_id : $arr_options['object_sub_id'].'_'.$ref_object_id);
-					
-					$arr_value[$str_identifier_row] = $ref_object_id;
+					foreach ($arr_ref_object_ids as $arr_dynamic) {
+
+						$ref_object_id = $arr_dynamic[$key_ref_object_id];
+						
+						$str_identifier_row = ($type == 'object_description' ? $ref_object_id : $arr_options['object_sub_id'].'_'.$ref_object_id);
+						
+						$arr_value[$str_identifier_row] = $ref_object_id;
+					}
 				}
 			}
 			
@@ -329,13 +341,13 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 			return $arr_value;
 		}
 		
-		if ($arr_options['use_text']) { // Values with IDs
+		if ($arr_options['use_text']) { // Dynamic values with IDs
 			
 			$arr_value = [];
 			
 			foreach ($arr_definition[$key_value] as $key => $str_value) {
 	
-				$arr_value[$key] = StoreTypeObjects::clearObjectDefinitionText($str_value);
+				$arr_value[$key] = FormatTypeObjects::clearObjectDefinitionText($str_value);
 			}
 			
 			if ($type == 'object_sub_description') {
@@ -366,35 +378,49 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 			
 		switch ($type) {
 			case 'nodegoat_id':
+			
 				$this->arr_column_names[] = 'nodegoat ID';
 				$this->arr_column_identifiers[$str_identifier_column] = $arr_column_base;
 				break;
 			case 'id':
+			
 				$this->arr_column_names[] = 'Object ID';
 				$this->arr_column_identifiers[$str_identifier_column] = $arr_column_base;
 				break;
 			case 'name':
+			
 				$this->arr_column_names[] = getLabel('lbl_name');
 				$this->arr_column_identifiers[$str_identifier_column] = $arr_column_base;
 				break;
 			case 'sources':
+			
 				$this->arr_column_names[] = getLabel('lbl_source').' Object ID';
 				$this->arr_column_names[] = getLabel('lbl_source').' '.getLabel('lbl_value');
 				$this->arr_column_identifiers[$str_identifier_column.'_1'] = $arr_column_base;
 				$this->arr_column_identifiers[$str_identifier_column.'_2'] = $arr_column_base;
+				
 				$str_identifier_column_base_lineage = $str_identifier_column_base.'_o_src';
-				$this->arr_column_identifiers[$str_identifier_column.'_1'][] = $str_identifier_column_base_lineage;
-				$this->arr_column_identifiers[$str_identifier_column.'_2'][] = $str_identifier_column_base_lineage;
+				$this->arr_column_identifiers[$str_identifier_column.'_1'][3] = $str_identifier_column_base_lineage;
+				$this->arr_column_identifiers[$str_identifier_column.'_2'][3] = $str_identifier_column_base_lineage;
 				break;
 			case 'analysis':
+			
 				$this->arr_column_names[] = getLabel('lbl_analysis');
 				$this->arr_column_identifiers[$str_identifier_column] = $arr_column_base;
 				break;
 			case 'object_description':
-				$this->arr_column_names[] = Labels::parseTextVariables($arr_type_set['object_descriptions'][$arr_options['object_description_id']]['object_description_name']).($arr_options['use_text'] ? ' - Text' : ($arr_options['use_id'] ? ' - Object ID' : ''));
-				$this->arr_column_identifiers[$str_identifier_column] = $arr_column_base; 
-				$str_identifier_column_base_lineage = $str_identifier_column_base.'_od_'.$arr_options['object_description_id'];
-				$this->arr_column_identifiers[$str_identifier_column][] = $str_identifier_column_base_lineage;
+				
+				$arr_object_description = $arr_type_set['object_descriptions'][$arr_options['object_description_id']];
+				
+				$this->arr_column_names[] = Labels::parseTextVariables($arr_object_description['object_description_name']).($arr_options['use_text'] ? ' - Text' : ($arr_options['use_id'] ? ' - Object ID' : ''));
+				$this->arr_column_identifiers[$str_identifier_column] = $arr_column_base;
+				
+				if ($arr_object_description['object_description_is_dynamic'] && $arr_object_description['object_description_ref_type_id'] && !$arr_options['use_id']) { // Not really connectable
+					$str_identifier_column_base_lineage = $str_identifier_column_base.'_od_'.$arr_options['object_description_id'].'_value';
+				} else {
+					$str_identifier_column_base_lineage = $str_identifier_column_base.'_od_'.$arr_options['object_description_id'];
+				}
+				$this->arr_column_identifiers[$str_identifier_column][3] = $str_identifier_column_base_lineage;
 				break;
 			case 'object_sub_id':
 			case 'object_sub_description':
@@ -403,6 +429,7 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 			case 'object_sub_details_date_chronology':
 			case 'object_sub_details_location_ref':
 			case 'object_sub_details_location_geometry':
+			
 				switch ($type) {
 					case 'object_sub_id':
 						$name = 'Sub-Object ID';
@@ -426,10 +453,12 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 						$name = getLabel('lbl_geometry');
 						break;
 				}
+				
 				$this->arr_column_names[] = '['.Labels::parseTextVariables($arr_type_set['object_sub_details'][$arr_options['object_sub_details_id']]['object_sub_details']['object_sub_details_name']).'] '.$name;
 				$this->arr_column_identifiers[$str_identifier_column] = $arr_column_base;
+				
 				$str_identifier_column_base_lineage = $str_identifier_column_base.'_os_'.$arr_options['object_sub_details_id'];
-				$this->arr_column_identifiers[$str_identifier_column][] = $str_identifier_column_base_lineage;
+				$this->arr_column_identifiers[$str_identifier_column][3] = $str_identifier_column_base_lineage;
 				break;
 		}
 		
@@ -477,7 +506,7 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 		}
 		
 		$this->arr_column_identifiers[$str_identifier_column_base_connection] = [$str_identifier_column_base, $str_identifier_column_base_source, $str_identifier_column_base_source, $str_identifier_column_base_lineage];
-		$this->arr_column_identifiers[$str_identifier_column_base_connection][] = true; // Hidden column
+		$this->arr_column_identifiers[$str_identifier_column_base_connection][4] = true; // Hidden column
 		
 		$this->arr_column_connection_identifiers[$str_identifier_column_base_connection] = $str_identifier_column_base_connection;
 	}
@@ -485,7 +514,7 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 	protected function iterateCollectorColumn($num_column, $arr_state_position = [], $arr_state_row = []) {
 		
 		$str_identifier_column = $this->arr_column_identifier_keys[$num_column];
-		$arr_collector_column = $this->arr_collector[$str_identifier_column];
+		$arr_collector_column = ($this->arr_collector[$str_identifier_column] ?? null);
 
 		if ($arr_collector_column === null) { // End of chain, create an array to be passed down
 			
@@ -500,14 +529,14 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 		$str_identifier_column_base_source = $arr_column_base[1];
 		$str_identifier_column_base_source_lineage = $arr_column_base[2];
 
-		$str_identifier_state_position = $arr_state_position[$str_identifier_column_base];
+		$str_identifier_state_position = ($arr_state_position[$str_identifier_column_base] ?? null);
 		$str_identifier_state_row = $arr_state_row[$str_identifier_column_base_source_lineage];
 				
 		$is_state_owner_position = ($str_identifier_state_position === null ? true : false);
 	
 		if ($is_state_owner_position) {
 			
-			if ($this->arr_collector_connections[$str_identifier_column_base] === null) {
+			if (!isset($this->arr_collector_connections[$str_identifier_column_base])) {
 				$arr_identifiers_state_position = $str_identifier_state_row;
 			} else if ($str_identifier_column_base_source == $str_identifier_column_base_source_lineage) { // The source lineage identifier is the same as the source main identifier; connect the source position pointer to a new position pointer
 				$arr_identifiers_state_position = $this->arr_collector_connections[$str_identifier_column_base][$arr_state_position[$str_identifier_column_base_source]];
@@ -520,18 +549,18 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 			$arr_identifiers_state_position = [$str_identifier_state_position];
 		}
 		
-		$str_identifier_column_base_lineage = $arr_column_base[3];
+		$str_identifier_column_base_lineage = ($arr_column_base[3] ?? null);
 		
 		if ($str_identifier_column_base_lineage) { // Check for lineage state
 				
-			$is_state_owner_row = ($arr_state_row[$str_identifier_column_base_lineage] === null ? true : false); // The first encounter with a possible relational column
+			$is_state_owner_row = (!isset($arr_state_row[$str_identifier_column_base_lineage]) ? true : false); // The first encounter with a possible relational column
 			
 			if (!$is_state_owner_row) { // Listen state
 				$str_identifier_state_row = $arr_state_row[$str_identifier_column_base_lineage];
 			}
 		}
 		
-		$is_hidden_column = ($arr_column_base[4] ? true : false);
+		$is_hidden_column = ($arr_column_base[4] ?? false);
 		
 		foreach ($arr_identifiers_state_position as $str_identifier_state_position) {
 			
@@ -542,7 +571,7 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 			$arr_collector_column_position = $arr_collector_column[$str_identifier_state_position];
 			
 			if ($str_identifier_column_base_lineage && $is_state_owner_row && $arr_collector_column_position) {
-					
+				
 				foreach ($arr_collector_column_position as $str_identifier_row => $value) {
 					
 					$arr_state_row[$str_identifier_column_base_lineage] = $str_identifier_row;
@@ -623,10 +652,11 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 		
 		$str_separator = $arr_options['separator'];
 		$str_enclose = $arr_options['enclose'];
+		$this->str_escape = $str_enclose; // Needed for output
 		
 		$this->package = getStreamMemory(false);
 		
-		$this->class_collect->force_walk = true;
+		$this->class_collect->setWalkMode(true);
 
 		$this->collectColumns(true);
 		$this->class_collect->getWalkedObject(0, [], [$this, 'collect']);
@@ -671,7 +701,8 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 		
 		$data = read($this->package);
 		
-		Response::setFormat(Response::OUTPUT_TEXT);
+		Response::setFormat(Response::OUTPUT_CSV);
+		Response::setFormatSettings($this->str_escape);
 		$data = Response::parse($data);
 		
 		// UTF-8 BOM
@@ -682,10 +713,30 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 		echo $data;
 	}
 	
+	public function getPackage() {
+		
+		$data = read($this->package);
+		
+		Response::holdFormat(true);
+		
+		Response::setFormat(Response::OUTPUT_CSV);
+		Response::setFormatSettings($this->str_escape);
+		$data = Response::parse($data);
+		
+		Response::holdFormat();
+		
+		ftruncate($this->package, 0);
+		fwrite($this->package, $data);
+		
+		rewind($this->package);
+		
+		return $this->package;
+	}
+	
 	public static function getCollectorSettings() {
 	
 		return [
-			'conditions' => 'text'
+			'conditions' => GenerateTypeObjects::CONDITIONS_MODE_TEXT
 		];
 	}
 }

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -78,7 +78,7 @@ class StoreTypeObjectsExtensions extends StoreTypeObjects {
 			INSERT INTO ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_ANALYSIS_STATUS')."
 				(user_id, analysis_id, date)
 					VALUES
-				(".(int)$user_id.", ".(int)$analysis_id.", NOW())
+				(".(int)$user_id.", ".(int)$analysis_id.", ".DBFunctions::timeNow().")
 			".DBFunctions::onConflict('user_id, analysis_id', ['date'])."
 		");
 	}

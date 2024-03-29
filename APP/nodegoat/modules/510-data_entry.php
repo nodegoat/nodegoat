@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -41,7 +41,7 @@ class data_entry extends base_module {
 			</section>';
 		}
 		
-		SiteEndVars::setFeedback('project', true);
+		SiteEndEnvironment::setFeedback('project', true);
 		
 		// Reset filter
 		toolbar::checkFilters();
@@ -74,7 +74,7 @@ class data_entry extends base_module {
 		$arr_types_classifications = ['types' => [], 'classifications' => [], 'processes' => []];
 		$arr_types_classifications_system = ['types' => [], 'classifications' => [], 'processes' => []];
 		
-		foreach ((array)$arr_types as $cur_type_id => $value) {
+		foreach ($arr_types as $cur_type_id => $value) {
 			
 			if ($value['class'] == StoreType::TYPE_CLASS_SYSTEM) {
 				
@@ -169,18 +169,18 @@ class data_entry extends base_module {
 		}
 		
 		if ($this->arr_query) {
-			SiteEndVars::setModuleVariables($this->mod_id, [], true); // Clear the settings in the url
+			SiteEndEnvironment::setModuleVariables($this->mod_id, [], true); // Clear the settings in the url
 		}
 				
 		$return .= cms_general::createDataTableHeading('d:data_entry:data-'.$type_id, ['filter' => 'y:data_filter:open_filter-'.$type_id, 'filter_settings' => $arr_filter_settings['filter'], 'search_settings' => $arr_filter_settings['search'], 'order' => true]).'
 			<thead><tr>';
 			
-				$nr_column = 0;
+				$num_columns = 0;
 				
 				if ($arr_type_set['type']['object_name_in_overview']) {
 
 					$return .= '<th class="max limit"><span>'.getLabel('lbl_name').'</span></th>';
-					$nr_column++;
+					$num_columns++;
 				}
 			
 				foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
@@ -189,8 +189,8 @@ class data_entry extends base_module {
 						continue;
 					}
 					
-					$return .= '<th class="limit'.($nr_column == 0 ? ' max' : '').'"><span>'.strEscapeHTML(Labels::parseTextVariables($arr_object_description['object_description_name'])).'</span></th>';
-					$nr_column++;
+					$return .= '<th class="limit'.($num_columns == 0 ? ' max' : '').'"><span>'.strEscapeHTML(Labels::parseTextVariables($arr_object_description['object_description_name'])).'</span></th>';
+					$num_columns++;
 				}
 				
 				$arr_analysis = data_analysis::getTypeAnalysis($type_id);
@@ -198,8 +198,8 @@ class data_entry extends base_module {
 				
 				if ($arr_analysis || $arr_analysis_context) {
 
-					$return .= '<th class="analysis limit'.($nr_column == 0 ? ' max' : '').'" data-identifier="analysis"><span>'.data_analysis::createTypeAnalysisTableHeader($type_id, $arr_analysis, $arr_analysis_context).'</span></th>';
-					$nr_column++;
+					$return .= '<th class="analysis limit'.($num_columns == 0 ? ' max' : '').'" data-identifier="analysis"><span>'.data_analysis::createTypeAnalysisTableHeader($type_id, $arr_analysis, $arr_analysis_context).'</span></th>';
+					$num_columns++;
 				}
 				
 				$can_edit = ($_SESSION['NODEGOAT_CLEARANCE'] > NODEGOAT_CLEARANCE_INTERACT && static::checkClearanceType($type_id, false) && custom_projects::checkAccessType(StoreCustomProject::ACCESS_PURPOSE_EDIT, $type_id, false));
@@ -217,7 +217,7 @@ class data_entry extends base_module {
 			</tr></thead>
 			<tbody>
 				<tr>
-					<td colspan="'.($nr_column+2).'" class="empty">'.getLabel('msg_loading_server_data').'</td>
+					<td colspan="'.($num_columns+2).'" class="empty">'.getLabel('msg_loading_server_data').'</td>
 				</tr>
 			</tbody>
 		</table>';
@@ -323,7 +323,7 @@ class data_entry extends base_module {
 			
 			if ($arr_html['discussion']) {
 				
-				$return .= '<div class="discussion">		
+				$return .= '<div class="discussion">
 					'.$arr_html['discussion'].'
 				</div>';
 			}
@@ -339,7 +339,9 @@ class data_entry extends base_module {
 		$arr_project = StoreCustomProject::getProjects($project_id);
 		
 		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], StoreCustomProject::ACCESS_PURPOSE_EDIT);
-
+		
+		$str_information = custom_projects::createInformationIcon($arr_project['types'][$type_id]['type_information']);
+				
 		if ($object_id) {
 			
 			$arr_object_set = self::getTypeObjectSet($type_id, $object_id, false, $arr_type_set);
@@ -355,25 +357,23 @@ class data_entry extends base_module {
 				$str_version = Response::addParseDelay(getLabel('inf_added_by_on'), 'strEscapeHTML');
 			}
 			
-			$str_object_id = GenerateTypeObjects::encodeTypeObjectID($type_id, $object_id);
+			$str_html_nodegoat_id = Settings::get('hook_nodegoat_id_html', false, [$type_id, $object_id]);
+			if (!$str_html_nodegoat_id) {
+				$str_html_nodegoat_id = '<span title="nodegoat ID">'.GenerateTypeObjects::encodeTypeObjectID($type_id, $object_id).'</span>';
+			}
 			$str_object_name = $arr_object_set_changes['object']['object_name'];
-		}
-
-		$str_information = custom_projects::createInformationIcon($arr_project['types'][$type_id]['type_information']);
-				
-		if ($object_id) {
 			
-			$html = '<h1>'
+			$str_html = '<h1>'
 				.'<span'.($str_version ? ' title="'.$str_version.'"' : '').'>'.strEscapeHTML(Labels::parseTextVariables($arr_type_set['type']['name'])).': '.$str_object_name.'</span>'
 				.$str_information
-				.'<small title="nodegoat ID">'.$str_object_id.'</small>'
+				.'<small>'.$str_html_nodegoat_id.'</small>'
 			.'</h1>';
 		} else {
 			
-			$html = '<h1><span>'.strEscapeHTML(Labels::parseTextVariables($arr_type_set['type']['name'])).'</span>'.$str_information.'</h1>';
+			$str_html = '<h1><span>'.strEscapeHTML(Labels::parseTextVariables($arr_type_set['type']['name'])).'</span>'.$str_information.'</h1>';
 		}
 		
-		return $html;
+		return $str_html;
 	}
 		
 	private function createTypeObjectFields($type_id, $object_id, $arr_options) {
@@ -440,6 +440,7 @@ class data_entry extends base_module {
 			$arr_object_definition = ($arr_object_set_changes ? $arr_object_set_changes['object_definitions'][$object_description_id] : $arr_object_set['object_definitions'][$object_description_id]);
 			$has_multi = $arr_object_description['object_description_has_multi'];
 			$is_module = StoreType::isValueTypeModule($arr_object_description['object_description_value_type']);
+			$arr_format_extra = ['has_multi' => $has_multi, 'ref_type_id' => $arr_object_description['object_description_ref_type_id'], 'context' => $arr_object_description];
 			
 			if ($is_reversal) {
 				
@@ -505,18 +506,17 @@ class data_entry extends base_module {
 					if (!$arr_object_definition_value || (array_key_exists('object_definition_value', $arr_object_definition_value) && !$arr_object_definition_value['object_definition_value'])) {
 						
 						$html_definition .= getLabel('lbl_none');
-					} else if ($arr_object_description['object_description_ref_type_id']) {
-						
-						if ($has_multi) {
-							
-							$html_definition .= implode(($arr_object_description['object_description_value_type_settings']['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR_LIST), $arr_object_definition_value);
-						} else {
-							
-							$html_definition .= $arr_object_definition_value['object_definition_value'];
-						}
 					} else {
-						
-						$html_definition .= StoreTypeObjects::formatToHTMLValue($arr_object_description['object_description_value_type'], StoreTypeObjects::formatToCleanValue($arr_object_description['object_description_value_type'], $arr_object_definition_value['object_definition_value'], $arr_object_description['object_description_value_type_settings']), $arr_object_description['object_description_value_type_settings'], $arr_object_definition_value['object_definition_ref_object_id']);
+
+						if ($arr_object_description['object_description_ref_type_id']) {
+							$use_value = ($has_multi ? array_values($arr_object_definition_value) : $arr_object_definition_value['object_definition_value']);
+							$use_reference = ($has_multi ? array_keys($arr_object_definition_value) : $arr_object_definition_value['object_definition_ref_object_id']);
+						} else {
+							$use_value = FormatTypeObjects::formatToCleanValue($arr_object_description['object_description_value_type'], $arr_object_definition_value['object_definition_value'], $arr_object_description['object_description_value_type_settings']);
+							$use_reference = $arr_object_definition_value['object_definition_ref_object_id'];
+						}
+											
+						$html_definition .= FormatTypeObjects::formatToHTMLValue($arr_object_description['object_description_value_type'], $use_value, $use_reference, $arr_object_description['object_description_value_type_settings'], $arr_format_extra);
 					}
 					
 					$html_definition .= '</div>';
@@ -528,13 +528,14 @@ class data_entry extends base_module {
 				} else if ($arr_object_description['object_description_ref_type_id']) {
 					
 					$str_name = 'object_definition['.$object_description_id.'][object_definition_ref_object_id]';
+					$str_lookup_identifier = $arr_object_description['object_description_ref_type_id'].'_'.$type_id.'_'.$object_description_id;
 
 					if ($has_multi) {
 						
-						$html_definition .= cms_general::createMultiSelect($str_name, 'y:data_filter:lookup_type_object-'.$arr_object_description['object_description_ref_type_id'], $arr_object_definition_value, 'y:data_filter:lookup_type_object_pick-'.$arr_object_description['object_description_ref_type_id'], ['list' => false, 'order' => true]);
+						$html_definition .= cms_general::createMultiSelect($str_name, 'y:data_filter:lookup_type_object-'.$str_lookup_identifier, $arr_object_definition_value, 'y:data_filter:lookup_type_object_pick-'.$str_lookup_identifier, ['list' => false, 'order' => true]);
 					} else {
 						
-						$html_definition .= '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$arr_object_description['object_description_ref_type_id'].'" name="'.$str_name.'" value="'.$arr_object_definition_value['object_definition_ref_object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$arr_object_description['object_description_ref_type_id'].'" class="autocomplete" value="'.$arr_object_definition_value['object_definition_value'].'" />';
+						$html_definition .= '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$str_lookup_identifier.'" name="'.$str_name.'" value="'.$arr_object_definition_value['object_definition_ref_object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$str_lookup_identifier.'" class="autocomplete" value="'.$arr_object_definition_value['object_definition_value'].'" />';
 					}
 					
 					$html_definition .= $html_definition_version;
@@ -553,8 +554,10 @@ class data_entry extends base_module {
 						
 						$str_classes .= ' options nested';
 					} else {
+
+						$arr_format_extra += ['menu' => $html_definition_version];
 						
-						$html_definition .= StoreTypeObjects::formatToFormValue($arr_object_description['object_description_value_type'], $arr_object_definition_value['object_definition_value'], $str_name, $arr_object_description['object_description_value_type_settings'], $arr_object_definition_value['object_definition_ref_object_id'], ['menu' => $html_definition_version]);
+						$html_definition .= FormatTypeObjects::formatToFormValue($arr_object_description['object_description_value_type'], $arr_object_definition_value['object_definition_value'], $arr_object_definition_value['object_definition_ref_object_id'], $str_name, $arr_object_description['object_description_value_type_settings'], $arr_format_extra);
 					}
 					
 					if ($arr_object_description['object_description_is_required']) {
@@ -621,7 +624,7 @@ class data_entry extends base_module {
 					
 					$html_content .= '</ul></div>';
 						
-					$html_content .= '<div class="dynamic-object-subs fieldsets"><div>';
+					$html_content .= '<div class="object-subs fieldsets"><div>';
 					
 						if ($object_id) {
 							
@@ -665,17 +668,17 @@ class data_entry extends base_module {
 					$arr_html_object_sub_tabs['links'][] = '<li><a href="#"'.(!$has_direct_show && count($arr_collect_object_sub_details) == 2 ? ' class="open"' : '').'><span>'.($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name']).'</span> ' : '').'<span class="sub-name">'.strEscapeHTML(Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name'])).'</span></span></a></li>';
 					
 					$arr_columns = [];
-					$nr_column = 0;
+					$num_count_columns = 0;
 					
 					if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_date']) {
 						
 						$arr_columns[] = '<th class="date"><span>'.getLabel('lbl_date_start').'</span></th><th class="date"><span>'.getLabel('lbl_date_end').'</span></th>';
-						$nr_column += 2;
+						$num_count_columns += 2;
 					}
 					if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_location']) {
 						
 						$arr_columns[] = '<th class="limit disable-sort"></th><th class="max limit disable-sort"><span>'.getLabel('lbl_location').'</span></th>';
-						$nr_column += 2;
+						$num_count_columns += 2;
 					}
 					
 					foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
@@ -686,8 +689,8 @@ class data_entry extends base_module {
 						
 						$str_name = strEscapeHTML(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']));
 						
-						$arr_columns[] = '<th class="limit'.($nr_column == 0 ? ' max' : '').($arr_object_sub_description['object_sub_description_value_type'] == 'date' ? ' date' : '').'">'.($arr_object_sub_description['object_sub_description_is_referenced'] ? '<span><span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.$str_name.'</span></span>' : '</span>'.$str_name.'</span>').'</th>';
-						$nr_column++;
+						$arr_columns[] = '<th class="limit'.($num_count_columns == 0 ? ' max' : '').($arr_object_sub_description['object_sub_description_value_type'] == 'date' ? ' date' : '').'">'.($arr_object_sub_description['object_sub_description_is_referenced'] ? '<span><span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.$str_name.'</span></span>' : '</span>'.$str_name.'</span>').'</th>';
+						$num_count_columns++;
 					}
 					
 					$return_content = '<div>
@@ -702,7 +705,7 @@ class data_entry extends base_module {
 							</tr></thead>
 							<tbody>
 								<tr>
-									<td colspan="'.($nr_column+1).'" class="empty">'.getLabel('msg_loading_server_data').'</td>
+									<td colspan="'.($num_count_columns+1).'" class="empty">'.getLabel('msg_loading_server_data').'</td>
 								</tr>
 							</tbody></table>
 					</div>';
@@ -766,7 +769,7 @@ class data_entry extends base_module {
 		
 		$arr_object_description = $arr_type_set['object_descriptions'][$object_description_id];
 		
-		$arr_object_definition_value = ($arr_object_definition['object_definition_value'] ? json_decode($arr_object_definition['object_definition_value'], true) : []);
+		$arr_object_definition_value = ($arr_object_definition['object_definition_value'] ? JSON2Value($arr_object_definition['object_definition_value']) : []);
 		
 		if (StoreType::getValueType($arr_object_description['object_description_value_type'], 'module_class', 'entry')) {
 			
@@ -794,22 +797,50 @@ class data_entry extends base_module {
 				$create_filter = new data_filter();
 				$create_filter->form_name = $str_name.'['.$ref_type_id.'][filter]';
 				$html_filter = $create_filter->createFilter($ref_type_id, $arr_object_definition_value[$ref_type_id]['filter']);
-				
+
 				if ($arr_type_set['type']['mode'] & StoreType::TYPE_MODE_REVERSAL_COLLECTION) {
 					
-					$arr_scope = data_model::parseTypeNetwork($arr_object_definition_value[$ref_type_id]['scope']);
+					$has_resource_path = (bool)$arr_object_description['object_description_value_type_settings']['resource_path'];
+					$html_resource_path = '';
 					
-					$html_type_network = data_model::createTypeNetwork($ref_type_id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => $str_name.'['.$ref_type_id.'][scope]', 'descriptions' => false, 'functions' => ['collapse' => false]]);
-				
+					$arr_scope = data_model::parseTypeNetworkModePick($arr_object_definition_value[$ref_type_id]['scope']);
+					$mode_scope = ($has_resource_path ? data_model::TYPE_NETWORK_DESCRIPTIONS_DISPLAY : false);
+					
+					$html_type_network = data_model::createTypeNetwork($ref_type_id, false, false, ['references' => TraceTypesNetwork::RUN_MODE_BOTH, 'network' => ['dynamic' => true, 'object_sub_locations' => true], 'value' => $arr_scope, 'name' => $str_name.'['.$ref_type_id.'][scope]', 'descriptions' => $mode_scope, 'functions' => ['collapse' => false]]);
+					$html_type_network = '<div class="scope options">'.$html_type_network.'</div>';
+
+					if ($has_resource_path) {
+						
+						$str_resource_path = ($arr_object_definition_value[$ref_type_id]['resource_path'] ?? '');
+						$str_name_resource_path = $str_name.'['.$ref_type_id.'][resource_path]';
+						
+						$html_resource_path = '<div class="resource-path options"><fieldset><ul>
+							<li>
+								<label></label>
+								<section class="info attention">'.parseBody(getLabel('inf_reversal_resource_path')).'</section>
+							</li>
+							<li>
+								<label>'.getLabel('lbl_resource_path').'</label>
+								<div><textarea name="'.$str_name_resource_path.'">'.$str_resource_path.'</textarea></div>
+							</li>
+							<li>
+								<label></label>
+								<div><input type="button" class="data edit" id="y:data_entry:load_reversal_resource_path-0" value="load" /></div>
+							</li>
+						</ul></fieldset></div>';
+						
+						$this->validate[$str_name_resource_path] = 'required';
+					}
+					
 					$html_tab_content = '<div class="tabs">
 						<ul>
 							<li><a href="#">'.getLabel('lbl_filter').'</a></li>
 							<li><a href="#">'.getLabel('lbl_scope').'</a></li>
+							'.($has_resource_path ? '<li><a href="#">'.getLabel('lbl_template').'</a></li>' : '').'
 						</ul>
 						<div>'.$html_filter.'</div>
-						<div>
-							<div class="options">'.$html_type_network.'</div>
-						</div>
+						<div>'.$html_type_network.'</div>
+						'.($has_resource_path ? '<div>'.$html_resource_path.'</div>' : '').'
 					</div>';
 				} else { // Classification mode
 					
@@ -821,7 +852,7 @@ class data_entry extends base_module {
 			
 			if ($arr_html_tabs) {
 				
-				$html = '<div class="tabs">
+				$html = '<div class="reversal template tabs">
 					<ul>
 						'.implode('', $arr_html_tabs['links']).'
 					</ul>';
@@ -935,7 +966,8 @@ class data_entry extends base_module {
 					$definition_type = ($arr_object_sub_description['object_sub_description_ref_type_id'] ? 'object_sub_definition_ref_object_id' : 'object_sub_definition_value');
 					$is_changed = ($arr_object_sub_changes && $arr_object_sub_changes['object_sub']['object_sub_version'] != 'added' && $arr_object_sub_changes['object_sub_definitions'][$object_sub_description_id][$definition_type] != $arr_object_sub['object_sub_definitions'][$object_sub_description_id][$definition_type]);
 					$arr_object_sub_definition = ($arr_object_sub_changes ? $arr_object_sub_changes['object_sub_definitions'][$object_sub_description_id] : $arr_object_sub['object_sub_definitions'][$object_sub_description_id]);
-						
+					$arr_format_extra = ['ref_type_id' => $arr_object_sub_description['object_sub_description_ref_type_id'], 'context' => $arr_object_sub_description];
+					
 					if ($is_reversal) {
 						
 						$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = '<div class="show">'.strEscapeHTML(Labels::parseTextVariables($arr_types[$arr_object_sub_description['object_sub_description_ref_type_id']]['name'])).'</div>';
@@ -986,12 +1018,17 @@ class data_entry extends base_module {
 							if (!$arr_object_sub_definition_value['object_sub_definition_value']) {
 								
 								$html_definition .= getLabel('lbl_none');
-							} else if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
-								
-								$html_definition .= $arr_object_sub_definition_value['object_sub_definition_value'];
 							} else {
+
+								$use_reference = $arr_object_sub_definition_value['object_sub_definition_ref_object_id'];
 								
-								$html_definition .= StoreTypeObjects::formatToHTMLValue($arr_object_sub_description['object_sub_description_value_type'], StoreTypeObjects::formatToCleanValue($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition_value['object_sub_definition_value'], $arr_object_sub_description['object_sub_description_value_type_settings']), $arr_object_sub_description['object_sub_description_value_type_settings'], $arr_object_sub_definition_value['object_sub_definition_ref_object_id']);
+								if (!$arr_object_sub_description['object_sub_description_ref_type_id']) {
+									$use_value = $arr_object_sub_definition_value['object_sub_definition_value'];
+								} else {
+									$use_value = FormatTypeObjects::formatToCleanValue($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition_value['object_sub_definition_value'], $arr_object_sub_description['object_sub_description_value_type_settings']);
+								}
+															
+								$html_definition .= FormatTypeObjects::formatToHTMLValue($arr_object_sub_description['object_sub_description_value_type'], $use_value, $use_reference, $arr_object_sub_description['object_sub_description_value_type_settings'], $arr_format_extra);
 							}
 							
 							$html_definition .= '</div>';
@@ -1005,9 +1042,10 @@ class data_entry extends base_module {
 						} else if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
 							
 							$str_name = $form_name.'['.$object_sub_description_id.'][object_sub_definition_ref_object_id]';
+							$str_lookup_identifier = $arr_object_sub_description['object_sub_description_ref_type_id'].'_'.$type_id.'_0_'.$object_sub_details_id.'_'.$object_sub_description_id;
 
-							$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$arr_object_sub_description['object_sub_description_ref_type_id'].'" name="'.$str_name.'" value="'.$arr_object_sub_definition_value['object_sub_definition_ref_object_id'].'" />'
-								.'<input type="search" id="y:data_filter:lookup_type_object-'.$arr_object_sub_description['object_sub_description_ref_type_id'].'" class="autocomplete" value="'.$arr_object_sub_definition_value['object_sub_definition_value'].'" />';
+							$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$str_lookup_identifier.'" name="'.$str_name.'" value="'.$arr_object_sub_definition_value['object_sub_definition_ref_object_id'].'" />'
+								.'<input type="search" id="y:data_filter:lookup_type_object-'.$str_lookup_identifier.'" class="autocomplete" value="'.$arr_object_sub_definition_value['object_sub_definition_value'].'" />';
 							
 							$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] .= $html_definition_version;
 							
@@ -1017,8 +1055,10 @@ class data_entry extends base_module {
 						} else {
 							
 							$str_name = $form_name.'['.$object_sub_description_id.'][object_sub_definition_value]';
+							
+							$arr_format_extra += ['menu' => $html_definition_version];
 				
-							$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = StoreTypeObjects::formatToFormValue($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition_value['object_sub_definition_value'], $str_name, $arr_object_sub_description['object_sub_description_value_type_settings'], $arr_object_sub_definition_value['object_sub_definition_ref_object_id'], ['menu' => $html_definition_version]);
+							$arr_html_fields['object_sub_descriptions'][$object_sub_description_id] = FormatTypeObjects::formatToFormValue($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition_value['object_sub_definition_value'], $arr_object_sub_definition_value['object_sub_definition_ref_object_id'], $str_name, $arr_object_sub_description['object_sub_description_value_type_settings'], $arr_format_extra);
 						
 							if ($arr_object_sub_description['object_sub_description_is_required']) {
 								$this->validate[$str_name] = 'required';
@@ -1289,8 +1329,8 @@ class data_entry extends base_module {
 				$arr_date_chronology = [];
 				
 				if ($arr_object_sub['object_sub_date_start'] || $arr_object_sub['object_sub_date_end']) { // Sub-object date_start/date_end could have a value when multi-adding new sub-objects
-					$arr_object_sub['object_sub_date_start'] = StoreTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub_date_start']);
-					$arr_object_sub['object_sub_date_end'] = StoreTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub_date_end']);
+					$arr_object_sub['object_sub_date_start'] = FormatTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub_date_start']);
+					$arr_object_sub['object_sub_date_end'] = FormatTypeObjects::formatToInputValue('date', $arr_object_sub['object_sub_date_end']);
 				} else {
 					$arr_object_sub['object_sub_date_start'] = false;
 					$arr_object_sub['object_sub_date_end'] = false;
@@ -1302,12 +1342,12 @@ class data_entry extends base_module {
 				
 				if ($arr_object_sub['object_sub_date_chronology']) {
 
-					$arr_date_chronology = StoreTypeObjects::formatToChronology($arr_object_sub['object_sub_date_chronology']);
+					$arr_date_chronology = FormatTypeObjects::formatToChronology($arr_object_sub['object_sub_date_chronology']);
 					$arr_date_chronology = arrFilterRecursive($arr_date_chronology);
 					
 					if (!$str_date_type || $str_date_type == 'chronology') {
 						
-						$arr_date_chronology_point = StoreTypeObjects::formatToChronologyPointOnly($arr_date_chronology);
+						$arr_date_chronology_point = FormatTypeObjects::formatToChronologyPointOnly($arr_date_chronology);
 						
 						$str_date_type = 'chronology';
 						
@@ -1319,11 +1359,11 @@ class data_entry extends base_module {
 							$str_date_type = 'point';
 						} else {
 							
-							$arr_date_chronology_reference = StoreTypeObjects::formatToChronologyReferenceOnly($arr_date_chronology);
+							$arr_date_chronology_reference = FormatTypeObjects::formatToChronologyReferenceOnly($arr_date_chronology);
 							
 							if ($arr_date_chronology == $arr_date_chronology_reference) {
 								
-								$arr_date_chronology_details = StoreTypeObjects::formatToChronologyDetails($arr_date_chronology);
+								$arr_date_chronology_details = FormatTypeObjects::formatToChronologyDetails($arr_date_chronology);
 								$arr_date_reference_statement = $arr_date_chronology_details['start']['start'];
 
 								$str_date_type = 'object_sub';
@@ -1426,9 +1466,9 @@ class data_entry extends base_module {
 						$str_location_type = 'reference';
 					} else {
 						
-						$arr_location_geometry = StoreTypeObjects::formatToGeometry($arr_object_sub['object_sub_location_geometry']);
+						$arr_location_geometry = FormatTypeObjects::formatToGeometry($arr_object_sub['object_sub_location_geometry']);
 						
-						$arr_location_geometry_point = StoreTypeObjects::formatToGeometryPoint($arr_location_geometry);
+						$arr_location_geometry_point = FormatTypeObjects::formatToGeometryPoint($arr_location_geometry);
 						
 						if ($arr_location_geometry_point) {
 							$str_location_type = 'point';
@@ -1639,7 +1679,7 @@ class data_entry extends base_module {
 		
 		if ($arr_date_chronology) {
 			
-			$arr_date_chronology = StoreTypeObjects::formatToChronologyDetails($arr_date_chronology);
+			$arr_date_chronology = FormatTypeObjects::formatToChronologyDetails($arr_date_chronology);
 			$arr_date_chronology = arrFilterRecursive($arr_date_chronology);
 
 			$str_date_start_type = 'point';
@@ -1649,7 +1689,7 @@ class data_entry extends base_module {
 				$str_date_start_type = 'statement_between';
 			} else if ($arr_date_chronology['start']) {
 				
-				$arr_date_chronology_point = StoreTypeObjects::formatToChronologyPointOnly($arr_date_chronology);
+				$arr_date_chronology_point = FormatTypeObjects::formatToChronologyPointOnly($arr_date_chronology);
 				
 				if ($arr_date_chronology['start'] != $arr_date_chronology_point['start']) {
 					$str_date_start_type = 'statement';
@@ -1663,7 +1703,7 @@ class data_entry extends base_module {
 				// Make sure the start value would also be a point, otherwise ChronologyPointOnly could return empty
 				$arr_date_chronology_point = $arr_date_chronology;
 				$arr_date_chronology_point['start']['start'] = $arr_date_chronology['end']['end'];
-				$arr_date_chronology_point = StoreTypeObjects::formatToChronologyPointOnly($arr_date_chronology_point);
+				$arr_date_chronology_point = FormatTypeObjects::formatToChronologyPointOnly($arr_date_chronology_point);
 				
 				if ($arr_date_chronology['end'] != $arr_date_chronology_point['end']) {
 					$str_date_end_type = 'statement';
@@ -1798,7 +1838,7 @@ class data_entry extends base_module {
 			Labels::setVariable('application', 'statement');
 			
 			$arr_html['date_path'] = '<input type="hidden" name="'.$form_name.'[date_path]" value="'.strEscapeHTML(value2JSON($arr_statement['date_path'])).'" />'
-				.'<button type="button" id="y:data_filter:configure_application_path-'.$type_id.'" data-options="'.strEscapeHTML(value2JSON(['descriptions' => 'date'])).'" title="'.getLabel('inf_application_path').'" class="data edit popup"><span>path</span></button>';
+				.'<button type="button" id="y:data_filter:configure_application_path-'.$type_id.'" data-options="'.strEscapeHTML(value2JSON(['descriptions' => data_model::TYPE_NETWORK_DESCRIPTIONS_DATE])).'" title="'.getLabel('inf_application_path').'" class="data edit popup"><span>path</span></button>';
 		}
 		
 		if (!$arr_statement['cycle_object_id']) {
@@ -2014,7 +2054,7 @@ class data_entry extends base_module {
 											$arr_html[] = data_view::createTypeObjectLink($arr_object_description['object_description_ref_type_id'], $value, $arr_object_definition['object_definition_value'][$key]);
 										}
 										
-										$str_value = implode(($arr_object_description['object_description_value_type_settings']['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR_LIST), $arr_html);
+										$str_value = implode(($arr_object_description['object_description_value_type_settings']['separator'] ?: FormatTypeObjects::FORMAT_MULTI_SEPERATOR_LIST), $arr_html);
 									} else {
 										
 										$str_value = data_view::createTypeObjectLink($arr_object_description['object_description_ref_type_id'], $arr_object_definition['object_definition_ref_object_id'], $arr_object_definition['object_definition_value']);
@@ -2027,13 +2067,13 @@ class data_entry extends base_module {
 										
 										foreach ($arr_object_definition['object_definition_value'] as $key => $value) {
 											
-											$arr_html[] = StoreTypeObjects::formatToCleanValue($arr_object_description['object_description_value_type'], $value, $arr_object_description['object_description_value_type_settings']);
+											$arr_html[] = FormatTypeObjects::formatToCleanValue($arr_object_description['object_description_value_type'], $value, $arr_object_description['object_description_value_type_settings']);
 										}
 										
-										$str_value = implode(($arr_object_description['object_description_value_type_settings']['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR_LIST), $arr_html);
+										$str_value = implode(($arr_object_description['object_description_value_type_settings']['separator'] ?: FormatTypeObjects::FORMAT_MULTI_SEPERATOR_LIST), $arr_html);
 									} else {
 										
-										$str_value = StoreTypeObjects::formatToCleanValue($arr_object_description['object_description_value_type'], $arr_object_definition['object_definition_value'], $arr_object_description['object_description_value_type_settings']);
+										$str_value = FormatTypeObjects::formatToCleanValue($arr_object_description['object_description_value_type'], $arr_object_definition['object_definition_value'], $arr_object_description['object_description_value_type_settings']);
 									}
 								}
 							}
@@ -2050,7 +2090,7 @@ class data_entry extends base_module {
 						foreach ($storage->getTypeObjectSubVersions($arr_options['object_sub_id'], true) as $version => $arr_object_sub) {
 							
 							if ($arr_object_sub['object_sub_date_chronology']) {
-								$arr_date_chronology = StoreTypeObjects::formatToCleanValue('chronology', $arr_object_sub['object_sub_date_chronology']);
+								$arr_date_chronology = FormatTypeObjects::formatToCleanValue('chronology', $arr_object_sub['object_sub_date_chronology']);
 								$str_date = data_view::createTypeObjectSubChronology($type_id, $arr_options['object_sub_details_id'], $object_id, $arr_date_chronology);
 							}
 							$str_date = ($str_date ?: '<em>'.getLabel('lbl_none').'</em>');
@@ -2058,19 +2098,19 @@ class data_entry extends base_module {
 							if ($arr_object_sub['object_sub_location_ref_object_id']) {
 								$str_location = data_view::createTypeObjectLink($arr_object_sub['object_sub_location_ref_type_id'], $arr_object_sub['object_sub_location_ref_object_id'], $arr_object_sub['object_sub_location_ref_object_name']);
 							} else {
-								$str_location = StoreTypeObjects::formatToGeometrySummary($arr_object_sub['object_sub_location_geometry']);
+								$str_location = FormatTypeObjects::formatToGeometrySummary($arr_object_sub['object_sub_location_geometry']);
 							}
 							$str_location = ($str_location ?: '<em>'.getLabel('lbl_none').'</em>');
 														
 							$str_value = '<div class="data_viewer"><div class="record"><dl>'
-								.'<li>'
+								.'<div>'
 									.'<dt>'.getLabel('lbl_chronology').'</dt>'
 									.'<dd>'.$str_date.'</dd>'
-								.'</li>'
-								.'<li>'
+								.'</div>'
+								.'<div>'
 									.'<dt>'.getLabel('lbl_location').'</dt>'
 									.'<dd>'.$str_location.'</dd>'
-								.'</li>'
+								.'</div>'
 							.'</dl></div></div>';
 							
 							$str_value .= $func_create_version_user($arr_version_users[$version]);
@@ -2094,7 +2134,7 @@ class data_entry extends base_module {
 									$str_value = data_view::createTypeObjectLink($arr_object_sub_description['object_sub_description_ref_type_id'], $arr_object_sub_definition['object_sub_definition_ref_object_id'], $arr_object_sub_definition['object_sub_definition_value']);
 								} else {
 									
-									$str_value = StoreTypeObjects::formatToCleanValue($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition['object_sub_definition_value'], $arr_object_sub_description['object_sub_description_value_type_settings']);
+									$str_value = FormatTypeObjects::formatToCleanValue($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition['object_sub_definition_value'], $arr_object_sub_description['object_sub_description_value_type_settings']);
 								}
 							}
 							
@@ -2162,32 +2202,32 @@ class data_entry extends base_module {
 		
 		if ($arr_object_changes['object']['object_dating']) {
 			
-			$return_dating = '<h1>'.getLabel('lbl_changed').':</h1><dl><li><dt></dt><dd>'.date('d-m-Y H:i', strtotime($arr_object_changes['object']['object_dating'])).'</dd></li></dl>';
+			$return_dating = '<h1>'.getLabel('lbl_changed').':</h1><dl><div><dt></dt><dd>'.date('d-m-Y H:i', strtotime($arr_object_changes['object']['object_dating'])).'</dd></div></dl>';
 		}
 		
 		if ($arr_object_changes['object']['object_version'] == 'added' || $arr_object_changes['object']['object_version'] == 'deleted') {
 			
-			$return_version = '<li>'.getLabel('lbl_'.$arr_object_changes['object']['object_version']).'</li>';
+			$return_version = '<div>'.getLabel('lbl_'.$arr_object_changes['object']['object_version']).'</div>';
 		} else {
 			
 			$return_changes = '';
 			
 			if ($arr_object['object']['object_name_plain'] != $arr_object_changes['object']['object_name_plain']) {
-				$return_changes .= '<li><dt>'.getLabel('lbl_name').'</dt><dd>'.strEscapeHTML($arr_object_changes['object']['object_name_plain']).'</dd></li>';
+				$return_changes .= '<div><dt>'.getLabel('lbl_name').'</dt><dd>'.strEscapeHTML($arr_object_changes['object']['object_name_plain']).'</dd></div>';
 			}
 			
 			if ($arr_object['object']['object_changes']) {
-				$return_changes .= '<li>
+				$return_changes .= '<div>
 					<dt>'.getLabel('lbl_changed').' '.getLabel('lbl_object_descriptions').'</dt>
 					<dd>'.$arr_object['object']['object_changes'].'x</dd>
-				</li>';
+				</div>';
 			}
 			
 			if ($arr_object['object']['object_sub_changes']) {
-				$return_changes .= '<li>
+				$return_changes .= '<div>
 					<dt>'.getLabel('lbl_changed').' '.getLabel('lbl_object_subs').'</dt>
 					<dd>'.$arr_object['object']['object_sub_changes'].'x</dd>
-				</li>';
+				</div>';
 			}
 					
 			if ($return_changes) {
@@ -2296,8 +2336,8 @@ class data_entry extends base_module {
 			];
 		}
 		
-		$arr_feedback = [$type_id => $arr_filter] + (SiteStartVars::getFeedback('data_view_filter') ?: []);
-		SiteEndVars::setFeedback('data_view_filter', $arr_feedback, true);
+		$arr_feedback = [$type_id => $arr_filter] + (SiteStartEnvironment::getFeedback('data_view_filter') ?: []);
+		SiteEndEnvironment::setFeedback('data_view_filter', $arr_feedback, true);
 		
 		$return = '<div class="merge">
 			<section class="info attention">
@@ -2326,8 +2366,8 @@ class data_entry extends base_module {
 		$arr_type_set = StoreType::getTypeSet($type_id);
 		$arr_type_set_flat = StoreType::getTypeSetFlat($type_id, ['purpose' => 'select']);
 		
-		$arr_feedback = [$type_id => $arr_filter] + (SiteStartVars::getFeedback('data_view_filter') ?: []);
-		SiteEndVars::setFeedback('data_view_filter', $arr_feedback, true);
+		$arr_feedback = [$type_id => $arr_filter] + (SiteStartEnvironment::getFeedback('data_view_filter') ?: []);
+		SiteEndEnvironment::setFeedback('data_view_filter', $arr_feedback, true);
 
 		$arr_find_change = ($_SESSION['data_entry']['find_change'][$type_id] ?: []);
 		
@@ -2442,64 +2482,70 @@ class data_entry extends base_module {
 			
 			$str_id = 'object_description_'.$object_description_id;
 			
-			if ($str_id == $id && data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, $object_description_id) && custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
+			if ($str_id != $id || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, $object_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
+				continue;
+			}
 				
-				$str_name = strEscapeHTML(Labels::parseTextVariables($arr_object_description['object_description_name']));
+			$str_name = strEscapeHTML(Labels::parseTextVariables($arr_object_description['object_description_name']));
+			$has_multi = $arr_object_description['object_description_has_multi'];
+			$arr_format_extra = ['multi' => $has_multi, 'ref_type_id' => $arr_object_description['object_description_ref_type_id'], 'context' => $arr_object_description];
+			
+			if ($_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable']) {
 				
-				if ($_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable']) {
-					
-					$html_definition_version = '<input type="hidden" value="'.($arr_values['object_definition_sources'] ? strEscapeHTML(value2JSON($arr_values['object_definition_sources'])) : '').'" name="'.$form_name.'[object_definition_sources]" />'
-						.'<button type="button" id="y:data_entry:select_version-'.$type_id.'_0_'.$object_description_id.'" class="data popup neutral" value="version"><span>'.getLabel('lbl_nota_bene').'</span></button>';
-				}
+				$html_definition_version = '<input type="hidden" value="'.($arr_values['object_definition_sources'] ? strEscapeHTML(value2JSON($arr_values['object_definition_sources'])) : '').'" name="'.$form_name.'[object_definition_sources]" />'
+					.'<button type="button" id="y:data_entry:select_version-'.$type_id.'_0_'.$object_description_id.'" class="data popup neutral" value="version"><span>'.getLabel('lbl_nota_bene').'</span></button>';
+			}
+			
+			if ($arr_object_description['object_description_ref_type_id']) {
 				
-				if ($arr_object_description['object_description_ref_type_id']) {
-					
-					$arr_type_object_names = ($arr_values['object_definition_ref_object_id'] ? FilterTypeObjects::getTypeObjectNames($arr_object_description['object_description_ref_type_id'], $arr_values['object_definition_ref_object_id']) : []);
-					
-					if ($arr_object_description['object_description_has_multi']) {
-						$html_return_value = '<div class="input">'.cms_general::createMultiSelect($form_name.'[object_definition_ref_object_id]', 'y:data_filter:lookup_type_object-'.$arr_object_description['object_description_ref_type_id'], $arr_type_object_names, false, ['list' => true, 'order' => true]).'</div>';
-						$has_append = true;
-					} else {
-						$html_return_value = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$arr_object_description['object_description_ref_type_id'].'" name="'.$form_name.'[object_definition_ref_object_id]" value="'.$arr_values['object_definition_ref_object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$arr_object_description['object_description_ref_type_id'].'" class="autocomplete" value="'.$arr_type_object_names[$arr_values['object_definition_ref_object_id']].'" />';
-					}
-					
-					$html_return_value .= $html_definition_version;
+				$arr_type_object_names = ($arr_values['object_definition_ref_object_id'] ? FilterTypeObjects::getTypeObjectNames($arr_object_description['object_description_ref_type_id'], $arr_values['object_definition_ref_object_id']) : []);
+				$str_lookup_identifier = $arr_object_description['object_description_ref_type_id'].'_'.$type_id.'_'.$object_description_id;
+				
+				if ($has_multi) {
+					$html_return_value = '<div class="input">'.cms_general::createMultiSelect($form_name.'[object_definition_ref_object_id]', 'y:data_filter:lookup_type_object-'.$str_lookup_identifier, $arr_type_object_names, 'y:data_filter:lookup_type_object_pick-'.$str_lookup_identifier, ['list' => true, 'order' => true]).'</div>';
+					$has_append = true;
 				} else {
-					
-					if ($arr_object_description['object_description_value_type'] == 'text' || $arr_object_description['object_description_value_type'] == 'text_layout' || $arr_object_description['object_description_value_type'] == 'text_tags') {
-						$arr_object_description['object_description_value_type'] = false;
-						$has_append = true;
-					}
-					
-					if ($arr_object_description['object_description_value_type'] != 'date' && $arr_object_description['object_description_value_type'] != 'boolean') { // Replace only 'plain' values
-						$has_replace = true;
-					}
-					
-					if ($arr_object_description['object_description_has_multi']) {
-						$arr_values['object_definition_value'] = ($arr_values['object_definition_value'] ?: []);
-						$has_append = true;
-					}
-					
-					$html_return_value = StoreTypeObjects::formatToFormValue($arr_object_description['object_description_value_type'], StoreTypeObjects::formatToSQLValue($arr_object_description['object_description_value_type'], $arr_values['object_definition_value']), $form_name.'[object_definition_value]', $arr_object_description['object_description_value_type_settings'], false, ['menu' => $html_definition_version]);
+					$html_return_value = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$str_lookup_identifier.'" name="'.$form_name.'[object_definition_ref_object_id]" value="'.$arr_values['object_definition_ref_object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$str_lookup_identifier.'" class="autocomplete" value="'.$arr_type_object_names[$arr_values['object_definition_ref_object_id']].'" />';
 				}
-																	
-				$html_return = '<div class="entry object-various">
-					<fieldset><ul>
-						<li>
-							<label><span>'.$str_name.'</span></label>
-							<div>'.$html_return_value.'</div>
-						</li>
-					</ul></fieldset>'
-					.($has_replace ? '<fieldset><ul>
-						<li>
-							<label><span>'.$str_name.'</span></label>
-							'.cms_general::createRegularExpressionEditor($arr_values['regex'], $form_name.'[regex]', true).'
-						</li>
-					</ul></fieldset>' : '').'
-				</div>';
 				
-				break;
-			}					
+				$html_return_value .= $html_definition_version;
+			} else {
+				
+				if ($arr_object_description['object_description_value_type'] == 'text' || $arr_object_description['object_description_value_type'] == 'text_layout' || $arr_object_description['object_description_value_type'] == 'text_tags') {
+					$arr_object_description['object_description_value_type'] = false;
+					$has_append = true;
+				}
+				
+				if ($arr_object_description['object_description_value_type'] != 'date' && $arr_object_description['object_description_value_type'] != 'boolean') { // Replace only 'plain' values
+					$has_replace = true;
+				}
+				
+				if ($has_multi) {
+					$arr_values['object_definition_value'] = ($arr_values['object_definition_value'] ?: []);
+					$has_append = true;
+				}
+				
+				$arr_format_extra += ['menu' => $html_definition_version];
+				
+				$html_return_value = FormatTypeObjects::formatToFormValue($arr_object_description['object_description_value_type'], FormatTypeObjects::formatToSQLValue($arr_object_description['object_description_value_type'], $arr_values['object_definition_value']), false, $form_name.'[object_definition_value]', $arr_object_description['object_description_value_type_settings'], $arr_format_extra);
+			}
+																
+			$html_return = '<div class="entry object-various">
+				<fieldset><ul>
+					<li>
+						<label><span>'.$str_name.'</span></label>
+						<div>'.$html_return_value.'</div>
+					</li>
+				</ul></fieldset>'
+				.($has_replace ? '<fieldset><ul>
+					<li>
+						<label><span>'.$str_name.'</span></label>
+						'.cms_general::createRegularExpressionEditor($arr_values['regex'], $form_name.'[regex]', true).'
+					</li>
+				</ul></fieldset>' : '').'
+			</div>';
+			
+			break;					
 		}
 		
 		foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
@@ -2683,55 +2729,60 @@ class data_entry extends base_module {
 				
 				$str_id = 'object_sub_description_'.$object_sub_description_id;
 				
-				if ($str_id == $id && data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) && custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+				if ($str_id != $id || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id)) {
+					continue;
+				}
+				
+				$str_name = strEscapeHTML(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']));
+				$arr_format_extra = ['ref_type_id' => $arr_object_sub_description['object_sub_description_ref_type_id'], 'context' => $arr_object_sub_description];
+				
+				if ($_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable']) {
 					
-					$str_name = strEscapeHTML(Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']));
+					$html_definition_version = '<input type="hidden" value="'.($arr_values['object_sub_definition_sources'] ? strEscapeHTML(value2JSON($arr_values['object_sub_definition_sources'])) : '').'" name="'.$form_name.'[object_sub_definition_sources]" />'
+						.'<button type="button" id="y:data_entry:select_version-'.$type_id.'_0_'.$object_sub_details_id.'_0_'.$object_sub_description_id.'" class="data popup neutral" value="version"><span>'.getLabel('lbl_nota_bene').'</span></button>';
+				}
+				
+				if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
 					
-					if ($_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$_SESSION['custom_projects']['project_id']]['source_referencing_enable']) {
-						
-						$html_definition_version = '<input type="hidden" value="'.($arr_values['object_sub_definition_sources'] ? strEscapeHTML(value2JSON($arr_values['object_sub_definition_sources'])) : '').'" name="'.$form_name.'[object_sub_definition_sources]" />'
-							.'<button type="button" id="y:data_entry:select_version-'.$type_id.'_0_'.$object_sub_details_id.'_0_'.$object_sub_description_id.'" class="data popup neutral" value="version"><span>'.getLabel('lbl_nota_bene').'</span></button>';
+					$arr_type_object_names = ($arr_values['object_sub_definition_ref_object_id'] ? FilterTypeObjects::getTypeObjectNames($arr_object_sub_description['object_sub_description_ref_type_id'], $arr_values['object_sub_definition_ref_object_id']) : []);
+					$str_lookup_identifier = $arr_object_sub_description['object_sub_description_ref_type_id'].'_'.$type_id.'_0_'.$object_sub_details_id.'_'.$object_sub_description_id;
+					
+					$html_return_value = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$str_lookup_identifier.'" name="'.$form_name.'[object_sub_definition_ref_object_id]" value="'.$arr_values['object_sub_definition_ref_object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$str_lookup_identifier.'" class="autocomplete" value="'.$arr_type_object_names[$arr_values['object_sub_definition_ref_object_id']].'" />';
+				
+					$html_return_value .= $html_definition_version;
+				} else {
+					
+					if ($arr_object_sub_description['object_sub_description_value_type'] == 'text' || $arr_object_sub_description['object_sub_description_value_type'] == 'text_layout' || $arr_object_sub_description['object_sub_description_value_type'] == 'text_tags') {
+						$arr_object_sub_description['object_sub_description_value_type'] = false;
+						$has_append = true;
 					}
 					
-					if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
-						
-						$arr_type_object_names = ($arr_values['object_sub_definition_ref_object_id'] ? FilterTypeObjects::getTypeObjectNames($arr_object_sub_description['object_sub_description_ref_type_id'], $arr_values['object_sub_definition_ref_object_id']) : []);
-						
-						$html_return_value = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$arr_object_sub_description['object_sub_description_ref_type_id'].'" name="'.$form_name.'[object_sub_definition_ref_object_id]" value="'.$arr_values['object_sub_definition_ref_object_id'].'" /><input type="search" id="y:data_filter:lookup_type_object-'.$arr_object_sub_description['object_sub_description_ref_type_id'].'" class="autocomplete" value="'.$arr_type_object_names[$arr_values['object_sub_definition_ref_object_id']].'" />';
-					
-						$html_return_value .= $html_definition_version;
-					} else {
-						
-						if ($arr_object_sub_description['object_sub_description_value_type'] == 'text' || $arr_object_sub_description['object_sub_description_value_type'] == 'text_layout' || $arr_object_sub_description['object_sub_description_value_type'] == 'text_tags') {
-							$arr_object_sub_description['object_sub_description_value_type'] = false;
-							$has_append = true;
-						}
-						
-						if ($arr_object_sub_description['object_sub_description_value_type'] != 'date' && $arr_object_sub_description['object_sub_description_value_type'] != 'boolean') { // Replace only 'plain' values
-							$has_replace = true;
-						}
-						
-						$html_return_value = StoreTypeObjects::formatToFormValue($arr_object_sub_description['object_sub_description_value_type'], StoreTypeObjects::formatToSQLValue($arr_object_sub_description['object_sub_description_value_type'], $arr_values['object_sub_definition_value']), $form_name.'[object_sub_definition_value]', $arr_object_sub_description['object_sub_description_value_type_settings'], false, ['menu' => $html_definition_version]);
+					if ($arr_object_sub_description['object_sub_description_value_type'] != 'date' && $arr_object_sub_description['object_sub_description_value_type'] != 'boolean') { // Replace only 'plain' values
+						$has_replace = true;
 					}
-										
-					$html_return = '<div class="entry object-various">
-						<fieldset><ul>
-							<li>
-								<label><span>'.$str_name.'</span></label>
-								<div>'.$html_return_value.'</div>
-							</li>
-						</ul></fieldset>'
-						.($has_replace ? '<fieldset><ul>
-							<li>
-								<label><span>'.$str_name.'</span></label>
-								'.cms_general::createRegularExpressionEditor($arr_values['regex'], $form_name.'[regex]', true).'
-							</li>
-						</ul></fieldset>' : '').'
-					</div>';
 					
-					break;
-				}			
-			}				
+					$arr_format_extra += ['menu' => $html_definition_version];
+					
+					$html_return_value = FormatTypeObjects::formatToFormValue($arr_object_sub_description['object_sub_description_value_type'], FormatTypeObjects::formatToSQLValue($arr_object_sub_description['object_sub_description_value_type'], $arr_values['object_sub_definition_value']), false, $form_name.'[object_sub_definition_value]', $arr_object_sub_description['object_sub_description_value_type_settings'], $arr_format_extra);
+				}
+									
+				$html_return = '<div class="entry object-various">
+					<fieldset><ul>
+						<li>
+							<label><span>'.$str_name.'</span></label>
+							<div>'.$html_return_value.'</div>
+						</li>
+					</ul></fieldset>'
+					.($has_replace ? '<fieldset><ul>
+						<li>
+							<label><span>'.$str_name.'</span></label>
+							'.cms_general::createRegularExpressionEditor($arr_values['regex'], $form_name.'[regex]', true).'
+						</li>
+					</ul></fieldset>' : '').'
+				</div>';
+				
+				break;			
+			}
 		}
 		
 		if (!$html_return) {
@@ -2795,26 +2846,32 @@ class data_entry extends base_module {
 		$arr_labels = [];
 		
 		$str_input_data = preg_replace_callback(
-			'/'.StoreTypeObjects::TAGCODE_PARSE_TEXT_OBJECT_OPEN.'/s',
+			'/'.FormatTypeObjects::TAGCODE_PARSE_TEXT_OBJECT_OPEN.'/s',
 			function ($arr_matches) {
 				return '<span class="tag" data-ids="'.$arr_matches[1].'">'; 
 			},
 			$str_input_data
 		);
 		
-		$str_input_data = preg_replace('/'.StoreTypeObjects::TAGCODE_PARSE_TEXT_OBJECT_CLOSE.'/s', '</span>', $str_input_data);
+		$str_input_data = preg_replace('/'.FormatTypeObjects::TAGCODE_PARSE_TEXT_OBJECT_CLOSE.'/s', '</span>', $str_input_data);
 		
 		$arr = [];
-		$html = FormatHTML::openHTMLDocument($str_input_data);
+		
+		$html = new HTMLDocument($str_input_data);
 		$arr_spans = $html->getElementsByTagName('span');
+		
 		foreach ($arr_spans as $span) {
-			$ids = $span->getAttribute('data-ids');
-			if ($ids) {
-				if ($arr_labels[$ids]) {
-					$arr_labels[$ids]['name'] = $arr_labels[$ids]['name'].' '.$span->nodeValue;
-				} else {
-					$arr_labels[$ids] = ['id' => $ids, 'name' => $span->nodeValue];
-				}
+			
+			$str_ids = $span->getAttribute('data-ids');
+			
+			if (!$str_ids) {
+				continue;
+			}
+			
+			if ($arr_labels[$str_ids]) {
+				$arr_labels[$str_ids]['name'] = $arr_labels[$str_ids]['name'].' '.$span->nodeValue;
+			} else {
+				$arr_labels[$str_ids] = ['id' => $str_ids, 'name' => $span->nodeValue];
 			}
 		}
 		
@@ -2840,7 +2897,6 @@ class data_entry extends base_module {
 			.entry fieldset > ul > li > label:first-child + div.definition > .media-preview,
 			.entry fieldset > ul > li > label:first-child + div.definition > fieldset ul.sorter > li > div > .media-preview { margin-bottom: 5px;  }
 			.entry fieldset > ul > li > label:first-child + div.definition > div.show { display: inline-block; vertical-align: middle; }
-			.entry fieldset > ul > li > label:first-child + div.definition > div.show > span + span { margin-left: 4px; }
 			.entry fieldset > ul > li > label:first-child + div.definition > div.show > .text_tags { margin: 0px; }
 			.entry fieldset > ul > li > label:first-child + div.definition > fieldset { margin-left: 0px; }
 			.entry fieldset.object > ul > li > label:first-child + div.name-plain > input[name=object_name_plain].default { width: 500px; }
@@ -2874,6 +2930,7 @@ class data_entry extends base_module {
 			.entry fieldset.object > ul > li[data-object_description_id="-2"] > label:first-child + div.definition > fieldset input[type=number] { width: 50px; }
 			.entry fieldset.object > ul > li[data-object_description_id="-10"],
 			.entry fieldset.object > ul > li[data-object_description_id="-10"] > label:first-child + div.definition { display: block; }
+			.entry fieldset.object > ul > li[data-object_description_id="-10"] > label:first-child + div.definition .template textarea { width: 800px; height: 300px; }
 			
 			.entry.object-subs fieldset.full div.definition textarea,
 			.entry.object-subs fieldset.full div.definition textarea.body-content,
@@ -2915,6 +2972,9 @@ class data_entry extends base_module {
 			.entry fieldset.object > ul > li > label:first-child > .icon.a svg,
 			.entry.object-subs fieldset > legend > .icon.a svg,
 			.entry.object-subs fieldset > ul > li > label:first-child > .icon.a svg { height: 1em; }
+			
+			.entry.object-subs > .tags { margin: 0px; }
+			.entry.object-subs > .object-subs.fieldsets:has(> div:empty) { display: none; }
 			
 			.entry.sources ul.sorter > li > div > input.autocomplete { width: 500px; }
 			.entry.sources ul.sorter > li > div > input.autocomplete + input[type=text] { width: 200px; }
@@ -3097,7 +3157,7 @@ class data_entry extends base_module {
 		
 		SCRIPTER.dynamic('entry_type_object', function(elm_scripter) {
 			
-			var elm_object_subs = elm_scripter.find('.object .object-subs');
+			var elm_object_subs = elm_scripter.find('.object .entry.object-subs');
 			
 			if (elm_object_subs.length) {
 				new ToolExtras(elm_object_subs, {fullscreen: true, maximize: true});
@@ -3139,7 +3199,7 @@ class data_entry extends base_module {
 				};
 			}
 			
-			runElementSelectorFunction(elm_scripter, '.network.type, .ingest-source.template, .reconcile.template, .value-type-module.template', function(elm_found) {
+			runElementSelectorFunction(elm_scripter, '.reversal.template, .ingest-source.template, .reconcile.template, .value-type-module.template', function(elm_found) {
 				SCRIPTER.runDynamic(elm_found);
 			});
 			
@@ -3173,8 +3233,8 @@ class data_entry extends base_module {
 				var cur = $(this);
 				var object_sub_details_id = cur.attr('id').split('_');
 				object_sub_details_id = object_sub_details_id[object_sub_details_id.length-1];
-				if (!cur.hasClass('unique') || (cur.hasClass('unique') && !cur.closest('form').find('.dynamic-object-subs [name*=\\\[object_sub\\\]\\\[object_sub_details_id\\\]][value='+object_sub_details_id+']').length)) {
-					var elm_target = cur.closest('.object-subs').find('.dynamic-object-subs > div');
+				if (!cur.hasClass('unique') || (cur.hasClass('unique') && !cur.closest('form').find('.object-subs [name*=\\\[object_sub\\\]\\\[object_sub_details_id\\\]][value='+object_sub_details_id+']').length)) {
+					var elm_target = cur.closest('.entry.object-subs').find('.object-subs.fieldsets > div');
 					COMMANDS.setTarget(cur, elm_target);
 					COMMANDS.setOptions(cur, {html: 'prepend'});
 					if (cur.is('[id^=y\\\:data_entry\\\:add_object_sub_multi]')) {
@@ -3186,7 +3246,7 @@ class data_entry extends base_module {
 			}).on('command', '[id^=y\\\:data_entry\\\:copy_object_sub]', function() {
 				var cur = $(this);
 				
-				var elm_target = cur.closest('.dynamic-object-subs > div');
+				var elm_target = cur.closest('.object-subs.fieldsets > div');
 				if (cur.closest('.sorter').length) {
 					var elms_source = cur.closest('.sorter > li');
 				} else {
@@ -3198,7 +3258,7 @@ class data_entry extends base_module {
 				COMMANDS.setTarget(cur, elm_target);
 				COMMANDS.setOptions(cur, {html: 'prepend'});
 			}).on('click', '[id^=x\\\:data_entry\\\:object_sub_id-] .edit_object_sub', function() {
-				var elm_target = $(this).closest('form').find('.dynamic-object-subs > div');
+				var elm_target = $(this).closest('form').find('.object-subs.fieldsets > div');
 				
 				$(this).quickCommand(function(elm) {
 					
@@ -3376,6 +3436,28 @@ class data_entry extends base_module {
 			});
 		});
 		
+		// DATA ENTRY - REVERSAL
+		
+		SCRIPTER.dynamic('.reversal.template', function(elm_scripter) {
+			
+			runElementSelectorFunction(elm_scripter, '.network.type', function(elm_found) {
+				SCRIPTER.runDynamic(elm_found);
+			});
+			
+			elm_scripter.on('click', '[id=y\\\:data_entry\\\:load_reversal_resource_path-0]', function() {
+				
+				const elm_target = elm_scripter.find('[name*=\"[resource_path]\"]');
+				const elm_scope = elm_scripter.find('.scope');
+				const str_scope = JSON.stringify(serializeArrayByName(elm_scope));
+
+				COMMANDS.setData(this, {scope: str_scope});
+				
+				COMMANDS.quickCommand(this, function(data) {
+					elm_target.val(data);
+				});
+			});
+		});
+
 		// RUN SYSTEM-TYPES
 		
 		SCRIPTER.dynamic('[id^=f\\\:data_entry\\\:process-], [id^=f\\\:data_entry\\\:check_process-]', function(elm_scripter) {
@@ -3950,7 +4032,7 @@ class data_entry extends base_module {
 				if ($arr_object_description['object_description_ref_type_id']) {
 					$return_version = [$arr[$version]['object_definition_ref_object_id'], $arr[$version]['object_definition_value']];
 				} else {
-					$return_version = [($arr_object_description['object_description_has_multi'] ? $arr[$version]['object_definition_value'] : 0), StoreTypeObjects::formatToInputValue($arr_object_description['object_description_value_type'], $arr[$version]['object_definition_value'], $arr_object_description['object_description_value_type_settings'])];
+					$return_version = [($arr_object_description['object_description_has_multi'] ? $arr[$version]['object_definition_value'] : 0), FormatTypeObjects::formatToInputValue($arr_object_description['object_description_value_type'], $arr[$version]['object_definition_value'], $arr_object_description['object_description_value_type_settings'])];
 				}
 			} else if ($version && $type == 'object_sub') {
 				
@@ -3962,10 +4044,10 @@ class data_entry extends base_module {
 				
 				if ($arr_date_chronology) {
 					
-					$arr_date_chronology = StoreTypeObjects::formatToChronology($arr_date_chronology);
+					$arr_date_chronology = FormatTypeObjects::formatToChronology($arr_date_chronology);
 					$arr_date_chronology = arrFilterRecursive($arr_date_chronology);
 					$arr[$version]['object_sub_date_chronology'] = ($arr_date_chronology ? value2JSON($arr_date_chronology, JSON_PRETTY_PRINT) : '');
-					$arr_date_chronology_point = StoreTypeObjects::formatToChronologyPointOnly($arr_date_chronology);
+					$arr_date_chronology_point = FormatTypeObjects::formatToChronologyPointOnly($arr_date_chronology);
 					
 					$arr[$version]['object_sub_date_type'] = 'chronology';
 					
@@ -3984,7 +4066,7 @@ class data_entry extends base_module {
 				
 				if ($arr_location_geometry) {
 					
-					$arr_location_geometry = StoreTypeObjects::formatToGeometry($arr_location_geometry);
+					$arr_location_geometry = FormatTypeObjects::formatToGeometry($arr_location_geometry);
 					$arr[$version]['object_sub_location_geometry'] = ($arr_location_geometry ? value2JSON($arr_location_geometry, JSON_PRETTY_PRINT) : '');
 				}
 				
@@ -3997,7 +4079,7 @@ class data_entry extends base_module {
 				if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
 					$return_version = [$arr[$version]['object_sub_definition_ref_object_id'], $arr[$version]['object_sub_definition_value']];
 				} else {
-					$return_version = [($arr_object_sub_description['object_sub_description_has_multi'] ? $arr[$version]['object_sub_definition_value'] : 0), StoreTypeObjects::formatToInputValue($arr_object_sub_description['object_sub_description_value_type'], $arr[$version]['object_sub_definition_value'], $arr_object_sub_description['object_sub_description_value_type_settings'])];
+					$return_version = [($arr_object_sub_description['object_sub_description_has_multi'] ? $arr[$version]['object_sub_definition_value'] : 0), FormatTypeObjects::formatToInputValue($arr_object_sub_description['object_sub_description_value_type'], $arr[$version]['object_sub_definition_value'], $arr_object_sub_description['object_sub_description_value_type_settings'])];
 				}
 			}
 			
@@ -4228,7 +4310,7 @@ class data_entry extends base_module {
 			$arr_options = ['path' => $path];
 		
 			if ($value && $value['json']) {
-				$arr_date_chronology = StoreTypeObjects::formatToChronology($value['json']);
+				$arr_date_chronology = FormatTypeObjects::formatToChronology($value['json']);
 			}
 			
 			$this->html = '<form class="options" data-method="return_chronology">
@@ -4256,6 +4338,23 @@ class data_entry extends base_module {
 			$str_chronology = ($arr_chronology ? value2JSON($arr_chronology, JSON_PRETTY_PRINT) : '');
 
 			$this->html = $str_chronology;
+		}
+		
+		if ($method == 'load_reversal_resource_path') {
+			
+			$arr_scope = JSON2Value($value['scope']);
+			$arr_scope = $arr_scope['object_definition'][StoreType::getSystemTypeObjectDescriptionID(StoreType::getSystemTypeID('reversal'), 'module')]['object_definition_value']; // Get the position in the form
+			
+			// Get the [referenced_type_id][scope]
+			$type_id = key($arr_scope);
+			$arr_scope = $arr_scope[$type_id]['scope'];
+			
+			$arr_scope = data_model::parseTypeNetworkModePick($arr_scope);
+			
+			$collect = StoreTypeObjectReversalCategoryReferencedType::getCollector(StoreTypeObjectReversalCategoryReferencedType::MODE_COLLECTION_RESOURCE_PATH, $type_id, [], $arr_scope, false);
+			$str_path = StoreTypeObjectReversalCategoryReferencedType::getCollectorResourcePath($collect, $arr_scope['types'], StoreTypeObjectReversalCategoryReferencedType::RESOURCE_PATH_PARSE_YAML);
+			
+			$this->html = $str_path;
 		}
 		
 		if ($method == "poll_discussion" || $method == "edit_discussion" || $method == "set_discussion_lock" || $method == "update_discussion") {
@@ -4372,7 +4471,7 @@ class data_entry extends base_module {
 
 			$arr_type_object_ids = [];
 			
-			preg_match('/^'.StoreTypeObjects::TAGCODE_PARSE_TEXT_OBJECT_OPEN.'(.+)'.StoreTypeObjects::TAGCODE_PARSE_TEXT_OBJECT_CLOSE.'$/s', $value['selected'], $arr_match);
+			preg_match('/^'.FormatTypeObjects::TAGCODE_PARSE_TEXT_OBJECT_OPEN.'(.+)'.FormatTypeObjects::TAGCODE_PARSE_TEXT_OBJECT_CLOSE.'$/s', $value['selected'], $arr_match);
 			
 			if ($arr_match[1]) {
 				
@@ -4421,7 +4520,7 @@ class data_entry extends base_module {
 				if ($_POST['input_data']) {
 					
 					preg_replace_callback(
-						'/'.StoreTypeObjects::TAGCODE_PARSE_TEXT_OBJECT_OPEN.'/s',
+						'/'.FormatTypeObjects::TAGCODE_PARSE_TEXT_OBJECT_OPEN.'/s',
 						function ($arr_matches) use (&$arr_object_definition_type_object_groups) {
 							$arr_ids = explode('|', $arr_matches[1]);
 							foreach ($arr_ids as $arr_type_object_id) {
@@ -4588,14 +4687,14 @@ class data_entry extends base_module {
 			
 			if ($has_order) {
 				
-				foreach ($_POST['arr_order_column'] as $nr_order => list($nr_column, $str_direction)) {
+				foreach ($_POST['arr_order_column'] as $num_order => list($num_column, $str_direction)) {
 					
-					if ($nr_column == 0 && $arr_type_set['type']['object_name_in_overview']) { // Object name
+					if ($num_column == 0 && $arr_type_set['type']['object_name_in_overview']) { // Object name
 						
 						$arr_ordering['object_name'] = $str_direction;
 					} else {
 						
-						$count_column = ($arr_type_set['type']['object_name_in_overview'] ? 1 : 0);
+						$num_count_columns = ($arr_type_set['type']['object_name_in_overview'] ? 1 : 0);
 						
 						foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 								
@@ -4603,21 +4702,21 @@ class data_entry extends base_module {
 								continue;
 							}
 							
-							if ($nr_column == $count_column) {
+							if ($num_column == $num_count_columns) {
 								$arr_ordering['object_description_'.$object_description_id] = $str_direction;
 							}
-							$count_column++;
+							$num_count_columns++;
 						}
 						
 						if ($arr_selection['object']['analysis']) { 
 							
-							if ($nr_column == $count_column) {
+							if ($num_column == $num_count_columns) {
 								$arr_ordering['object_analysis'] = $str_direction; // Object analysis
 							}
-							$count_column++;
+							$num_count_columns++;
 						}
 						
-						if ($nr_column == $count_column) {
+						if ($num_column == $num_count_columns) {
 							$arr_ordering['date'] = $str_direction; // Object dating
 						}
 					}
@@ -4650,7 +4749,7 @@ class data_entry extends base_module {
 				$arr_filters = $filter->getDepth();
 				$arr_filters = ($arr_filters['arr_filters'] ?? []);
 				
-				$scenario_id = SiteStartVars::getFeedback('scenario_id');
+				$scenario_id = SiteStartEnvironment::getFeedback('scenario_id');
 				$has_scenario_cache = null;
 
 				if ($scenario_id) { // Check for scenario filter
@@ -4671,7 +4770,7 @@ class data_entry extends base_module {
 							$arr_set_cache['result'] = $cache_scenario->getCache();
 						} else {
 							
-							status(getLabel('msg_building_cache_scenario_filter'), false, getLabel('msg_wait'), ['identifier' => SiteStartVars::getSessionId(true).'cache_scenario_filter', 'duration' => 1000, 'persist' => true]);
+							status(getLabel('msg_building_cache_scenario_filter'), false, getLabel('msg_wait'), ['identifier' => SiteStartEnvironment::getSessionId(true).'cache_scenario_filter', 'duration' => 1000, 'persist' => true]);
 						}
 					}
 				}
@@ -4711,8 +4810,8 @@ class data_entry extends base_module {
 					
 					if ($has_scenario_cache) {
 						
-						$filter->setDifferentiationIdentifier(SiteStartVars::getSessionId()); // Keep temporary table name the same (when applicable) over multiple requests
-						$table_name = $filter->storeIdsTemporarily($arr_filter_set['objects'], true);
+						$filter->setDifferentiationIdentifier(SiteStartEnvironment::getSessionId()); // Keep temporary table name the same (when applicable) over multiple requests
+						$table_name = $filter->storeIDsTemporarily($arr_filter_set['objects'], true);
 						
 						if (!$has_order) { // Set order to temporary table and internally to none when scenario is opened
 							
@@ -4769,7 +4868,7 @@ class data_entry extends base_module {
 						
 						$cache_scenario->updateCache($arr_set_result);
 						
-						clearStatus(SiteStartVars::getSessionId(true).'cache_scenario_filter');
+						clearStatus(SiteStartEnvironment::getSessionId(true).'cache_scenario_filter');
 					} else {
 
 						$arr_set_cache['result'] = $arr_set_result;
@@ -4844,41 +4943,14 @@ class data_entry extends base_module {
 						$arr_data['cell'][$count]['attr']['style'] = $arr_object_definition['object_definition_style'];
 					}
 					
-					if ($arr_object_description['object_description_ref_type_id']) {
-						
-						if ($arr_object_description['object_description_is_dynamic']) {
-							
-							$arr_html = [];
-							
-							foreach ($arr_object_definition['object_definition_ref_object_id'] as $ref_type_id => $arr_ref_objects) {
-							
-								foreach($arr_ref_objects as $cur_object_id => $arr_reference) {
-									
-									$arr_html[] = data_view::createTypeObjectLink($ref_type_id, $cur_object_id, $arr_reference['object_definition_ref_object_name']);
-								}
-							}
-							
-							$arr_data[] = implode(($arr_object_description['object_description_value_type_settings']['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR_LIST), $arr_html);
-						} else if ($arr_object_description['object_description_has_multi']) {
-							
-							$arr_html = [];
-							
-							foreach ($arr_object_definition['object_definition_ref_object_id'] as $key => $value) {
-								
-								$arr_html[] = data_view::createTypeObjectLink($arr_object_description['object_description_ref_type_id'], $value, $arr_object_definition['object_definition_value'][$key]);
-							}
-							
-							$arr_data[] = implode(($arr_object_description['object_description_value_type_settings']['separator'] ?: StoreTypeObjects::FORMAT_MULTI_SEPERATOR_LIST), $arr_html);
-						} else {
-							
-							$arr_data[] = data_view::createTypeObjectLink($arr_object_description['object_description_ref_type_id'], $arr_object_definition['object_definition_ref_object_id'], $arr_object_definition['object_definition_value']);
-						}
-					} else {
-						
-						$str_value = arrParseRecursive($arr_object_definition['object_definition_value'], ['Labels', 'parseLanguage']);
-						
-						$arr_data[] = StoreTypeObjects::formatToHTMLPreviewValue($arr_object_description['object_description_value_type'], $str_value, $arr_object_description['object_description_value_type_settings']);
+					$use_value = $arr_object_definition['object_definition_value'];
+					if (!$arr_object_description['object_description_ref_type_id']) {
+						$use_value = arrParseRecursive($use_value, ['Labels', 'parseLanguage']);
 					}
+					
+					$arr_extra = ['has_multi' => $arr_object_description['object_description_has_multi'], 'ref_type_id' => $arr_object_description['object_description_ref_type_id']];
+
+					$arr_data[] = FormatTypeObjects::formatToHTMLPreviewValue($arr_object_description['object_description_value_type'], $use_value, $arr_object_definition['object_definition_ref_object_id'], $arr_object_description['object_description_value_type_settings'], $arr_extra);
 					
 					$count++;
 				}
@@ -5026,7 +5098,7 @@ class data_entry extends base_module {
 			}
 			if ($_POST['arr_order_column']) {
 				
-				foreach ($_POST['arr_order_column'] as $nr_order => list($num_column, $str_direction)) {
+				foreach ($_POST['arr_order_column'] as $num_order => list($num_column, $str_direction)) {
 					
 					if ($object_sub_details_id == 'all') { // Object sub details combined
 						
@@ -5049,7 +5121,7 @@ class data_entry extends base_module {
 							$num_column += 2;
 						}
 													
-						$count_column = 4;
+						$num_count_columns = 4;
 						
 						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_sub_object_description) {
 							
@@ -5057,12 +5129,12 @@ class data_entry extends base_module {
 								continue;
 							}
 							
-							if ($num_column == $count_column) {
+							if ($num_column == $num_count_columns) {
 								
 								$filter->setOrderObjectSubs($object_sub_details_id, ['object_sub_description_'.$object_sub_description_id => $str_direction]);
 								break;
 							}
-							$count_column++;
+							$num_count_columns++;
 						}
 					}
 				}
@@ -5196,6 +5268,9 @@ class data_entry extends base_module {
 			$storage->removeLockObject($lock_key);
 			if ($locked_discussion) {
 				$storage->removeLockDiscussion($lock_key);
+			}
+			if ($arr_type_set['type']['class'] == StoreType::TYPE_CLASS_REVERSAL && bitHasMode($storage->getModuleState(), StoreTypeObjects::MODULE_STATE_DISABLED)) {
+				$storage->updateModuleState(StoreTypeObjects::MODULE_STATE_DISABLED, BIT_MODE_SUBTRACT);
 			}
 			
 			if ($arr['referenced_type_objects']) {
@@ -5463,6 +5538,11 @@ class data_entry extends base_module {
 				}
 			}
 			
+			$arr_nodegoat_details = cms_nodegoat_details::getDetails();
+			if ($arr_nodegoat_details['processing_time']) {
+				timeLimit($arr_nodegoat_details['processing_time']);
+			}
+			
 			$merge = new MergeTypeObjects($type_id, $object_id, $arr_object_ids, $_SESSION['USER_ID']);
 			
 			$arr_referenced_type_objects = $merge->getReferencedTypeObjects(true);
@@ -5557,7 +5637,7 @@ class data_entry extends base_module {
 					continue;
 				}
 
-				$arr_selected['values'] = json_decode($arr_selected['values'], true);
+				$arr_selected['values'] = JSON2Value($arr_selected['values']);
 				if ($arr_selected['values']) {
 					$arr_selected['values'] = current(current($arr_selected['values']));
 				}
@@ -5590,7 +5670,7 @@ class data_entry extends base_module {
 							}
 						}
 						
-						$arr_selected['values']['object_definition_sources'] = json_decode($arr_selected['values']['object_definition_sources'], true);
+						$arr_selected['values']['object_definition_sources'] = JSON2Value($arr_selected['values']['object_definition_sources']);
 						
 						$arr_find_change['object_descriptions'][$object_description_id] = $arr_selected;
 						$_SESSION['data_entry']['find_change'][$type_id]['selection'][] = $arr_selected;
@@ -5667,7 +5747,7 @@ class data_entry extends base_module {
 								}
 							}
 							
-							$arr_selected['values']['object_sub_definition_sources'] = json_decode($arr_selected['values']['object_sub_definition_sources'], true);
+							$arr_selected['values']['object_sub_definition_sources'] = JSON2Value($arr_selected['values']['object_sub_definition_sources']);
 							
 							$arr_find_change['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id] = $arr_selected;
 							$_SESSION['data_entry']['find_change'][$type_id]['selection'][] = $arr_selected;
@@ -5747,6 +5827,11 @@ class data_entry extends base_module {
 			status(getLabel('msg_object_lock_success'));
 			
 			// Update objects
+			
+			$arr_nodegoat_details = cms_nodegoat_details::getDetails();
+			if ($arr_nodegoat_details['processing_time']) {
+				timeLimit($arr_nodegoat_details['processing_time']);
+			}
 			
 			$storage = new StoreTypeObjects($type_id, false, $_SESSION['USER_ID']);
 			$storage->setMode(StoreTypeObjects::MODE_UPDATE, false);
@@ -6404,14 +6489,14 @@ class data_entry extends base_module {
 		foreach ((array)$arr_input['object_subs'] as $arr_object_sub) {
 			
 			if ($arr_object_sub['object_sub']['object_sub_date_start_infinite']) {
-				$arr_object_sub['object_sub']['object_sub_date_start'] = StoreTypeObjects::formatToSQLValue('date', '-∞');
+				$arr_object_sub['object_sub']['object_sub_date_start'] = FormatTypeObjects::formatToSQLValue('date', '-∞');
 			} else {
-				$arr_object_sub['object_sub']['object_sub_date_start'] = StoreTypeObjects::formatToSQLValue('date', $arr_object_sub['object_sub']['object_sub_date_start']);
+				$arr_object_sub['object_sub']['object_sub_date_start'] = FormatTypeObjects::formatToSQLValue('date', $arr_object_sub['object_sub']['object_sub_date_start']);
 			}
 			if ($arr_object_sub['object_sub']['object_sub_date_end_infinite']) {
-				$arr_object_sub['object_sub']['object_sub_date_end'] = StoreTypeObjects::formatToSQLValue('date', '∞');
+				$arr_object_sub['object_sub']['object_sub_date_end'] = FormatTypeObjects::formatToSQLValue('date', '∞');
 			} else if ($arr_object_sub['object_sub']['object_sub_date_end']) {
-				$arr_object_sub['object_sub']['object_sub_date_end'] = StoreTypeObjects::formatToSQLValue('date', $arr_object_sub['object_sub']['object_sub_date_end']);
+				$arr_object_sub['object_sub']['object_sub_date_end'] = FormatTypeObjects::formatToSQLValue('date', $arr_object_sub['object_sub']['object_sub_date_end']);
 			}
 
 			if (!$arr_object_sub['object_sub']['object_sub_location_type']) {
@@ -6424,7 +6509,7 @@ class data_entry extends base_module {
 					if ($arr_object_sub['object_sub']['object_sub_location_latitude'] || $arr_object_sub['object_sub']['object_sub_location_longitude']) {
 						
 						$arr_geometry = ['type' => 'Point', 'coordinates' => [(float)$arr_object_sub['object_sub']['object_sub_location_longitude'], (float)$arr_object_sub['object_sub']['object_sub_location_latitude']]];
-						$arr_object_sub['object_sub']['object_sub_location_geometry'] = StoreTypeObjects::formatToSQLValue('geometry', $arr_geometry);
+						$arr_object_sub['object_sub']['object_sub_location_geometry'] = FormatTypeObjects::formatToSQLValue('geometry', $arr_geometry);
 						
 						$arr_object_sub['object_sub']['object_sub_location_type'] = 'geometry';
 					}
@@ -6456,7 +6541,7 @@ class data_entry extends base_module {
 						$arr_object_sub_definition['object_sub_definition_value'] = $arr_object_names[$arr_object_sub_definition['object_sub_definition_ref_object_id']];
 					}
 				} else {
-					$arr_object_sub_definition['object_sub_definition_value'] = StoreTypeObjects::formatToSQLValue($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition['object_sub_definition_value']);
+					$arr_object_sub_definition['object_sub_definition_value'] = FormatTypeObjects::formatToSQLValue($arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition['object_sub_definition_value']);
 				}
 				
 				$arr_object_sub_definitions[$arr_object_sub_definition['object_sub_description_id']] = $arr_object_sub_definition;
@@ -6521,7 +6606,7 @@ class data_entry extends base_module {
 			unset($arr_chronology['date']['end']);
 		}
 
-		$arr_chronology = StoreTypeObjects::formatToChronology($arr_chronology);
+		$arr_chronology = FormatTypeObjects::formatToChronology($arr_chronology);
 		$arr_chronology = arrFilterRecursive($arr_chronology);
 		
 		return $arr_chronology;
@@ -6540,9 +6625,24 @@ class data_entry extends base_module {
 		foreach ($arr_types_filter_scope as $ref_type_id => &$arr_type_filter_scope) {
 							
 			$arr_type_scope = null;
+			$str_resource_path = null;
 			
 			if ($arr_type_set['type']['mode'] & StoreType::TYPE_MODE_REVERSAL_COLLECTION) {
-				$arr_type_scope = data_model::parseTypeNetwork($arr_type_filter_scope['scope']);
+				
+				$arr_type_scope = data_model::parseTypeNetworkModePick($arr_type_filter_scope['scope']);
+				
+				$arr_object_description = $arr_type_set['object_descriptions'][StoreType::getSystemTypeObjectDescriptionID(StoreType::getSystemTypeID('reversal'), 'module')];
+				
+				if ($arr_object_description && $arr_object_description['object_description_value_type_settings']['resource_path']) {
+					
+					$str_resource_path = $arr_type_filter_scope['resource_path'];
+					
+					try {
+						$traverse = new TraverseJSON($str_resource_path);
+					} catch (Exception $e) {
+						error(getLabel('msg_resource_path_error_parse'), TROUBLE_ERROR, LOG_BOTH, $str_resource_path, $e);
+					}
+				}
 			}
 						
 			$filter = new FilterTypeObjects($ref_type_id, GenerateTypeObjects::VIEW_ID);
@@ -6550,7 +6650,7 @@ class data_entry extends base_module {
 			$arr_type_filter = $filter->cleanupFilterInput($arr_type_filter_scope['filter']);
 			
 			if ($arr_type_filter || $arr_type_scope) {
-				$arr_type_filter_scope = ['filter' => $arr_type_filter, 'scope' => $arr_type_scope];
+				$arr_type_filter_scope = ['filter' => $arr_type_filter, 'scope' => $arr_type_scope, 'resource_path' => $str_resource_path];
 			} else {
 				unset($arr_types_filter_scope[$ref_type_id]);
 			}

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -46,8 +46,8 @@ class ui_filter extends base_module {
 	
 	private static function createFilterSearchBar($project_id, $arr_public_user_interface) {
 		
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-		$arr_module_vars = SiteStartVars::getFeedback('arr_public_user_interface_module_vars');			
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+		$arr_module_vars = SiteStartEnvironment::getFeedback('arr_public_user_interface_module_vars');			
 		$arr_settings = $arr_public_user_interface['interface']['settings']['projects'][$project_id];
 
 		$placeholder_text = ($arr_settings['info_search'] ?: getLabel('lbl_search'));
@@ -58,7 +58,7 @@ class ui_filter extends base_module {
 			'filter_id' => 0, 
 			'operator' => 'OR', 
 			'active_elements' => 0, 
-			'placeholder_text' => $placeholder_text, 
+			'placeholder_text' => Labels::parseTextVariables($placeholder_text), 
 			'url_filter' => ''
 		];
 						
@@ -121,7 +121,7 @@ class ui_filter extends base_module {
 	
 	private static function createFilterForm($project_id, $arr_public_user_interface) {
 
-		$arr_module_vars = SiteStartVars::getFeedback('arr_public_user_interface_module_vars');	
+		$arr_module_vars = SiteStartEnvironment::getFeedback('arr_public_user_interface_module_vars');	
 		$arr_settings = $arr_public_user_interface['interface']['settings']['projects'][$project_id];
 		$type_id = key($arr_public_user_interface['project_types'][$project_id]);
 		$arr_type_set = StoreType::getTypeSet($type_id);
@@ -138,7 +138,7 @@ class ui_filter extends base_module {
 					
 					if ($arr_filter_from['description'] == $str_id) {
 						
-						$placeholder_text = ($arr_filter_from['placeholder'] ?: Labels::parseTextVariables($arr_object_description['object_description_name']));
+						$placeholder_text = ($arr_filter_from['placeholder'] ?: $arr_object_description['object_description_name']);
 						$ref_type_id = ($arr_filter_from['description_ref_type_id'] ? : $arr_object_description['object_description_ref_type_id']);
 						
 						$filter_id = $type_id.'_OD_'.$object_description_id.'_'.$ref_type_id;
@@ -149,7 +149,7 @@ class ui_filter extends base_module {
 													'value_type' => $arr_object_description['object_description_value_type_base'],
 													'operator' => 'OR', 
 													'active_elements' => 0, 
-													'placeholder_text' => $placeholder_text, 
+													'placeholder_text' => Labels::parseTextVariables($placeholder_text), 
 													'url_filter' => ''
 												];
 						
@@ -165,7 +165,7 @@ class ui_filter extends base_module {
 		
 						if ($arr_filter_from['description'] == $str_id) {
 							
-							$placeholder_text = ($arr_filter_from['placeholder'] ?: Labels::parseTextVariables($arr_object_sub_description['object_sub_description_name']));
+							$placeholder_text = ($arr_filter_from['placeholder'] ?: $arr_object_sub_description['object_sub_description_name']);
 							$ref_type_id = ($arr_filter_from['description_ref_type_id'] ? : $arr_object_sub_description['object_sub_description_ref_type_id']);
 							
 							$filter_id = $type_id.'_SOD_'.$object_sub_description_id.'_'.$ref_type_id;
@@ -176,7 +176,7 @@ class ui_filter extends base_module {
 														'value_type' => $arr_object_sub_description['object_sub_description_value_type_base'],
 														'operator' => 'OR', 
 														'active_elements' => 0, 
-														'placeholder_text' => $placeholder_text, 
+														'placeholder_text' => Labels::parseTextVariables($placeholder_text), 
 														'url_filter' => ''
 													];
 							
@@ -187,7 +187,7 @@ class ui_filter extends base_module {
 				
 			} else if ($arr_filter_from['form_element'] == 'object') {
 				
-				$placeholder_text = ($arr_filter_from['placeholder'] ?: Labels::parseTextVariables($arr_type_set['type']['name']));
+				$placeholder_text = ($arr_filter_from['placeholder'] ?: $arr_type_set['type']['name']);
 						
 				$filter_id = $type_id.'_O_0_'.$type_id;
 				$arr_filters[$filter_id] = [
@@ -196,7 +196,7 @@ class ui_filter extends base_module {
 											'filter_id' => $filter_id, 
 											'operator' => 'OR', 
 											'active_elements' => 0, 
-											'placeholder_text' => $placeholder_text, 
+											'placeholder_text' => Labels::parseTextVariables($placeholder_text), 
 											'url_filter' => ''
 										];	
 													
@@ -211,7 +211,7 @@ class ui_filter extends base_module {
 											'filter_id' => $filter_id, 
 											'operator' => 'OR', 
 											'active_elements' => 0, 
-											'placeholder_text' => $placeholder_text,
+											'placeholder_text' => Labels::parseTextVariables($placeholder_text),
 											'url_filter' => ''
 										];
 													
@@ -393,17 +393,16 @@ class ui_filter extends base_module {
 	
 	public static function css() {
 		
-		$return = ' 
+		$return = '
 					.ui li[class*="type-"] {  background-color: rgba(255, 255, 255, 0.75); } /* set default colour for elements expecting a type colour */ 
-					
 					.ui nav li.project-dynamic-nav ul li.project-filters[data-active="true"] ~ li,
 					.ui nav li.project-dynamic-nav ul li.project-filters[data-object_active="true"] ~ li { display: none; }	
 					
 					.ui nav li.project-filters { position: relative; background-color: #a3ce6c; width: 100%; z-index: 2; }
-
+	
 					.ui nav li.project-filters.search { height: 100px; }
 					.ui nav li.project-filters.search > div { position: absolute; top: 25px; left: 0px; width: 100%; display: flex; justify-content: center; padding: 0 5px; box-sizing: border-box; }
- 
+	
 					.ui nav li.project-filters.search > div .select-types {  }
 					.ui nav li.project-filters.search > div .select-types input { display: none; }
 					.ui nav li.project-filters.search > div .select-types > input:not(:checked) + label + ul { display: none; }
@@ -426,7 +425,7 @@ class ui_filter extends base_module {
 					.ui nav li.project-filters.search > div .select-types > ul > li > input:checked + label > span.type-name { font-weight: bold; } 
 					.ui nav li.project-filters.search > div .select-types > ul > li > input:checked + label > span.icon { display: inline-block; } 
 					.ui nav li.project-filters.search > div .select-types > ul > li > input:not(:checked) + label > span.icon { display: none; } 
-
+	
 					.ui nav li.project-filters.search > div .form-element { flex: 1 1 10px; min-width: 10px; max-width: 80vw; margin: 0 5px;  }
 					.ui nav li.project-filters.search > div .form-element .input { box-sizing: border-box; display: inline-block; width: 100%; min-width: 200px; vertical-align: top; height: 50px; padding: 0 0 0 50px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 20px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
 					.ui nav li.project-filters.search > div .form-element .input .active-input { display: flex; overflow: hidden; max-width: 70%; box-sizing: border-box; margin: 0px; padding: 0px; height: 50px; float: left; }
@@ -441,7 +440,7 @@ class ui_filter extends base_module {
 					.ui nav li.project-filters.search > div button { width: 50px; height: 50px; background-color: #0096e4; border: 0; text-align: center; vertical-align: middle;  }					
 					.ui nav li.project-filters.search > div button span { color: #fff; }					
 					.ui nav li.project-filters.search > div button span svg { height: 50%; }					
-
+	
 					.ui nav li.project-filters .results { position: relative; width: 100%; min-width: 200px; margin-top: 5px; display: block; overflow-x: hidden; overflow-y: auto; background-color: rgba(238, 238, 238, 0.75);  }
 					.ui nav li.project-filters .results:empty { display: none; }
 					.ui nav li.project-filters .results .object-thumbnail { position: relative; width: 100%; background-color: rgba(238, 238, 238, 0.5); margin: 3px 0 2px 10px; height: 50px; white-space: nowrap; overflow: hidden;}
@@ -456,184 +455,284 @@ class ui_filter extends base_module {
 					.ui nav li.project-filters .results ul.keywords > li > ul { display: flex; flex-flow: wrap; white-space: normal; vertical-align: top; padding: 5px; }
 					.ui nav li.project-filters .results ul.keywords > li > ul > li { cursor: pointer; display: inline-block; padding: 4px 8px; margin: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 					.ui nav li.project-filters .results ul.keywords > li > ul > li:not(.separator):not(.info) { max-width: 40%; }
-					.ui nav li.project-filters .results ul.keywords li.info { cursor: default; }
+					.ui nav li.project-filters .results ul.keywords li.info {  cursor: default; display: flex; justify-content: space-between; width: 100%; }
+					.ui nav li.project-filters .results ul.keywords li.info span { padding: 4px 0px; }
+					.ui nav li.project-filters .results ul.keywords li.info span.hide-options { cursor: pointer; padding: 4px 8px; background-color: rgba(255,255,255,0.5); }
 					.ui nav li.project-filters .results ul.keywords .separator { display: none; cursor: default; font-variant: small-caps; }
 					.ui nav li.project-filters .results > p { padding: 10px; cursor: pointer; }
+								
+					@media all and (max-width : 1120px) {
+					
+						.ui.responsive-layout-enabled > nav li.project-filters.search > div { position: relative; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > input,
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > label { display: none; }
+						
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div { position: relative; width: 100%; box-sizing: border-box; flex-direction: column; background-color: #a3ce6c;}
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element { flex: 0; background-color: rgba(255, 255, 255, 0.1); padding: 5px; height: auto; margin: 0 5px 10px 5px; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element:first-child { margin-top: 10px; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input { display: block; background: none; padding: 0; margin: 0; height: auto; white-space: normal; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input > .active-input + label { display: none; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input > .set-input { height: 40px; margin: 0; padding: 0 0 0 40px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input > .set-input input { width: 100%; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input > .active-input { background: none; padding: 0; margin: 0; display: inline; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input > .active-input > div { display: inline-block; min-width: 30px; width: auto; max-width: 100%; overflow: hidden; box-sizing: border-box; white-space: nowrap; margin: 0 5px 5px 0px; background-color: #eee; padding: 0 0 0 5px; height: 30px; font-size: 16px; line-height: 30px; vertical-align: middle;}
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input > .active-input > div span:first-child { display: inline-block; width: auto; max-width: calc(100% - 30px); color: #333; font-size: 14px; padding: 0 4px; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input > .active-input > div span.icon { cursor: pointer; background-color: #ddd; color: #444; padding: 0 6px; border: 0;  }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input > .active-input > div span.icon svg { height: 11px; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input > input { display: none; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input > .active-input + label + input + label { display: inline-block; border: 2px solid #0096e4; order: 4; padding: 0; cursor: pointer; white-space: nowrap; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input > input + label > span { display: inline-block; font-weight: bold; font-size: 10px; padding: 5px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;   }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input > input:not(:checked) + label > span:first-child {  background-color: #0096e4; color: #fff;  }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element .input > input:checked + label > span:last-child {  background-color: #0096e4; color: #fff; }
 
-					.ui nav > nav > ul > li.project-dynamic-nav ul li.project-filters[data-active="true"] ~ li { display: none; }
-				
-					.ui nav li.project-filters.form > div { display: flex; justify-content: flex-start; height: auto; min-height: 46px; font-family: var(--font-mono); }
-														  
-					.ui nav li.project-filters.form > div > input { display: none; }
-					.ui nav li.project-filters.form > div > label:first-child { cursor: pointer; margin: 5px 0 0 5px; height: 36px; line-height: 36px; padding: 0 15px; font-weight: bold; letter-spacing: 2px; color: #333; text-transform: uppercase;  background-color: #fff;  }
-					.ui nav li.project-filters.form > div > input + label { margin: 5px 0 0 0; cursor: pointer; background-color: #fff; height: 36px; }
-					.ui nav li.project-filters.form > div > input + label > span { display: none; background-color: #0096e4; color: #fff; width: 36px; height: 36px; box-sizing: border-box; text-align: center; padding-top: 10px; }
-					.ui nav li.project-filters.form > div > input + label > span > svg { width: 50%; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label > span:first-child { display: inline-block; }
-					.ui nav li.project-filters.form > div > input:checked + label > span:last-child { display: inline-block; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input { display: flex; height: 40px; padding: 0px; box-sizing: border-box; white-space: nowrap; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > label { order: 2; font-family: var(--font-mono); display: inline-block; font-size: 14px; height: 40px; border: 0; margin: 0; padding: 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6); }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > input + label {  cursor: pointer; height: 40px; width: 50px; margin: 0; border-left: 1px solid rgba(0, 0, 0, 0.1); line-height: 20px; text-align: center; font-weight: bold; font-size: 12px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;  }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > label:nth-of-type(3) { color: rgba(0, 0, 0, 0.6);  order: 1; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > input:checked + label { background-color: #0096e4; color: #fff;  }
 
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div {  display: flex; margin: 0 0 0 5px; padding: 0; width: auto; position: relative; top: 0; white-space: normal; flex-wrap: wrap; align-content: flex-start; min-height: 36px; } 
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element { flex: 0 1 auto; margin: 5px 0 0 0; min-width: 0px; }  
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input { display: flex; background: none; min-width: 0px; padding: 0px; width: auto; height: auto; white-space: normal; }  
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input { order: 2; display: inline-block; height: 36px; max-width: 100%; overflow: visible; white-space: normal; } 
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input:not(:empty) { background-color: rgba(255, 255, 255, 0.6); padding: 5px; margin-right: 5px; box-sizing: border-box; } 
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input > div { width: auto; display: inline-block; margin: 3px 3px 0 0; padding: 0; height: auto; line-height: 1; background-color: #fff; vertical-align: middle; } 
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input > div span:first-child { width: auto; height: 100%; vertical-align: middle; font-size: 12px; line-height: 18px; background-color: #fff; padding: 0 4px;  } 
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input > div span.icon { display: none; } 
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .set-input { display: none; } 
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > input { display: none; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > label { order: 1;  display: inline-block; height: 36px; line-height: 36px; padding: 0 15px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; background-color: #0096e4; color: #fff;}
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > input + label { display: none; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input:empty + label { display: none; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="int"],
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="boolean"] { margin-right: 5px; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="boolean"] .input > label { display: none; margin: 0px; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="boolean"] .input > input:checked + label { pointer-events: none; order: 2; display: inline-block; background-color: rgba(255, 255, 255, 0.6); color: #333; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="boolean"] .input > input:checked + label + input + label + label,
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="boolean"] .input > input:checked + label + label { display: inline-block; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="int"] .input > label { display: none; pointer-events: none; order: 1; margin: 0px; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="int"] .input > input { display: none; pointer-events: none; order: 2; height: 36px; width: 60px; padding: 10px; background-color: rgba(255, 255, 255, 0.6); color: #333; }
-					
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date { display: inline-block; display: flex; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input { background-color: rgba(255, 255, 255, 0.6); width: 90px; min-width: 10px; border: 0; height: 36px; padding: 0 10px; margin: 0; pointer-events: none;  text-align: center; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input + label { display: inline-block; height: 36px; line-height: 36px; padding: 0 15px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; background-color: #0096e4; color: #fff; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:first-child { order: 2;  }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:nth-of-type(2) { order: 4;  }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:first-child + label { order: 1; margin-left: 0px; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:nth-of-type(2) + label { order: 3;  }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:placeholder-shown,
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:placeholder-shown + label { display: none; }
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:nth-of-type(3),
-					.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:nth-of-type(3) + label { display: none; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element[data-value-type="int"] .input { display: flex; height: 40px; margin: 0 10px 0 0; white-space: nowrap; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element[data-value-type="int"] .input > label { order: 1; display: inline-block; font-size: 14px; height: 40px; border: 0; line-height: 40px; color: rgba(0, 0, 0, 0.6); padding: 0 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6);  }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .form-element[data-value-type="int"] .input > input { order: 2; width: 60px; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; padding: 10px; background-color: rgba(255, 255, 255, 0.6);  }
 
-					.ui nav li.project-filters.form > div > input:checked + label + div { position: absolute; width: 30%; min-width: 800px; left: 5px; top: 41px; box-sizing: border-box; flex-direction: column; background-color: #fff; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element { flex: 0; background-color: #a3ce6c; padding: 10px; height: auto; margin: 0 10px 10px 10px; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element:first-child { margin-top: 10px; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input { display: flex; background: none; padding: 0; margin: 0; height: auto; white-space: normal; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input + label { display: none; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .set-input { order: 2; height: 40px; margin: 0 10px 0 0; padding: 0 0 0 40px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .set-input input { width: 100%;  box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .set-input input::placeholder {  }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input { order: 3; background: none; padding: 0; margin: 0; display: inline-block; height: auto; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input > div { display: inline-block; min-width: 30px; width: auto; box-sizing: border-box; white-space: nowrap; margin: 0 5px 5px 0px; background-color: #eee; padding: 0 0 0 5px; height: 30px; font-size: 16px; line-height: 30px; vertical-align: middle;}
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input > div span:first-child { width: auto; max-width: 150px; color: #333; font-size: 12px; padding: 0 4px; display: inline-block; overflow-x: hidden; text-overflow: ellipsis;}
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input > div span.icon { cursor: pointer; background-color: #ddd; color: #666; padding: 0 6px; border: 0; vertical-align: top; width: 22px; box-sizing: border-box; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input > div span.icon svg { height: 11px; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > input { display: none; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input + label + input + label { display: inline-block; border: 2px solid #0096e4; order: 4; padding: 0; height: 23px; cursor: pointer; white-space: nowrap; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > input + label > span { display: inline-block; font-family: var(--font-mono); font-weight: bold; font-size: 10px; padding: 5px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;   }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > input:not(:checked) + label > span:first-child,
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > input:checked + label > span:last-child {  background-color: #0096e4; color: #fff; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="int"] .input,
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="boolean"] .input { display: flex; height: 40px; padding: 0px; box-sizing: border-box; white-space: nowrap; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="int"] .input > label,
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="boolean"] .input > label { order: 2; font-family: var(--font-mono); display: inline-block; font-size: 14px; height: 40px; border: 0; margin: 0; padding: 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6); }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="boolean"] .input > input + label {  cursor: pointer; height: 40px; width: 50px; margin: 0; border-left: 1px solid rgba(0, 0, 0, 0.1); line-height: 20px; text-align: center; font-weight: bold; font-size: 12px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;  }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="boolean"] .input > label:nth-of-type(2) { }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="boolean"] .input > label:nth-of-type(3) { color: rgba(0, 0, 0, 0.6);  order: 1; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="boolean"] .input > input:checked + label { background-color: #0096e4; color: #fff;  }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="int"] .input > label { color: rgba(0, 0, 0, 0.6);  order: 1;  }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="int"] .input > input { display: inline-block;  box-shadow: none; border: 0; border-radius: 0;  order: 3; height: 40px; width: 60px; background-color: rgba(255, 255, 255, 0.6); margin: 0; padding: 10px; box-sizing: border-box; font-size: 14px; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="int"] .input > input:hover,
-					.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="int"] .input > input:focus { box-shadow: none; border: 0; border-radius: 0; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .results { margin-top: 0px; background-color: rgba(255, 255, 255, 0.6); }
-					.ui nav li.project-filters.form > div > input:checked + label + div .results > p { display: none; }
-					
-					.ui nav li.project-filters.form > div > input:checked + label + div .date { display: flex; white-space: normal; flex-wrap: wrap; align-content: flex-start; }
-					.ui nav li.project-filters.form > div > input:checked + label + div .date > input { display: inline-block; box-shadow: none; display: inline-block; font-size: 14px; height: 40px; width: auto; margin: 0; padding: 0 0 0 40px; border: 0; background: url("/CMS/css/images/icons/date.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap;  }
-					.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(1) { order: 2;  }
-					.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(2) { order: 4;  }
-					.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(1) + label { order: 1; margin-left: 0px; } 
-					.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(1) + label,
-					.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(2) + label { height: 40px; font-weight: bold; letter-spacing: 2px; font-size: 12px; padding: 0 0 0 10px; line-height: 40px; box-sizing: border-box; color: #333; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6);  } 
-					.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(2) + label { order: 3;  } 
-					.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(3) { display: none;  } 
-					.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(3) + label { order: 5; position: relative; height: 40px; width: 40px; background-color: #0096e4; cursor: pointer; text-align: center; } 
-					.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(3) + label > span.icon { color: #fff; height: 20px; margin-top: 10px;} 
-					.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(3) + label > span.icon > svg { height: 100%; } 
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .results { margin-top: 0px; background-color: rgba(255, 255, 255, 0.6); }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div .results > p { display: none; }
 
-					.ui nav.top li.project-filters.form { height: 100px; }
-					.ui nav.top li.project-filters.form > div { position: absolute; width: 100%; box-sizing: border-box; display: flex; flex-direction: row; }
-					.ui nav.top li.project-filters.form > div > div { width: 100%; box-sizing: border-box; display: flex; flex-direction: row; }
-					.ui nav.top li.project-filters.form > div > div .form-element { flex: 1; padding: 10px; height: auto; margin: 0 10px 0 0; }
-					.ui nav.top li.project-filters.form > div > div .form-element:first-child { margin-top: 0px; }
-					.ui nav.top li.project-filters.form > div > div .form-element .input { display: flex; background: none; padding: 0; margin: 0; height: auto; white-space: normal; }
-					.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input + label { display: none; }
-					.ui nav.top li.project-filters.form > div > div .form-element .input > .set-input { order: 2; height: 40px; margin: 0 10px 0 0; padding: 0 0 0 40px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
-					.ui nav.top li.project-filters.form > div > div .form-element .input > .set-input input { width: 100%; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; }
-					.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input { order: 3; background: none; padding: 0; margin: 0; display: inline-block; height: auto; }
-					.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input > div { display: inline-block; min-width: 30px; width: auto; box-sizing: border-box; white-space: nowrap; margin: 0 5px 5px 0px; background-color: #eee; padding: 0 0 0 5px; height: 30px; font-size: 16px; line-height: 30px; vertical-align: middle;}
-					.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input > div span:first-child { width: auto; color: #333; font-size: 14px; padding: 0 4px; }
-					.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input > div span.icon { cursor: pointer; background-color: #ddd; color: #444; padding: 0 6px; border: 0;  }
-					.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input > div span.icon svg { height: 11px; }
-					.ui nav.top li.project-filters.form > div > div .form-element .input > input { display: none; }
-					.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input + label + input + label { display: inline-block; border: 2px solid #0096e4; order: 4; padding: 0; height: 23px; cursor: pointer; white-space: nowrap; }
-					.ui nav.top li.project-filters.form > div > div .form-element .input > input + label > span { display: inline-block; font-weight: bold; font-size: 10px; padding: 5px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;   }
-					.ui nav.top li.project-filters.form > div > div .form-element .input > input:not(:checked) + label > span:first-child {  background-color: #0096e4; color: #fff;  }
-					.ui nav.top li.project-filters.form > div > div .form-element .input > input:checked + label > span:last-child {  background-color: #0096e4; color: #fff; }
-					
-					.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input { display: flex; height: 40px; padding: 0px; box-sizing: border-box; white-space: nowrap; }
-					.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > label { order: 2; font-family: var(--font-mono); display: inline-block; font-size: 14px; height: 40px; border: 0; margin: 0; padding: 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6); }
-					.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > input + label {  cursor: pointer; height: 40px; width: 50px; margin: 0; border-left: 1px solid rgba(0, 0, 0, 0.1); line-height: 20px; text-align: center; font-weight: bold; font-size: 12px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;  }
-					.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > label:nth-of-type(3) { color: rgba(0, 0, 0, 0.6);  order: 1; }
-					.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > input:checked + label { background-color: #0096e4; color: #fff;  }
-					
-					.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="int"] .input { height: 40px; margin: 0 10px 0 0; white-space: nowrap; }
-					.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="int"] .input > label { order: 1; display: inline-block; font-size: 14px; height: 40px; border: 0; line-height: 40px; color: rgba(0, 0, 0, 0.6); padding: 0 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6);  }
-					.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="int"] .input > input { order: 2; width: 60px; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; padding: 10px; background-color: rgba(255, 255, 255, 0.6);  }
-					
-					.ui nav.top li.project-filters.form > div > div .results { margin-top: 0px; background-color: rgba(255, 255, 255, 0.6); }
-					.ui nav.top li.project-filters.form > div > div .results > p { display: none; }
-					
-					.ui nav.top li.project-filters.form > div > div > .form-element > .date { display: flex; white-space: normal; flex-wrap: nowrap; align-content: flex-start; }
-					.ui nav.top li.project-filters.form > div > div > .form-element > .date > input { display: inline-block; box-shadow: none; font-size: 14px; height: 40px; max-width: 200px; margin: 0 0 5px 0; padding: 0 0 0 40px; border: 0; background: url("/CMS/css/images/icons/date.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap;  }
-					.ui nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) { order: 2;  }
-					.ui nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) { order: 4;  }
-					.ui nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) + label { order: 1; } 
-					.ui nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) + label,
-					.ui nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) + label { margin-left: 5px; width: 75px; height: 40px; font-weight: bold; letter-spacing: 2px; font-size: 12px; padding: 0 0 0 10px; line-height: 40px; box-sizing: border-box; color: #333; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6);  } 
-					.ui nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) + label { order: 3;  } 
-					
-					.ui nav.left li.project-filters.form > div > div { position: relative; width: 100%; box-sizing: border-box; flex-direction: column; background-color: #a3ce6c;}
-					.ui nav.left li.project-filters.form > div > div .form-element { flex: 0; background-color: rgba(255, 255, 255, 0.1); padding: 5px; height: auto; margin: 0 5px 10px 5px; }
-					.ui nav.left li.project-filters.form > div > div .form-element:first-child { margin-top: 10px; }
-					.ui nav.left li.project-filters.form > div > div .form-element .input { display: block; background: none; padding: 0; margin: 0; height: auto; white-space: normal; }
-					.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input + label { display: none; }
-					.ui nav.left li.project-filters.form > div > div .form-element .input > .set-input { height: 40px; margin: 0; padding: 0 0 0 40px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
-					.ui nav.left li.project-filters.form > div > div .form-element .input > .set-input input { width: 100%; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; }
-					.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input { background: none; padding: 0; margin: 0; display: inline; }
-					.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input > div { display: inline-block; min-width: 30px; width: auto; max-width: 100%; overflow: hidden; box-sizing: border-box; white-space: nowrap; margin: 0 5px 5px 0px; background-color: #eee; padding: 0 0 0 5px; height: 30px; font-size: 16px; line-height: 30px; vertical-align: middle;}
-					.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input > div span:first-child { display: inline-block; width: auto; max-width: calc(100% - 30px); color: #333; font-size: 14px; padding: 0 4px; }
-					.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input > div span.icon { cursor: pointer; background-color: #ddd; color: #444; padding: 0 6px; border: 0;  }
-					.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input > div span.icon svg { height: 11px; }
-					.ui nav.left li.project-filters.form > div > div .form-element .input > input { display: none; }
-					.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input + label + input + label { display: inline-block; border: 2px solid #0096e4; order: 4; padding: 0; cursor: pointer; white-space: nowrap; }
-					.ui nav.left li.project-filters.form > div > div .form-element .input > input + label > span { display: inline-block; font-weight: bold; font-size: 10px; padding: 5px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;   }
-					.ui nav.left li.project-filters.form > div > div .form-element .input > input:not(:checked) + label > span:first-child {  background-color: #0096e4; color: #fff;  }
-					.ui nav.left li.project-filters.form > div > div .form-element .input > input:checked + label > span:last-child {  background-color: #0096e4; color: #fff; }
-					
-					.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input { display: flex; height: 40px; padding: 0px; box-sizing: border-box; white-space: nowrap; }
-					.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > label { order: 2; font-family: var(--font-mono); display: inline-block; font-size: 14px; height: 40px; border: 0; margin: 0; padding: 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6); }
-					.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > input + label {  cursor: pointer; height: 40px; width: 50px; margin: 0; border-left: 1px solid rgba(0, 0, 0, 0.1); line-height: 20px; text-align: center; font-weight: bold; font-size: 12px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;  }
-					.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > label:nth-of-type(3) { color: rgba(0, 0, 0, 0.6);  order: 1; }
-					.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > input:checked + label { background-color: #0096e4; color: #fff;  }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div > .form-element > .date { display: flex; white-space: normal; flex-wrap: wrap; align-content: flex-start; }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div > .form-element > .date > input { display: inline-block; box-shadow: none; display: inline-block; font-size: 14px; height: 40px; width: calc(100% - 75px); margin: 0 0 5px 0; padding: 0 0 0 40px; border: 0; background: url("/CMS/css/images/icons/date.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap;  }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) { order: 2;  }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) { order: 4;  }
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) + label { order: 1; } 
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) + label,
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) + label { margin-left: 0px; width: 75px; height: 40px; font-weight: bold; letter-spacing: 2px; font-size: 12px; padding: 0 0 0 10px; line-height: 40px; box-sizing: border-box; color: #333; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6);  } 
+						.ui.responsive-layout-enabled > nav li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) + label { order: 3;  }
 
-					.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="int"] .input { display: flex; height: 40px; margin: 0 10px 0 0; white-space: nowrap; }
-					.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="int"] .input > label { order: 1; display: inline-block; font-size: 14px; height: 40px; border: 0; line-height: 40px; color: rgba(0, 0, 0, 0.6); padding: 0 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6);  }
-					.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="int"] .input > input { order: 2; width: 60px; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; padding: 10px; background-color: rgba(255, 255, 255, 0.6);  }
-					
-					.ui nav.left li.project-filters.form > div > div .results { margin-top: 0px; background-color: rgba(255, 255, 255, 0.6); width: 40vw; max-width: 750px; }
-					.ui nav.left li.project-filters.form > div > div .results > p { display: none; }
-					
-					.ui nav.left li.project-filters.form > div > div > .form-element > .date { display: flex; white-space: normal; flex-wrap: wrap; align-content: flex-start; }
-					.ui nav.left li.project-filters.form > div > div > .form-element > .date > input { display: inline-block; box-shadow: none; display: inline-block; font-size: 14px; height: 40px; width: calc(100% - 75px); margin: 0 0 5px 0; padding: 0 0 0 40px; border: 0; background: url("/CMS/css/images/icons/date.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap;  }
-					.ui nav.left li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) { order: 2;  }
-					.ui nav.left li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) { order: 4;  }
-					.ui nav.left li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) + label { order: 1; } 
-					.ui nav.left li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) + label,
-					.ui nav.left li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) + label { margin-left: 0px; width: 75px; height: 40px; font-weight: bold; letter-spacing: 2px; font-size: 12px; padding: 0 0 0 10px; line-height: 40px; box-sizing: border-box; color: #333; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6);  } 
-					.ui nav.left li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) + label { order: 3;  } 
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form { height: 100px; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div { position: absolute; width: 100%; box-sizing: border-box; display: flex; flex-direction: row; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div { width: 100%; box-sizing: border-box; display: flex; flex-direction: row; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element { flex: 1; padding: 10px; height: auto; margin: 0 10px 0 0; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element:first-child { margin-top: 0px; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input { display: flex; background: none; padding: 0; margin: 0; height: auto; white-space: normal; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > .active-input + label { display: none; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > .set-input { order: 2; height: 40px; margin: 0 10px 0 0; padding: 0 0 0 40px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > .set-input input { width: 100%; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > .active-input { order: 3; background: none; padding: 0; margin: 0; display: inline-block; height: auto; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > .active-input > div { display: inline-block; min-width: 30px; width: auto; box-sizing: border-box; white-space: nowrap; margin: 0 5px 5px 0px; background-color: #eee; padding: 0 0 0 5px; height: 30px; font-size: 16px; line-height: 30px; vertical-align: middle;}
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > .active-input > div span:first-child { width: auto; color: #333; font-size: 14px; padding: 0 4px; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > .active-input > div span.icon { cursor: pointer; background-color: #ddd; color: #444; padding: 0 6px; border: 0;  }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > .active-input > div span.icon svg { height: 11px; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > input { display: none; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > .active-input + label + input + label { display: inline-block; border: 2px solid #0096e4; order: 4; padding: 0; height: 23px; cursor: pointer; white-space: nowrap; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > input + label > span { display: inline-block; font-weight: bold; font-size: 10px; padding: 5px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;   }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > input:not(:checked) + label > span:first-child {  background-color: #0096e4; color: #fff;  }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > input:checked + label > span:last-child {  background-color: #0096e4; color: #fff; }
 
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input { display: flex; height: 40px; padding: 0px; box-sizing: border-box; white-space: nowrap; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > label { order: 2; font-family: var(--font-mono); display: inline-block; font-size: 14px; height: 40px; border: 0; margin: 0; padding: 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6); }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > input + label {  cursor: pointer; height: 40px; width: 50px; margin: 0; border-left: 1px solid rgba(0, 0, 0, 0.1); line-height: 20px; text-align: center; font-weight: bold; font-size: 12px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;  }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > label:nth-of-type(3) { color: rgba(0, 0, 0, 0.6);  order: 1; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > input:checked + label { background-color: #0096e4; color: #fff;  }
+
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element[data-value-type="int"] .input { height: 40px; margin: 0 10px 0 0; white-space: nowrap; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element[data-value-type="int"] .input > label { order: 1; display: inline-block; font-size: 14px; height: 40px; border: 0; line-height: 40px; color: rgba(0, 0, 0, 0.6); padding: 0 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6);  }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element[data-value-type="int"] .input > input { order: 2; width: 60px; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; padding: 10px; background-color: rgba(255, 255, 255, 0.6);  }
+
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .results { margin-top: 0px; background-color: rgba(255, 255, 255, 0.6); }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .results > p { display: none; }
+
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div > .form-element > .date { display: flex; white-space: normal; flex-wrap: nowrap; align-content: flex-start; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div > .form-element > .date > input { display: inline-block; box-shadow: none; font-size: 14px; height: 40px; max-width: 200px; margin: 0 0 5px 0; padding: 0 0 0 40px; border: 0; background: url("/CMS/css/images/icons/date.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap;  }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) { order: 2;  }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) { order: 4;  }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) + label { order: 1; } 
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) + label,
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) + label { margin-left: 5px; width: 75px; height: 40px; font-weight: bold; letter-spacing: 2px; font-size: 12px; padding: 0 0 0 10px; line-height: 40px; box-sizing: border-box; color: #333; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6);  } 
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) + label { order: 3;  } 
+					}
+					
+					@media all and (min-width : 1120px) {
+					
+						.ui > nav.left { display: block; position: absolute; top: 60px; width: 20vw; overflow: visible; height: calc(100% - 60px); z-index: 2; }
+						.ui > nav.left + .project-dynamic-data {  padding-left: 20vw; box-sizing: border-box; }
+						.ui > nav.left + .project-dynamic-data  > .data > .objects > .tabs.list-view { max-width: 78vw; }
+						.ui > nav.left > ul li.projects-nav ul { padding-left: 5px; height: auto; white-space: normal; }
+						.ui > nav.left > ul li.projects-nav ul li { height: auto; }
+					
+						.ui nav > nav > ul > li.project-dynamic-nav ul li.project-filters[data-active="true"] ~ li { display: none; }
+					
+						.ui nav li.project-filters.form > div { display: flex; justify-content: flex-start; height: auto; min-height: 46px; font-family: var(--font-mono); }
+															
+						.ui nav li.project-filters.form > div > input { display: none; }
+						.ui nav li.project-filters.form > div > label:first-child { cursor: pointer; margin: 5px 0 0 5px; height: 36px; line-height: 36px; padding: 0 15px; font-weight: bold; letter-spacing: 2px; color: #333; text-transform: uppercase;  background-color: #fff;  }
+						.ui nav li.project-filters.form > div > input + label { margin: 5px 0 0 0; cursor: pointer; background-color: #fff; height: 36px; }
+						.ui nav li.project-filters.form > div > input + label > span { display: none; background-color: #0096e4; color: #fff; width: 36px; height: 36px; box-sizing: border-box; text-align: center; padding-top: 10px; }
+						.ui nav li.project-filters.form > div > input + label > span > svg { width: 50%; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label > span:first-child { display: inline-block; }
+						.ui nav li.project-filters.form > div > input:checked + label > span:last-child { display: inline-block; }
+	
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div { display: flex; margin: 0 0 0 5px; padding: 0; width: auto; position: relative; top: 0; white-space: normal; flex-wrap: wrap; align-content: flex-start; min-height: 36px; } 
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element { flex: 0 1 auto; margin: 5px 0 0 0; min-width: 0px; }  
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input { display: flex; background: none; min-width: 0px; padding: 0px; width: auto; height: auto; white-space: normal; }  
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input { order: 2; display: inline-block; height: 36px; max-width: 100%; overflow: visible; white-space: normal; } 
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input:not(:empty) { background-color: rgba(255, 255, 255, 0.6); padding: 5px; margin-right: 5px; box-sizing: border-box; } 
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input > div { width: auto; display: inline-block; margin: 3px 3px 0 0; padding: 0; height: auto; line-height: 1; background-color: #fff; vertical-align: middle; } 
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input > div span:first-child { width: auto; height: 100%; vertical-align: middle; font-size: 12px; line-height: 18px; background-color: #fff; padding: 0 4px;  } 
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input > div span.icon { display: none; } 
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .set-input { display: none; } 
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > input { display: none; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > label { order: 1;  display: inline-block; height: 36px; line-height: 36px; padding: 0 15px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; background-color: #0096e4; color: #fff;}
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > input + label { display: none; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input:empty + label { display: none; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="int"],
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="boolean"] { margin-right: 5px; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="boolean"] .input > label { display: none; margin: 0px; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="boolean"] .input > input:checked + label { pointer-events: none; order: 2; display: inline-block; background-color: rgba(255, 255, 255, 0.6); color: #333; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="boolean"] .input > input:checked + label + input + label + label,
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="boolean"] .input > input:checked + label + label { display: inline-block; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="int"] .input > label { display: none; pointer-events: none; order: 1; margin: 0px; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element[data-value-type="int"] .input > input { display: none; pointer-events: none; order: 2; height: 36px; width: 60px; padding: 10px; background-color: rgba(255, 255, 255, 0.6); color: #333; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .results { display: none; }
+						
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date { display: inline-block; display: flex; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input { background-color: rgba(255, 255, 255, 0.6); width: 90px; min-width: 10px; border: 0; height: 36px; padding: 0 10px; margin: 0; pointer-events: none;  text-align: center; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input + label { display: inline-block; height: 36px; line-height: 36px; padding: 0 15px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; background-color: #0096e4; color: #fff; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:first-child { order: 2;  }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:nth-of-type(2) { order: 4;  }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:first-child + label { order: 1; margin-left: 0px; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:nth-of-type(2) + label { order: 3;  }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:placeholder-shown,
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:placeholder-shown + label { display: none; }
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:nth-of-type(3),
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .date > input:nth-of-type(3) + label { display: none; }
+	
+						.ui nav li.project-filters.form > div > input:checked + label + div { position: absolute; width: 30%; min-width: 800px; left: 5px; top: 41px; box-sizing: border-box; flex-direction: column; background-color: #fff; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element { flex: 0; background-color: #a3ce6c; padding: 10px; height: auto; margin: 0 10px 10px 10px; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element:first-child { margin-top: 10px; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input { display: flex; background: none; padding: 0; margin: 0; height: auto; white-space: normal; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input + label { display: none; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .set-input { order: 2; height: 40px; margin: 0 10px 0 0; padding: 0 0 0 40px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .set-input input { width: 100%;  box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .set-input input::placeholder {  }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input { order: 3; background: none; padding: 0; margin: 0; display: inline-block; height: auto; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input > div { display: inline-block; min-width: 30px; width: auto; box-sizing: border-box; white-space: nowrap; margin: 0 5px 5px 0px; background-color: #eee; padding: 0 0 0 5px; height: 30px; font-size: 16px; line-height: 30px; vertical-align: middle;}
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input > div span:first-child { width: auto; max-width: 150px; color: #333; font-size: 12px; padding: 0 4px; display: inline-block; overflow-x: hidden; text-overflow: ellipsis;}
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input > div span.icon { cursor: pointer; background-color: #ddd; color: #666; padding: 0 6px; border: 0; vertical-align: top; width: 22px; box-sizing: border-box; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input > div span.icon svg { height: 11px; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > input { display: none; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input + label + input + label { display: inline-block; border: 2px solid #0096e4; order: 4; padding: 0; height: 23px; cursor: pointer; white-space: nowrap; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > input + label > span { display: inline-block; font-family: var(--font-mono); font-weight: bold; font-size: 10px; padding: 5px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;   }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > input:not(:checked) + label > span:first-child,
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > input:checked + label > span:last-child {  background-color: #0096e4; color: #fff; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="int"] .input,
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="boolean"] .input { display: flex; height: 40px; padding: 0px; box-sizing: border-box; white-space: nowrap; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="int"] .input > label,
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="boolean"] .input > label { order: 2; font-family: var(--font-mono); display: inline-block; font-size: 14px; height: 40px; border: 0; margin: 0; padding: 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6); }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="boolean"] .input > input + label {  cursor: pointer; height: 40px; width: 50px; margin: 0; border-left: 1px solid rgba(0, 0, 0, 0.1); line-height: 20px; text-align: center; font-weight: bold; font-size: 12px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;  }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="boolean"] .input > label:nth-of-type(2) { }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="boolean"] .input > label:nth-of-type(3) { color: rgba(0, 0, 0, 0.6);  order: 1; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="boolean"] .input > input:checked + label { background-color: #0096e4; color: #fff;  }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="int"] .input > label { color: rgba(0, 0, 0, 0.6);  order: 1;  }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="int"] .input > input { display: inline-block;  box-shadow: none; border: 0; border-radius: 0;  order: 3; height: 40px; width: 60px; background-color: rgba(255, 255, 255, 0.6); margin: 0; padding: 10px; box-sizing: border-box; font-size: 14px; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="int"] .input > input:hover,
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element[data-value-type="int"] .input > input:focus { box-shadow: none; border: 0; border-radius: 0; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .results { margin-top: 0px; background-color: rgba(255, 255, 255, 0.6); }
+						.ui nav li.project-filters.form > div > input:checked + label + div .results > p { display: none; }
+						
+						.ui nav li.project-filters.form > div > input:checked + label + div .date { display: flex; white-space: normal; flex-wrap: wrap; align-content: flex-start; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .date > input { display: inline-block; box-shadow: none; display: inline-block; font-size: 14px; height: 40px; width: auto; margin: 0; padding: 0 0 0 40px; border: 0; background: url("/CMS/css/images/icons/date.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap;  }
+						.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(1) { order: 2;  }
+						.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(2) { order: 4;  }
+						.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(1) + label { order: 1; margin-left: 0px; } 
+						.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(1) + label,
+						.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(2) + label { height: 40px; font-weight: bold; letter-spacing: 2px; font-size: 12px; padding: 0 0 0 10px; line-height: 40px; box-sizing: border-box; color: #333; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6);  } 
+						.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(2) + label { order: 3;  } 
+						.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(3) { display: none;  } 
+						.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(3) + label { order: 5; position: relative; height: 40px; width: 40px; background-color: #0096e4; cursor: pointer; text-align: center; } 
+						.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(3) + label > span.icon { color: #fff; height: 20px; margin-top: 10px;} 
+						.ui nav li.project-filters.form > div > input:checked + label + div .date > input:nth-of-type(3) + label > span.icon > svg { height: 100%; } 
+	
+						.ui nav.top li.project-filters.form { height: 100px; }
+						.ui nav.top li.project-filters.form > div { position: absolute; width: 100%; box-sizing: border-box; display: flex; flex-direction: row; }
+						.ui nav.top li.project-filters.form > div > div { width: 100%; box-sizing: border-box; display: flex; flex-direction: row; }
+						.ui nav.top li.project-filters.form > div > div .form-element { flex: 1; padding: 10px; height: auto; margin: 0 10px 0 0; }
+						.ui nav.top li.project-filters.form > div > div .form-element:first-child { margin-top: 0px; }
+						.ui nav.top li.project-filters.form > div > div .form-element .input { display: flex; background: none; padding: 0; margin: 0; height: auto; white-space: normal; }
+						.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input + label { display: none; }
+						.ui nav.top li.project-filters.form > div > div .form-element .input > .set-input { order: 2; height: 40px; margin: 0 10px 0 0; padding: 0 0 0 40px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
+						.ui nav.top li.project-filters.form > div > div .form-element .input > .set-input input { width: 100%; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; }
+						.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input { order: 3; background: none; padding: 0; margin: 0; display: inline-block; height: auto; }
+						.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input > div { display: inline-block; min-width: 30px; width: auto; box-sizing: border-box; white-space: nowrap; margin: 0 5px 5px 0px; background-color: #eee; padding: 0 0 0 5px; height: 30px; font-size: 16px; line-height: 30px; vertical-align: middle;}
+						.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input > div span:first-child { width: auto; color: #333; font-size: 14px; padding: 0 4px; }
+						.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input > div span.icon { cursor: pointer; background-color: #ddd; color: #444; padding: 0 6px; border: 0;  }
+						.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input > div span.icon svg { height: 11px; }
+						.ui nav.top li.project-filters.form > div > div .form-element .input > input { display: none; }
+						.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input + label + input + label { display: inline-block; border: 2px solid #0096e4; order: 4; padding: 0; height: 23px; cursor: pointer; white-space: nowrap; }
+						.ui nav.top li.project-filters.form > div > div .form-element .input > input + label > span { display: inline-block; font-weight: bold; font-size: 10px; padding: 5px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;   }
+						.ui nav.top li.project-filters.form > div > div .form-element .input > input:not(:checked) + label > span:first-child {  background-color: #0096e4; color: #fff;  }
+						.ui nav.top li.project-filters.form > div > div .form-element .input > input:checked + label > span:last-child {  background-color: #0096e4; color: #fff; }
+						
+						.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input { display: flex; height: 40px; padding: 0px; box-sizing: border-box; white-space: nowrap; }
+						.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > label { order: 2; font-family: var(--font-mono); display: inline-block; font-size: 14px; height: 40px; border: 0; margin: 0; padding: 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6); }
+						.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > input + label {  cursor: pointer; height: 40px; width: 50px; margin: 0; border-left: 1px solid rgba(0, 0, 0, 0.1); line-height: 20px; text-align: center; font-weight: bold; font-size: 12px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;  }
+						.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > label:nth-of-type(3) { color: rgba(0, 0, 0, 0.6);  order: 1; }
+						.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > input:checked + label { background-color: #0096e4; color: #fff;  }
+						
+						.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="int"] .input { height: 40px; margin: 0 10px 0 0; white-space: nowrap; }
+						.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="int"] .input > label { order: 1; display: inline-block; font-size: 14px; height: 40px; border: 0; line-height: 40px; color: rgba(0, 0, 0, 0.6); padding: 0 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6);  }
+						.ui nav.top li.project-filters.form > div > div .form-element[data-value-type="int"] .input > input { order: 2; width: 60px; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; padding: 10px; background-color: rgba(255, 255, 255, 0.6);  }
+						
+						.ui nav.top li.project-filters.form > div > div .results { margin-top: 0px; background-color: rgba(255, 255, 255, 0.6); }
+						.ui nav.top li.project-filters.form > div > div .results > p { display: none; }
+						
+						.ui nav.top li.project-filters.form > div > div > .form-element > .date { display: flex; white-space: normal; flex-wrap: nowrap; align-content: flex-start; }
+						.ui nav.top li.project-filters.form > div > div > .form-element > .date > input { display: inline-block; box-shadow: none; font-size: 14px; height: 40px; max-width: 200px; margin: 0 0 5px 0; padding: 0 0 0 40px; border: 0; background: url("/CMS/css/images/icons/date.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap;  }
+						.ui nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) { order: 2;  }
+						.ui nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) { order: 4;  }
+						.ui nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) + label { order: 1; } 
+						.ui nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) + label,
+						.ui nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) + label { margin-left: 5px; width: 75px; height: 40px; font-weight: bold; letter-spacing: 2px; font-size: 12px; padding: 0 0 0 10px; line-height: 40px; box-sizing: border-box; color: #333; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6);  } 
+						.ui nav.top li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) + label { order: 3;  } 
+						
+						.ui nav.left li.project-filters.form > div > div { position: relative; width: 100%; box-sizing: border-box; flex-direction: column; background-color: #a3ce6c;}
+						.ui nav.left li.project-filters.form > div > div .form-element { flex: 0; background-color: rgba(255, 255, 255, 0.1); padding: 5px; height: auto; margin: 0 5px 10px 5px; }
+						.ui nav.left li.project-filters.form > div > div .form-element:first-child { margin-top: 10px; }
+						.ui nav.left li.project-filters.form > div > div .form-element .input { display: block; background: none; padding: 0; margin: 0; height: auto; white-space: normal; }
+						.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input + label { display: none; }
+						.ui nav.left li.project-filters.form > div > div .form-element .input > .set-input { height: 40px; margin: 0; padding: 0 0 0 40px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
+						.ui nav.left li.project-filters.form > div > div .form-element .input > .set-input input { width: 100%; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; }
+						.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input { background: none; padding: 0; margin: 0; display: inline; }
+						.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input > div { display: inline-block; min-width: 30px; width: auto; max-width: 100%; overflow: hidden; box-sizing: border-box; white-space: nowrap; margin: 0 5px 5px 0px; background-color: #eee; padding: 0 0 0 5px; height: 30px; font-size: 16px; line-height: 30px; vertical-align: middle;}
+						.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input > div span:first-child { display: inline-block; width: auto; max-width: calc(100% - 30px); color: #333; font-size: 14px; padding: 0 4px; }
+						.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input > div span.icon { cursor: pointer; background-color: #ddd; color: #444; padding: 0 6px; border: 0;  }
+						.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input > div span.icon svg { height: 11px; }
+						.ui nav.left li.project-filters.form > div > div .form-element .input > input { display: none; }
+						.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input + label + input + label { display: inline-block; border: 2px solid #0096e4; order: 4; padding: 0; cursor: pointer; white-space: nowrap; }
+						.ui nav.left li.project-filters.form > div > div .form-element .input > input + label > span { display: inline-block; font-weight: bold; font-size: 10px; padding: 5px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;   }
+						.ui nav.left li.project-filters.form > div > div .form-element .input > input:not(:checked) + label > span:first-child {  background-color: #0096e4; color: #fff;  }
+						.ui nav.left li.project-filters.form > div > div .form-element .input > input:checked + label > span:last-child {  background-color: #0096e4; color: #fff; }
+						
+						.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input { display: flex; height: 40px; padding: 0px; box-sizing: border-box; white-space: nowrap; }
+						.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > label { order: 2; font-family: var(--font-mono); display: inline-block; font-size: 14px; height: 40px; border: 0; margin: 0; padding: 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6); }
+						.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > input + label {  cursor: pointer; height: 40px; width: 50px; margin: 0; border-left: 1px solid rgba(0, 0, 0, 0.1); line-height: 20px; text-align: center; font-weight: bold; font-size: 12px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;  }
+						.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > label:nth-of-type(3) { color: rgba(0, 0, 0, 0.6);  order: 1; }
+						.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="boolean"] .input > input:checked + label { background-color: #0096e4; color: #fff;  }
+	
+						.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="int"] .input { display: flex; height: 40px; margin: 0 10px 0 0; white-space: nowrap; }
+						.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="int"] .input > label { order: 1; display: inline-block; font-size: 14px; height: 40px; border: 0; line-height: 40px; color: rgba(0, 0, 0, 0.6); padding: 0 10px; box-sizing: border-box; background-color: rgba(255, 255, 255, 0.6);  }
+						.ui nav.left li.project-filters.form > div > div .form-element[data-value-type="int"] .input > input { order: 2; width: 60px; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; padding: 10px; background-color: rgba(255, 255, 255, 0.6);  }
+						
+						.ui nav.left li.project-filters.form > div > div .results { margin-top: 0px; background-color: rgba(255, 255, 255, 0.6); width: 40vw; max-width: 750px; }
+						.ui nav.left li.project-filters.form > div > div .results > p { display: none; }
+						
+						.ui nav.left li.project-filters.form > div > div > .form-element > .date { display: flex; white-space: normal; flex-wrap: wrap; align-content: flex-start; }
+						.ui nav.left li.project-filters.form > div > div > .form-element > .date > input { display: inline-block; box-shadow: none; display: inline-block; font-size: 14px; height: 40px; width: calc(100% - 75px); margin: 0 0 5px 0; padding: 0 0 0 40px; border: 0; background: url("/CMS/css/images/icons/date.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap;  }
+						.ui nav.left li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) { order: 2;  }
+						.ui nav.left li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) { order: 4;  }
+						.ui nav.left li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) + label { order: 1; } 
+						.ui nav.left li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(1) + label,
+						.ui nav.left li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) + label { margin-left: 0px; width: 75px; height: 40px; font-weight: bold; letter-spacing: 2px; font-size: 12px; padding: 0 0 0 10px; line-height: 40px; box-sizing: border-box; color: #333; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6);  } 
+						.ui nav.left li.project-filters.form > div > div > .form-element > .date > input:nth-of-type(2) + label { order: 3;  } 
+					}
 					
 					';
 	
@@ -642,422 +741,472 @@ class ui_filter extends base_module {
 	
 	public static function js() {
 	
-		$return = "SCRIPTER.dynamic('project-filter', function(elm_scripter) {
+		$return = "
+		SCRIPTER.dynamic('project-filter', function(elm_scripter) {
 		
-					var elm_filter = elm_scripter.find('[id=y\\\:ui_filter\\\:filter-0]');
-					var elm_ui = elm_scripter.closest('.ui');
-					var public_user_interface_id = elm_ui.find('[data-public_user_interface_id]').attr('data-public_user_interface_id');
-					elm_body = elm_ui.closest('body');
-					
-					elm_ui.attr('data-project_id', elm_scripter.attr('data-project_id'));
-					elm_body.attr('data-project_id', elm_scripter.attr('data-project_id'));
+			var elm_filter = elm_scripter.find('[id=y\\\:ui_filter\\\:filter-0]');
+			var elm_ui = elm_scripter.closest('.ui');
+			var public_user_interface_id = elm_ui.find('[data-public_user_interface_id]').attr('data-public_user_interface_id');
+			var elm_body = elm_ui.closest('body');
+			
+			elm_ui.attr('data-project_id', elm_scripter.attr('data-project_id'));
+			elm_body.attr('data-project_id', elm_scripter.attr('data-project_id'));
 		
-					// DISPLAY
-					var func_display_data = function() {
+			// DISPLAY
+			var func_display_data = function() {
 
-						var elm_handle_dynamic_project_data = elm_ui.find('[id=y\\\:ui\\\:handle_dynamic_project_data-0]');
-						elm_handle_dynamic_project_data.data({target: elm_handle_dynamic_project_data, method: 'handle_dynamic_project_data', module: 'ui'});
-						elm_handle_dynamic_project_data.quickCommand(elm_handle_dynamic_project_data);
-						
-						var elm_object_container = elm_ui.find('.project-dynamic-data > .data > .object');
-						elm_object_container.empty();
-						
-						elm_ui.find('.project-dynamic-nav, .tools').attr('data-object_active', false);
-					}
-					
-					// SEARCH & FILTER
-					if (elm_ui.find('.filter-container').length) {
-						elm_ui.find('.projects-nav').attr('data-filter', true);
-					} else {
-						elm_ui.find('.projects-nav').attr('data-filter', false);
-					}
-					
-					var func_get_input_dates = function(parse) {
-					
-						var elm_date_container = elm_filter.find('.form-element > .date');
-						var has_input = false;
-						
-						if (!elm_date_container.length) {
-							return false;
-						}
-						
-						var elm_input_min = elm_date_container.find('input[name=date-min]');
-						var elm_input_max = elm_date_container.find('input[name=date-max]');
-						
-						if (elm_input_min.val().length || elm_input_max.val().length) {
-							has_input = true;
-						}
-						
-						var input_min = (elm_input_min.val().length ? elm_input_min.val() : elm_date_container.attr('data-min_date'));
-						var input_max = (elm_input_max.val().length ? elm_input_max.val() : elm_date_container.attr('data-max_date'));
-						var bounds_min = elm_date_container.attr('data-min_date');
-						var bounds_max = elm_date_container.attr('data-max_date');
-						
-						if (input_min.indexOf('-') <= 0) {
-							input_min = '01-01-'+input_min
-						}
-						if (input_max.indexOf('-') <= 0) {
-							input_max = '01-01-'+input_max
-						}
-						if (bounds_min.indexOf('-') <= 0) {
-							bounds_min = '01-01-'+bounds_min
-						}
-						if (bounds_max.indexOf('-') <= 0) {
-							bounds_max = '01-01-'+bounds_max
-						}
-						
-						var arr_parsed_dates = {has_input: has_input, bounds_min: DATEPARSER.int2Date(DATEPARSER.strDate2Int(bounds_min)), bounds_max: DATEPARSER.int2Date(DATEPARSER.strDate2Int(bounds_max)), min: DATEPARSER.int2Date(DATEPARSER.strDate2Int(input_min)), max: DATEPARSER.int2Date(DATEPARSER.strDate2Int(input_max))};
-						var arr_dates = {has_input: has_input, bounds_min: bounds_min, bounds_max: bounds_max, min: input_min, max: input_max};
-						
-						if (arr_parsed_dates.min < arr_parsed_dates.bounds_min) {
-						
-							arr_parsed_dates.min = arr_parsed_dates.bounds_min;
-							arr_dates.min = arr_dates.bounds_min;
-							
-							elm_input_min.val(arr_dates.min);
-						}
-						
-						if (arr_parsed_dates.max > arr_parsed_dates.bounds_max) {
-						
-							arr_parsed_dates.max = arr_parsed_dates.bounds_max;
-							arr_dates.max = arr_dates.bounds_max;
-							
-							elm_input_max.val(arr_dates.max);
-						}
-						
-						if (arr_parsed_dates.min > arr_parsed_dates.bounds_max) {
-						
-							arr_parsed_dates.min = arr_parsed_dates.bounds_max;
-							arr_dates.min = arr_dates.bounds_max;
-							
-							elm_input_min.val(arr_dates.max);
-						}
-						
-						if (arr_parsed_dates.max < arr_parsed_dates.bounds_min) {
-						
-							arr_parsed_dates.max = arr_parsed_dates.bounds_min;
-							arr_dates.max = arr_dates.bounds_min;
-							
-							elm_input_max.val(arr_dates.min);
-						}
-						
-						return (parse ? arr_parsed_dates : arr_dates);
-					
-					}
-					
-					var func_filter = function() {
-
-						var value = {arr_filter: {}, date_range: {}};
-
-						elm_filter.find('.form-element').each(function() {
-
-							var elm_form = $(this);
-							var elm_form_value_type = elm_form.attr('data-value-type');
-							var elm_active_filter = elm_form.find('.active-input');
-							var elm_operator = elm_form.find('.operator');
-							var operator = 'OR';
-							
-							if (elm_operator.is(':checked')) {
-								operator = 'AND';
-							}
-							
-							var filter_id = elm_form.attr('data-filter_id');
-							var filter_key = filter_id + '-' + operator;
-														
-							if (elm_form_value_type == 'boolean') {
-								
-								value.arr_filter[filter_id] = [{boolean_value: elm_form.find('input:checked').val()}];									
-							
-							} else if (elm_form_value_type == 'int') {
-								
-								value.arr_filter[filter_id] = [{int: elm_form.find('input').val()}];									
-							
-							} else {
-							
-								value.arr_filter[filter_key] = [];
-								
-								elm_active_filter.children().each(function() {
-								
-									var elm_filter_value = $(this);
-									
-									if (elm_filter_value.data('object_id')) { // objects IDs
-									
-										value.arr_filter[filter_key].push({object_id: elm_filter_value.data('object_id'), type_id: elm_filter_value.data('type_id')});
-										
-									} else {  // strings
-										
-										// get rid of remove icon
-										var elm_filter_value_string = elm_filter_value.clone();
-										elm_filter_value_string.find('.icon').remove();
-										elm_filter_value_string = elm_filter_value_string.text();
-										value.arr_filter[filter_key].push({string: elm_filter_value_string});
-									}
-								});
-							}
-						});
-						
-						var arr_dates = func_get_input_dates(false);	
-						
-						if (arr_dates.has_input) {					
-							value.date_range = arr_dates;
-						}
-
-						elm_filter.data({value: value}).quickCommand(function() {
-							func_display_data();
-						});
-
-						setTimeout(function () {
-							elm_ui.children('input').prop('checked', false);
-						}, 500);
-					};
-					
-					var func_search = function(elm, run_filter) {
-					
-						var value = elm.val().replace(/[!@#$%^&*_|+\-'\"<>\{\}\[\]\\\/]/gi, ' ');
-						
-						var elm_search_active = elm.closest('.input').find('.active-input');
-						var filter_id = elm_search_active.attr('data-filter_id');
-						
-						if (value) {
-						
-							var elm_string = $('<div></div>').html('<span>'+value.trim()+'</span>').addClass('string').appendTo(elm_search_active);
-							
-							var elm_string_close_button = $('<span></span>').addClass('icon').appendTo(elm_string);
+				var elm_handle_dynamic_project_data = elm_ui.find('[id=y\\\:ui\\\:handle_dynamic_project_data-0]');
+				elm_handle_dynamic_project_data.data({target: elm_handle_dynamic_project_data, method: 'handle_dynamic_project_data', module: 'ui'});
+				elm_handle_dynamic_project_data.quickCommand(elm_handle_dynamic_project_data);
 				
-							ASSETS.getIcons(elm_string, ['close'], function(data) {
-								
-								elm_string_close_button[0].innerHTML = data.close;
-							});
-							
-							if (run_filter) {
-								func_filter();
-							}
-						}
-						
-						elm_search_active.parent().find('input').val('').blur();
-						
-						var elm_project_filters = elm.closest('.project-filters');
-						elm_project_filters.find('.results').addClass('hide');
+				var elm_object_container = elm_ui.find('.project-dynamic-data > .data > .object');
+				elm_object_container.empty();
+				
+				elm_ui.find('.project-dynamic-nav, .tools').attr('data-object_active', false);
+			}
+			
+			// SEARCH & FILTER
+			if (elm_ui.find('.filter-container').length) {
+				elm_ui.find('.projects-nav').attr('data-filter', true);
+			} else {
+				elm_ui.find('.projects-nav').attr('data-filter', false);
+			}
+			
+			var func_get_input_dates = function(parse) {
+			
+				var elm_date_container = elm_filter.find('.form-element > .date');
+				var has_input = false;
+				
+				if (!elm_date_container.length) {
+					return false;
+				}
+				
+				var elm_input_min = elm_date_container.find('input[name=date-min]');
+				var elm_input_max = elm_date_container.find('input[name=date-max]');
+				
+				if (elm_input_min.val().length || elm_input_max.val().length) {
+					has_input = true;
+				}
+				
+				var input_min = (elm_input_min.val().length ? elm_input_min.val() : elm_date_container.attr('data-min_date'));
+				var input_max = (elm_input_max.val().length ? elm_input_max.val() : elm_date_container.attr('data-max_date'));
+				var bounds_min = elm_date_container.attr('data-min_date');
+				var bounds_max = elm_date_container.attr('data-max_date');
+				
+				if (input_min.indexOf('-') <= 0) {
+					input_min = '01-01-'+input_min
+				}
+				if (input_max.indexOf('-') <= 0) {
+					input_max = '01-01-'+input_max
+				}
+				if (bounds_min.indexOf('-') <= 0) {
+					bounds_min = '01-01-'+bounds_min
+				}
+				if (bounds_max.indexOf('-') <= 0) {
+					bounds_max = '01-01-'+bounds_max
+				}
+				
+				var arr_parsed_dates = {has_input: has_input, bounds_min: DATEPARSER.int2Date(DATEPARSER.strDate2Int(bounds_min)), bounds_max: DATEPARSER.int2Date(DATEPARSER.strDate2Int(bounds_max)), min: DATEPARSER.int2Date(DATEPARSER.strDate2Int(input_min)), max: DATEPARSER.int2Date(DATEPARSER.strDate2Int(input_max))};
+				var arr_dates = {has_input: has_input, bounds_min: bounds_min, bounds_max: bounds_max, min: input_min, max: input_max};
+				
+				if (arr_parsed_dates.min < arr_parsed_dates.bounds_min) {
+				
+					arr_parsed_dates.min = arr_parsed_dates.bounds_min;
+					arr_dates.min = arr_dates.bounds_min;
+					
+					elm_input_min.val(arr_dates.min);
+				}
+				
+				if (arr_parsed_dates.max > arr_parsed_dates.bounds_max) {
+				
+					arr_parsed_dates.max = arr_parsed_dates.bounds_max;
+					arr_dates.max = arr_dates.bounds_max;
+					
+					elm_input_max.val(arr_dates.max);
+				}
+				
+				if (arr_parsed_dates.min > arr_parsed_dates.bounds_max) {
+				
+					arr_parsed_dates.min = arr_parsed_dates.bounds_max;
+					arr_dates.min = arr_dates.bounds_max;
+					
+					elm_input_min.val(arr_dates.max);
+				}
+				
+				if (arr_parsed_dates.max < arr_parsed_dates.bounds_min) {
+				
+					arr_parsed_dates.max = arr_parsed_dates.bounds_min;
+					arr_dates.max = arr_dates.bounds_min;
+					
+					elm_input_max.val(arr_dates.min);
+				}
+				
+				return (parse ? arr_parsed_dates : arr_dates);
+			
+			}
+			
+			var func_filter = function() {
+
+				var value = {arr_filter: {}, date_range: {}};
+
+				elm_filter.find('.form-element').each(function() {
+
+					var elm_form = $(this);
+					var elm_form_value_type = elm_form.attr('data-value-type');
+					var elm_active_filter = elm_form.find('.active-input');
+					var elm_operator = elm_form.find('.operator');
+					var operator = 'OR';
+					
+					if (elm_operator.is(':checked')) {
+						operator = 'AND';
 					}
 					
-					var elm_search_input = elm_filter.find('[id^=y\\\:ui_filter\\\:search-]');			
-					
-					elm_search_input.on('keypress focus keyup', function(e) {
-
-						var elm_search_input = $(this);
-						var in_form = elm_search_input.closest('.form').length;
-						var elm_active_filter = elm_search_input.closest('.input').find('.active-input');
-						var elm_results = elm_search_input.closest('.form-element').find('.results');
-						var filter_id = elm_active_filter.closest('.form-element').attr('data-filter_id');
-						var filter_type_id = elm_search_input.attr('data-filter_type_id');
-					
-						FEEDBACK.stop(elm_search_input);
-							
-						if (e.type == 'keypress' && e.key == 'Enter') {
-							
-							//if (!in_form && elm_active_filter.attr('data-filter_id') ==  0) {
-							//	func_search(elm_search_input);
-							//}
-						} else if (e.type == 'keypress' && e.key == 'Backspace') {
-						
-							if (!in_form && !elm_search_input.val()) {
-							
-								elm_active_filter.children().last().remove();
-								
-								func_filter();
-							}
-						} else if (e.type == 'keyup' || e.type == 'focus') {
-					
-							COMMANDS.setData(elm_search_input[0], {filter_type_id: filter_type_id, filter_id: filter_id}, true);
-						
-							elm_search_input.quickCommand(elm_results, {'html': 'replace'});
+					var filter_id = elm_form.attr('data-filter_id');
+					var filter_key = filter_id + '-' + operator;
 												
-							/*localStorage[public_user_interface_id+'_pui_search_value_'+filter_id] = elm_search_input.val();*/
-						}
-					});
+					if (elm_form_value_type == 'boolean') {
+						
+						value.arr_filter[filter_id] = [{boolean_value: elm_form.find('input:checked').val()}];									
 					
-					/*if (elm_search_input.length == 1) {
+					} else if (elm_form_value_type == 'int') {
+						
+						value.arr_filter[filter_id] = [{int: elm_form.find('input').val()}];									
 					
-						var elm_active_filter = elm_search_input.closest('.input').find('.active-input');
-						var filter_id = elm_active_filter.closest('.form-element').attr('data-filter_id');
-						var local_value = localStorage[public_user_interface_id+'_pui_search_value_'+filter_id];
-						
-						if (local_value) {
-						
-							elm_search_input.val(local_value);
-							func_search(elm_search_input, false);
-						}
-					}*/	
+					} else {
 					
-					elm_scripter.on('change', '.select-types > ul input', function() {
+						value.arr_filter[filter_key] = [];
 						
-						var elm_select_type = $(this).closest('[id=y\\\:ui_filter\\\:select_types-0]');
-						var arr_type_ids = [];
-						var elm_types_amount = elm_select_type.find('.types-amount');
-						var num_selected_types = 0;
+						elm_active_filter.children().each(function() {
 						
-						elm_types_amount.empty();
-						
-						elm_select_type.find('li input:checked').each(function() {
-							arr_type_ids.push($(this).data('type_id'));
-							num_selected_types++;
-						});
-						
-						if (num_selected_types > 0) {
-						
-							elm_types_amount.html('('+num_selected_types+')');
-						}
-						
-						COMMANDS.setData(elm_select_type[0], {type_ids: arr_type_ids}, true);
-						elm_select_type.quickCommand(function() {
-
-							func_display_data();
-						});
-						
-					}).on('click', '.results > p.run-quicksearch', function() {
-						
-						var elm = $(this);
-						var elm_search_input = elm.closest('.form-element').find('[id^=y\\\:ui_filter\\\:search-]');
-						
-						func_search(elm_search_input, true);
-						
-					}).on('click', '[id^=y\\\:ui\\\:set_scenario-]', function() {
-
-						$(this).quickCommand(function() {
-
-							func_display_data();
-						});
-						
-					}).on('click', '.form-element .active-input div span', function() {
-
-						var elm_active_keyword = $(this);
-						var elm_active_filter = elm_active_keyword.closest('.active-input');
-						var elm_operator_toggle = elm_active_keyword.closest('.form-element').find('input.operator').next('label');
-						
-						if (!elm_active_keyword.hasClass('icon') && elm_active_keyword.parent().hasClass('string')) {
-							var string_value = elm_active_keyword.html();
-							var elm_search_input = elm_active_filter.parent().find('[id^=y\\\:ui_filter\\\:search-]');
-							elm_search_input.val(string_value);
-							elm_search_input.focus();
-						}
-						
-						if (elm_active_keyword.hasClass('icon') || elm_active_keyword.parent().hasClass('string')) {
-							elm_active_keyword.parent().remove();
-						}
-						
-						if (elm_active_filter.children().length < 2) {
+							var elm_filter_value = $(this);
 							
-							elm_operator_toggle.addClass('hide');
-						}
-						
-						if (elm_active_keyword.hasClass('icon')) {
-						
-							func_filter();
-						}
-						
-					}).on('click', '.input > input', function() {
-					
-						var input = $(this);
-					
-						if (input.is(':radio')) {
-						
-							if (input.attr('data-set') == 1) {
-
-								input.prop('checked', false);
-								input.attr('data-set', 0);
+							if (elm_filter_value.data('object_id')) { // objects IDs
+							
+								value.arr_filter[filter_key].push({object_id: elm_filter_value.data('object_id'), type_id: elm_filter_value.data('type_id')});
 								
-							} else {
-						
-								input.parent().find('input').attr('data-set', 0);
-								input.attr('data-set', 1);
-							}
-						}
-					
-						func_filter();
-						
-					}).on('click', '.keywords .keyword', function() {
-					
-						var elm_keyword = $('<div></div>').html('<span>'+$(this).text()+'</span>').addClass($(this).attr('class')).attr('data-object_id', $(this).data('object_id')).attr('data-type_id', $(this).data('type_id'));
-						var elm_remove = $('<span></span>').addClass('icon').appendTo(elm_keyword);
-						
-						ASSETS.getIcons(elm_keyword, ['close'], function(data) {
+							} else {  // strings
 								
-							elm_remove[0].innerHTML = data.close;
+								// get rid of remove icon
+								var elm_filter_value_string = elm_filter_value.clone();
+								elm_filter_value_string.find('.icon').remove();
+								elm_filter_value_string = elm_filter_value_string.text();
+								value.arr_filter[filter_key].push({string: elm_filter_value_string});
+							}
 						});
-						
-						var elm_active_filter = $(this).closest('.form-element').find('.active-input');
-						var elm_operator_toggle = $(this).closest('.form-element').find('input.operator').next('label');
-						var elm_results = $(this).closest('.form-element').find('.results');	
-										
-						elm_keyword.appendTo(elm_active_filter);
-						
-						if (elm_active_filter.children().length > 1) {
-							
-							elm_operator_toggle.removeClass('hide');
-						}
-						
-						elm_results.addClass('hide');
-						
-						elm_search_input.val('');
-						
-						func_filter();
-						
-					}).on('click', '[id^=y\\\:ui_data\\\:show_project_type_object-]', function() {
-						
-						if (elm_ui.find('.form-element').length) {
-							
-							func_search($(this).closest('.form-element').find('[id^=y\\\:ui_filter\\\:search-]'), false);
-						}
-						
-						$(this).quickCommand(elm_ui.find('.object'), {'html': 'append'});
-						
-						var elm_results = $(this).closest('.form-element').find('.results');	
-						elm_results.addClass('hide');
-						
-						elm_ui.children('input').prop('checked', false);
-						elm_ui.find('[id=y\\\:ui_filter\\\:filter-0]').children('input').prop('checked', false);
-						elm_ui.find('#types-toggle').prop('checked', false);
-						
-					}).on('change', '.form-element > .date > input[name^=date-]', function() {
-						
-						FEEDBACK.stop(elm_ui.find('[id=y\\\:ui_filter\\\:filter-0]'));
-						FEEDBACK.stop(elm_ui.find('[id=y\\\:ui\\\:handle_dynamic_project_data-0]'));
-						
-						var elm_input = $(this);
-						var elm_date_container = elm_input.parent();
-						
-						func_filter();
-						
-					});
-					
-					elm_ui.on('click', function(e) {
-
-						if (!$(e.target).parent('.string').length && !$(e.target).closest('.set-input').length && !$(e.target).closest('.results').length && !$(e.target).closest('.select-types').length) {
-
-							// close search bar
-							if (elm_search_input.length) {
-							
-								elm_search_input.each(function() {
-									$(this).val('');
-								});
-							
-								func_search(elm_search_input);
-							}
-							
-							elm_ui.find('#types-toggle').prop('checked', false);
-							
-							// close responsive menu
-							if (!$(e.target).is('label, input, ul, span, span path, [class*=filter]')) {
-														
-								elm_ui.find('#form-toggle').prop('checked', false);
-								elm_ui.children('input').prop('checked', false);
-							}
-						}
-					});
-				});	
+					}
+				});
 				
-				SCRIPTER.dynamic('[data-method=set_project]', 'project-filter');
-			";
+				var arr_dates = func_get_input_dates(false);	
+				
+				if (arr_dates.has_input) {					
+					value.date_range = arr_dates;
+				}
+
+				elm_filter.data({value: value}).quickCommand(function() {
+					func_display_data();
+				});
+				
+				// Close filter
+				elm_filter.children('input').prop('checked', false);
+				
+				// Close responsive menu
+				elm_ui.children('input').prop('checked', false);
+			};
+			
+			var func_filter_close = function(do_clear) {
+			
+				if (!elms_search_input.length) {
+					return;
+				}
+				
+				elms_search_input.each(function() {
+					$(this).val('');
+					FEEDBACK.stop(this);
+				});
+				
+				if (do_clear) {
+					func_search(elms_search_input);
+				}
+			};
+			
+			var func_search = function(elm, run_filter) {
+			
+				var value = elm.val().replace(/[!@#$%^&*_|+\-'\"<>\{\}\[\]\\\/]/gi, ' ');
+				
+				var elm_search_active = elm.closest('.input').find('.active-input');
+				var filter_id = elm_search_active.attr('data-filter_id');
+				
+				if (value) {
+				
+					var elm_string = $('<div></div>').html('<span>'+value.trim()+'</span>').addClass('string').appendTo(elm_search_active);
+					
+					var elm_string_close_button = $('<span></span>').addClass('icon').appendTo(elm_string);
+		
+					ASSETS.getIcons(elm_string, ['close'], function(data) {
+						
+						elm_string_close_button[0].innerHTML = data.close;
+					});
+					
+					if (run_filter) {
+						func_filter();
+					}
+				}
+				
+				elm_search_active.parent().find('input').val('').blur();
+				
+				var elm_project_filters = elm.closest('.project-filters');
+				elm_project_filters.find('.results').addClass('hide');
+			}
+			
+			var elms_search_input = elm_filter.find('[id^=y\\\:ui_filter\\\:search-]');			
+			
+			elms_search_input.on('keypress focus keyup', function(e) {
+
+				var elm_search_input = $(this);
+				var in_form = elm_search_input.closest('.form').length;
+				var elm_active_filter = elm_search_input.closest('.input').find('.active-input');
+				var elm_results = elm_search_input.closest('.form-element').find('.results');
+				var filter_id = elm_active_filter.closest('.form-element').attr('data-filter_id');
+				var filter_type_id = elm_search_input.attr('data-filter_type_id');
+			
+				FEEDBACK.stop(elm_search_input);
+					
+				if (e.type == 'keypress' && e.key == 'Enter') {
+					
+					//if (!in_form && elm_active_filter.attr('data-filter_id') ==  0) {
+					//	func_search(elm_search_input);
+					//}
+				} else if (e.type == 'keypress' && e.key == 'Backspace') {
+				
+					if (!in_form && !elm_search_input.val()) {
+					
+						elm_active_filter.children().last().remove();
+						
+						func_filter();
+					}
+				} else if (e.type == 'keyup' || e.type == 'focus') {
+			
+					COMMANDS.setData(elm_search_input[0], {filter_type_id: filter_type_id, filter_id: filter_id}, true);
+					
+					COMMANDS.quickCommand(elm_search_input[0], elm_results, {'html': 'replace'});
+
+					/*localStorage[public_user_interface_id+'_pui_search_value_'+filter_id] = elm_search_input.val();*/
+				}
+			});
+			
+			/*if (elms_search_input.length == 1) {
+			
+				var elm_active_filter = elms_search_input.closest('.input').find('.active-input');
+				var filter_id = elm_active_filter.closest('.form-element').attr('data-filter_id');
+				var local_value = localStorage[public_user_interface_id+'_pui_search_value_'+filter_id];
+				
+				if (local_value) {
+				
+					elms_search_input.val(local_value);
+					func_search(elms_search_input, false);
+				}
+			}*/	
+			
+			elm_scripter.on('change', '.select-types > ul input', function() {
+				
+				var elm_select_type = $(this).closest('[id=y\\\:ui_filter\\\:select_types-0]');
+				var arr_type_ids = [];
+				var elm_types_amount = elm_select_type.find('.types-amount');
+				var num_selected_types = 0;
+				
+				elm_types_amount.empty();
+				
+				elm_select_type.find('li input:checked').each(function() {
+					arr_type_ids.push($(this).data('type_id'));
+					num_selected_types++;
+				});
+				
+				if (num_selected_types > 0) {
+				
+					elm_types_amount.html('('+num_selected_types+')');
+				}
+				
+				COMMANDS.setData(elm_select_type[0], {type_ids: arr_type_ids}, true);
+				elm_select_type.quickCommand(function() {
+
+					func_display_data();
+				});
+				
+			}).on('click', '.results > p.run-quicksearch', function() {
+				
+				var elm = $(this);
+				var elm_search_input = elm.closest('.form-element').find('[id^=y\\\:ui_filter\\\:search-]');
+				
+				func_search(elm_search_input, true);
+				
+			}).on('click', '[id^=y\\\:ui\\\:set_scenario-]', function() {
+
+				$(this).quickCommand(function() {
+
+					func_display_data();
+				});
+				
+			}).on('click', '.form-element .active-input div span', function() {
+
+				var elm_active_keyword = $(this);
+				var elm_active_filter = elm_active_keyword.closest('.active-input');
+				var elm_operator_toggle = elm_active_keyword.closest('.form-element').find('input.operator').next('label');
+				
+				if (!elm_active_keyword.hasClass('icon') && elm_active_keyword.parent().hasClass('string')) {
+					var string_value = elm_active_keyword.html();
+					var elm_search_input = elm_active_filter.parent().find('[id^=y\\\:ui_filter\\\:search-]');
+					elm_search_input.val(string_value);
+					elm_search_input.focus();
+				}
+				
+				if (elm_active_keyword.hasClass('icon') || elm_active_keyword.parent().hasClass('string')) {
+					elm_active_keyword.parent().remove();
+				}
+				
+				if (elm_active_filter.children().length < 2) {
+					
+					elm_operator_toggle.addClass('hide');
+				}
+				
+				if (elm_active_keyword.hasClass('icon')) {
+				
+					func_filter();
+				}
+				
+			}).on('click', '.input > input', function() {
+			
+				var input = $(this);
+			
+				if (input.is(':radio')) {
+				
+					if (input.attr('data-set') == 1) {
+
+						input.prop('checked', false);
+						input.attr('data-set', 0);
+						
+					} else {
+				
+						input.parent().find('input').attr('data-set', 0);
+						input.attr('data-set', 1);
+					}
+				}
+			
+				func_filter();
+				
+			}).on('click', '.keywords .keyword', function() {
+			
+				var elm_keyword = $('<div></div>').html('<span>'+$(this).text()+'</span>').addClass($(this).attr('class')).attr('data-object_id', $(this).data('object_id')).attr('data-type_id', $(this).data('type_id'));
+				var elm_remove = $('<span></span>').addClass('icon').appendTo(elm_keyword);
+				
+				ASSETS.getIcons(elm_keyword, ['close'], function(data) {
+						
+					elm_remove[0].innerHTML = data.close;
+				});
+				
+				var elm_active_filter = $(this).closest('.form-element').find('.active-input');
+				var elm_operator_toggle = $(this).closest('.form-element').find('input.operator').next('label');
+				var elm_results = $(this).closest('.form-element').find('.results');	
+								
+				elm_keyword.appendTo(elm_active_filter);
+				
+				if (elm_active_filter.children().length > 1) {
+					
+					elm_operator_toggle.removeClass('hide');
+				}
+				
+				elm_results.addClass('hide');
+				
+				elms_search_input.val('');
+				
+				func_filter();
+				
+			}).on('click', '.keywords .info .hide-options', function() {
+
+				var elm_results = $(this).closest('.form-element').find('.results');	
+				elm_results.addClass('hide');
+				
+			}).on('click', '[id^=y\\\:ui_data\\\:show_project_type_object-]', function() {
+				
+				if (elm_ui.find('.form-element').length) {
+					
+					func_search($(this).closest('.form-element').find('[id^=y\\\:ui_filter\\\:search-]'), false);
+				}
+				
+				$(this).quickCommand(elm_ui.find('.object'), {'html': 'append'});
+				
+				var elm_results = $(this).closest('.form-element').find('.results');	
+				elm_results.addClass('hide');
+				
+				elm_ui.children('input').prop('checked', false);
+				elm_filter.children('input').prop('checked', false);
+				elm_ui.find('#types-toggle').prop('checked', false);
+				
+			}).on('change', '.form-element > .date > input[name^=date-]', function() {
+				
+				FEEDBACK.stop(elm_filter);
+				FEEDBACK.stop(elm_ui.find('[id=y\\\:ui\\\:handle_dynamic_project_data-0]'));
+				
+				var elm_input = $(this);
+				var elm_date_container = elm_input.parent();
+				
+				func_filter();
+			}).on('change', '#form-toggle', function() {
+				
+				if (this.checked) {
+					return;
+				}
+
+				func_filter_close();
+			});
+			
+			elm_ui.on('click', function(e) {
+			
+				if (!onStage(elm_scripter)) {
+					elm_ui.off(e);
+					return;
+				}
+				
+				const elm_target = $(e.target);
+				
+				if (elm_target.closest('input, .input, label').length || elm_target.parent('.string').length || elm_target.closest('.set-input, .results, .select-types').length) {
+					return;
+				}
+
+				// Close Type select
+				
+				elm_ui.find('#types-toggle').prop('checked', false);
+				
+				// Close responsive menu
+				
+				if (!elm_target.is('ul, span, span path, [class*=filter]')) {
+					elm_ui.children('input').prop('checked', false);
+				}
+				
+				// Close filter
+										
+				if (elm_filter.length) {
+				
+					const elm_filter_toggle = elm_filter.children('#form-toggle');
+					
+					if (!elm_filter_toggle.length) {
+						
+						func_filter_close(true);
+					} else if (elm_filter_toggle[0].checked) {
+					
+						const in_filter_area = hasElement(elm_filter.children('div:last-child'), e.target, true);
+					
+						if (!in_filter_area) {
+						
+							elm_filter_toggle[0].checked = false;
+							SCRIPTER.triggerEvent(elm_filter_toggle, 'change');
+						}
+					}
+				}
+			});
+		});	
+		
+		SCRIPTER.dynamic('[data-method=set_project]', 'project-filter');
+		";
 		
 		return $return;
 	}
@@ -1070,7 +1219,7 @@ class ui_filter extends base_module {
 			$arr_input_selected_type_ids = $value['type_ids'];
 			
 			if (!count($arr_input_selected_type_ids)) {
-				SiteEndVars::setFeedback('selected_type_ids', false, true);
+				SiteEndEnvironment::setFeedback('selected_type_ids', false, true);
 			} else {
 				
 				$arr_selected_type_ids = [];
@@ -1083,13 +1232,13 @@ class ui_filter extends base_module {
 					}
 				}
 				
-				SiteEndVars::setFeedback('selected_type_ids', $arr_selected_type_ids, true);
+				SiteEndEnvironment::setFeedback('selected_type_ids', $arr_selected_type_ids, true);
 			}
 		}
 		
 		if ($method == "filter") {
 			
-			SiteEndVars::setFeedback('arr_public_user_interface_min_max', [$value['min'], $value['max']], true);
+			SiteEndEnvironment::setFeedback('arr_public_user_interface_min_max', [$value['min'], $value['max']], true);
 	
 			$url_filter = false;
 
@@ -1177,12 +1326,12 @@ class ui_filter extends base_module {
 				$filter_id = $value['filter_id'];
 			}
 
-			$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-			$project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+			$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+			$project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 	
 			$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id, $project_id);
 			$arr_public_interface_settings = cms_nodegoat_public_interfaces::getPublicInterfaceSettings($public_user_interface_id);
-			$arr_selected_types = SiteStartVars::getFeedback('selected_type_ids');
+			$arr_selected_types = SiteStartEnvironment::getFeedback('selected_type_ids');
 
 			if ($arr_selected_types) {
 				$arr_public_interface_project_types = array_intersect($arr_public_interface_project_types, $arr_selected_types);
@@ -1386,11 +1535,11 @@ class ui_filter extends base_module {
 	
 		if ($arr_filter_dates) {
 			
-			SiteEndVars::setFeedback('filter_date_start', $arr_filter_dates['min'], true);
-			SiteEndVars::setFeedback('filter_date_end', $arr_filter_dates['max'], true);
+			SiteEndEnvironment::setFeedback('filter_date_start', $arr_filter_dates['min'], true);
+			SiteEndEnvironment::setFeedback('filter_date_end', $arr_filter_dates['max'], true);
 
-			$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-			$project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+			$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+			$project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 			$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id, $project_id);
 	
 			foreach ((array)$arr_public_interface_project_types as $type_id) {
@@ -1425,8 +1574,8 @@ class ui_filter extends base_module {
 			
 		} else {
 			
-			SiteEndVars::setFeedback('filter_date_start', false, true);
-			SiteEndVars::setFeedback('filter_date_end', false, true);
+			SiteEndEnvironment::setFeedback('filter_date_start', false, true);
+			SiteEndEnvironment::setFeedback('filter_date_end', false, true);
 		}
 		
 		$arr_temp_type_object_filters = [];
@@ -1447,8 +1596,8 @@ class ui_filter extends base_module {
 
 	public static function createFilterArray($arr_filter) {
 
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-		$project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+		$project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 
 		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id, $project_id, false);		
 
@@ -1482,8 +1631,8 @@ class ui_filter extends base_module {
 	
 	public static function createReferencedObjectFilter($type_id, $arr_type_object_ids, $crossreferenced = false, $steps = 2) {
 
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-		$project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+		$project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 		
 		$arr_public_interface_settings = cms_nodegoat_public_interfaces::getPublicInterfaceSettings($public_user_interface_id);
 		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id);
@@ -1548,19 +1697,19 @@ class ui_filter extends base_module {
 		
 		// SET BY FILTER ITSELF!!!
 		
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-		$public_user_interface_active_custom_project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+		$public_user_interface_active_custom_project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id, $public_user_interface_active_custom_project_id, false);
 		$arr_project = StoreCustomProject::getProjects($public_user_interface_active_custom_project_id);
 		$arr_public_interface_settings = cms_nodegoat_public_interfaces::getPublicInterfaceSettings($public_user_interface_id);
 		$filter_is_active = false;		
-		$arr_selected_types = SiteStartVars::getFeedback('selected_type_ids');
+		$arr_selected_types = SiteStartEnvironment::getFeedback('selected_type_ids');
 
 		if ($arr_selected_types) {
 			$arr_public_interface_project_types = array_intersect($arr_public_interface_project_types, $arr_selected_types);
 		}
 				
-		$scenario_id = (int)SiteStartVars::getFeedback('scenario_id');
+		$scenario_id = (int)SiteStartEnvironment::getFeedback('scenario_id');
 		
 		if ($scenario_id) {
 			
@@ -1597,7 +1746,7 @@ class ui_filter extends base_module {
 
 			foreach ((array)$arr_public_interface_project_types as $type_id => $value) {
 				
-				if (count((array)$arr_active_filters[$type_id]) || SiteStartVars::getFeedback('type_id') == $type_id) {
+				if (count((array)$arr_active_filters[$type_id]) || SiteStartEnvironment::getFeedback('type_id') == $type_id) {
 	
 					$filter_is_active = true;
 			
@@ -1612,7 +1761,7 @@ class ui_filter extends base_module {
 						
 							if ($browse_scope_id) {
 
-								SiteEndVars::setFeedback('scope_id', $browse_scope_id, true);
+								SiteEndEnvironment::setFeedback('scope_id', $browse_scope_id, true);
 								
 								$arr_object_filter = ui_data::getScopeDateFilter($type_id, $browse_scope_id);
 							

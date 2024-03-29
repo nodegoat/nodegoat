@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -12,8 +12,12 @@
 class StoreResourceExternal {
 	
 	protected static $arr_resources_storage = [];
+
+	public function __construct() {
+		
+	}
 	
-	public static function handleResource($id = false, $arr) {
+	public function storeResource($id, $arr) {
 		
 		$str_url_headers = ($arr['url_headers'] ? value2JSON($arr['url_headers']) : '');
 		
@@ -89,12 +93,87 @@ class StoreResourceExternal {
 				".($arr_identifiers ? "AND name NOT IN('".implode("','", $arr_identifiers)."')" : "")."
 		");
 	}
+	
+	public function storeConversion($id, $arr) {
+		
+		$arr['output_placeholder'] = json_decode($arr['output_placeholder'], true);
+		
+		if (is_array($arr['output_placeholder'])) {
+			
+			$output = [];
+			
+			foreach ($arr['output_placeholder'] as $key => $value) {
+				
+				$output[$key] = (is_array($value) ? '[]' : '');
+			}
+		} else {
+			
+			$output = '';
+		}
+		
+		$arr['output_placeholder'] = value2JSON($output);
+
+		if (!$id) {
+			
+			$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_LINKED_DATA_CONVERSIONS')."
+				("."name, description, script, output_placeholder, input_placeholder) 
+					VALUES
+				(
+					"."
+					'".DBFunctions::strEscape($arr['name'])."',
+					'".DBFunctions::strEscape($arr['description'])."',
+					'".DBFunctions::strEscape($arr['script'])."',
+					'".DBFunctions::strEscape($arr['output_placeholder'])."',
+					'".DBFunctions::strEscape($arr['input_placeholder'])."'
+				)
+			");
+			
+			$id = DB::lastInsertID();
+		} else {
+			
+			$res = DB::query("UPDATE ".DB::getTable('DEF_NODEGOAT_LINKED_DATA_CONVERSIONS')." SET
+					name = '".DBFunctions::strEscape($arr['name'])."',
+					description = '".DBFunctions::strEscape($arr['description'])."',
+					script = '".DBFunctions::strEscape($arr['script'])."',
+					output_placeholder = '".DBFunctions::strEscape($arr['output_placeholder'])."',
+					input_placeholder = '".DBFunctions::strEscape($arr['input_placeholder'])."'
+				WHERE id = ".(int)$id."
+			");
+		}
+	}
+	
+	public function delResource($resource_id) {
+					
+		$res = DB::queryMulti("
+			".DBFunctions::deleteWith(
+				DB::getTable('DEF_NODEGOAT_LINKED_DATA_RESOURCE_VALUES'), 'nodegoat_ldrv', 'resource_id',
+				"JOIN ".DB::getTable('DEF_NODEGOAT_LINKED_DATA_RESOURCES')." nodegoat_ldr ON (
+					nodegoat_ldr.id = nodegoat_ldrv.resource_id
+						"."
+						AND nodegoat_ldr.id = ".(int)$resource_id."
+				)"
+			).";
+			
+			DELETE FROM ".DB::getTable('DEF_NODEGOAT_LINKED_DATA_RESOURCES')."
+				WHERE "."TRUE"."
+					AND id = ".(int)$resource_id.";
+		");
+	}
+
+	public function delConversion($conversion_id) {
+					
+		$res = DB::query("
+			DELETE FROM ".DB::getTable('DEF_NODEGOAT_LINKED_DATA_CONVERSIONS')."
+				WHERE "."TRUE"."
+					AND id = ".(int)$conversion_id."
+		");
+	}
 		
 	public static function getResources($id = false) {
 			
 		if ($id) {
 			
-			if (self::$arr_resources_storage[$id]) {
+			if (isset(self::$arr_resources_storage[$id])) {
 				return self::$arr_resources_storage[$id];
 			}
 		}
@@ -169,7 +248,7 @@ class StoreResourceExternal {
 		
 		if ($arr_conversion_ids) {
 			
-			$arr_conversions = static::getResourceConversions($arr_conversion_ids);
+			$arr_conversions = static::getConversions($arr_conversion_ids);
 			
 			$func_update = function(&$arr_value) use ($arr_conversions) {
 				
@@ -205,74 +284,8 @@ class StoreResourceExternal {
 
 		return $arr;
 	}
-	
-	public static function delResource($resource_id) {
-					
-		$res = DB::queryMulti("
-			".DBFunctions::deleteWith(
-				DB::getTable('DEF_NODEGOAT_LINKED_DATA_RESOURCE_VALUES'), 'nodegoat_ldrv', 'resource_id',
-				"JOIN ".DB::getTable('DEF_NODEGOAT_LINKED_DATA_RESOURCES')." nodegoat_ldr ON (
-					nodegoat_ldr.id = nodegoat_ldrv.resource_id
-						"."
-						AND nodegoat_ldr.id = ".(int)$resource_id."
-				)"
-			).";
-			
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_LINKED_DATA_RESOURCES')."
-				WHERE "."TRUE"."
-					AND id = ".(int)$resource_id.";
-		");
-	}
-	
-	public static function handleResourceConversion($id, $arr) {
-		
-		$arr['output_placeholder'] = json_decode($arr['output_placeholder'], true);
-		
-		if (is_array($arr['output_placeholder'])) {
-			
-			$output = [];
-			
-			foreach ($arr['output_placeholder'] as $key => $value) {
-				
-				$output[$key] = (is_array($value) ? '[]' : '');
-			}
-		} else {
-			
-			$output = '';
-		}
-		
-		$arr['output_placeholder'] = value2JSON($output);
 
-		if (!$id) {
-			
-			$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_LINKED_DATA_CONVERSIONS')."
-				("."name, description, script, output_placeholder, input_placeholder) 
-					VALUES
-				(
-					"."
-					'".DBFunctions::strEscape($arr['name'])."',
-					'".DBFunctions::strEscape($arr['description'])."',
-					'".DBFunctions::strEscape($arr['script'])."',
-					'".DBFunctions::strEscape($arr['output_placeholder'])."',
-					'".DBFunctions::strEscape($arr['input_placeholder'])."'
-				)
-			");
-			
-			$id = DB::lastInsertID();
-		} else {
-			
-			$res = DB::query("UPDATE ".DB::getTable('DEF_NODEGOAT_LINKED_DATA_CONVERSIONS')." SET
-					name = '".DBFunctions::strEscape($arr['name'])."',
-					description = '".DBFunctions::strEscape($arr['description'])."',
-					script = '".DBFunctions::strEscape($arr['script'])."',
-					output_placeholder = '".DBFunctions::strEscape($arr['output_placeholder'])."',
-					input_placeholder = '".DBFunctions::strEscape($arr['input_placeholder'])."'
-				WHERE id = ".(int)$id."
-			");
-		}
-	}
-	
-	public static function getResourceConversions($arr_conversion_ids = false) {
+	public static function getConversions($arr_conversion_ids = false) {
 				
 		$sql_conversion_ids = (is_array($arr_conversion_ids) ? implode(',', arrParseRecursive($arr_conversion_ids, TYPE_INTEGER)) : (int)$arr_conversion_ids);
 				
@@ -313,14 +326,5 @@ class StoreResourceExternal {
 		}
 
 		return $arr;
-	}
-	
-	public static function delResourceConversion($conversion_id) {
-					
-		$res = DB::query("
-			DELETE FROM ".DB::getTable('DEF_NODEGOAT_LINKED_DATA_CONVERSIONS')."
-				WHERE "."TRUE"."
-					AND id = ".(int)$conversion_id."
-		");
 	}
 }

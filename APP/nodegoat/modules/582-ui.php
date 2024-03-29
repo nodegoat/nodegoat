@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -33,18 +33,17 @@ class ui extends base_module {
 	
 	public function contents() {
 		
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-		$project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+		$project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 		$arr_public_user_interface = cms_nodegoat_public_interfaces::getPublicInterfaces($public_user_interface_id);	
-		$arr_public_user_interface_module_vars = SiteStartVars::getFeedback('arr_public_user_interface_module_vars');	
-		$do_print = (($arr_public_user_interface_module_vars['set'] == 'object-print' || $arr_public_user_interface_module_vars['set'] == 'selection-print') && (SiteStartVars::getFeedback('active_type_object_id') || SiteStartVars::getFeedback('active_selection_id')));
+		$arr_public_user_interface_module_vars = SiteStartEnvironment::getFeedback('arr_public_user_interface_module_vars');	
 		
 		if ($arr_public_user_interface['interface']['settings']['default_language']) {
 			
 			$arr_language_hosts = cms_language::getLanguageHosts();
 			
 			if (!$arr_language_hosts[SERVER_NAME_SITE_NAME]) {
-				SiteStartVars::setContext(SiteStartVars::CONTEXT_LANGUAGE, $arr_public_user_interface['interface']['settings']['default_language']);
+				SiteStartEnvironment::setContext(SiteStartEnvironment::CONTEXT_LANGUAGE, $arr_public_user_interface['interface']['settings']['default_language']);
 			}
 		}
 		
@@ -62,12 +61,6 @@ class ui extends base_module {
 		} else if ($arr_public_user_interface_module_vars['start'] == 'fullscreen') {
 			
 			$this->style = 'fullscreen';
-		}
-
-		if ($do_print) {
-			
-			$this->style = 'print';
-			
 		}
 		
 		if ($arr_public_user_interface['interface']['settings']['return_url']) {
@@ -106,16 +99,16 @@ class ui extends base_module {
 							<li class="project-dynamic-nav">'.$this->createProjectNavigation().'</li>
 						</ul>
 					</nav>
-					<div class="project-dynamic-data" '.($arr_public_user_interface['interface']['settings']['show_device_location'] ? 'data-device_location="1"' : '').'>'.$this->getProjectDynamicDataElm($do_print).'</div>
-					'.ui_selection::createViewSelectionsContainer($do_print);		
+					<div class="project-dynamic-data" '.($arr_public_user_interface['interface']['settings']['show_device_location'] ? 'data-device_location="1"' : '').'>'.$this->getProjectDynamicDataElm().'</div>
+					'.ui_selection::createViewSelectionsContainer();	
 		
 		return $return;
 	}
 	
 	private function createProjectNavigation() {
 	
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-		$project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+		$project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 		$arr_public_user_interface = cms_nodegoat_public_interfaces::getPublicInterfaces($public_user_interface_id);	
 		$arr_settings =	$arr_public_user_interface['interface']['settings']['projects'][$project_id];
 	
@@ -158,56 +151,31 @@ class ui extends base_module {
 		return $return;
 	}
 	
-	private function getProjectDynamicDataElm($do_print = false) {
+	private function getProjectDynamicDataElm() {
 
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');		
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');		
 		$arr_public_user_interface = cms_nodegoat_public_interfaces::getPublicInterfaces($public_user_interface_id);	
-		$project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+		$project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 		$arr_settings =	$arr_public_user_interface['interface']['settings']['projects'][$project_id];
 		
 		$create_data = new ui_data();
 		
-		if (SiteStartVars::getFeedback('active_type_object_id')) {
+		if (SiteStartEnvironment::getFeedback('active_type_object_id')) {
 
-			$arr_id = explode('-', SiteStartVars::getFeedback('active_type_object_id'));
+			$arr_id = explode('-', SiteStartEnvironment::getFeedback('active_type_object_id'));
 			$type_id = (int)$arr_id[0];
 			$object_id = (int)$arr_id[1];
 
-			SiteEndVars::setFeedback('active_type_object_id', false, true);
-
-			if ($do_print) {
-				
-				$print_heading = '<div>
-								<p>'.SiteStartVars::getPageURL(false, 0, false).'.p/'.$public_user_interface_id.'/'.$project_id.'/object/'.$type_id.'-'.$object_id.'</p>
-								<h3>'.Labels::parseTextVariables($arr_public_user_interface['interface']['name']).'</h3>
-							</div>';
-			}
+			SiteEndEnvironment::setFeedback('active_type_object_id', false, true);
 			
-			$elm = $create_data->createViewTypeObject($type_id, $object_id, $do_print);
+			$elm = $create_data->createViewTypeObject($type_id, $object_id);
 			
-		} else if (SiteStartVars::getFeedback('active_selection_id') && $do_print) {
-			
-			if ($do_print) {
-				
-				$print_heading = '<div>
-								<h3>'.Labels::parseTextVariables($arr_public_user_interface['interface']['name']).'</h3>
-							</div>';
-			}
-								
-			$elm = ui_selection::createViewPrintSelection(SiteStartVars::getFeedback('active_selection_id'));
-		}
-
-		if ($do_print && $elm) {
-			
-			$elm .= '<script>window.print();</script>';
 		}
 		
-		$return_elm = $print_heading.$elm;
-		
-		$return = '<div class="tools" id="y:ui:handle_dynamic_project_data-0">'.(!$do_print ? $create_data->getDynamicProjectDataTools() : '').'</div>
+		$return = '<div class="tools" id="y:ui:handle_dynamic_project_data-0">'.$create_data->getDynamicProjectDataTools().'</div>
 					<div class="data '.($arr_settings['show_object_fullscreen'] ? 'fullscreen-object' : '').' ">
 						<div class="objects"></div>
-						<div class="object '.($arr_settings['show_explore_visualisations'] ? 'show-explore-visualisations' : '').'" id="y:ui_data:show_project_type_object-0">'.$return_elm.'</div>
+						<div class="object '.($arr_settings['show_explore_visualisations'] ? 'show-explore-visualisations' : '').'" id="y:ui_data:show_project_type_object-0">'.$elm.'</div>
 						<div class="object-thumbnail-container" id="y:ui_data:show_project_type_object_thumbnail-0"></div>
 					</div>';
 		
@@ -216,8 +184,8 @@ class ui extends base_module {
 	
 	private function createProjectsNavigation() {
 		
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-		$public_user_interface_active_custom_project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+		$public_user_interface_active_custom_project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 		$arr_public_user_interface = cms_nodegoat_public_interfaces::getPublicInterfaces($public_user_interface_id);	
 		
 		if (!$public_user_interface_active_custom_project_id) {
@@ -288,10 +256,10 @@ class ui extends base_module {
 	
 	private function createViewText($id = false) {
 		
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
 		$arr_public_user_interface = cms_nodegoat_public_interfaces::getPublicInterfaces($public_user_interface_id);	
 		
-		$public_user_interface_active_custom_project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+		$public_user_interface_active_custom_project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 		
 		if (!$id) {
 				
@@ -374,32 +342,11 @@ class ui extends base_module {
 					.ui menu.buttons button:hover { color: #fff; background-color: #0096e4; text-decoration: none; }
 					
 					.ui .labmap.soc .legends > figure.selected-node dl span { pointer-events: none; }
-					
-					.ui.print > *,
-					.ui.fullscreen > * { display: none; }	
-					.ui.print > .overlay,
-					.ui.fullscreen > .overlay { display: block; }
-					.ui.print > .project-dynamic-data,
-					.ui.fullscreen > .project-dynamic-data { display: flex; }	
-					.ui.print > .project-dynamic-data > .tools,
-					.ui.fullscreen > .project-dynamic-data > .tools { display: none; }	
 
-					.ui.print { background-color: #fff; margin: 0px; padding: 5px; }
-					.ui.print .object > div > h1,
-					.ui.print .object > div > h2,
-					.ui.print .object > div > h3,
-					.ui.print .object > div > p { margin-top: 20px; width: 100%; text-align: center; font-style: italic; }
-					.ui.print .object > div > ul > li { margin: 5px; } 
-					.ui.print .object > div > ul > li.keywords > span { margin: 10px; padding: 10px; background-color: #eee;  box-sizing: border-box; display: inline-block; } 
-					.ui.print .object > div dl > li > dt { font-weight: bold; }
-					.ui.print .object > div dl > li > dt,
-					.ui.print .object > div dl > li > dd { margin: 10px; background-color: #fff; }
-					.ui.print .object > div dl > li > dd .tabs > div { border: 0; }
-					.ui.print .object > div dl > li > dd .body .a { color: #444444; text-decoration: none; }
-					.ui.print .object > div dl > li.text_tags dd div + p { display: none;}
-					.ui.print > .project-dynamic-data > .data > .object,
-					.ui.print > .project-dynamic-data > .data > .object > div { background-color: #fff; margin: 0px; padding: 0px; border: 0; }
-					.ui.print > .project-dynamic-data > .data > .object ul > li.object-descriptions > dl li dd {  background-color: #fff; }
+					.ui.fullscreen > * { display: none; }	
+					.ui.fullscreen > .overlay { display: block; }
+					.ui.fullscreen > .project-dynamic-data { display: flex; }	
+					.ui.fullscreen > .project-dynamic-data > .tools { display: none; }	
 					
 					.ui > a.return { position: fixed; left: 0px; top: 0px; width: 60px; height: 60px; z-index: 1; }
 					.ui > a.return > span { text-align: center; width: 100%;  }
@@ -461,9 +408,6 @@ class ui extends base_module {
 					.ui > nav > ul > li.project-dynamic-nav[data-object_active="true"] ul li.project-scenarios,
 					.ui > nav > ul > li.project-dynamic-nav[data-object_active="true"] ul li.project-types { display: none; }
 					
-					.ui > nav.left > ul li.projects-nav ul { padding-left: 5px; height: auto; white-space: normal; }
-					.ui > nav.left > ul li.projects-nav ul li { height: auto; }
-					
 					
 					@media all and (min-width : 1120px) {
 						
@@ -493,7 +437,9 @@ class ui extends base_module {
 					.ui > nav > ul > li.project-dynamic-nav ul li.project-types,
 					.ui > nav > ul > li.project-dynamic-nav ul li.project-scenarios { display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start;  }
 					.ui > nav > ul > li.project-dynamic-nav ul li.project-types > div,
-					.ui > nav > ul > li.project-dynamic-nav ul li.project-scenarios > div { position: relative; display: flex; align-items: center; justify-content: center; margin: 15px 15px 0 0; line-height: 45px; padding: 0 30px 0 20px; background-color: #ddd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: bold; }
+					.ui > nav > ul > li.project-dynamic-nav ul li.project-scenarios > div { position: relative; display: flex; align-items: center; justify-content: center; margin: 15px 15px 0px 0px; line-height: 45px; padding: 0 30px 0 20px; background-color: #ddd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: bold; }
+					.ui > nav > ul > li.project-dynamic-nav ul li.project-types > div + div,
+					.ui > nav > ul > li.project-dynamic-nav ul li.project-scenarios > div:last-child { margin-right: 0px; }
 					.ui > nav > ul > li.project-dynamic-nav ul li.project-types > div > span.icon,
 					.ui > nav > ul > li.project-dynamic-nav ul li.project-scenarios > div > span.icon { background-color: #0096e4; color: #fff; width: 25px; height: 25px; padding-left: 1px; border-radius: 25px; text-align: center; margin-right: 15px; line-height: 22px; }
 					.ui > nav > ul > li.project-dynamic-nav ul li.project-types > div > span.icon svg,
@@ -502,12 +448,9 @@ class ui extends base_module {
 					.ui > nav > ul > li.project-dynamic-nav ul li.project-scenarios > div:hover { background-color: #0096e4; color: #fff; text-decoration: none;}
 					.ui > nav > ul > li.project-dynamic-nav ul li.project-types > div:hover > span.icon,
 					.ui > nav > ul > li.project-dynamic-nav ul li.project-scenarios > div:hover > span.icon { background-color: #fff; color: #0096e4; }
-					
-					.ui > nav.left { display: block; position: absolute; top: 60px; width: 20vw; overflow: visible; height: calc(100% - 60px); z-index: 2; }
-					
-					.ui > .project-dynamic-data { position: relative; flex: 1; display: flex; flex-wrap: nowrap; flex-direction: column; height: 100%; max-width: 100%; }
-					.ui > nav.left + .project-dynamic-data {  padding-left: 20vw; box-sizing: border-box; }
 
+					.ui > .project-dynamic-data { position: relative; flex: 1; display: flex; flex-wrap: nowrap; flex-direction: column; height: 100%; max-width: 100%; }
+	
 					.ui > .project-dynamic-data > .tools { width: 100%; margin: 0; background-color: #a3ce6c; box-sizing: border-box;  }	
 					.ui > .project-dynamic-data > .tools.no-filter { display: none; }
 					.ui > .project-dynamic-data > .data { flex: 2; position: relative; display: flex; flex-wrap: nowrap; flex-direction: row; justify-content: center; height: 100%; max-width: 100%; }							
@@ -571,10 +514,11 @@ class ui extends base_module {
 					.ui > .project-dynamic-data > .data > .objects > input:checked + label > span:first-child { display: none; }
 					.ui > .project-dynamic-data > .data > .objects > input:checked + label > span:last-child {display: block; width: 100%; height: 100%; text-align: center; background-color: #0096e4; color: #fff;  }
 					.ui > .project-dynamic-data > .data > .objects > input:checked + label + div { display: none; }
-					.ui > .project-dynamic-data > .data > .objects > input:checked + label + div + div.overlay-grid {  left: 20px; top: 20px; right: 60px; display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; }
+					.ui > .project-dynamic-data > .data > .objects > input:checked + label + div + div.overlay-grid { left: 20px; top: 20px; right: 60px; display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; }
 
 					.ui > .project-dynamic-data > .data > .objects[data-display_mode="grid"] { padding: 50px; }							
-					.ui > .project-dynamic-data > .data > .objects .object-thumbnail { position: relative; display: inline-block; width: 140px; height: 170px; background-color: #ededed; margin: 0 55px 55px 0; border: 1px solid #d0d0d0; }
+					.ui > .project-dynamic-data > .data > .objects .object-thumbnail { position: relative; display: inline-block; width: 140px; height: 170px; background-color: #ededed; margin: 0px 55px 55px 0px; border: 1px solid #d0d0d0; }
+					.ui > .project-dynamic-data > .data > .objects .object-thumbnail:last-child { margin-right: 0px; }
 					.ui > .project-dynamic-data > .data > .objects .object-thumbnail .image { margin: 4px 4px 0 4px; width: calc(100% - 8px); height: 131px; background-repeat: no-repeat; background-position: center 10%; background-size: cover; }
 					.ui > .project-dynamic-data > .data > .objects .object-thumbnail .image span { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 3em; font-family: serif; }
 					.ui > .project-dynamic-data > .data > .objects .object-thumbnail .name { position: absolute; bottom: 0px; width: 100%; min-height: 35px; max-height: 100%; display: flex; overflow: hidden; justify-content: center; align-items: center; box-sizing: border-box; background-color: #ededed; padding: 5px; text-align: center; vertical-align: middle; color: #000; }
@@ -586,8 +530,7 @@ class ui extends base_module {
 
 					.ui > .project-dynamic-data > .data > .objects > [data-visualisation_type] { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; flex: 2; height: 100%; }
 					
-					.ui > .project-dynamic-data > .data > .objects > .tabs.list-view { position: relative; margin: 5px; width: 100%; max-width: 98vw; }	
-					.ui > nav.left + .project-dynamic-data  > .data > .objects > .tabs.list-view { max-width: 78vw; }	
+					.ui > .project-dynamic-data > .data > .objects > .tabs.list-view { position: relative; margin: 5px; width: 100%; max-width: 98vw; }		
 					
 					.ui > .project-dynamic-data .tabs.list-view > ul > li { background-color: #f5f5f5; border: 0; border-radius: 0; padding: 5px 10px; background-image: none; clip-path: none; -webkit-clip-path: none;  }
 					.ui > .project-dynamic-data .tabs.list-view > ul > li.selected { background-color: #ddd; }
@@ -615,7 +558,7 @@ class ui extends base_module {
 					.ui .head > .navigation-buttons > button { border: 0; width: 60px; height: 60px; border-radius: 0; margin: 0; padding: 0; background-color: #555; display: inline-block;}
 					.ui .head > .navigation-buttons > button > span { color: #fff; }	
 	
-					.ui > .project-dynamic-data > .data > .object > div menu.buttons { width: auto; display: block; position: absolute; right: 20px; }	
+					.ui > .project-dynamic-data > .data > .object > div menu.buttons { width: auto; display: block; position: absolute; right: 20px; z-index: 1; }	
 					.ui > .project-dynamic-data > .data > .object > div > div > menu.buttons { top: 80px; }	
 					
 					.ui > .project-dynamic-data > .data > .object .combined-filters { position: relative; display: flex; flex-wrap: wrap; align-content: flex-start; }	
@@ -635,6 +578,8 @@ class ui extends base_module {
 
 					.ui > .project-dynamic-data > .data > .object ul::after { content: " "; display: block; height: 0; clear: both; }
 					
+					.ui > .project-dynamic-data > .data > .object ul > li.object-descriptions { position: relative; }
+					
 					.ui > .project-dynamic-data > .data > .object ul > li.media > span { margin: 0 10px 10px 0; box-sizing: border-box; display: inline-block; }
 					.ui > .project-dynamic-data > .data > .object ul > li.media > span object,
 					.ui > .project-dynamic-data > .data > .object ul > li.media > span iframe { width: 600px; height: 600px; }
@@ -649,27 +594,58 @@ class ui extends base_module {
 					.ui > .project-dynamic-data > .data > .object ul > li.related-media > div > span > svg { height: 25%; }
 					.ui > .project-dynamic-data > .data > .object ul > li.keywords span { display: inline-block; padding: 10px; margin: 0 10px 10px 0;}
 					.ui > .project-dynamic-data > .data > .object ul > li.keywords span:hover { color: #fff; background-color: #0096e4; text-decoration: none; }
-					
-					.ui > .project-dynamic-data > .data > .object ul li dl { display: table; border-spacing: 0px 8px; }
-					.ui > .project-dynamic-data > .data > .object ul li dl li { display: table-row;  }
-					.ui > .project-dynamic-data > .data > .object ul li dt { display: table-cell; padding-right: 10px; font-family: var(--font-mono); vertical-align: middle; }
-					.ui > .project-dynamic-data > .data > .object ul li dd { display: table-cell; }
-					.ui > .project-dynamic-data > .data > .object ul li dd > span.a { display: inline-block; border-bottom: 1px #444 dashed; margin-right: 10px; padding: 2px 3px; margin-bottom: 3px; } 
-					.ui > .project-dynamic-data > .data > .object ul li dd > span.a:hover { text-decoration: none; background-color: #0096e4; color: #fff; }
 
-					.ui > .project-dynamic-data > .data > .object ul li.text_tags dd div + p { display: none;}
-					.ui > .project-dynamic-data > .data > .object ul li.text_tags dd > div { background-color: #fff; padding: 10px; }
-					.ui > .project-dynamic-data > .data > .object ul li.text_tags dd > div > ul { display: none;}
-					.ui > .project-dynamic-data > .data > .object ul li.text_tags dd > div.tabs > div { padding: 0px; background-color: #fff; border: 0px;}
-					.ui > .project-dynamic-data > .data > .object ul li.text_tags dd span.tag { white-space: nowrap; }
-					.ui > .project-dynamic-data > .data > .object ul li.external dd { max-width: 80%; }
-					.ui > .project-dynamic-data > .data > .object ul li.external dd > a { display: inline-block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; padding: 4px 40px 4px 10px; margin: 0 3px 3px 0; font-size: 1.4rem; color: #444444; background: url("/CMS/css/images/icons/linked.svg") no-repeat scroll right 15px center / 10px 10px #efefef;}
-					.ui > .project-dynamic-data > .data > .object ul li.external dd > a:hover { color: #fff; text-decoration: none; background-color: #0096e4; }
+					.ui > .project-dynamic-data > .data > .object ul li.object-descriptions dl { display: table; border-spacing: 0px 8px; }
+					.ui > .project-dynamic-data > .data > .object ul li.object-descriptions dl > div,
+					.ui > .project-dynamic-data > .data > .object ul li.object-description { display: table-row; }
+					.ui > .project-dynamic-data > .data > .object ul li.object-descriptions dt,
+					.ui > .project-dynamic-data > .data > .object ul li.object-description > label { display: table-cell; padding-right: 10px; font-family: var(--font-mono); vertical-align: middle; }
+					.ui > .project-dynamic-data > .data > .object ul li.object-description > label { padding: 4px 10px 4px 0px; }
+					.ui > .project-dynamic-data > .data > .object ul li.object-description > div { padding: 4px 0px 4px 0px; }
+					.ui > .project-dynamic-data > .data > .object ul li:not(.object-description) + li.object-description > label,
+					.ui > .project-dynamic-data > .data > .object ul li:not(.object-description) + li.object-description > div { padding-top: 8px; }
+					.ui > .project-dynamic-data > .data > .object ul li.object-description:has(+ li:not(.object-description)) > label,
+					.ui > .project-dynamic-data > .data > .object ul li.object-description:has(+ li:not(.object-description)) > div { padding-bottom: 8px; }
+					.ui > .project-dynamic-data > .data > .object ul li.object-descriptions dt > span,
+					.ui > .project-dynamic-data > .data > .object ul li.object-description > label > span { margin-left: 5px; }
+					.ui > .project-dynamic-data > .data > .object ul li.object-descriptions dd,
+					.ui > .project-dynamic-data > .data > .object ul li.object-description > div { display: table-cell; }
+					.ui > .project-dynamic-data > .data > .object ul li.object-descriptions dd > span.a,
+					.ui > .project-dynamic-data > .data > .object ul li.object-description > div > span.a { display: inline-block; border-bottom: 1px #444 dashed; padding: 2px 3px; margin-bottom: 3px; } 
+					.ui > .project-dynamic-data > .data > .object ul li.object-descriptions dd > span.a + span.a,
+					.ui > .project-dynamic-data > .data > .object ul li.object-description > div > span.a + span.a { margin-left: 10px;} 
+					.ui > .project-dynamic-data > .data > .object ul li.object-descriptions dd > span.a:hover,
+					.ui > .project-dynamic-data > .data > .object ul li.object-description > div > span.a:hover { text-decoration: none; background-color: #0096e4; color: #fff; }
+
+					.ui > .project-dynamic-data > .data > .object ul li.text_tags dd div + p,
+					.ui > .project-dynamic-data > .data > .object ul li.text_tags > div div + p { display: none;}
+					.ui > .project-dynamic-data > .data > .object ul li.text_tags dd > div,
+					.ui > .project-dynamic-data > .data > .object ul li.text_tags > div > div { background-color: #fff; padding: 10px; }
+					.ui > .project-dynamic-data > .data > .object ul li.text_tags dd > div > ul,
+					.ui > .project-dynamic-data > .data > .object ul li.text_tags > div > div > ul { display: none;}
+					.ui > .project-dynamic-data > .data > .object ul li.text_tags dd > div.tabs > div,
+					.ui > .project-dynamic-data > .data > .object ul li.text_tags > div > div.tabs > div { padding: 0px; background-color: #fff; border: 0px;}
+					.ui > .project-dynamic-data > .data > .object ul li.text_tags dd span.tag,
+					.ui > .project-dynamic-data > .data > .object ul li.text_tags > div span.tag { white-space: nowrap; }
+					.ui > .project-dynamic-data > .data > .object ul li.external dd,
+					.ui > .project-dynamic-data > .data > .object ul li.external > div { max-width: 80%; }
+					.ui > .project-dynamic-data > .data > .object ul li.external dd > a,
+					.ui > .project-dynamic-data > .data > .object ul li.external > div > a { display: inline-block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; padding: 4px 40px 4px 10px; margin: 0 3px 3px 0; font-size: 1.4rem; color: #444444; background: url("/CMS/css/images/icons/linked.svg") no-repeat scroll right 15px center / 10px 10px #efefef;}
+					.ui > .project-dynamic-data > .data > .object ul li.external dd > a:hover,
+					.ui > .project-dynamic-data > .data > .object ul li.external > div > a:hover { color: #fff; text-decoration: none; background-color: #0096e4; }
+					.ui > .project-dynamic-data > .data > .object ul li.reversed_collection_resource_path dd > span.a,
+					.ui > .project-dynamic-data > .data > .object ul li.reversed_collection_resource_path dd > span.a + span.a,
+					.ui > .project-dynamic-data > .data > .object ul li.reversed_collection_resource_path > div > span.a,
+					.ui > .project-dynamic-data > .data > .object ul li.reversed_collection_resource_path > div > span.a + span.a { margin: 0; }
 					
-					.ui > .project-dynamic-data > .data > .object ul li dd .album {  }
-					.ui > .project-dynamic-data > .data > .object ul li dd .album > figure { display: inline-block; margin: 16px 24px 0 0; padding: 0; width: 235px; height: 147px; }
-					.ui > .project-dynamic-data > .data > .object ul li dd .album > figure div > img { width: 235px; height: 147px; object-fit: cover; }
-					.ui > .project-dynamic-data > .data > .object ul li dd .album > figure > figurecaption { display: none; }
+					.ui > .project-dynamic-data > .data > .object ul li dd .album,
+					.ui > .project-dynamic-data > .data > .object ul li > div .album { }
+					.ui > .project-dynamic-data > .data > .object ul li dd .album > figure,
+					.ui > .project-dynamic-data > .data > .object ul li > div .album > figure { display: inline-block; margin: 16px 24px 0 0; padding: 0; width: 235px; height: 147px; }
+					.ui > .project-dynamic-data > .data > .object ul li dd .album > figure div > img,
+					.ui > .project-dynamic-data > .data > .object ul li > div .album > figure div > img { width: 235px; height: 147px; object-fit: cover; }
+					.ui > .project-dynamic-data > .data > .object ul li dd .album > figure > figurecaption,
+					.ui > .project-dynamic-data > .data > .object ul li > div .album > figure > figurecaption { display: none; }
 					
 					.ui > .project-dynamic-data > .data > .object ul > li.object-subs .tabs { max-width: 35vw; }
 					
@@ -814,53 +790,6 @@ class ui extends base_module {
 						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav[data-object_active="true"] ul li.project-help,
 						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav[data-object_active="true"] ul li.project-scenarios,
 						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav[data-object_active="true"] ul li.project-types { display: flex; }	
-
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters .filters-container { flex-wrap: wrap; position: relative; top: 0px; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters .filters-container .filter-container { padding: 0; margin: 0; flex: 1 1 auto; width: 100%; max-width: 100%; display: block; box-sizing: border-box; height: auto;}
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters .filters-container .filter-container  + .filter-container { margin-top: 5px; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters .filters-container .filter-container .results { margin-top: 5px; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters .filters-container .filter-container .results ul.keywords { display: block; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters .filters-container button { margin: 0;  display: block; box-sizing: border-box; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters .filters-container .filter-container + .filter-container + button { margin-top: 5px; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters .filters-container .filter-container .filter-search-bar { height: auto; white-space: normal; display: flex; flex-wrap: wrap; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters .filters-container .filter-container .filter-search-bar .filter-active { display: inline-block; height: auto; white-space: normal; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters .filters-container .filter-container .filter-search-bar .filter-active > div { margin: 3px 3px 0 0; max-width: 100%; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters .filters-container .filter-container .filter-search-bar .filter-input { width: 100%;  }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters .filters-container .filter-container .filter-search-bar .filter-input input { white-space: normal; }
-											
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > label,
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > input { display: none; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container { box-sizing: border-box; flex-direction: column; margin: 0; padding: 0;  }
-						
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container,
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .date { flex: 0; background-color: #a3ce6c;  }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container:first-child { }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar { display: flex; background: none; padding: 0; margin: 0; height: auto; white-space: normal; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar > .filter-active + label { display: none; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar > .filter-input { order: 2; height: 40px; margin: 0; padding: 0 0 0 40px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar > .filter-input input { width: 100%; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar > .filter-active { order: 3; background: none; padding: 0; margin: 0; display: inline-block; height: auto; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar > .filter-active:not(:empty) { margin: 5px 0 0 0; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar > .filter-active > div { width: auto; margin: 0 5px 5px 0px; background-color: #eee; padding: 0 0 0 5px; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar > .filter-active > div span:first-child { width: auto; color: #333; font-size: 14px; padding: 0 4px; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar > .filter-active > div span.icon { background-color: #ddd; color: #444; padding: 0 6px; border: 0;  }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar > input { display: none; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar > .filter-active + label + input + label { display: inline-block; border: 2px solid #0096e4; order: 4; padding: 0; height: 23px; cursor: pointer; white-space: nowrap; margin-top: 5px; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar > input + label > span { display: inline-block; font-weight: bold; font-size: 10px; padding: 5px; color: #333; box-sizing: border-box; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6); transition: background-color 100ms ease;   }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar > input:not(:checked) + label > span:first-child {  background-color: #0096e4; color: #fff;  }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .filter-container .filter-search-bar > input:checked + label > span:last-child {  background-color: #0096e4; color: #fff; }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .results { margin-top: 0px; background-color: rgba(255, 255, 255, 0.6); }
-
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .date { display: flex; white-space: nowrap; flex-wrap: nowrap; align-content: flex-start; margin-top: 10px;  }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .date > input { box-shadow: none; display: inline-block; width: auto; max-width: 150px; font-size: 14px; height: 40px; margin: 0; padding: 0 0 0 40px; border: 0; background: url("/CMS/css/images/icons/date.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap;  }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .date > input:nth-of-type(1) { order: 2;  }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .date > input:nth-of-type(2) { order: 4;  }
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .date > input:nth-of-type(1) + label { order: 1; margin-left: 0px; } 
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .date > input:nth-of-type(1) + label,
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .date > input:nth-of-type(2) + label { height: 40px; font-weight: bold; letter-spacing: 2px; font-size: 12px; padding: 0 0 0 10px; line-height: 40px; box-sizing: border-box; color: #333; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.6);  } 
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .date > input:nth-of-type(2) + label { order: 3;  } 
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .date > input:nth-of-type(3) { display: none;  } 
-						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-filters.form > .filters-container .date > input:nth-of-type(3) + label { display: none; } 
 						
 						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul { margin: 0; padding: 0; } 
 						.ui.responsive-layout-enabled > nav > ul > li.project-dynamic-nav ul li.project-help,
@@ -926,18 +855,6 @@ class ui extends base_module {
 						
 						.ui.responsive-layout-enabled > .project-dynamic-data > .data .objects .labmap > .controls .timeline > div input.date,
 						.ui.responsive-layout-enabled > .project-dynamic-data > .data .objects .labmap > .controls .timeline > div span.split { display: none; } 
-					}
-							
-					@media print {
-						body, 
-						.site, 
-						.container, 
-						.full, 
-						.ui,
-						.ui > .project-dynamic-data, 
-						.ui > .project-dynamic-data > .data, 
-						.ui > .project-dynamic-data > .data > .object, 
-						.ui > .project-dynamic-data > .data > .object > div { display: block !important; }
 					}';
 	
 		return $return;
@@ -949,7 +866,7 @@ class ui extends base_module {
 
 					var elm_selections_container = elm_scripter.find('.selections-container');
 					var public_user_interface_id = elm_scripter.find('[data-public_user_interface_id]').attr('data-public_user_interface_id');
-					
+
 					window.UISELECTION = new UISelection();
 					UISELECTION.init(public_user_interface_id, elm_selections_container);
 												
@@ -1094,16 +1011,16 @@ class ui extends base_module {
 		
 		if ($method == "set_project") {
 
-			$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
+			$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
 
 			toolbar::setScenario();
 			toolbar::setFilter([]);
 			
-			SiteEndVars::setFeedback('selected_type_ids', false, true);
-			SiteEndVars::setFeedback('type_id', false, true);
-			SiteEndVars::setFeedback('scenario_id', false, true);
-			SiteEndVars::setFeedback('active_type_object_id', false, true);
-			SiteEndVars::setFeedback('arr_public_user_interface_module_vars', false, true);
+			SiteEndEnvironment::setFeedback('selected_type_ids', false, true);
+			SiteEndEnvironment::setFeedback('type_id', false, true);
+			SiteEndEnvironment::setFeedback('scenario_id', false, true);
+			SiteEndEnvironment::setFeedback('active_type_object_id', false, true);
+			SiteEndEnvironment::setFeedback('arr_public_user_interface_module_vars', false, true);
 			
 			if ($id == 0) {
 
@@ -1131,15 +1048,15 @@ class ui extends base_module {
 
 		if ($method == "set_type" || $method == "set_scenario") {
 
-			$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-			$public_user_interface_active_custom_project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+			$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+			$public_user_interface_active_custom_project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 			
 			if ($method == "set_type") {
 				
 				$set = 'type';
 				
 				if ((int)$id) {
-					SiteEndVars::setFeedback('type_id', $id, true);
+					SiteEndEnvironment::setFeedback('type_id', $id, true);
 				}
 				
 			} else {
@@ -1154,7 +1071,7 @@ class ui extends base_module {
 			} else {
 				
 				toolbar::setScenario();	
-				SiteEndVars::setFeedback('type_id', false, true);
+				SiteEndEnvironment::setFeedback('type_id', false, true);
 				self::setPublicUserInterfaceModuleVars(false);
 			}
 		}
@@ -1163,8 +1080,8 @@ class ui extends base_module {
 
 	public static function isTypeEnabled($type_id, $mode) {
 		
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-		$project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+		$project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 		$enabled = false;
 		
 		if ($mode == false) {
@@ -1197,12 +1114,12 @@ class ui extends base_module {
 				
 	public static function setPublicUserInterfaceModuleVars($arr = ['set' => false, 'id' => false, 'display_mode' => 'grid', 'start' => false]) {
 
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-		$public_user_interface_active_custom_project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');	
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+		$public_user_interface_active_custom_project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');	
 		
 		if ($arr) {
 			
-			$arr_request_vars = SiteStartVars::getModuleVariables(0);
+			$arr_request_vars = SiteStartEnvironment::getModuleVariables(0);
 			
 			if ($arr['display_mode'] === false && $arr_request_vars[4]) {
 				
@@ -1232,7 +1149,7 @@ class ui extends base_module {
 			$arr_public_user_interface_module_vars = [$public_user_interface_id, $public_user_interface_active_custom_project_id];
 		}
 
-		SiteEndVars::setModuleVariables(0, $arr_public_user_interface_module_vars);
+		SiteEndEnvironment::setModuleVariables(0, $arr_public_user_interface_module_vars);
 	}
 	
 	public static function getPublicUserInterfaceModuleVars() {
@@ -1240,16 +1157,16 @@ class ui extends base_module {
 		self::setPublicUserInterfaceId();
 		self::setPublicUserInterfaceActiveCustomProjectId();
 		
-		$arr_request_vars = SiteStartVars::getModuleVariables(0);
+		$arr_request_vars = SiteStartEnvironment::getModuleVariables(0);
 
 		if ($arr_request_vars[2]) {
 
 			$arr_vars = ['set' => $arr_request_vars[2], 'id' => $arr_request_vars[3], 'display_mode' => ($arr_request_vars[4] ? (strpos($arr_request_vars[4], 'soc') !== false ? substr($arr_request_vars[4], 0, 3) : $arr_request_vars[4]) : false), 'start' => $arr_request_vars[5]];
-			SiteEndVars::setFeedback('arr_public_user_interface_module_vars', $arr_vars, true);
+			SiteEndEnvironment::setFeedback('arr_public_user_interface_module_vars', $arr_vars, true);
 			
 		} else {
 			
-			SiteEndVars::setFeedback('arr_public_user_interface_module_vars', [], true);
+			SiteEndEnvironment::setFeedback('arr_public_user_interface_module_vars', [], true);
 		}
 		
 		if ($arr_vars['set'] == 'scenario' && $arr_vars['id']) {
@@ -1263,11 +1180,11 @@ class ui extends base_module {
 		
 		if ($arr_vars['set'] == 'types') {
 
-			SiteEndVars::setFeedback('types', 0, true);
+			SiteEndEnvironment::setFeedback('types', 0, true);
 			
 		} else { 
 
-			SiteEndVars::setFeedback('types', false, true);
+			SiteEndEnvironment::setFeedback('types', false, true);
 		}
 
 		if ($arr_vars['set'] == 'filter' && $arr_vars['id']) {
@@ -1276,24 +1193,24 @@ class ui extends base_module {
 			toolbar::setFilter(ui_filter::createFilterArray($arr_url_filter));
 		}
 		
-		if (($arr_vars['set'] == 'object' || $arr_vars['set'] == 'object-print') && $arr_vars['id']) {
+		if ($arr_vars['set'] == 'object' && $arr_vars['id']) {
 			
-			SiteEndVars::setFeedback('active_type_object_id', $arr_vars['id'], true);
+			SiteEndEnvironment::setFeedback('active_type_object_id', $arr_vars['id'], true);
 		}
 		
-		if (($arr_vars['set'] == 'selection' || $arr_vars['set'] == 'selection-print') && $arr_vars['id']) {
+		if ($arr_vars['set'] == 'selection' && $arr_vars['id']) {
 			
-			SiteEndVars::setFeedback('active_selection_id', $arr_vars['id'], true);
+			SiteEndEnvironment::setFeedback('active_selection_id', $arr_vars['id'], true);
 		}
 	}
 		
 	public static function setPublicUserInterfaceId() {
 		
-		if (!SiteStartVars::getFeedback('public_user_interface_id')) {
+		if (!SiteStartEnvironment::getFeedback('public_user_interface_id')) {
 			
-			if (SiteStartVars::getModuleVariables(0)[0]) {
+			if (SiteStartEnvironment::getModuleVariables(0)[0]) {
 				
-				$url_public_user_interface_id = SiteStartVars::getModuleVariables(0)[0];
+				$url_public_user_interface_id = SiteStartEnvironment::getModuleVariables(0)[0];
 			
 				if (cms_nodegoat_public_interfaces::getPublicInterfaces($url_public_user_interface_id)) {
 					$public_user_interface_id = $url_public_user_interface_id;
@@ -1305,15 +1222,15 @@ class ui extends base_module {
 				$public_user_interface_id = cms_nodegoat_public_interfaces::getDefaultPublicInterfaceID();
 			}					
 
-			SiteEndVars::setFeedback('public_user_interface_id', $public_user_interface_id, true);
+			SiteEndEnvironment::setFeedback('public_user_interface_id', $public_user_interface_id, true);
 		}
 	}
 	
 	public static function setPublicUserInterfaceActiveCustomProjectId($id = false) {
 		
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
 		$arr_public_user_interface = cms_nodegoat_public_interfaces::getPublicInterfaces($public_user_interface_id);	
-		$url_project_id = SiteStartVars::getModuleVariables(0)[1];
+		$url_project_id = SiteStartEnvironment::getModuleVariables(0)[1];
 		
 		if ((int)$id) {
 			
@@ -1323,9 +1240,9 @@ class ui extends base_module {
 			
 			$public_user_interface_active_custom_project_id = $url_project_id;
 			
-		} else if (SiteStartVars::getFeedback('public_user_interface_id')) {
+		} else if (SiteStartEnvironment::getFeedback('public_user_interface_id')) {
 			
-			$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
+			$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
 			$public_user_interface_active_custom_project_id = cms_nodegoat_public_interfaces::getPublicInterfaceProjectIDs($public_user_interface_id, 1);
 		}
 		
@@ -1344,7 +1261,7 @@ class ui extends base_module {
 
 		$_SESSION['custom_projects']['project_id'] = $public_user_interface_active_custom_project_id;
 
-		SiteEndVars::setFeedback('public_user_interface_active_custom_project_id', $public_user_interface_active_custom_project_id, true);
+		SiteEndEnvironment::setFeedback('public_user_interface_active_custom_project_id', $public_user_interface_active_custom_project_id, true);
 		
 	}
 }

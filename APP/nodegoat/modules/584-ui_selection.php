@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -21,11 +21,11 @@ class ui_selection extends base_module {
 		'ui_data' => []
 	];
 		
-	public static function createViewSelectionsContainer($print = false) {
+	public static function createViewSelectionsContainer() {
 
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-		$public_user_interface_active_custom_project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');		
-		$selection_id = SiteStartVars::getFeedback('active_selection_id');
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+		$public_user_interface_active_custom_project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');		
+		$selection_id = SiteStartEnvironment::getFeedback('active_selection_id');
 
 		if ($selection_id) {
 			
@@ -37,55 +37,16 @@ class ui_selection extends base_module {
 											data-new_external_selection_id="'.$arr_external_selection['id'].'" 
 											data-new_external_selection_title="'.$arr_external_selection['selection_title'].'"
 										' : '').' 
-									'. ($selection_id && $print && !$arr_external_selection ? '
-											data-print_selection_id="'.$selection_id.'"
-										' : '').' 
-									data-url="'.SiteStartVars::getBasePath(0, false).SiteStartVars::getPage('name').'.p/'.$public_user_interface_id.'/'.$public_user_interface_active_custom_project_id.'"></div>';
+									data-url="'.SiteStartEnvironment::getBasePath(0, false).SiteStartEnvironment::getPage('name').'.p/'.$public_user_interface_id.'/'.$public_user_interface_active_custom_project_id.'"></div>';
 		
-		SiteEndVars::setFeedback('active_type_object_id', false, true);
+		SiteEndEnvironment::setFeedback('active_type_object_id', false, true);
 		
 		return $return;
 	}
 	
-	public static function createViewPrintSelection($selection_id, $arr_selection = false) {
-	
-		$create_data = new ui_data();
-		
-		if (!$arr_selection) {
-			
-			$arr_selection = cms_nodegoat_public_interfaces::getPublicInterfaceSelection($selection_id);
-		}
-
-		if (!$arr_selection) {
-			return false;
-		}
-
-		$arr_elements = $arr_selection['elements'];
-		usort($arr_elements, function($a, $b) { return $a['sort'] > $b['sort']; }); 
-
-		$return = '<h1 class="selection-title">'.$arr_selection['selection_title'].'</h1>
-			<h3 class="selection-editor">'.$arr_selection['selection_editor'].'</h3>
-			<p class="selection-notes">'.$arr_selection['selection_notes'].'</p>';
-					
-		foreach ($arr_elements as $arr_elm) {
-			
-			if ($arr_elm['elm_type'] == 'object') {
-				
-				$arr_id = explode('_', $arr_elm['elm_id']);
-				$return .= str_replace("&", "&amp;", $create_data->createViewTypeObject($arr_id[0], $arr_id[1], true)).'<p>'.$arr_elm['elm_notes'].'</p>'; 
-			
-			} else if ($arr_elm['elm_type'] == 'heading') {
-				
-				$return .= '<h2>'.$arr_elm['elm_heading'].'</h2><p>'.$arr_elm['elm_notes'].'</p>';
-			}
-		}	
-		
-		return $return;	
-	}
-	
 	public static function createViewPdfSelection($selection_id, $arr_selection = false) {
 		
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
 		$arr_public_user_interface = cms_nodegoat_public_interfaces::getPublicInterfaces($public_user_interface_id);	
 	
 		if (!$arr_selection) {
@@ -98,7 +59,7 @@ class ui_selection extends base_module {
 		}
 
 		$arr_elements = $arr_selection['elements'];
-		usort($arr_elements, function($a, $b) { return $a['sort'] > $b['sort']; }); 
+		usort($arr_elements, function($a, $b) { return $a['sort'] <=> $b['sort']; }); 
 		
 		$create_data = new ui_data();
 		$arr_elms = [];
@@ -150,10 +111,10 @@ class ui_selection extends base_module {
 					
 					if ($arr_image['url']) {
 					
-						$image_url = DIR_ROOT_STORAGE.DIR_HOME.$arr_image['url'];	
-						$data = base64_encode(file_get_contents($image_url));
-						$string = 'data:'.mime_content_type($image_url).';base64,'.$data;
-						$arr_article['section_1'][] = ['elm_type' => 'image_full', 'content' => $string];
+						$str_path_image = DIR_ROOT_STORAGE.DIR_HOME.$arr_image['url'];	
+						$str_url = FileStore::getDataURL($str_path_image);
+						
+						$arr_article['section_1'][] = ['elm_type' => 'image_full', 'content' => $str_url];
 						
 					}
 				}
@@ -191,7 +152,7 @@ class ui_selection extends base_module {
 						
 						if ($arr_image['cache_url']) {
 			
-							$image_url = SiteStartVars::getBasePath(0, false).$arr_image['cache_url'];
+							$image_url = SiteStartEnvironment::getBasePath(0, false).$arr_image['cache_url'];
 							$data = base64_encode(file_get_contents($image_url));
 							$string = 'data:image/png;base64,'.$data;
 							$arr_article['section_2'][] = ['elm_type' => 'image', 'content' => $string];			
@@ -241,8 +202,8 @@ class ui_selection extends base_module {
 	
 	private static function createObjectSubElms($type_id, $object_id, $arr_object_sub_details_ids) {
 	
-		$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-		$public_user_interface_active_custom_project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');		
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+		$public_user_interface_active_custom_project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');		
 		$arr_project = StoreCustomProject::getProjects($public_user_interface_active_custom_project_id);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
@@ -278,7 +239,7 @@ class ui_selection extends base_module {
 				
 				$arr_elms = [];
 				
-				$details_elm = ($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name']).' - ': '').Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name']).' - '.StoreTypeObjects::formatToCleanValue('date', $arr_object_sub['object_sub']['object_sub_date_start']).' - '.StoreTypeObjects::formatToCleanValue('date', $arr_object_sub['object_sub']['object_sub_date_end']).' - '.$arr_object_sub['object_sub']['object_sub_location_ref_object_name'];
+				$details_elm = ($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name']).' - ': '').Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name']).' - '.FormatTypeObjects::formatToCleanValue('date', $arr_object_sub['object_sub']['object_sub_date_start']).' - '.FormatTypeObjects::formatToCleanValue('date', $arr_object_sub['object_sub']['object_sub_date_end']).' - '.$arr_object_sub['object_sub']['object_sub_location_ref_object_name'];
 				$arr_elms[] = ['elm' => $details_elm, 'style' => 'object_sub_details'];
 				
 				foreach ((array)$arr_object_sub['object_sub_definitions'] as $object_sub_description_id => $arr_object_sub_definition) {
@@ -383,14 +344,14 @@ class ui_selection extends base_module {
 				$selection_url_id = cms_nodegoat_public_interfaces::storePublicInterfaceSelection($arr_selection);
 			}
 
-			$public_user_interface_id = (int)SiteStartVars::getFeedback('public_user_interface_id');
-			$public_user_interface_active_custom_project_id = (int)SiteStartVars::getFeedback('public_user_interface_active_custom_project_id');
+			$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+			$public_user_interface_active_custom_project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 			$arr_public_user_interface = cms_nodegoat_public_interfaces::getPublicInterfaces($public_user_interface_id);
 			$public_interface_name = Labels::parseTextVariables($arr_public_user_interface['interface']['name']);
 			
 			$arr_shares = cms_nodegoat_public_interfaces::getPublicInterfaceShareOptions($public_interface_name.' - '.$arr_selection['selection_title']);
 			
-			$url = SiteStartVars::getBasePath(0, false).SiteStartVars::getPage('name').'.p/'.$public_user_interface_id.'/'.$public_user_interface_active_custom_project_id.'/selection/'.$selection_url_id;
+			$url = SiteStartEnvironment::getBasePath(0, false).SiteStartEnvironment::getPage('name').'.p/'.$public_user_interface_id.'/'.$public_user_interface_active_custom_project_id.'/selection/'.$selection_url_id;
 	
 			$this->html = ['id' => $selection_url_id, 'url' => $url, 'arr_shares' => $arr_shares];
 		}
@@ -398,16 +359,6 @@ class ui_selection extends base_module {
 		if ($method == "remove_selection") {
 
 			cms_nodegoat_public_interfaces::delPublicInterfaceSelection($id);	
-		}
-		
-		if ($method == "print_selection") {
-
-			$arr_selection = $value;
-			
-			$return = self::createViewPrintSelection($arr_selection['id'], $arr_selection);
-			$return .= '<script>window.print();</script>';
-			
-			$this->html = $return;
 		}
 		
 		if ($method == "get_bookify_selection_data") {

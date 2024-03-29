@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2023 LAB1100.
+ * Copyright (C) 2024 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -31,7 +31,6 @@ class header extends base_module {
 			
 			$this->arr_access = [
 				'general' => [],
-				'search_box' => [],
 				'data_visualise' => [],
 				'data_analysis' => [],
 				'toolbar' => [],
@@ -55,7 +54,7 @@ class header extends base_module {
 		Settings::set('domain_administrator_mode', ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN && Settings::get('domain_administrator_mode')));
 		
 		
-		SiteEndVars::addTitle('nodegoat');
+		SiteEndEnvironment::addTitle('nodegoat');
 		
 	}
 	
@@ -63,7 +62,7 @@ class header extends base_module {
 
 		if (Settings::get('labeler_home')) {
 			
-			SiteEndVars::addScript("
+			SiteEndEnvironment::addScript("
 				$(document).on('documentloaded ajaxloaded', function(e) {
 
 					if (!getElement(e.detail.elm)) {
@@ -84,14 +83,12 @@ class header extends base_module {
 		$navigation = new navigation;
 		$navigation->setModVariables(['directory_id' => $this->arr_variables['directory_id']]);
 		$navigation = $navigation->contents();
-		$search_box = new search_box;
-		$search_box = $search_box->contents();
 		$logout = new logout;
 		$logout = $logout->contents();
 		$toolbar = new toolbar;
 		$toolbar = $toolbar->contents();
 
-		$return = '<a href="'.(SiteStartVars::getDirectory(false, SiteStartVars::DIRECTORY_LOGIN) ? SiteStartVars::getDirectory('path', SiteStartVars::DIRECTORY_LOGIN).'/' : '/').'" alt="'.getLabel('name', 'D').'"></a>';
+		$return = '<a href="'.(SiteStartEnvironment::getDirectory(false, SiteStartEnvironment::DIRECTORY_LOGIN) ? SiteStartEnvironment::getDirectory('path', SiteStartEnvironment::DIRECTORY_LOGIN).'/' : '/').'" alt="'.getLabel('name', 'D').'"></a>';
 		$return .= '<span></span><span></span>'; // Helpers
 		$return .= '<div class="navigation">'.$navigation.'</div>'.($logout ? '<div class="logout">'.$logout.'</div>' : '').($toolbar ? '<div class="toolbar">'.$toolbar.'</div>' : '');
 		
