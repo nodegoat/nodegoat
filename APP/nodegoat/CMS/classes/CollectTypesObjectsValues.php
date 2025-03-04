@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -115,13 +115,13 @@ class CollectTypesObjectsValues extends CollectTypesObjects {
 							
 							$str_attribute = $arr_selected['attribute'];
 							
-							if ($str_attribute == 'date_start' || $str_attribute == 'date_end']) {
+							if ($str_attribute == 'date_start' || $str_attribute == 'date_end') {
 								
 								$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_date'] = true;
-								if ($str_attribute == 'date_start']) {
+								if ($str_attribute == 'date_start') {
 									$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_date_start'] = true;
 								}
-								if ($str_attribute == 'date_end']) {
+								if ($str_attribute == 'date_end') {
 									$arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_date_end'] = true;
 								}
 							} else if (!isset($arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details'])) { // Set empty selection on sub object details if nothing is selected

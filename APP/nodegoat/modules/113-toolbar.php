@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -123,24 +123,17 @@ class toolbar extends base_module {
 		return $return;
 	}
 	
-	private function createSelectExportSettings($type_id, $store = false) {
+	private function createSelectExportSettings($type_id, $is_store = false) {
 		
 		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
-		
-		$return = '<fieldset><legend>'.getLabel(($store ? 'lbl_save' : 'lbl_select')).'</legend>
-			<ul>
-				<li><label>'.getLabel('lbl_export').'</label><span id="x:custom_projects:export_settings_storage-'.(int)$type_id.'">'
-					.'<select name="export_settings_id">'.Labels::parseTextVariables(cms_general::createDropdown(cms_nodegoat_custom_projects::getProjectTypeExportSettings($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, $arr_use_project_ids), false, true, 'label')).'</select>'
-					.($store ?
-						'<input type="button" class="data add popup add_export_settings_storage" value="store" />'
-						.'<input type="button" class="data del msg del_export_settings_storage" value="del" />'
-					: '')
-				.'</span></li>
-			</ul>
-		</fieldset>';
+				
+		$arr_options = cms_nodegoat_custom_projects::getProjectTypeExportSettings($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, $arr_use_project_ids);		
+		$command_id = 'x:custom_projects:export_settings_storage-'.(int)$type_id;
 
-		return $return;
+		$str_html = custom_projects::createStorageSelect('export_settings', $is_store, $arr_options, $command_id, getLabel('lbl_export'));
+		
+		return $str_html;
 	}
 		
 	private function createSelectScenario($type_id) {
@@ -152,20 +145,23 @@ class toolbar extends base_module {
 		
 		foreach ($arr_scenarios as $scenario_id => &$arr_scenario) {
 			
-			if ($arr_scenario['cache_retain']) {
-				$arr_scenario['attr']['data-cache_retain'] = '1';
+			if (!$arr_scenario['cache_retain']) {
+				continue;
 			}
+			
+			$arr_scenario['attr']['data-cache_retain'] = '1';
 		}
 		unset($arr_scenario);
 		
-		$return = '<fieldset><legend>'.getLabel('lbl_select_or_store').'</legend>
+		$str_html = '<fieldset><legend>'.getLabel('lbl_select_or_store').'</legend>
 			<ul>
 				<li><label>'.getLabel('lbl_scenario').'</label>
 					<ul class="sorter" id="x:custom_projects:scenario_storage-'.(int)$type_id.'">'
 						.'<li><div>'
-							.'<select name="scenario_id" placeholder="'.getLabel('lbl_new').'">'.Labels::parseTextVariables(cms_general::createDropdown($arr_scenarios, false, true, 'label')).'</select>'
+							.'<select name="scenario_id" placeholder="'.getLabel('lbl_new').'">'.custom_projects::createStorageDropdown($arr_scenarios).'</select>'
 							.'<input type="button" class="data add popup add_scenario_storage" value="store" />'
 							.'<input type="button" class="data del msg del_scenario_storage" value="del" />'
+							.'<small class="input" title="'.getLabel('lbl_scenario').' ID"></small>'
 						.'</div></li>
 						<li class="hide">
 							<fieldset>
@@ -178,10 +174,13 @@ class toolbar extends base_module {
 						</li>
 					</ul>
 				</li>
+				<li><label></label>'
+					.'<section class="info tip"></section>'
+				.'</li>
 			</ul>
 		</fieldset>';
 
-		return $return;
+		return $str_html;
 	}
 
 	public static function css() {
@@ -556,7 +555,7 @@ class toolbar extends base_module {
 			
 			$type_id = $id;
 			
-			$this->html = '<form class="options storage" data-method="return_export_settings">
+			$this->html = '<form class="options storage open" data-method="return_export_settings">
 				'.$this->createSelectExportSettings($type_id).'
 				<input type="submit" value="'.getLabel('lbl_select').'" />
 			</form>';
@@ -749,7 +748,6 @@ class toolbar extends base_module {
 					$arr_visual_settings = ParseTypeFeatures::parseVisualSettings($arr_visual_settings);
 					
 					if (data_visualise::getVisualSettings(false) == $arr_visual_settings) {
-
 						$arr_visual_settings = [];
 					}
 				}
@@ -959,7 +957,7 @@ class toolbar extends base_module {
 		
 		$arr_cur_filters = self::getFilter(false);
 		
-		if (arrKsortRecursive($arr_filters) === arrKsortRecursive($arr_cur_filters)) {
+		if (arrIsEqual($arr_filters, $arr_cur_filters)) {
 			return;
 		}
 		
@@ -1296,6 +1294,54 @@ class toolbar extends base_module {
 		return $arr_type_set_conditions;
 	}
 	
+	public static function getTypeModelConditionIDs($type_id) {
+		
+		$arr_type_condition_ids = [];
+
+		// Interaction settings
+		if (SiteStartEnvironment::getFeedback('condition_id') === false) {
+			
+		} else {
+			
+			$arr_context = SiteStartEnvironment::getFeedback('context');
+			
+			if ($arr_context) {
+				$active_type_id = $arr_context['type_id'];
+			} else {
+				$active_type_id = self::getFilterTypeID();
+			}
+						
+			$condition_id = SiteStartEnvironment::getFeedback('condition_id');
+			if (!$condition_id) {
+				$condition_id = 0;
+			}
+			
+			if ($active_type_id == $type_id) { // Type IDs should match as all ids are collected from the 'root'
+				
+				$arr_condition = cms_nodegoat_custom_projects::getProjectTypeConditions($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, $condition_id, true, $arr_use_project_ids);
+				$arr_condtion_model_object_types = $arr_condition['model_object'];
+				
+				if ($arr_condtion_model_object_types) {
+					
+					foreach ($arr_condtion_model_object_types as $use_type_id => $arr_condtion_model_object_type) {
+						
+						if ($arr_condtion_model_object_type['condition_id']) {
+							
+							$arr_type_condition_ids[$use_type_id] = $arr_condtion_model_object_type['condition_id'];
+						} else if ($arr_condtion_model_object_type['condition_use_current']) {
+							
+							if (!SiteStartEnvironment::getFeedback('scenario_id') && !$arr_context) { // Only apply a user's condition when no scenarios or contexts are active
+								$arr_type_condition_ids[$use_type_id] = 0;
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		return $arr_type_condition_ids;
+	}
+	
 	public static function getExportCollector($type_id, $arr_filters, $arr_scope, $arr_conditions, $arr_ordering, $arr_settings) {
 		
 		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
@@ -1325,7 +1371,6 @@ class toolbar extends base_module {
 			return ParseTypeFeatures::parseTypeConditionNamespace($cur_type_id, $arr_use_conditions, fn($arr_condition_setting) => ParseTypeFeatures::checkTypeConditionNamespace($arr_condition_setting, false));
 		});
 		$collect->setGenerateCallback(function($generate, $cur_type_id) {
-			
 			$generate->setFormatMode(FormatTypeObjects::FORMAT_DATE_YMD);
 		});
 		$collect->setTypeOptions([$type_id => ['order' => $arr_ordering]]);

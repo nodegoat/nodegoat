@@ -329,7 +329,7 @@ CREATE TABLE `def_type_object_descriptions` (
   `is_unique` tinyint(1) NOT NULL DEFAULT '0',
   `has_multi` tinyint(1) NOT NULL DEFAULT '0',
   `ref_type_id` int NOT NULL,
-  `in_name` tinyint(1) NOT NULL,
+  `in_name` tinyint(1) NOT NULL DEFAULT '0',
   `in_search` tinyint(1) NOT NULL DEFAULT '0',
   `in_overview` tinyint(1) NOT NULL DEFAULT '0',
   `is_identifier` tinyint(1) NOT NULL DEFAULT '0',
@@ -362,20 +362,21 @@ CREATE TABLE `def_type_object_search_path` (
 
 CREATE TABLE `def_type_object_sub_descriptions` (
   `id` int NOT NULL,
+  `id_id` int DEFAULT NULL,
   `object_sub_details_id` int NOT NULL,
-  `name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `value_type_base` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `value_type_settings` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `value_type_base` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `value_type_settings` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `value_type_serial` int DEFAULT NULL,
-  `is_required` tinyint(1) NOT NULL,
-  `use_object_description_id` int NOT NULL,
+  `is_required` tinyint(1) NOT NULL DEFAULT '0',
+  `use_object_description_id` int NOT NULL DEFAULT '0',
   `ref_type_id` int NOT NULL,
-  `in_name` tinyint(1) NOT NULL,
-  `in_search` tinyint(1) NOT NULL,
-  `in_overview` tinyint(1) NOT NULL,
-  `clearance_edit` tinyint NOT NULL,
-  `clearance_view` tinyint NOT NULL,
-  `sort` tinyint NOT NULL
+  `in_name` tinyint(1) NOT NULL DEFAULT '0',
+  `in_search` tinyint(1) NOT NULL DEFAULT '0',
+  `in_overview` tinyint(1) NOT NULL DEFAULT '0',
+  `clearance_edit` tinyint NOT NULL DEFAULT '0',
+  `clearance_view` tinyint NOT NULL DEFAULT '0',
+  `sort` tinyint NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `def_type_object_sub_details` (
@@ -430,8 +431,8 @@ ALTER TABLE `cache_type_object_sub_location_path`
 
 ALTER TABLE `data_type_objects`
   ADD PRIMARY KEY (`id`,`version`),
-  ADD KEY `type_id` (`type_id`),
-  ADD KEY `active` (`active`,`status`);
+  ADD KEY `active` (`active`,`status`),
+  ADD KEY `type_id` (`type_id`,`id`) USING BTREE;
 
 ALTER TABLE `data_type_object_analyses`
   ADD PRIMARY KEY (`user_id`,`analysis_id`,`object_id`) USING BTREE,
@@ -463,9 +464,8 @@ ALTER TABLE `data_type_object_definitions_references`
 
 ALTER TABLE `data_type_object_definition_objects`
   ADD PRIMARY KEY (`object_id`,`object_description_id`,`ref_object_id`,`identifier`),
-  ADD KEY `ref_object_id` (`ref_object_id`),
-  ADD KEY `object_description_id` (`object_description_id`,`ref_type_id`) USING BTREE,
-  ADD KEY `state` (`state`);
+  ADD KEY `object_description_id` (`object_description_id`,`state`,`ref_type_id`) USING BTREE,
+  ADD KEY `ref_object_id` (`ref_object_id`,`state`,`object_description_id`) USING BTREE;
 
 ALTER TABLE `data_type_object_definition_sources`
   ADD PRIMARY KEY (`object_id`,`object_description_id`,`ref_object_id`,`hash`),
@@ -528,13 +528,13 @@ ALTER TABLE `data_type_object_sub_definitions_references`
   ADD PRIMARY KEY (`object_sub_id`,`object_sub_description_id`,`ref_object_id`,`version`),
   ADD KEY `ref_object_id` (`ref_object_id`),
   ADD KEY `object_sub_id` (`object_sub_id`,`ref_object_id`),
-  ADD KEY `active` (`active`,`status`);
+  ADD KEY `active` (`active`,`status`),
+  ADD KEY `object_sub_description_id` (`object_sub_description_id`,`ref_object_id`);
 
 ALTER TABLE `data_type_object_sub_definition_objects`
   ADD PRIMARY KEY (`object_sub_id`,`object_sub_description_id`,`ref_object_id`,`identifier`),
-  ADD KEY `object_sub_description_id` (`object_sub_description_id`,`ref_type_id`) USING BTREE,
-  ADD KEY `ref_object_id` (`ref_object_id`),
-  ADD KEY `state` (`state`);
+  ADD KEY `object_sub_description_id` (`object_sub_description_id`,`state`,`ref_type_id`) USING BTREE,
+  ADD KEY `ref_object_id` (`ref_object_id`,`state`,`object_sub_description_id`) USING BTREE;
 
 ALTER TABLE `data_type_object_sub_definition_sources`
   ADD PRIMARY KEY (`object_sub_id`,`object_sub_description_id`,`ref_object_id`,`hash`),
@@ -582,13 +582,10 @@ ALTER TABLE `def_type_definitions`
 
 ALTER TABLE `def_type_object_descriptions`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `id_id` (`id_id`,`type_id`),
-  ADD KEY `type_id` (`type_id`),
+  ADD UNIQUE KEY `id_id` (`id_id`,`type_id`,`ref_type_id`) USING BTREE,
   ADD KEY `ref_type_id` (`ref_type_id`),
-  ADD KEY `in_search` (`in_search`),
-  ADD KEY `in_name` (`in_name`),
-  ADD KEY `value_type` (`value_type_base`),
-  ADD KEY `is_identifier` (`is_identifier`);
+  ADD KEY `type_id` (`type_id`,`is_identifier`) USING BTREE,
+  ADD KEY `value_type` (`value_type_base`,`id`) USING BTREE;
 
 ALTER TABLE `def_type_object_name_path`
   ADD PRIMARY KEY (`type_id`,`ref_type_id`,`ref_object_description_id`,`ref_object_sub_details_id`,`org_object_description_id`,`org_object_sub_details_id`,`sort`);
@@ -598,10 +595,10 @@ ALTER TABLE `def_type_object_search_path`
 
 ALTER TABLE `def_type_object_sub_descriptions`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `object_sub_details_id` (`object_sub_details_id`),
+  ADD UNIQUE KEY `id_id` (`id_id`,`object_sub_details_id`,`ref_type_id`),
   ADD KEY `ref_type_id` (`ref_type_id`),
-  ADD KEY `use_object_description_id` (`use_object_description_id`),
-  ADD KEY `value_type` (`value_type_base`);
+  ADD KEY `object_sub_details_id` (`object_sub_details_id`,`use_object_description_id`) USING BTREE,
+  ADD KEY `value_type` (`value_type_base`,`id`) USING BTREE;
 
 ALTER TABLE `def_type_object_sub_details`
   ADD PRIMARY KEY (`id`),

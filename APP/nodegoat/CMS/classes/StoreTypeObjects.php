@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -71,6 +71,8 @@ class StoreTypeObjects {
 	protected $is_new = false;
 	protected $identifier = false;
 	protected $lock_key = false;
+	protected $lock_path = false;
+	protected $arr_lock_errors = [];
 	protected $is_trusted = false;
 
 	public static $timeout_lock = 30; // Lock object, in seconds
@@ -334,10 +336,8 @@ class StoreTypeObjects {
 			} else {
 				
 				if ($this->versioning) {
-					
 					$object_sub_details_id = (int)$this->arr_object_set['object_subs'][$object_sub_id]['object_sub']['object_sub_details_id'];
 				} else {
-					
 					$object_sub_details_id = $this->getTypeObjectSubObjectSubDetailsID($object_sub_id);
 				}
 			}
@@ -353,7 +353,6 @@ class StoreTypeObjects {
 			$arr_object_sub = $this->parseObjectSub($object_sub_details_id, $arr_object_sub);
 			
 			if (!$arr_object_sub) {
-				
 				unset($arr_object_subs[$key]);
 			}
 		}
@@ -401,7 +400,6 @@ class StoreTypeObjects {
 			} else {
 				
 				if ($this->arr_type_set['type']['use_object_name'] && isset($arr_object_self['object_name_plain'])) {
-					
 					$action_object = 'insert';
 				}
 			}
@@ -444,7 +442,7 @@ class StoreTypeObjects {
 			$arr_object_definition = ($arr_object_definitions[$object_description_id] ?? null);
 			
 			$is_ref_type_id = (bool)$arr_object_description['object_description_ref_type_id'];
-			$is_reversal = ($is_ref_type_id && $this->arr_types[$arr_object_description['object_description_ref_type_id']]['class'] == StoreType::TYPE_CLASS_REVERSAL);
+			$is_reversal = ($is_ref_type_id && !is_array($arr_object_description['object_description_ref_type_id']) && $this->arr_types[$arr_object_description['object_description_ref_type_id']]['class'] == StoreType::TYPE_CLASS_REVERSAL);
 			
 			if (!$is_reversal) {
 					
@@ -478,7 +476,7 @@ class StoreTypeObjects {
 
 				if ($is_defined) {
 					
-					$arr_object_definition['object_definition_value'] = $this->parseObjectDefinition($object_description_id, $arr_object_description['object_description_value_type'], $arr_object_definition['object_definition_value']);
+					$this->parseObjectDefinition($object_description_id, $arr_object_description['object_description_value_type'], $arr_object_definition['object_definition_value'], $arr_object_definition['object_definition_ref_object_id']);
 					
 					if ($arr_object_definition['object_definition_value'] === false || $arr_object_definition['object_definition_value'] === '') {
 						$arr_object_definition['object_definition_value'] = null;
@@ -505,11 +503,8 @@ class StoreTypeObjects {
 						if ($is_ref_type_id) {
 							
 							if ($arr_object_definition['object_definition_ref_object_id']) {
-								
-								// Insert new object definition record
 								$action_object_definition = 'insert';
 							} else if (!$this->insert) {
-								
 								$action_object_definition = 'delete';
 							}
 						} else {
@@ -519,11 +514,8 @@ class StoreTypeObjects {
 								||
 								($arr_object_description['object_description_has_multi'] && $arr_object_definition['object_definition_value'])
 							) {
-							
-								// Insert new object definition record
 								$action_object_definition = 'insert';
 							} else if (!$this->insert) {
-								
 								$action_object_definition = 'delete';
 							}
 						}
@@ -537,15 +529,18 @@ class StoreTypeObjects {
 								
 								$arr_compare_object_definition = $arr_object_definition['object_definition_ref_object_id'];
 								
+								$arr_current_object_definition = $this->arr_object_set['object_definitions'][$object_description_id]['object_definition_ref_object_id'];
+								$this->parseObjectDefinition($object_description_id, $arr_object_description['object_description_value_type'], $foo, $arr_current_object_definition);
+								
 								if ($arr_object_description['object_description_has_multi']) {
 									
 									if ($is_appendable) {
 										
-										$arr_object_definition['object_definition_ref_object_id'] = array_combine($this->arr_object_set['object_definitions'][$object_description_id]['object_definition_ref_object_id'], $this->arr_object_set['object_definitions'][$object_description_id]['object_definition_ref_object_id']);
+										$arr_object_definition['object_definition_ref_object_id'] = array_combine($arr_current_object_definition, $arr_current_object_definition);
 										
 										foreach ($arr_compare_object_definition as $ref_object_id) {
 											
-											if ($arr_object_definition['object_definition_ref_object_id'][$ref_object_id]) {
+											if (isset($arr_object_definition['object_definition_ref_object_id'][$ref_object_id])) {
 												continue;
 											}
 											
@@ -559,26 +554,28 @@ class StoreTypeObjects {
 											}
 										}
 										
-										$arr_compare_object_definition = $arr_object_definition['object_definition_ref_object_id'];
+										$arr_compare_object_definition = array_values($arr_object_definition['object_definition_ref_object_id']);
 									}
 								} else {
-									
-									if ($arr_compare_object_definition != static::LAST_OBJECT_ID) {
 										
-										$arr_compare_object_definition = (int)$arr_compare_object_definition;
-										
-										if ($is_appendable) {
+									if ($is_appendable) {
+
+										if ($arr_compare_object_definition < 0) {
 											
-											if ($arr_compare_object_definition < 0 && $this->arr_object_set['object_definitions'][$object_description_id]['object_definition_ref_object_id'] == abs($arr_compare_object_definition)) { // Negative object id means: remove
-												
-												$arr_compare_object_definition = false;
+											$arr_object_definition['object_definition_ref_object_id'] = $arr_current_object_definition;
+											
+											if ($arr_current_object_definition == abs($arr_compare_object_definition)) { // Negative object id means: remove
+											
+												$arr_object_definition['object_definition_ref_object_id'] = false;
 												$is_appendable = false; // Allow deletion of empty object_definition_ref_object_id
 											}
 										}
+										
+										$arr_compare_object_definition = $arr_object_definition['object_definition_ref_object_id'];
 									}
 								}
 								
-								if ($arr_compare_object_definition != $this->arr_object_set['object_definitions'][$object_description_id]['object_definition_ref_object_id']) {
+								if (!static::compareSQLValue($arr_object_description['object_description_value_type'], $arr_compare_object_definition, $arr_current_object_definition)) {
 								
 									if (!$arr_object_definition['object_definition_ref_object_id']) {
 										
@@ -592,7 +589,7 @@ class StoreTypeObjects {
 										// Update object definition record, find existing version or insert new version
 										foreach ($this->getTypeObjectDescriptionVersions($object_description_id) as $arr_version) {
 											
-											if ($arr_compare_object_definition == $arr_version['object_definition_ref_object_id'] && $arr_version['object_definition_version'] > 0) {
+											if (static::compareSQLValue($arr_object_description['object_description_value_type'], $arr_compare_object_definition, $arr_version['object_definition_ref_object_id']) && $arr_version['object_definition_version'] > 0) {
 												
 												$version = $arr_version['object_definition_version'];
 												$action_object_definition = 'version';
@@ -607,10 +604,8 @@ class StoreTypeObjects {
 							} else {
 								
 								if (!$arr_object_definition['object_definition_ref_object_id']) {
-								
 									$action_object_definition = 'delete';
 								} else {
-									
 									$action_object_definition = 'insert';
 								}
 							}
@@ -619,26 +614,25 @@ class StoreTypeObjects {
 							if ($this->versioning) {
 								
 								$arr_compare_object_definition = $arr_object_definition['object_definition_value'];
-								$arr_cur_object_definition = $this->arr_object_set['object_definitions'][$object_description_id]['object_definition_value'];
+								$arr_current_object_definition = $this->arr_object_set['object_definitions'][$object_description_id]['object_definition_value'];
 								
 								if ($arr_object_description['object_description_has_multi']) {
 									
 									if ($is_appendable) {
 										
-										$arr_object_definition['object_definition_value'] = arrMergeValues([$arr_compare_object_definition, $arr_cur_object_definition]);
+										$arr_object_definition['object_definition_value'] = arrMergeValues([$arr_compare_object_definition, $arr_current_object_definition]);
 										$arr_compare_object_definition = $arr_object_definition['object_definition_value'];
 									}
 								} else {
 									
 									if ($is_appendable) {
 										
-										$arr_object_definition['object_definition_value'] = static::appendToValue($arr_object_description['object_description_value_type'], $arr_cur_object_definition, $arr_object_definition['object_definition_value']);
+										$arr_object_definition['object_definition_value'] = static::appendToValue($arr_object_description['object_description_value_type'], $arr_current_object_definition, $arr_object_definition['object_definition_value']);
+										$arr_compare_object_definition = $arr_object_definition['object_definition_value'];
 									}
-									
-									$arr_compare_object_definition = $arr_object_definition['object_definition_value'];
 								}
 								
-								if (!static::compareSQLValue($arr_object_description['object_description_value_type'], $arr_compare_object_definition, $arr_cur_object_definition) || ((isset($arr_object_definition['object_definition_value']) && $arr_object_definition['object_definition_value'] !== '') && ($arr_cur_object_definition === '' || $arr_cur_object_definition === null))) {
+								if (!static::compareSQLValue($arr_object_description['object_description_value_type'], $arr_compare_object_definition, $arr_current_object_definition) || ((isset($arr_object_definition['object_definition_value']) && $arr_object_definition['object_definition_value'] !== '') && ($arr_current_object_definition === '' || $arr_current_object_definition === null))) {
 									
 									if (!isset($arr_object_definition['object_definition_value']) || $arr_object_definition['object_definition_value'] === '' || ($arr_object_description['object_description_has_multi'] && !$arr_object_definition['object_definition_value'])) {
 										
@@ -667,10 +661,8 @@ class StoreTypeObjects {
 							} else {
 								
 								if (!isset($arr_object_definition['object_definition_value']) || $arr_object_definition['object_definition_value'] === '' || ($arr_object_description['object_description_has_multi'] && !$arr_object_definition['object_definition_value'])) {
-								
 									$action_object_definition = 'delete';
 								} else {
-									
 									$action_object_definition = 'insert';
 								}
 							}
@@ -740,7 +732,6 @@ class StoreTypeObjects {
 								}
 
 								if ($arr_sql_insert) {
-									
 									$this->arr_sql_insert['object_definition_objects'][] = implode(',', $arr_sql_insert);
 								}
 							} else {
@@ -831,7 +822,7 @@ class StoreTypeObjects {
 			$action_object_sub = false;
 			$object_sub_id = false;
 			
-			$arr_cur_object_sub = false;
+			$arr_current_object_sub = false;
 			
 			$version = 0;
 			$geometry_version = 0;
@@ -841,19 +832,17 @@ class StoreTypeObjects {
 				
 				$object_sub_id = $arr_object_sub['object_sub']['object_sub_id'];
 				if ($this->versioning) {
-					$arr_cur_object_sub = $this->arr_object_set['object_subs'][$object_sub_id];
+					$arr_current_object_sub = $this->arr_object_set['object_subs'][$object_sub_id];
 				}
 				
 				if ($arr_object_sub['object_sub']['object_sub_version'] == 'deleted') {
 					
 					if ($this->versioning) {
 												
-						if ($arr_cur_object_sub['object_sub']['object_sub_version'] != 'deleted') { // Already flagged as deleted
-							// Set object sub record deleted flag (version 0)
-							$action_object_sub = 'delete';
+						if ($arr_current_object_sub['object_sub']['object_sub_version'] != 'deleted') { // Already flagged as deleted
+							$action_object_sub = 'delete'; // Set object sub record deleted flag (version 0)
 						}
 					} else {
-						
 						$action_object_sub = 'delete';
 					}
 				} else if ($parse_object_sub) {
@@ -861,9 +850,9 @@ class StoreTypeObjects {
 					if ($this->versioning) {
 												
 						$str_compare = $arr_object_sub['object_sub']['object_sub_date_chronology'].'-'.$arr_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id'].'-'.$arr_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.$arr_object_sub['object_sub']['object_sub_location_geometry'];
-						$str_compare_cur = FormatTypeObjects::formatToSQLValue('chronology', $arr_cur_object_sub['object_sub']['object_sub_date_chronology']).'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] && $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] ? 0 : $arr_cur_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id']).'-'.$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] ? $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] : '');
+						$str_current = FormatTypeObjects::formatToSQLValue('chronology', $arr_current_object_sub['object_sub']['object_sub_date_chronology']).'-'.(!$arr_current_object_sub['object_sub']['object_sub_location_ref_object_id'] && $arr_current_object_sub['object_sub']['object_sub_location_geometry'] ? 0 : $arr_current_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id']).'-'.$arr_current_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.(!$arr_current_object_sub['object_sub']['object_sub_location_ref_object_id'] ? $arr_current_object_sub['object_sub']['object_sub_location_geometry'] : '');
 						
-						if ($str_compare != $str_compare_cur) {
+						if ($str_compare != $str_current) {
 											
 							$arr_object_sub_versions = $this->getTypeObjectSubVersions($object_sub_id);
 							
@@ -1045,7 +1034,7 @@ class StoreTypeObjects {
 				$arr_object_sub_definition = ($arr_object_sub['object_sub_definitions'][$object_sub_description_id] ?? null);
 				
 				$is_ref_type_id = (bool)$arr_object_sub_description['object_sub_description_ref_type_id'];
-				$is_reversal = ($is_ref_type_id && $this->arr_types[$arr_object_sub_description['object_sub_description_ref_type_id']]['class'] == StoreType::TYPE_CLASS_REVERSAL);
+				$is_reversal = ($is_ref_type_id && !is_array($arr_object_sub_description['object_sub_description_ref_type_id']) && $this->arr_types[$arr_object_sub_description['object_sub_description_ref_type_id']]['class'] == StoreType::TYPE_CLASS_REVERSAL);
 				
 				if (!$is_reversal) {
 						
@@ -1079,7 +1068,7 @@ class StoreTypeObjects {
 					
 					if ($is_defined) {
 						
-						$arr_object_sub_definition['object_sub_definition_value'] = $this->parseObjectSubDefinition($object_sub_details_id, $object_sub_description_id, $arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition['object_sub_definition_value']);
+						$this->parseObjectSubDefinition($object_sub_details_id, $object_sub_description_id, $arr_object_sub_description['object_sub_description_value_type'], $arr_object_sub_definition['object_sub_definition_value'], $arr_object_sub_definition['object_sub_definition_ref_object_id']);
 						
 						if ($arr_object_sub_definition['object_sub_definition_value'] === false || $arr_object_sub_definition['object_sub_definition_value'] === '') {
 							$arr_object_sub_definition['object_sub_definition_value'] = null;
@@ -1096,8 +1085,6 @@ class StoreTypeObjects {
 							if ($is_ref_type_id) {
 								
 								if ($arr_object_sub_definition['object_sub_definition_ref_object_id']) {
-									
-									// Insert new object sub definition record
 									$action_object_sub_definition = 'insert';
 								}
 							} else {
@@ -1107,8 +1094,6 @@ class StoreTypeObjects {
 									||
 									($arr_object_sub_description['object_sub_description_has_multi'] && $arr_object_sub_definition['object_sub_definition_value'])
 								) {
-								
-									// Insert new object sub definition record
 									$action_object_sub_definition = 'insert';
 								}
 							}
@@ -1121,36 +1106,39 @@ class StoreTypeObjects {
 								if ($this->versioning) {
 									
 									$arr_compare_object_sub_definition = $arr_object_sub_definition['object_sub_definition_ref_object_id'];
+									
+									$arr_current_object_sub_definition = $arr_current_object_sub['object_sub_definitions'][$object_sub_description_id]['object_sub_definition_ref_object_id'];
+									$this->parseObjectSubDefinition($object_sub_details_id, $object_sub_description_id, $arr_object_sub_description['object_sub_description_value_type'], $foo, $arr_current_object_sub_definition);
 
-									if ($arr_compare_object_sub_definition != static::LAST_OBJECT_ID) {
-										
-										$arr_compare_object_sub_definition = (int)$arr_object_sub_definition['object_sub_definition_ref_object_id'];
-										
-										if ($is_appendable) {
+									if ($is_appendable) {
+																																										
+										if ($arr_compare_object_sub_definition < 0) { // Negative object id means: remove
 											
-											if ($arr_compare_object_sub_definition < 0 && $arr_cur_object_sub['object_sub_definitions'][$object_sub_description_id]['object_sub_definition_ref_object_id'] == abs($arr_compare_object_sub_definition)) { // Negative object id means: remove
-												
-												$arr_compare_object_sub_definition = false;
+											$arr_object_sub_definition['object_sub_definition_ref_object_id'] = $arr_current_object_sub_definition;
+											
+											if ($arr_current_object_sub_definition == abs($arr_compare_object_sub_definition)) {
+											
+												$arr_object_sub_definition['object_sub_definition_ref_object_id'] = false;
 												$is_appendable = false; // Allow deletion of empty object_sub_definition_ref_object_id
 											}
 										}
+										
+										$arr_compare_object_sub_definition = $arr_object_sub_definition['object_sub_definition_ref_object_id'];
 									}
 									
-									if ($arr_compare_object_sub_definition != $arr_cur_object_sub['object_sub_definitions'][$object_sub_description_id]['object_sub_definition_ref_object_id']) {
+									if (!static::compareSQLValue($arr_object_sub_description['object_sub_description_value_type'], $arr_compare_object_sub_definition, $arr_current_object_sub_definition)) {
 									
 										if (!$arr_object_sub_definition['object_sub_definition_ref_object_id']) {
 											
 											if (!$is_appendable) {
-												
-												// Set object sub definition record deleted flag (version 0)
-												$action_object_sub_definition = 'delete';
+												$action_object_sub_definition = 'delete'; // Set object sub definition record deleted flag (version 0)
 											}
 										} else {
 
 											// Update object sub definition record, find existing version or insert new version
 											foreach ($this->getTypeObjectSubDescriptionVersions($object_sub_details_id, $object_sub_id, $object_sub_description_id) as $arr_version) {
 												
-												if ($arr_object_sub_definition['object_sub_definition_ref_object_id'] == $arr_version['object_sub_definition_ref_object_id'] && $arr_version['object_sub_definition_version'] > 0) {
+												if (static::compareSQLValue($arr_object_sub_description['object_sub_description_value_type'], $arr_compare_object_sub_definition, $arr_version['object_sub_definition_ref_object_id']) && $arr_version['object_sub_definition_version'] > 0) {
 													
 													$version = $arr_version['object_sub_definition_version'];
 													$action_object_sub_definition = 'version';
@@ -1165,10 +1153,8 @@ class StoreTypeObjects {
 								} else {
 									
 									if (!$arr_object_sub_definition['object_sub_definition_ref_object_id']) {
-										
 										$action_object_sub_definition = 'delete';
 									} else {
-										
 										$action_object_sub_definition = 'insert';
 									}
 								}
@@ -1177,27 +1163,25 @@ class StoreTypeObjects {
 								if ($this->versioning) {
 										
 									$arr_compare_object_sub_definition = $arr_object_sub_definition['object_sub_definition_value'];
-									$arr_cur_object_sub_definition = $arr_cur_object_sub['object_sub_definitions'][$object_sub_description_id]['object_sub_definition_value'];
+									$arr_current_object_sub_definition = $arr_current_object_sub['object_sub_definitions'][$object_sub_description_id]['object_sub_definition_value'];
 									
 									if ($arr_object_sub_description['object_sub_description_has_multi']) {	
 									
 									} else {
 										
 										if ($is_appendable) {
-											$arr_object_sub_definition['object_sub_definition_value'] = static::appendToValue($arr_object_sub_description['object_sub_description_value_type'], $arr_cur_object_sub_definition, $arr_object_sub_definition['object_sub_definition_value']);
+											
+											$arr_object_sub_definition['object_sub_definition_value'] = static::appendToValue($arr_object_sub_description['object_sub_description_value_type'], $arr_current_object_sub_definition, $arr_object_sub_definition['object_sub_definition_value']);
+											$arr_compare_object_sub_definition = $arr_object_sub_definition['object_sub_definition_value'];
 										}
-										
-										$arr_compare_object_sub_definition = $arr_object_sub_definition['object_sub_definition_value'];
 									}	
 									
-									if (!static::compareSQLValue($arr_object_sub_description['object_sub_description_value_type'], $arr_compare_object_sub_definition, $arr_cur_object_sub_definition) || ((isset($arr_object_sub_definition['object_sub_definition_value']) && $arr_object_sub_definition['object_sub_definition_value'] !== '') && ($arr_cur_object_sub_definition === '' || $arr_cur_object_sub_definition === null))) {
+									if (!static::compareSQLValue($arr_object_sub_description['object_sub_description_value_type'], $arr_compare_object_sub_definition, $arr_current_object_sub_definition) || ((isset($arr_object_sub_definition['object_sub_definition_value']) && $arr_object_sub_definition['object_sub_definition_value'] !== '') && ($arr_current_object_sub_definition === '' || $arr_current_object_sub_definition === null))) {
 
 										if (!isset($arr_object_sub_definition['object_sub_definition_value']) || $arr_object_sub_definition['object_sub_definition_value'] === '' || ($arr_object_sub_description['object_sub_description_has_multi'] && !$arr_object_sub_definition['object_sub_definition_value'])) {
 											
 											if (!$is_appendable) {
-												
-												// Set object definition record deleted flag (version 0)
-												$action_object_sub_definition = 'delete';
+												$action_object_sub_definition = 'delete'; // Set object definition record deleted flag (version 0)
 											}
 										} else {
 
@@ -1219,10 +1203,8 @@ class StoreTypeObjects {
 								} else {
 									
 									if (!isset($arr_object_sub_definition['object_sub_definition_value']) || $arr_object_sub_definition['object_sub_definition_value'] === '' || ($arr_object_sub_description['object_sub_description_has_multi'] && !$arr_object_sub_definition['object_sub_definition_value'])) {
-										
 										$action_object_sub_definition = 'delete';
 									} else {
-										
 										$action_object_sub_definition = 'insert';
 									}
 								}
@@ -1408,11 +1390,6 @@ class StoreTypeObjects {
 							} else {
 								$arr_chronology['date']['start'] = $arr_object_sub['object_sub']['object_sub_date_start'];
 							}
-						} else {
-							
-							if (!$object_sub_id) {
-								$arr_chronology['date']['start'] = '-∞';
-							}
 						}
 						
 						if ($arr_object_sub_details['object_sub_details']['object_sub_details_is_date_period']) {
@@ -1423,11 +1400,6 @@ class StoreTypeObjects {
 									$arr_chronology['date']['end'] = $arr_object_sub['object_sub']['object_sub_date_end']['value'];
 								} else {
 									$arr_chronology['date']['end'] = $arr_object_sub['object_sub']['object_sub_date_end'];
-								}
-							} else {
-								
-								if (!$object_sub_id) {
-									$arr_chronology['date']['end'] = '∞';
 								}
 							}
 						}
@@ -1661,9 +1633,9 @@ class StoreTypeObjects {
 						}
 												
 						$str_compare = $arr_object_sub['object_sub']['object_sub_date_chronology'].'-'.$arr_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id'].'-'.$arr_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.$arr_object_sub['object_sub']['object_sub_location_geometry'];
-						$str_compare_cur = FormatTypeObjects::formatToSQLValue('chronology', $arr_cur_object_sub['object_sub']['object_sub_date_chronology']).'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] && $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] ? 0 : $arr_cur_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id']).'-'.$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] ? $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] : '');
+						$str_current = FormatTypeObjects::formatToSQLValue('chronology', $arr_cur_object_sub['object_sub']['object_sub_date_chronology']).'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] && $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] ? 0 : $arr_cur_object_sub['object_sub']['object_sub_location_ref_object_sub_details_id']).'-'.$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'].'-'.(!$arr_cur_object_sub['object_sub']['object_sub_location_ref_object_id'] ? $arr_cur_object_sub['object_sub']['object_sub_location_geometry'] : '');
 							
-						if ($str_compare == $str_compare_cur) {
+						if ($str_compare == $str_current) {
 
 							$is_double = true;
 							
@@ -1704,9 +1676,21 @@ class StoreTypeObjects {
 		return $arr_object_sub;
 	}
 	
-	public function parseObjectDefinition($object_description_id, $type, $value) {
+	public function parseObjectDefinition($object_description_id, $type, &$value, &$reference) {
 		
-		$value = FormatTypeObjects::formatToSQLValue($type, $value);
+		// Reference
+		
+		if ($type == 'reference_mutable') {
+			
+			$reference = FormatTypeObjects::formatToSQLValue($type, $reference);
+			return;
+		}
+		
+		// Value
+		
+		if (isset($value)) {
+			$value = FormatTypeObjects::formatToSQLValue($type, $value);
+		}
 	
 		if ($type == 'serial_varchar') {
 			
@@ -1769,14 +1753,24 @@ class StoreTypeObjects {
 				}
 			}
 		}
-		
-		return $value;
 	}
 	
-	public function parseObjectSubDefinition($object_sub_details_id, $object_sub_description_id, $type, $value) {
+	public function parseObjectSubDefinition($object_sub_details_id, $object_sub_description_id, $type, &$value, &$reference) {
 		
-		$value = FormatTypeObjects::formatToSQLValue($type, $value);
+		// Reference
+		
+		if ($type == 'reference_mutable') {
 			
+			$reference = FormatTypeObjects::formatToSQLValue($type, $reference);
+			return;
+		}
+		
+		// Value
+		
+		if (isset($value)) {
+			$value = FormatTypeObjects::formatToSQLValue($type, $value);
+		}
+		
 		if ($type == 'serial_varchar') {
 			
 			$has_serial = false;
@@ -1838,8 +1832,6 @@ class StoreTypeObjects {
 				}
 			}
 		}
-		
-		return $value;
 	}
 	
 	public function getTypeObjectSubObjectSubDetailsID($object_sub_id) {
@@ -1958,7 +1950,7 @@ class StoreTypeObjects {
 
 				if (!$arr_cur_source_types || !$func_check_sources($ref_type_id, $ref_object_id, $link)) {
 					
-					$arr_sql_insert[] = "(".$sql_insert.", ".(int)$ref_object_id.", ".(int)$ref_type_id.", '".DBFunctions::strEscape($link)."', ".($link ? "UNHEX('".value2HashExchange($link)."')" : "''").")";
+					$arr_sql_insert[] = "(".$sql_insert.", ".(int)$ref_object_id.", ".(int)$ref_type_id.", '".DBFunctions::strEscape($link)."', ".($link ? DBFunctions::convertTo("'".value2HashExchange($link)."'", DBFunctions::TYPE_BINARY, DBFunctions::TYPE_STRING, DBFunctions::FORMAT_STRING_HEX) : "''").")";
 				}
 				
 				$arr_match[$identifier] = true;
@@ -1983,7 +1975,7 @@ class StoreTypeObjects {
 						continue;
 					}
 					
-					$arr_sql_delete[] = "(ref_object_id = ".(int)$ref_object_id." AND hash = ".($link ? "UNHEX('".value2HashExchange($link)."')" : DBFunctions::castAs("''", DBFunctions::CAST_TYPE_BINARY, 16)).")";
+					$arr_sql_delete[] = "(ref_object_id = ".(int)$ref_object_id." AND hash = ".($link ? DBFunctions::convertTo("'".value2HashExchange($link)."'", DBFunctions::TYPE_BINARY, DBFunctions::TYPE_STRING, DBFunctions::FORMAT_STRING_HEX) : DBFunctions::castAs("''", DBFunctions::CAST_TYPE_BINARY, 16)).")";
 				}
 			}
 		}
@@ -2051,6 +2043,9 @@ class StoreTypeObjects {
 	
 	protected function addTypeObjectVersionUser($version, $user_id = false, $date = false, $system_object_id = false) {
 		
+		if ($this->arr_actions === false) { // store() could be circumvented by extended classes
+			$this->arr_actions = [];
+		}
 		$this->arr_actions['object'] = true;
 		
 		if (!$this->versioning) {
@@ -2490,7 +2485,7 @@ class StoreTypeObjects {
 	
 	public function delTypeObject($accept) {
 						
-		if (!$this->versioning || ($this->arr_type_set['type']['class'] == StoreType::TYPE_CLASS_REVERSAL && $accept)) {
+		if (!$this->versioning) {
 			
 			$res = DB::query("
 				".DBFunctions::updateWith(
@@ -2580,6 +2575,84 @@ class StoreTypeObjects {
 		}
 		
 		$key = ($key ?: $this->lock_key);
+		$this->arr_lock_errors = [];
+		
+		$table_name = DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_LOCK');
+		$sql_expired = "(".$table_name.".identifier != '' AND (".$table_name.".date_updated + ".DBFunctions::interval(self::$timeout_lock, 'SECOND').") < ".DBFunctions::timeNow().")";
+				
+		$arr_res = DB::queryMulti("
+			INSERT INTO ".$table_name."
+				(object_id, type, user_id, date, date_updated, identifier)
+				SELECT
+					nodegoat_to_updates.id AS object_id, ".(int)$type.", ".(int)$this->user_id.", ".DBFunctions::timeNow().", ".DBFunctions::timeNow().", '".DBFunctions::strEscape($key)."'
+				FROM ".$this->str_sql_table_name_object_updates." nodegoat_to_updates
+				".DBFunctions::onConflict('object_id, type', false, "
+					user_id = CASE WHEN ".$sql_expired." THEN [user_id] ELSE ".$table_name.".user_id END,
+					date = CASE WHEN ".$sql_expired." THEN [date] ELSE ".$table_name.".date END,
+					identifier = CASE WHEN ".$sql_expired." THEN [identifier] ELSE ".$table_name.".identifier END,
+					date_updated = CASE WHEN [user_id] = ".$table_name.".user_id AND ".$table_name.".identifier = [identifier] THEN [date_updated] ELSE ".$table_name.".date_updated END
+				")."
+			;
+
+			SELECT
+				object_id, user_id, identifier
+					FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_LOCK')." nodegoat_to_lock
+					JOIN ".$this->str_sql_table_name_object_updates." nodegoat_to_updates ON (nodegoat_to_updates.id = nodegoat_to_lock.object_id)
+				WHERE type = ".(int)$type."
+					AND (
+						nodegoat_to_lock.user_id != ".(int)$this->user_id."
+						OR nodegoat_to_lock.identifier != '".DBFunctions::strEscape($key)."'
+					)
+			;
+		");
+		
+		$arr_res = $arr_res[1];
+
+		if (!$arr_res->getRowCount()) { // Successfully got new or updated (current) lock
+			return $key;
+		}
+				
+		while ($arr_check = $arr_res->fetchAssoc()) {
+							
+			if ($arr_check['user_id'] != $this->user_id) { // Locked by other user
+				
+				$arr_user = user_management::getUser($arr_check['user_id']);
+				
+				$arr_type_object_names = FilterTypeObjects::getTypeObjectNames($this->type_id, $arr_check['object_id'], false);
+				Labels::setVariable('object', current($arr_type_object_names));
+				Labels::setVariable('user', $arr_user['name']);
+				
+				$this->arr_lock_errors[$arr_check['object_id']] = getLabel(($type == 2 ? 'msg_object_locked_discussion' : 'msg_object_locked'), 'L', true);
+			} else if ($arr_check['identifier'] != $key) { // Locked by self
+				
+				$arr_type_object_names = FilterTypeObjects::getTypeObjectNames($this->type_id, $arr_check['object_id'], false);
+				Labels::setVariable('object', current($arr_type_object_names));
+				
+				$this->arr_lock_errors[$arr_check['object_id']] = getLabel(($type == 2 ? 'msg_object_locked_discussion_self' : 'msg_object_locked_self'), 'L', true);
+			}
+		}
+						
+		if (count($this->arr_lock_errors) > 1) {
+			$str_error = arr2String($this->arr_lock_errors, EOL_1100CC);
+		} else {
+			$str_error = current($this->arr_lock_errors);
+		}
+
+		error($str_error, TROUBLE_ERROR, LOG_CLIENT);
+	}
+	
+	public function getLockErrors() {
+		
+		return $this->arr_lock_errors;
+	}
+	
+	/*public function handleLock($type, $key = false) {
+		
+		if (!$this->object_id) {
+			return false;
+		}
+		
+		$key = ($key ?: $this->lock_key);
 		
 		$table_name = DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_LOCK');
 		$sql_expired = "(".$table_name.".identifier != '' AND (".$table_name.".date_updated + ".DBFunctions::interval(self::$timeout_lock, 'SECOND').") < ".DBFunctions::timeNow().")";
@@ -2658,12 +2731,13 @@ class StoreTypeObjects {
 				return $key;
 			}
 		}
-	}
+	}*/
 	
 	public function upgradeLock($type) {
 		
+		$this->lock_path = Mediator::attachFallback('StoreTypeObjects', 'cleanLocks', [$type, $this->user_id, '']);
+		
 		Mediator::attach('cleanup.program', 'remove_lock_'.$type.'_'.$this->identifier, function() use ($type) {
-			
 			$this->removeLock($type);
 		});
 		
@@ -2684,9 +2758,13 @@ class StoreTypeObjects {
 	
 	public function removeLock($type, $key = false) {
 		
+		if ($this->lock_path) {
+			
+			Mediator::removeFallback($this->lock_path);
+			Mediator::remove('cleanup.program', 'remove_lock_'.$type.'_'.$this->identifier); // Applicable when lock was upgraded
+		}
+		
 		$key = ($key ?: $this->lock_key);
-				
-		Mediator::remove('cleanup.program', 'remove_lock_'.$type.'_'.$this->identifier); // Applicable when lock was upgraded
 
 		$res = DB::query("
 			".DBFunctions::deleteWith(
@@ -2722,6 +2800,19 @@ class StoreTypeObjects {
 	public function removeLockDiscussion($key = false) {
 		
 		return $this->removeLock(2, $key);
+	}
+	
+	public static function cleanLocks($arr_settings, $num_time = false) {
+		
+		$sql_time = ($num_time ? DBFunctions::str2Date((int)$num_time) : false);
+		
+		$res = DB::query("
+			DELETE FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_LOCK')."
+				WHERE type = ".(int)$arr_settings[0]."
+					AND user_id = ".(int)$arr_settings[1]."
+					AND identifier = '".DBFunctions::strEscape($arr_settings[2])."'
+					".($sql_time ? "AND date_updated <= '".$sql_time."'" : '')."
+		");
 	}
 	
 	// Module/Process Mode
@@ -2851,13 +2942,26 @@ class StoreTypeObjects {
 		
 		$arr_object_description = $this->arr_type_set['object_descriptions'][$object_description_id];
 		$has_multi = $arr_object_description['object_description_has_multi'];
+		$is_mutable = is_array($arr_object_description['object_description_ref_type_id']);
 		
 		$stmt = $this->stmt_object_description_versions[$object_description_id];
 		
 		if (!$stmt) {
-						
+			
+			$sql_select_value = 'nodegoat_to_def.'.StoreType::getValueTypeValue($arr_object_description['object_description_value_type']);
+
+			if ($is_mutable && $do_full) {
+				
+				$sql_select_value = "CONCAT(
+					(SELECT nodegoat_to_def_to.type_id
+						FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to_def_to
+					WHERE nodegoat_to_def_to.id = ".$sql_select_value."
+					LIMIT 1),
+				'_', ".$sql_select_value.")";
+			}
+			
 			$this->stmt_object_description_versions[$object_description_id] = DB::prepare("SELECT
-				nodegoat_to_def.".StoreType::getValueTypeValue($arr_object_description['object_description_value_type']).",
+				".$sql_select_value.",
 				nodegoat_to_def.version, nodegoat_to_def.active
 					FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable($arr_object_description['object_description_value_type'])." nodegoat_to_def
 				WHERE nodegoat_to_def.object_id = ".DBStatement::assign('object_id', 'i')." AND nodegoat_to_def.object_description_id = ".$object_description_id."
@@ -3057,13 +3161,26 @@ class StoreTypeObjects {
 		
 		$arr_object_sub_description = $this->arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
 		$has_multi = $arr_object_sub_description['object_sub_description_has_multi'];
+		$is_mutable = is_array($arr_object_sub_description['object_sub_description_ref_type_id']);
 		
 		$stmt = $this->stmt_object_sub_description_versions[$object_sub_description_id];
 		
 		if (!$stmt) {
+			
+			$sql_select_value = 'nodegoat_tos_def.'.StoreType::getValueTypeValue($arr_object_sub_description['object_sub_description_value_type']);
+			
+			if ($is_mutable && $do_full) {
+				
+				$sql_select_value = "CONCAT(
+					(SELECT nodegoat_tos_def_to.type_id
+						FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_tos_def_to
+					WHERE nodegoat_tos_def_to.id = ".$sql_select_value."
+					LIMIT 1),
+				'_', ".$sql_select_value.")";
+			}
 						
 			$this->stmt_object_sub_description_versions[$object_sub_description_id] = DB::prepare("SELECT
-				nodegoat_tos_def.".StoreType::getValueTypeValue($arr_object_sub_description['object_sub_description_value_type']).",
+				".$sql_select_value.",
 				nodegoat_tos_def.version, nodegoat_tos_def.active
 					FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUB_DEFINITIONS').StoreType::getValueTypeTable($arr_object_sub_description['object_sub_description_value_type'])." nodegoat_tos_def
 				WHERE nodegoat_tos_def.object_sub_id = ".DBStatement::assign('object_sub_id', 'i')." AND nodegoat_tos_def.object_sub_description_id = ".$object_sub_description_id."
@@ -3957,9 +4074,9 @@ class StoreTypeObjects {
 		$this->presetTypeObjectSubDescriptionVersion();
 	}
 	
-	public function cleanupTypeObjects() {
+	public function cleanTypeObjects() {
 				
-		StoreTypeObjectsProcessing::cleanupTypesObjects($this->str_sql_table_name_object_updates);
+		StoreTypeObjectsProcessing::cleanTypesObjects($this->str_sql_table_name_object_updates);
 	}
 		
 	protected function addTypeObjectUpdate() {
@@ -4217,23 +4334,23 @@ class StoreTypeObjects {
 	
 	public static function compareSQLValue($type, $value_1, $value_2) { // Compare raw database values
 		
+		if ($value_1 == $value_2) { // Default loose comparison
+			return true;
+		}
+				
 		switch ($type) {
 			case 'module':
 			case 'external_module':
 			case 'reconcile_module':
 			case 'reversal_module':
-			
-				if ($value_1 == $value_2) {
-					return true;
-				}
+
+				$value_1 = json_decode($value_1, true);
+				$value_2 = json_decode($value_2, true);
 				
-				$value_1 = arrKsortRecursive(json_decode($value_1, true));
-				$value_2 = arrKsortRecursive(json_decode($value_2, true));
-				
-				return ($value_1 === $value_2);
+				return arrIsEqual($value_1, $value_2);
 			default:
 			
-				return ($value_1 == $value_2); // Default loose comparison
+				return false;
 		}
 	}
 }

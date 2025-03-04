@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -201,11 +201,11 @@ class ExportTypesObjectsNetworkCSV extends ExportTypesObjectsNetwork {
 								$this->addColumn('object_sub_id', $cur_target_type_id, $str_identifier_column, $arr_column_base, $arr_options);
 							}
 							if ($str_attribute == 'date_start') {
-								$s_cur_arr[$object_sub_id] = FormatTypeObjects::formatToCleanValue('date', $arr_object_sub_value['object_sub_date_start'], [], FormatTypeObjects::FORMAT_DATE_YMD);
+								$s_cur_arr[$object_sub_id] = FormatTypeObjects::formatToValue('date', $arr_object_sub_value['object_sub_date_start']);
 								$this->addColumn('object_sub_details_date_start', $cur_target_type_id, $str_identifier_column, $arr_column_base, $arr_options);
 							}
 							if ($str_attribute == 'date_end') {
-								$s_cur_arr[$object_sub_id] = ($arr_object_sub_value['object_sub_date_start'] != $arr_object_sub_value['object_sub_date_end'] ? FormatTypeObjects::formatToCleanValue('date', $arr_object_sub_value['object_sub_date_end'], [], FormatTypeObjects::FORMAT_DATE_YMD) : '');
+								$s_cur_arr[$object_sub_id] = ($arr_object_sub_value['object_sub_date_start'] != $arr_object_sub_value['object_sub_date_end'] ? FormatTypeObjects::formatToValue('date', $arr_object_sub_value['object_sub_date_end']) : '');
 								$this->addColumn('object_sub_details_date_end', $cur_target_type_id, $str_identifier_column, $arr_column_base, $arr_options);
 							}
 							if ($str_attribute == 'date_chronology') {

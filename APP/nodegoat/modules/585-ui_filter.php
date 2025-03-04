@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -36,7 +36,7 @@ class ui_filter extends base_module {
 		} 
 
 		$return = '<li class="project-filters '.$arr_settings['filter_mode'].'">
-					<div id="y:ui_filter:filter-0">'.
+					<div id="y:ui_filter:filter-0" '.($arr_settings['filter_mode'] ==  'form' && $arr_public_user_interface['interface']['settings']['filter_form_apply_button'] ? 'data-apply_button="1"' : '').'>'.
 						$elm_filter.
 					'</div>
 				</li>';
@@ -50,7 +50,7 @@ class ui_filter extends base_module {
 		$arr_module_vars = SiteStartEnvironment::getFeedback('arr_public_user_interface_module_vars');			
 		$arr_settings = $arr_public_user_interface['interface']['settings']['projects'][$project_id];
 
-		$placeholder_text = ($arr_settings['info_search'] ?: getLabel('lbl_search'));
+		$placeholder_text = ($arr_settings['info_search'] ?: getLabel('inp_search'));
 
 		$arr_filters[0] = [
 			'type_id' => 0, 
@@ -139,7 +139,7 @@ class ui_filter extends base_module {
 					if ($arr_filter_from['description'] == $str_id) {
 						
 						$placeholder_text = ($arr_filter_from['placeholder'] ?: $arr_object_description['object_description_name']);
-						$ref_type_id = ($arr_filter_from['description_ref_type_id'] ? : $arr_object_description['object_description_ref_type_id']);
+						$ref_type_id = ($arr_filter_from['description_ref_type_id'] ?: (int)$arr_object_description['object_description_ref_type_id']);
 						
 						$filter_id = $type_id.'_OD_'.$object_description_id.'_'.$ref_type_id;
 						$arr_filters[$filter_id] = [
@@ -296,7 +296,15 @@ class ui_filter extends base_module {
 				</div>';
 			}
 		}
-
+		
+		if ($arr_public_user_interface['interface']['settings']['filter_form_apply_button']) {
+				$elm_form_elements .= '<div class="form-element">
+					<div class="input button">'
+						.'<button class="apply">'.getLabel('lbl_public_interface_filter_apply').'</button>'
+					.'</div>
+				</div>';
+		}
+		
 		if (!$arr_public_user_interface['interface']['settings']['filter_form_position'] || $arr_public_user_interface['interface']['settings']['filter_form_position'] == 'button') {
 			
 			$return = '<label for="form-toggle">Filter</label>
@@ -416,7 +424,7 @@ class ui_filter extends base_module {
 					.ui nav li.project-filters.search > div .select-types > label > div:nth-of-type(2) > span > svg { height: 15%; }
 					.ui nav li.project-filters.search > div .select-types > input:not(:checked) + label > div:nth-of-type(2) > span:nth-of-type(1) { display: inline-block;  }
 					.ui nav li.project-filters.search > div .select-types > input:checked + label > div:nth-of-type(2) > span:nth-of-type(2) { display: inline-block;  }
-					.ui nav li.project-filters.search > div .select-types > ul { position: relative; width: 150px; margin-top: 5px; display: block; overflow-x: hidden; overflow-y: auto; background-color: rgba(238, 238, 238, 0.75); padding: 10px 10px 0 10px; box-sizing: border-box; }
+					.ui nav li.project-filters.search > div .select-types > ul { position: relative; width: 150px; margin-top: 5px; display: block; overflow-x: hidden; overflow-y: auto; background-color: rgba(238, 238, 238, 0.9); padding: 10px 10px 0 10px; box-sizing: border-box; }
 					.ui nav li.project-filters.search > div .select-types > ul > li { margin-bottom: 10px; box-sizing: border-box; height: 20px; }
 					.ui nav li.project-filters.search > div .select-types > ul > li > label { cursor: pointer; display: inline-block; width: 100%; line-height: 20px; margin: 0; box-sizing: border-box;} 
 					.ui nav li.project-filters.search > div .select-types > ul > li > label > span.type-name { display: inline-block; width: calc(100% - 20px); font-weight: normal; } 
@@ -514,6 +522,8 @@ class ui_filter extends base_module {
 						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element:first-child { margin-top: 0px; }
 						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input { display: flex; background: none; padding: 0; margin: 0; height: auto; white-space: normal; }
 						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > .active-input + label { display: none; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input.button { justify-content: right; }
+						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input.button > button { cursor: pointer; height: 40px; margin: 0 10px 0 0; padding: 0 40px; background-color: rgba(255, 255, 255, 0.6); white-space: nowrap; border: 0; font-size: 14px; }
 						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > .set-input { order: 2; height: 40px; margin: 0 10px 0 0; padding: 0 0 0 40px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
 						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > .set-input input { width: 100%; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; }
 						.ui:not(.responsive-layout-enabled) nav.top li.project-filters.form > div > div .form-element .input > .active-input { order: 3; background: none; padding: 0; margin: 0; display: inline-block; height: auto; }
@@ -573,6 +583,7 @@ class ui_filter extends base_module {
 						.ui nav li.project-filters.form > div > input:not(:checked) + label + div { display: flex; margin: 0 0 0 5px; padding: 0; width: auto; position: relative; top: 0; white-space: normal; flex-wrap: wrap; align-content: flex-start; min-height: 36px; } 
 						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element { flex: 0 1 auto; margin: 5px 0 0 0; min-width: 0px; }  
 						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input { display: flex; background: none; min-width: 0px; padding: 0px; width: auto; height: auto; white-space: normal; }  
+						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > button { display: none; }  
 						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input { order: 2; display: inline-block; height: 36px; max-width: 100%; overflow: visible; white-space: normal; } 
 						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input:not(:empty) { background-color: rgba(255, 255, 255, 0.6); padding: 5px; margin-right: 5px; box-sizing: border-box; } 
 						.ui nav li.project-filters.form > div > input:not(:checked) + label + div .form-element .input > .active-input > div { width: auto; display: inline-block; margin: 3px 3px 0 0; padding: 0; height: auto; line-height: 1; background-color: #fff; vertical-align: middle; } 
@@ -610,6 +621,8 @@ class ui_filter extends base_module {
 						.ui nav li.project-filters.form > div > input:checked + label + div .form-element:first-child { margin-top: 10px; }
 						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input { display: flex; background: none; padding: 0; margin: 0; height: auto; white-space: normal; }
 						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .active-input + label { display: none; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input.button { justify-content: right; }
+						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input.button > button { white-space: nowrap; border: 0; font-size: 12px;  cursor: pointer; padding: 4px 8px; font-family: var(--font-mono); background-color: rgba(255,255,255,0.9); }
 						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .set-input { order: 2; height: 40px; margin: 0 10px 0 0; padding: 0 0 0 40px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
 						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .set-input input { width: 100%;  box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; }
 						.ui nav li.project-filters.form > div > input:checked + label + div .form-element .input > .set-input input::placeholder {  }
@@ -658,6 +671,8 @@ class ui_filter extends base_module {
 						.ui nav.top li.project-filters.form > div > div .form-element:first-child { margin-top: 0px; }
 						.ui nav.top li.project-filters.form > div > div .form-element .input { display: flex; background: none; padding: 0; margin: 0; height: auto; white-space: normal; }
 						.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input + label { display: none; }
+						.ui nav.top li.project-filters.form > div > div .form-element .input.button { justify-content: right; }
+						.ui nav.top li.project-filters.form > div > div .form-element .input.button > button { white-space: nowrap; border: 0; font-size: 12px;  cursor: pointer; padding: 4px 8px; font-family: var(--font-mono); background-color: rgba(255,255,255,0.9); }
 						.ui nav.top li.project-filters.form > div > div .form-element .input > .set-input { order: 2; height: 40px; margin: 0 10px 0 0; padding: 0 0 0 40px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
 						.ui nav.top li.project-filters.form > div > div .form-element .input > .set-input input { width: 100%; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; }
 						.ui nav.top li.project-filters.form > div > div .form-element .input > .active-input { order: 3; background: none; padding: 0; margin: 0; display: inline-block; height: auto; }
@@ -698,6 +713,8 @@ class ui_filter extends base_module {
 						.ui nav.left li.project-filters.form > div > div .form-element:first-child { margin-top: 10px; }
 						.ui nav.left li.project-filters.form > div > div .form-element .input { display: block; background: none; padding: 0; margin: 0; height: auto; white-space: normal; }
 						.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input + label { display: none; }
+						.ui nav.left li.project-filters.form > div > div .form-element .input.button { text-align: right; }
+						.ui nav.left li.project-filters.form > div > div .form-element .input.button > button { white-space: nowrap; border: 0; font-size: 12px;  cursor: pointer; padding: 4px 8px; font-family: var(--font-mono); background-color: rgba(255,255,255,0.9); }
 						.ui nav.left li.project-filters.form > div > div .form-element .input > .set-input { height: 40px; margin: 0; padding: 0 0 0 40px; background: url("/CMS/css/images/icons/search.svg") no-repeat scroll 10px center / 20px 20px rgba(255, 255, 255, 0.6); white-space: nowrap; }
 						.ui nav.left li.project-filters.form > div > div .form-element .input > .set-input input { width: 100%; box-shadow: none; display: inline-block; padding: 0px; background-color: transparent; font-size: 14px; height: 40px; border: 0; }
 						.ui nav.left li.project-filters.form > div > div .form-element .input > .active-input { background: none; padding: 0; margin: 0; display: inline; }
@@ -747,6 +764,7 @@ class ui_filter extends base_module {
 			var elm_filter = elm_scripter.find('[id=y\\\:ui_filter\\\:filter-0]');
 			var elm_ui = elm_scripter.closest('.ui');
 			var public_user_interface_id = elm_ui.find('[data-public_user_interface_id]').attr('data-public_user_interface_id');
+			var filter_apply_button = elm_filter.attr('data-apply_button');
 			var elm_body = elm_ui.closest('body');
 			
 			elm_ui.attr('data-project_id', elm_scripter.attr('data-project_id'));
@@ -845,7 +863,11 @@ class ui_filter extends base_module {
 			
 			}
 			
-			var func_filter = function() {
+			var func_filter = function(trigger_elm) {
+			
+				if (filter_apply_button && trigger_elm != 'apply_button') {
+					return false;
+				}
 
 				var value = {arr_filter: {}, date_range: {}};
 
@@ -923,7 +945,7 @@ class ui_filter extends base_module {
 					$(this).val('');
 					FEEDBACK.stop(this);
 				});
-				
+			
 				if (do_clear) {
 					func_search(elms_search_input);
 				}
@@ -948,7 +970,7 @@ class ui_filter extends base_module {
 					});
 					
 					if (run_filter) {
-						func_filter();
+						func_filter('elm');
 					}
 				}
 				
@@ -982,7 +1004,7 @@ class ui_filter extends base_module {
 					
 						elm_active_filter.children().last().remove();
 						
-						func_filter();
+						func_filter('elm');
 					}
 				} else if (e.type == 'keyup' || e.type == 'focus') {
 			
@@ -1069,8 +1091,8 @@ class ui_filter extends base_module {
 				}
 				
 				if (elm_active_keyword.hasClass('icon')) {
-				
-					func_filter();
+			
+					func_filter('elm');
 				}
 				
 			}).on('click', '.input > input', function() {
@@ -1091,7 +1113,11 @@ class ui_filter extends base_module {
 					}
 				}
 			
-				func_filter();
+				func_filter('elm');
+				
+			}).on('click', '.input > button.apply', function() {
+
+				func_filter('apply_button');
 				
 			}).on('click', '.keywords .keyword', function() {
 			
@@ -1118,7 +1144,7 @@ class ui_filter extends base_module {
 				
 				elms_search_input.val('');
 				
-				func_filter();
+				func_filter('elm');
 				
 			}).on('click', '.keywords .info .hide-options', function() {
 
@@ -1149,7 +1175,7 @@ class ui_filter extends base_module {
 				var elm_input = $(this);
 				var elm_date_container = elm_input.parent();
 				
-				func_filter();
+				func_filter('elm');
 			}).on('change', '#form-toggle', function() {
 				
 				if (this.checked) {
@@ -1166,9 +1192,9 @@ class ui_filter extends base_module {
 					return;
 				}
 				
-				const elm_target = $(e.target);
+				const elm_target = e.target;
 				
-				if (elm_target.closest('input, .input, label').length || elm_target.parent('.string').length || elm_target.closest('.set-input, .results, .select-types').length) {
+				if (elm_target.closest('input, .input, label') || elm_target.parentNode.matches('.string, .icon, .keyword, .icon > svg') || elm_target.closest('.set-input, .results, .select-types')) {
 					return;
 				}
 
@@ -1178,7 +1204,7 @@ class ui_filter extends base_module {
 				
 				// Close responsive menu
 				
-				if (!elm_target.is('ul, span, span path, [class*=filter]')) {
+				if (!elm_target.matches('ul, span, span path, [class*=filter]')) {
 					elm_ui.children('input').prop('checked', false);
 				}
 				

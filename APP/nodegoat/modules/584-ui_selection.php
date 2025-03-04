@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -239,7 +239,7 @@ class ui_selection extends base_module {
 				
 				$arr_elms = [];
 				
-				$details_elm = ($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name']).' - ': '').Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name']).' - '.FormatTypeObjects::formatToCleanValue('date', $arr_object_sub['object_sub']['object_sub_date_start']).' - '.FormatTypeObjects::formatToCleanValue('date', $arr_object_sub['object_sub']['object_sub_date_end']).' - '.$arr_object_sub['object_sub']['object_sub_location_ref_object_name'];
+				$details_elm = ($arr_object_sub_details['object_sub_details']['object_sub_details_type_id'] ? Labels::parseTextVariables($arr_types[$arr_object_sub_details['object_sub_details']['object_sub_details_type_id']]['name']).' - ': '').Labels::parseTextVariables($arr_object_sub_details['object_sub_details']['object_sub_details_name']).' - '.FormatTypeObjects::formatToValue('date', $arr_object_sub['object_sub']['object_sub_date_start']).' - '.FormatTypeObjects::formatToValue('date', $arr_object_sub['object_sub']['object_sub_date_end']).' - '.$arr_object_sub['object_sub']['object_sub_location_ref_object_name'];
 				$arr_elms[] = ['elm' => $details_elm, 'style' => 'object_sub_details'];
 				
 				foreach ((array)$arr_object_sub['object_sub_definitions'] as $object_sub_description_id => $arr_object_sub_definition) {

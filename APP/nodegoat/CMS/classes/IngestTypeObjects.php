@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -205,41 +205,30 @@ class IngestTypeObjects {
 		
 		if ($this->mode == self::MODE_UPDATE) {
 			
-			$arr_locked = [];
-			$arr_locked_objects = [];
 			$storage_lock = new StoreTypeObjects($this->type_id, false, $this->arr_owner, 'lock');
 			
 			foreach ($this->arr_objects as $object_id => $arr_object) {
-				
 				$storage_lock->setObjectID($object_id);
-				
-				try {
-					
-					$storage_lock->handleLockObject();
-					
-				} catch (Exception $e) {
-					
-					$arr_locked[] = $e;
-					$arr_locked_objects[] = $object_id;
-				}
+			}
+			
+			$arr_locked = false;
+			
+			try {
+				$storage_lock->handleLockObject();
+			} catch (Exception $e) {
+				$arr_locked = $storage_lock->getLockErrors();
 			}
 			
 			if ($arr_locked) {
 
 				$storage_lock->removeLockObject();
-				
-				foreach ($arr_locked as &$e) {
 								
-					$e = Trouble::strMsg($e); // Convert to message only
-				}
-				unset($e);
-				
 				$arr_return['locked'] = $arr_locked;
 				$str_error = 'msg_ingest_locked';
 				
 				if ($this->use_log) {
 					
-					foreach ($arr_locked_objects as $object_id) {
+					foreach ($arr_locked as $object_id => $str_message) {
 						
 						$num_row = $this->arr_object_id_row_identifier[$object_id];
 						$this->addSourcePointerLogError((int)$num_row, $str_error);
@@ -459,7 +448,7 @@ class IngestTypeObjects {
 				$string = $this->getPointerData($i, $pointer_heading);
 				
 				$arr_pattern_value[$element_id] = $string;
-				$arr_filter = $this->parseElementIdFilter($this->type_id, $element_id, $string, $arr_filter);
+				$arr_filter = $this->parseElementIDFilter($this->type_id, $element_id, $string, $arr_filter);
 			}
 			
 			if (count($arr_filter)) {
@@ -554,7 +543,7 @@ class IngestTypeObjects {
 				
 				if ($element_type_element_id) {
 					
-					$arr_filter = [['object_filter' => $this->parseElementIdFilter($type_id, $element_type_element_id, $str_value)]];
+					$arr_filter = [['object_filter' => $this->parseElementIDFilter($type_id, $element_type_element_id, $str_value)]];
 					$arr_pattern_value = [$element_type_element_id => $str_value];
 				} else {
 					
@@ -610,7 +599,9 @@ class IngestTypeObjects {
 				$filter = new FilterTypeObjects($type_id, GenerateTypeObjects::VIEW_ID);
 				$filter->setVersioning(GenerateTypeObjects::VERSIONING_ADDED);
 				$filter->setFilter($arr_filter);
-
+				
+				$arr_pattern_filter = $this->setPatternTypeFilter($type_id, $filter, $arr_filter);
+				
 				$arr_filter_error = [];
 
 				try {
@@ -647,6 +638,16 @@ class IngestTypeObjects {
 				}
 				
 				$num_count_objects = count($arr_objects);
+				
+				// Check exact matches
+				
+				if ($num_count_objects > 1 && $arr_pattern_filter) {
+					
+					$arr_objects = $this->checkPatternTypeFilter($arr_pattern_filter, $arr_objects);
+					$num_count_objects = count($arr_objects);
+				}
+				
+				// Take corresponding action
 				
 				if ($num_count_objects == 1) { // Direct single match to the filter, store the string/object pair
 					
@@ -698,11 +699,86 @@ class IngestTypeObjects {
 		return $arr;
 	}
 	
+	protected function setPatternTypeFilter($type_id, $filter, $arr_filter) {
+		
+		$arr_filter_columns = [];
+				
+		if (isset($arr_filter[0]['object_filter']['object_name'])) {
+
+			foreach ($arr_filter[0]['object_filter']['object_name'] as $key => $arr_filter_match) {
+										
+				$arr_filter_columns['filter_name_'.$key] = "
+					CASE WHEN ".DBFunctions::searchMatchSensitivity(GenerateTypeObjects::sqlTableName().'.name', DBFunctions::SQL_IS_LITERAL.DBFunctions::strEscape($arr_filter_match['value']), false, true, true)." THEN TRUE ELSE FALSE END
+				";
+			}
+		}
+		if (isset($arr_filter[0]['object_filter']['object_definitions'])) {
+
+			foreach ($arr_filter[0]['object_filter']['object_definitions'] as $object_description_id => $arr_filter_matches) {
+				
+				foreach ($arr_filter_matches as $key => $arr_filter_match) {
+				
+					$str_value_type = $this->arr_type_sets[$type_id]['object_descriptions'][$object_description_id]['object_description_value_type'];
+					
+					if (!StoreType::isValueTypeValueTextual($str_value_type, 'search')) {
+						continue;
+					}
+				
+					$arr_filter_columns['filter_'.$object_description_id.'_'.$key] = "
+						SELECT CASE WHEN ".DBFunctions::searchMatchSensitivity('nodegoat_to_match.'.StoreType::getValueTypeValue($str_value_type, 'search'), DBFunctions::SQL_IS_LITERAL.DBFunctions::strEscape($arr_filter_match['value']), false, true, true)." THEN TRUE ELSE FALSE END
+							FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS').StoreType::getValueTypeTable($str_value_type)." nodegoat_to_match
+						WHERE nodegoat_to_match.object_id = ".GenerateTypeObjects::sqlTableName().".id AND nodegoat_to_match.object_description_id = ".(int)$object_description_id." AND ".$filter->generateVersion('record_search', 'nodegoat_to_match', $str_value_type)."
+					";
+				}
+			}
+		}
+		
+		if ($arr_filter_columns) {
+			$filter->addColumns($arr_filter_columns);
+		}
+		
+		return $arr_filter_columns;
+	}
+	
+	protected function checkPatternTypeFilter($arr_filter_columns, $arr_objects) {
+		
+		$arr_objects_exact = null;
+		$num_matches = count($arr_filter_columns);
+		
+		foreach ($arr_objects as $object_id => $arr_object) {
+			
+			$num_matching = 0;
+			
+			foreach ($arr_filter_columns as $sql_column => $sql_match) {
+				
+				if (!$arr_object[$sql_column]) {
+					break;
+				}
+				
+				$num_matching++;
+			}
+			
+			if ($num_matching == $num_matches) { // Success when all requested Object's exact matches return true
+				
+				if ($arr_objects_exact === null) {
+					$arr_objects_exact = [];
+				}
+				$arr_objects_exact[$object_id] = $arr_object;
+			}
+		}
+		
+		if ($arr_objects_exact !== null) {
+			return $arr_objects_exact;
+		}
+		
+		return $arr_objects;
+	}
+	
 	protected function getFilterIdentifier($type_id, $element_type_element_id, $str) {
 		
 		if ($element_type_element_id) {
 			
-			$arr_filter = $this->parseElementIdFilter($type_id, $element_type_element_id, $str);
+			$arr_filter = $this->parseElementIDFilter($type_id, $element_type_element_id, $str);
 			$arr_filter = [['object_filter' => $arr_filter]];
 		} else {
 			
@@ -851,7 +927,7 @@ class IngestTypeObjects {
 					
 					foreach ($arr_collected_filter as $arr_collected_filter_part) {
 						
-						$arr_filter = $this->parseElementIdFilter($this->type_id, $arr_collected_filter_part['element_id'], $arr_collected_filter_part['value'], $arr_filter);
+						$arr_filter = $this->parseElementIDFilter($this->type_id, $arr_collected_filter_part['element_id'], $arr_collected_filter_part['value'], $arr_filter);
 					}
 					
 					$str_identifier = StorePatternsTypeObjectPair::getPatternIdentifier([['object_filter' => $arr_filter]]);
@@ -883,6 +959,10 @@ class IngestTypeObjects {
 				
 				if (isset($this->arr_objects[$object_id])) {
 					
+					if (isset($arr_object['object']['object_name_plain'])) {
+						$this->arr_objects[$object_id]['object']['object_name_plain'] = $arr_object['object']['object_name_plain'];
+					}
+					
 					foreach ($arr_object['object_definitions'] as $object_description_id => $arr_object_definitions) {
 						
 						if (isset($this->arr_objects[$object_id]['object_definitions'][$object_description_id])) {
@@ -905,7 +985,10 @@ class IngestTypeObjects {
 					
 				} else {
 					
-					$this->arr_objects[$object_id]['object_definitions'] = $arr_object['object_definitions'];
+					$this->arr_objects[$object_id] = [
+						'object' => $arr_object['object'],
+						'object_definitions' => $arr_object['object_definitions']
+					];
 				}
 				
 				$has_match_object_sub_id = null;
@@ -1032,7 +1115,7 @@ class IngestTypeObjects {
 		}
 	}
     	
-	protected function parseElementIdFilter($type_id, $element_id, $value, $arr_filter = []) {
+	protected function parseElementIDFilter($type_id, $element_id, $value, $arr_filter = []) {
 		
 		if (!$this->arr_type_sets[$type_id]) {
 			$this->arr_type_sets[$type_id] = StoreType::getTypeSet($type_id);
@@ -1058,7 +1141,7 @@ class IngestTypeObjects {
 				
 			$object_description_id = $arr_element[1];
 			
-			$arr_filter['object_definitions'][$object_description_id][] = ['equality' => '=', 'value' => $value]; 		
+			$arr_filter['object_definitions'][$object_description_id][] = ['equality' => '=', 'value' => $value];
 		} else if ($arr_element[0] == 'object_sub_details') {
 
 			$object_sub_details_id = $arr_element[1];
@@ -1127,8 +1210,8 @@ class IngestTypeObjects {
 		
 		$arr_element = explode('-', $element_id);
 		
-		$str_value_trimmed = trim(str_replace('\n', PHP_EOL, $str_value));
-		$str_value_decoded = html_entity_decode($str_value_trimmed, ENT_QUOTES, 'UTF-8');
+		$str_value_decoded = trim(str_replace('\n', PHP_EOL, $str_value));
+		$str_value_decoded = html_entity_decode($str_value_decoded, ENT_QUOTES, 'UTF-8');
 		
 		$num_row = $arr_options['row_identifier'];
 		$pointer_heading = $arr_options['pointer_heading'];
@@ -1149,7 +1232,7 @@ class IngestTypeObjects {
 				
 				$this->arr_options[$type_id]['name'] = $arr_options;
 				
-				$arr_object['object']['object_name_plain'] = $str_value_trimmed;
+				$arr_object['object']['object_name_plain'] = $str_value_decoded;
 			}
 		} else if ($arr_element[0] == 'object_description') {
 				
@@ -1165,7 +1248,6 @@ class IngestTypeObjects {
 			if ($arr_type_set['object_descriptions'][$object_description_id]['object_description_ref_type_id']) {
 
 				if (!$ref_type_id) {
-					
 					$ref_type_id = $arr_type_set['object_descriptions'][$object_description_id]['object_description_ref_type_id'];
 				}
 				
@@ -1342,13 +1424,31 @@ class IngestTypeObjects {
 	
 	protected function checkTypeObjectIdenticalValues($object_id, $arr_object, $num_row) {
 	
-		$arr_selection = ['object_descriptions' => (array)$arr_object['object_definitions'], 'object_sub_details' => (array)$arr_object['object_subs']];
+		$arr_selection = ['object' => ['object_name_plain' => isset($arr_object['object']['object_name_plain'])], 'object_descriptions' => (array)$arr_object['object_definitions'], 'object_sub_details' => (array)$arr_object['object_subs']];
+		
 		$filter = new FilterTypeObjects($this->type_id, GenerateTypeObjects::VIEW_STORAGE);			
 		$filter->setVersioning(GenerateTypeObjects::VERSIONING_ADDED);
 		$filter->setSelection($arr_selection);
 		$filter->setFilter(['objects' => $object_id]);	
 		$arr_stored_object = current($filter->init());
 	
+		if (isset($arr_object['object']['object_name_plain'])) {
+			
+			$arr_options = $this->arr_options[$this->type_id]['name'];
+			
+			if ($arr_options['ignore_identical']) {
+				
+				if ($arr_stored_object['object']['object_name_plain'] == $arr_object['object']['object_name_plain']) {
+					
+					unset($arr_object['object']['object_name_plain']);
+					
+					if ($this->use_log) {
+						$this->arr_log['rows'][$num_row]['results'][$arr_options['pointer_heading']]['options']['ignore_identical'] = true;
+					}
+				}
+			}
+		}
+
 		foreach ($arr_object['object_definitions'] as $object_description_id => $arr_object_definitions) {
 			
 			$arr_options = $this->arr_options[$this->type_id][$object_description_id];

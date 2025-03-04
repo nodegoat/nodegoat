@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -101,8 +101,8 @@ class StoreIngestFile {
 			}
 			
 			$ignore_when = 0;
-			$ignore_when += ($arr_pointer['ingore_empty'] ? 1 : 0);
-			$ignore_when += ($arr_pointer['ingore_identical'] ? 2 : 0);
+			$ignore_when += ($arr_pointer['ignore_empty'] ? 1 : 0);
+			$ignore_when += ($arr_pointer['ignore_identical'] ? 2 : 0);
 				
 			$arr_collect[] = [
 				'id' => $arr_pointer['pointer_id'],
@@ -333,8 +333,8 @@ class StoreIngestFile {
 				} else {
 					
 					$arr_row['mode_write'] = ($arr_row['overwrite'] ? 'overwrite' : 'append');
-					$arr_row['ingore_empty'] = ($arr_row['ignore_when'] == 1 || $arr_row['ignore_when'] == 3);
-					$arr_row['ingore_identical'] = ($arr_row['ignore_when'] == 2 || $arr_row['ignore_when'] == 3);
+					$arr_row['ignore_empty'] = ($arr_row['ignore_when'] == 1 || $arr_row['ignore_when'] == 3);
+					$arr_row['ignore_identical'] = ($arr_row['ignore_when'] == 2 || $arr_row['ignore_when'] == 3);
 					
 					$arr[$arr_row['id']]['pointers']['map'][$arr_row['pointer_id']] = $arr_row;
 				}

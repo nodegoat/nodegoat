@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -509,7 +509,6 @@ class data_import extends ingest_source {
 				if (count((array)$arr_source_files) == 0) {
 					
 					msg(getLabel('msg_import_no_files'));
-					
 					return;
 				}
 				
@@ -897,6 +896,11 @@ class data_import extends ingest_source {
 		}
 		
 		if ($method == "source_file_insert" || ($method == "update_source_file" && (int)$id)) {
+			
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_ADMIN) {
+				error(getLabel('msg_not_allowed'));
+				return;
+			}
 
 			$arr_details = ['name' => $_POST['name'], 'description' => $_POST['description']];
 			
@@ -909,6 +913,11 @@ class data_import extends ingest_source {
 		
 		if ($method == "insert_template" || ($method == "update_template" && (int)$id)) {
 			
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_ADMIN) {
+				error(getLabel('msg_not_allowed'));
+				return;
+			}
+			
 			$arr_template = static::parseTemplate($_POST['template']);
 			
 			StoreIngestFile::handleTemplate((int)$id, $arr_template);
@@ -919,6 +928,11 @@ class data_import extends ingest_source {
 		}
 		
 		if ($method == "del" && $id) {
+			
+			if ($_SESSION['NODEGOAT_CLEARANCE'] < NODEGOAT_CLEARANCE_ADMIN) {
+				error(getLabel('msg_not_allowed'));
+				return;
+			}
 			
 			foreach ((array)$id as $combined_id) {
 				

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -23,12 +23,13 @@ class CollectTypesObjects {
 	protected $do_collect_walk_depth = false;
 	protected $arr_path_objects = [];
 	protected $arr_path_objects_referenced = [];
+	protected $has_collected_referenced = false;
 	protected $arr_path_objects_dates = [];
 	protected $arr_path_selection_required = [];
 	protected $arr_type_filters = [];
 	protected $arr_type_conditions = [];
-	protected $arr_path_object_connections = [];
-	protected $arr_path_object_connection_dates = [];
+	protected $arr_path_connections = [];
+	protected $arr_path_connection_dates = [];
 	protected $arr_types = [];
 	protected $arr_paths = [];
 	
@@ -42,7 +43,7 @@ class CollectTypesObjects {
 	protected $func_generate = null;
 	
 	protected $arr_depth_filters = [];
-	protected $arr_collapse_paths = [];	
+	protected $arr_path_collapse = [];	
 	protected $arr_types_found = [];
 
 	public function __construct($arr_type_network_paths, $view = GenerateTypeObjects::VIEW_ALL) {
@@ -62,6 +63,7 @@ class CollectTypesObjects {
 		$this->arr_type_filters = $this->arr_types = [];
 		
 		$this->arr_path_objects = $this->arr_path_objects_referenced = $this->arr_path_objects_dates = [];
+		$this->has_collected_referenced = false;
 		
 		$this->collectObjects($this->arr_type_network_paths, $arr_filter, false, $do_collect);
 		
@@ -94,14 +96,76 @@ class CollectTypesObjects {
 		}
 	
 		$arr_selection = ($this->arr_path_options[$path]['arr_selection'] ?: ($this->arr_type_options[$this->arr_paths[$path]]['arr_selection'] ?: []));
-		$arr_selection_required = $this->arr_path_selection_required[$path]; // Remove values from objects originally not in selection but needed for collection
+		$arr_selection_required = ($this->arr_path_selection_required[$path] ?? null); // Remove values from objects originally not in selection but needed for collection
 						
-		if ($arr_selection_required['object_descriptions']) {
+		if (isset($arr_selection_required['object_descriptions'])) {
 			
 			$s_arr_object_definitions =& $arr_object['object_definitions'];
 			
 			foreach ($arr_selection_required['object_descriptions'] as $object_description_id => $arr_required) {
-				unset($s_arr_object_definitions[$object_description_id]);
+				
+				if ($arr_required['connection']['mutable']) {
+
+					$arr_ref_object_ids = ($s_arr_object_definitions[$object_description_id]['object_definition_ref_object_id'] ?? null);
+					
+					if (!$arr_ref_object_ids) {
+						
+						unset($s_arr_object_definitions[$object_description_id]);
+						continue;
+					}
+										
+					if ($arr_required['connection']['dynamic']) {
+						
+						if ($arr_required['connection']['multi']) {
+							
+							foreach ($arr_ref_object_ids as $key => $arr_type_ref_object_ids) {
+								
+								foreach ($arr_type_ref_object_ids as $check_type_id => $arr_object_ids) {
+									
+									if (!isset($arr_required['object_description_reference'][$check_type_id])) {
+										continue;
+									}
+									
+									unset($s_arr_object_definitions[$object_description_id]['object_definition_ref_object_id'][$key][$check_type_id]);
+								}
+							}
+						} else {
+							
+							foreach ($arr_ref_object_ids as $check_type_id => $arr_object_ids) {
+								
+								if (!isset($arr_required['object_description_reference'][$check_type_id])) {
+									continue;
+								}
+								
+								unset($s_arr_object_definitions[$object_description_id]['object_definition_ref_object_id'][$check_type_id]);
+							}
+						}
+						
+					} else if ($arr_required['connection']['multi']) {
+						
+						foreach ($s_arr_object_definitions[$object_description_id]['object_definition_ref_object_id'] as $key => $str_identifier) {
+							
+							$check_type_id = (int)$str_identifier; // Type ID is first, can use int
+							
+							if (!isset($arr_required['object_description_reference'][$check_type_id])) {
+								continue;
+							}
+							
+							unset($s_arr_object_definitions[$object_description_id]['object_definition_ref_object_id'][$key]);
+						}
+					} else {
+						
+						$str_identifier = $s_arr_object_definitions[$object_description_id]['object_definition_ref_object_id'];
+						$check_type_id = (int)$str_identifier; // Type ID is first, can use int
+								
+						if (isset($arr_required['object_description_reference'][$check_type_id])) {
+							unset($s_arr_object_definitions[$object_description_id]);
+						}
+					}
+				} else {
+				
+					unset($s_arr_object_definitions[$object_description_id]);
+				}
 			}
 		}
 		
@@ -110,23 +174,48 @@ class CollectTypesObjects {
 		foreach ($arr_object['object_subs'] as $object_sub_id => &$arr_object_sub) {
 			
 			$object_sub_details_id = $arr_object_sub['object_sub']['object_sub_details_id'];
-			$arr_selection_required_object_sub_details = $arr_selection_required['object_sub_details'][$object_sub_details_id];
+			$arr_selection_required_object_sub_details = ($arr_selection_required['object_sub_details'][$object_sub_details_id] ?? null);
 
 			// If the sub-object is part of the object path, and the source of this object is in/referenced, do not include sub-objects that are not part of this path (other sub-objects of the same type could be part other objects' paths)
-			if ($this->arr_path_object_connections[$path]['object_sub_details'][$object_sub_details_id]['use'] == 'solo' && !isset($this->arr_path_objects_referenced[$path][$ref_object_id]['object_subs'][$object_sub_details_id][$object_sub_id])) {
+			if ($this->arr_path_connections[$path]['object_sub_details'][$object_sub_details_id]['use'] == 'solo' && !isset($this->arr_path_objects_referenced[$path][$ref_object_id]['object_subs'][$object_sub_details_id][$object_sub_id])) {
 				
 				unset($s_arr_object_subs[$object_sub_id]);
-			} else if ($arr_selection_required_object_sub_details && !$arr_selection['object_sub_details'][$object_sub_details_id]) {
+			} else if (isset($arr_selection_required_object_sub_details) && !$arr_selection['object_sub_details'][$object_sub_details_id]) {
 			
 				unset($s_arr_object_subs[$object_sub_id]);
 			} else {
 
-				if ($arr_selection_required_object_sub_details['object_sub_descriptions']) {
+				if (isset($arr_selection_required_object_sub_details['object_sub_descriptions'])) {
 					
 					$s_arr_object_sub_definitions =& $arr_object_sub['object_sub_definitions'];
 					
 					foreach ($arr_selection_required_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_required) {
-						unset($s_arr_object_sub_definitions[$object_sub_description_id]);
+						
+						if ($arr_required['connection']['mutable']) {
+							
+							if ($arr_required['connection']['dynamic']) {
+								
+								foreach ($s_arr_object_sub_definitions[$object_sub_description_id]['object_sub_definition_ref_object_id'] as $check_type_id => $arr_object_ids) {
+									
+									if (!isset($arr_required['object_sub_description_reference'][$check_type_id])) {
+										continue;
+									}
+									
+									unset($s_arr_object_sub_definitions[$object_sub_description_id]['object_sub_definition_ref_object_id'][$check_type_id]);
+								}
+							} else {
+								
+								$str_identifier = ($s_arr_object_sub_definitions[$object_sub_description_id]['object_sub_definition_ref_object_id'] ?? null);
+								$check_type_id = (int)$str_identifier; // Type ID is first, can use int
+								
+								if (!$check_type_id || isset($arr_required['object_sub_description_reference'][$check_type_id])) {
+									unset($s_arr_object_sub_definitions[$object_sub_description_id]);
+								}
+							}
+						} else {
+							
+							unset($s_arr_object_sub_definitions[$object_sub_description_id]);
+						}
 					}
 				}
 			}
@@ -144,8 +233,9 @@ class CollectTypesObjects {
 		
 		return [
 			'types' => $this->arr_types,
-			'connections' => $this->arr_path_object_connections,
-			'connection_dates' => $this->arr_path_object_connection_dates,
+			'connections' => $this->arr_path_connections,
+			'connection_dates' => $this->arr_path_connection_dates,
+			'collapse' => $this->arr_path_collapse,
 			'filters' => $this->arr_type_filters,
 			'conditions' => $this->arr_type_conditions,
 			'types_found' => $this->arr_types_found
@@ -170,7 +260,7 @@ class CollectTypesObjects {
 	
 	public function getReferenced() {
 		
-		if (!$this->arr_path_objects_referenced) {
+		if (!$this->has_collected_referenced) {
 			$this->collectReferenced($this->arr_type_network_paths);
 		}
 		
@@ -185,7 +275,7 @@ class CollectTypesObjects {
 	
 	public function getWalkedObject($object_id, $arr = [], $func_call = false) {
 		
-		if (!$this->arr_path_objects_referenced) {
+		if (!$this->has_collected_referenced) {
 			$this->collectReferenced($this->arr_type_network_paths);
 		}
 		
@@ -193,6 +283,8 @@ class CollectTypesObjects {
 	}
 		
 	protected function collectReferenced($arr_type_connections) {
+		
+		$this->has_collected_referenced = true;
 		
 		foreach ($arr_type_connections as $in_out => $arr_in_out) {
 			
@@ -223,33 +315,64 @@ class CollectTypesObjects {
 									continue;
 								}
 								
-								if ($arr_connection['dynamic']) {
+								if ($arr_connection['mutable']) {
 									
-									if ($arr_connection['multi']) {
+									if ($arr_connection['dynamic']) {
 										
-										$arr_collect_ids = [];
-										
-										foreach ($arr_ref_object_ids as $key => $arr_type_ref_object_ids) {
+										if ($arr_connection['multi']) {
 											
-											if (!isset($arr_type_ref_object_ids[$arr_connection['ref_type_id']])) {
+											$arr_collect_ids = [];
+											
+											foreach ($arr_ref_object_ids as $key => $arr_type_ref_object_ids) {
+												
+												if (!isset($arr_type_ref_object_ids[$arr_connection['ref_type_id']])) {
+													continue;
+												}
+												
+												foreach ($arr_type_ref_object_ids[$arr_connection['ref_type_id']] as $ref_object_id => $value) {
+													$arr_collect_ids[$ref_object_id] = $ref_object_id;
+												}
+											}
+
+											$arr_ref_object_ids = $arr_collect_ids;
+										} else {
+											
+											$arr_ref_object_ids = ($arr_ref_object_ids[$arr_connection['ref_type_id']] ?? null);
+											
+											if (!$arr_ref_object_ids) {
 												continue;
 											}
 											
-											foreach ($arr_type_ref_object_ids[$arr_connection['ref_type_id']] as $ref_object_id => $value) {
-												$arr_collect_ids[$ref_object_id] = $ref_object_id;
-											}
+											$arr_ref_object_ids = array_keys($arr_ref_object_ids);
 										}
-
-										$arr_ref_object_ids = $arr_collect_ids;
 									} else {
 										
-										$arr_ref_object_ids = ($arr_ref_object_ids[$arr_connection['ref_type_id']] ?? null);
-										
-										if (!$arr_ref_object_ids) {
-											continue;
+										if ($arr_connection['multi']) {
+											
+											$arr_collect_ids = [];
+											
+											foreach ($arr_ref_object_ids as $str_identifier) {
+												
+												list($ref_type_id, $ref_object_id) = explode('_', $str_identifier);
+												
+												if ($arr_connection['ref_type_id'] != (int)$ref_type_id) {
+													continue;
+												}
+												
+												$arr_collect_ids[(int)$ref_object_id] = (int)$ref_object_id;
+											}
+											
+											$arr_ref_object_ids = $arr_collect_ids;
+										} else {
+											
+											list($ref_type_id, $ref_object_id) = explode('_', $arr_ref_object_ids);
+											
+											if ($arr_connection['ref_type_id'] != (int)$ref_type_id) {
+												continue;
+											}
+											
+											$arr_ref_object_ids = [(int)$ref_object_id];
 										}
-										
-										$arr_ref_object_ids = array_keys($arr_ref_object_ids);
 									}
 								} else {
 									
@@ -283,16 +406,42 @@ class CollectTypesObjects {
 										
 										$ref_object_id = $arr_object_sub['object_sub']['object_sub_location_ref_object_id'];
 										
-										if ($ref_object_id) {
-											
-											$this->arr_path_objects_referenced[$path][$ref_object_id]['object_subs'][$arr_object_sub['object_sub']['object_sub_details_id']][$object_sub_id]['object_sub_locations'][$object_id] = $object_id;
+										if (!$ref_object_id) {
+											continue;
 										}
+										
+										$this->arr_path_objects_referenced[$path][$ref_object_id]['object_subs'][$arr_object_sub['object_sub']['object_sub_details_id']][$object_sub_id]['object_sub_locations'][$object_id] = $object_id;
 									} else {
 										
-										if ($arr_connection['dynamic']) {
-											$arr_ref_object_ids = ($arr_object_sub['object_sub_definitions'][$object_sub_connection_id]['object_sub_definition_ref_object_id'][$arr_connection['ref_type_id']] ?? null);
-											$arr_ref_object_ids = ($arr_ref_object_ids ? array_keys($arr_ref_object_ids) : []);
+										if ($arr_connection['mutable']) {
+											
+											if ($arr_connection['dynamic']) {
+												
+												$arr_ref_object_ids = ($arr_object_sub['object_sub_definitions'][$object_sub_connection_id]['object_sub_definition_ref_object_id'][$arr_connection['ref_type_id']] ?? null);
+												
+												if (!$arr_ref_object_ids) {
+													continue;
+												}
+												
+												$arr_ref_object_ids = array_keys($arr_ref_object_ids);
+											} else {
+												
+												$ref_object_id = $arr_object_sub['object_sub_definitions'][$object_sub_connection_id]['object_sub_definition_ref_object_id'];
+												
+												if (!$ref_object_id) {
+													continue;
+												}
+												
+												list($ref_type_id, $ref_object_id) = explode('_', $ref_object_id);
+												
+												if ($arr_connection['ref_type_id'] != (int)$ref_type_id) {
+													continue;
+												}
+												
+												$arr_ref_object_ids = [(int)$ref_object_id];
+											}
 										} else {
+											
 											$arr_ref_object_ids = (array)$arr_object_sub['object_sub_definitions'][$object_sub_connection_id]['object_sub_definition_ref_object_id'];
 										}
 										
@@ -390,7 +539,7 @@ class CollectTypesObjects {
 								
 								$do_trace_check = ($arr_source_info['in_out'] == 'in' && $arr_source_info['object_description_id'] == $object_description_id); // If the object description is tracing back to the same object's path, and the source of this object is in/referenced, do not include this object
 								
-								if ($arr_connection['dynamic']) {
+								if ($arr_connection['mutable']) {
 									
 									foreach ($this->arr_path_objects[$path_source] as $use_in_out => $arr_objects) { // The target references are sourced from both/any previous incoming and outgoing objects
 									
@@ -400,25 +549,51 @@ class CollectTypesObjects {
 											continue;
 										}
 										
-										if ($arr_connection['multi']) {
+										if ($arr_connection['dynamic']) {
 											
-											$arr_collect_ids = [];
-											
-											foreach ($arr_object_ids as $key => $arr_type_ref_object_ids) {
+											if ($arr_connection['multi']) {
 												
-												if (!isset($arr_type_ref_object_ids[$arr_connection['ref_type_id']])) {
-													continue;
+												$arr_collect_ids = [];
+												
+												foreach ($arr_object_ids as $key => $arr_type_ref_object_ids) {
+													
+													if (!isset($arr_type_ref_object_ids[$arr_connection['ref_type_id']])) {
+														continue;
+													}
+													
+													foreach ($arr_type_ref_object_ids[$arr_connection['ref_type_id']] as $ref_object_id => $value) {
+														$arr_collect_ids[$ref_object_id] = $ref_object_id;
+													}
 												}
 												
-												foreach ($arr_type_ref_object_ids[$arr_connection['ref_type_id']] as $ref_object_id => $value) {
-													$arr_collect_ids[$ref_object_id] = $ref_object_id;
-												}
+												$arr_object_ids = $arr_collect_ids;
+											} else {
+												
+												$arr_object_ids = ($arr_object_ids[$arr_connection['ref_type_id']] ?? null);
 											}
-											
-											$arr_object_ids = $arr_collect_ids;
 										} else {
 											
-											$arr_object_ids = ($arr_object_ids[$arr_connection['ref_type_id']] ?? null);
+											if ($arr_connection['multi']) {
+												
+												$arr_collect_ids = [];
+												
+												foreach ($arr_object_ids as $str_identifier) {
+													
+													list($ref_type_id, $ref_object_id) = explode('_', $str_identifier);
+													
+													if ($arr_connection['ref_type_id'] != (int)$ref_type_id) {
+														continue;
+													}
+													
+													$arr_collect_ids[(int)$ref_object_id] = (int)$ref_object_id;
+												}
+												
+												$arr_object_ids = $arr_collect_ids;
+											} else {
+												
+												list($ref_type_id, $ref_object_id) = explode('_', $arr_object_ids);
+												$arr_object_ids = ($arr_connection['ref_type_id'] == (int)$ref_type_id ? [(int)$ref_object_id => (int)$ref_object_id] : null);
+											}
 										}
 										
 										if (!$arr_object_ids) {
@@ -467,7 +642,7 @@ class CollectTypesObjects {
 								$type_id = $arr_connection['ref_type_id'];
 							}
 							
-							$arr_info_use += ['type_id' => $type_id, 'object_id' => $object_id, 'object_description_id' => $object_description_id, 'dynamic' => $arr_connection['dynamic'], 'in_out' => $in_out, 'identifier' => $arr_source_info['identifier'].'_'.$arr_connection['identifier']];
+							$arr_info_use += ['type_id' => $type_id, 'object_id' => $object_id, 'object_description_id' => $object_description_id, 'mutable' => $arr_connection['mutable'], 'in_out' => $in_out, 'identifier' => $arr_source_info['identifier'].'_'.$arr_connection['identifier']];
 							
 							$arr_info_connection = [];
 							
@@ -495,12 +670,11 @@ class CollectTypesObjects {
 							if ($do_collapse) {
 								
 								if ($do_collapse_start) {
+									
+									unset($arr_info_use['arr_collapse_source']);
 									$arr_info_use['arr_collapse_source'] = $arr_info_use;
 									$arr_info_use['collapse_start'] = true;
 								}
-							}
-							if ($arr_info_use['arr_collapse_source']) {
-								$arr_info_use['arr_collapse_targets'] = $this->arr_collapse_paths[$path_new];
 							}
 							
 							foreach ($arr_ref_object_ids as $ref_object_id) {
@@ -606,14 +780,25 @@ class CollectTypesObjects {
 													continue;
 												}
 															
-												if ($arr_connection['dynamic']) {
+												if ($arr_connection['mutable']) {
 													
-													$arr_ref_object_ids = $arr_object_sub['object_sub_definitions'][$object_sub_connection_id]['object_sub_definition_ref_object_id'][$arr_connection['ref_type_id']];
-													
-													if ($arr_ref_object_ids) {
+													if ($arr_connection['dynamic']) {
 														
-														foreach ($arr_ref_object_ids as $ref_object_id => $value) {
-															$arr_object_subs_ref_object_ids[$object_sub_id][$ref_object_id] = $ref_object_id;
+														$arr_ref_object_ids = $arr_object_sub['object_sub_definitions'][$object_sub_connection_id]['object_sub_definition_ref_object_id'][$arr_connection['ref_type_id']];
+														
+														if ($arr_ref_object_ids) {
+															
+															foreach ($arr_ref_object_ids as $ref_object_id => $value) {
+																$arr_object_subs_ref_object_ids[$object_sub_id][$ref_object_id] = $ref_object_id;
+															}
+														}
+													} else {
+														
+														$ref_object_id = $arr_object_sub['object_sub_definitions'][$object_sub_connection_id]['object_sub_definition_ref_object_id'];
+														list($ref_type_id, $ref_object_id) = explode('_', $ref_object_id);
+														
+														if ($arr_connection['ref_type_id'] == (int)$ref_type_id) {
+															$arr_object_subs_ref_object_ids[$object_sub_id][(int)$ref_object_id] = (int)$ref_object_id;
 														}
 													}
 												} else {
@@ -649,7 +834,7 @@ class CollectTypesObjects {
 										$type_id = $arr_connection['ref_type_id'];
 									}
 									
-									$arr_info_use += ['type_id' => $type_id, 'object_id' => $object_id, 'object_sub_details_id' => $object_sub_details_id, 'object_sub_description_id' => $object_sub_connection_id, 'dynamic' => $arr_connection['dynamic'], 'in_out' => $in_out, 'identifier' => $arr_source_info['identifier'].'_'.$arr_connection['identifier']];
+									$arr_info_use += ['type_id' => $type_id, 'object_id' => $object_id, 'object_sub_details_id' => $object_sub_details_id, 'object_sub_description_id' => $object_sub_connection_id, 'mutable' => $arr_connection['mutable'], 'in_out' => $in_out, 'identifier' => $arr_source_info['identifier'].'_'.$arr_connection['identifier']];
 								}
 								
 								$arr_info_connection = [];
@@ -696,12 +881,11 @@ class CollectTypesObjects {
 									if ($do_collapse) {
 										
 										if ($do_collapse_start) {
+											
+											unset($arr_info_use['arr_collapse_source']);
 											$arr_info_use['arr_collapse_source'] = $arr_info_use;
 											$arr_info_use['collapse_start'] = true;
 										}
-									}
-									if ($arr_info_use['arr_collapse_source']) {
-										$arr_info_use['arr_collapse_targets'] = $this->arr_collapse_paths[$path_new];
 									}
 
 									foreach ($arr_ref_object_ids as $ref_object_id) {
@@ -926,14 +1110,14 @@ class CollectTypesObjects {
 							continue;
 						}
 						
-						if ($in_out != 'start' && isset($this->arr_path_object_connection_dates[$path_source])) {
+						if ($in_out != 'start' && isset($this->arr_path_connection_dates[$path_source])) {
 							
-							foreach ($this->arr_path_object_connection_dates[$path_source] as $source_target => $arr_date_statements) {
+							foreach ($this->arr_path_connection_dates[$path_source] as $source_target => $arr_date_statements) {
 
 								if ($source_target == 'source') {
-									$arr_object_dates = $this->collectObjectConnectionDates($arr_date_statements, $source_type_id, $filter_source);
+									$arr_object_dates = $this->collectObjectsConnectionDates($arr_date_statements, $source_type_id, $filter_source);
 								} else {
-									$arr_object_dates = $this->collectObjectConnectionDates($arr_date_statements, $target_type_id, $filter_generating);
+									$arr_object_dates = $this->collectObjectsConnectionDates($arr_date_statements, $target_type_id, $filter_generating);
 								}
 								
 								if (isset($this->arr_path_objects_dates[$path_source][$source_target])) {
@@ -1008,9 +1192,9 @@ class CollectTypesObjects {
 								}
 								
 								if ($do_collapse) {
-									$this->arr_collapse_paths[$path_source]['object_descriptions'][$object_description_id] = true;
+									$this->arr_path_collapse[$path_source]['object_descriptions'][$object_description_id] = true;
 								} else if ($do_collapsed_source) {
-									$this->arr_collapse_paths[$path_source]['object_descriptions'][$object_description_id] = false;
+									$this->arr_path_collapse[$path_source]['object_descriptions'][$object_description_id] = false;
 								}
 							} else {
 								
@@ -1029,13 +1213,11 @@ class CollectTypesObjects {
 										$s_arr = ['transcension' => ['value' => 'not_empty']];
 									}
 								}
-								
-								if ($arr_selection && empty($arr_selection['object_descriptions'][$object_description_id])) {
-									$arr_selection_required['object_descriptions'][$object_description_id]['object_description_reference'] = $object_description_id;
-								}
-								
+
+								$arr_selection_required = $this->collectConnectionSelection($arr_connection, $arr_selection_required, $arr_selection);
+				
 								if ($do_collapse) {
-									$this->arr_collapse_paths[$path_new]['object_descriptions'][$object_description_id] = true;
+									$this->arr_path_collapse[$path_new]['object_descriptions'][$object_description_id] = true;
 								}
 							}
 							
@@ -1043,7 +1225,7 @@ class CollectTypesObjects {
 								$arr_date_required[] = $arr_connection['date'];
 							}
 							
-							$this->arr_path_object_connections[$path_new]['object_descriptions'][$object_description_id] = $object_description_id;
+							$this->arr_path_connections[$path_new]['object_descriptions'][$object_description_id] = $object_description_id;
 						}
 						
 						foreach (($arr_type_object_connections['object_sub_details'] ?? []) as $object_sub_details_id => $arr_object_sub_connections) {
@@ -1071,9 +1253,9 @@ class CollectTypesObjects {
 										}
 										
 										if ($do_collapse) {
-											$this->arr_collapse_paths[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_location'] = true;
+											$this->arr_path_collapse[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_location'] = true;
 										} else if ($do_collapsed_source) {
-											$this->arr_collapse_paths[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_location'] = false;
+											$this->arr_path_collapse[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_location'] = false;
 										}
 									} else {
 										
@@ -1099,21 +1281,14 @@ class CollectTypesObjects {
 											}
 										}
 										
-										if ($arr_selection && empty($arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details'])) {
-											
-											$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_details'] = ['object_sub_location_reference' => true];
-											
-											if (!isset($arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'])) {
-												$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] = [];
-											}
-										}
+										$arr_selection_required = $this->collectConnectionSelection($arr_connection, $arr_selection_required, $arr_selection);
 										
 										if ($do_collapse) {
-											$this->arr_collapse_paths[$path_new]['object_sub_details'][$object_sub_details_id]['object_sub_location'] = true;
+											$this->arr_path_collapse[$path_new]['object_sub_details'][$object_sub_details_id]['object_sub_location'] = true;
 										}
 									}
 									
-									$this->arr_path_object_connections[$path_new]['object_sub_details'][$object_sub_details_id]['object_sub_location'] = true;
+									$this->arr_path_connections[$path_new]['object_sub_details'][$object_sub_details_id]['object_sub_location'] = true;
 								} else {
 									
 									if ($in_out == 'out') {
@@ -1135,9 +1310,9 @@ class CollectTypesObjects {
 										}
 										
 										if ($do_collapse) {
-											$this->arr_collapse_paths[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = true;
+											$this->arr_path_collapse[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = true;
 										} else if ($do_collapsed_source) {
-											$this->arr_collapse_paths[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = false;
+											$this->arr_path_collapse[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = false;
 										}
 									} else {
 										
@@ -1160,38 +1335,36 @@ class CollectTypesObjects {
 											}
 										}
 										
-										if ($arr_selection && empty($arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id])) {
-											$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id]['object_sub_description_reference'] = $object_sub_connection_id;
-										}
+										$arr_selection_required = $this->collectConnectionSelection($arr_connection, $arr_selection_required, $arr_selection);
 										
 										if ($do_collapse) {
-											$this->arr_collapse_paths[$path_new]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = true;
+											$this->arr_path_collapse[$path_new]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = true;
 										}
 									}
 									
-									$this->arr_path_object_connections[$path_new]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = $object_sub_connection_id;
+									$this->arr_path_connections[$path_new]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id] = $object_sub_connection_id;
 								}
 								
 								if (isset($arr_connection['date'])) {
 									$arr_date_required[] = $arr_connection['date'];
 								}
 								
-								$cur_use = ($this->arr_path_object_connections[$path_new]['object_sub_details'][$object_sub_details_id]['use'] ?? null);
+								$cur_use = ($this->arr_path_connections[$path_new]['object_sub_details'][$object_sub_details_id]['use'] ?? null);
 								
 								if ($cur_use !== 'all') {
 										
-									$this->arr_path_object_connections[$path_new]['object_sub_details'][$object_sub_details_id]['use'] = ($in_out == 'in' ? 'solo' : 'all');
+									$this->arr_path_connections[$path_new]['object_sub_details'][$object_sub_details_id]['use'] = ($in_out == 'in' ? 'solo' : 'all');
 									
 									// When the sub-object is used as both in/referenced and out in the same path, all sub-objects are available to generate the path
-									if (isset($this->arr_path_object_connections[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id])) {
-										$this->arr_path_object_connections[$path_source]['object_sub_details'][$object_sub_details_id]['use'] = 'all';
+									if (isset($this->arr_path_connections[$path_source]['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id])) {
+										$this->arr_path_connections[$path_source]['object_sub_details'][$object_sub_details_id]['use'] = 'all';
 									}
 								}
 							}
 						}
 						
 						if (!isset($arr_type_connections['connections'][$target_type_id])) {
-							$this->arr_path_object_connections[$path_new]['end'] = true;
+							$this->arr_path_connections[$path_new]['end'] = true;
 						}
 					}
 					
@@ -1200,37 +1373,13 @@ class CollectTypesObjects {
 						foreach (($arr_type_connections['connections'][$target_type_id]['out'] ?? []) as $user_type_id => $arr_target_type_object_connections) {
 							
 							foreach (($arr_target_type_object_connections['object_descriptions'] ?? []) as $object_description_id => $arr_connection) {
-								
-								if (empty($arr_selection['object_descriptions'][$object_description_id])) {
-									$arr_selection_required['object_descriptions'][$object_description_id]['object_description_reference'] = $object_description_id;
-								}
+								$arr_selection_required = $this->collectConnectionSelection($arr_connection, $arr_selection_required, $arr_selection);
 							}
 							
 							foreach (($arr_target_type_object_connections['object_sub_details'] ?? []) as $object_sub_details_id => $arr_object_sub_connections) {
 														
 								foreach ($arr_object_sub_connections as $object_sub_connection_id => $arr_connection) {
-									
-									if ($object_sub_connection_id === 'object_sub_location') {
-										
-										if (empty($arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details'])) {
-											
-											$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_details'] = ['object_sub_location_reference' => true];
-											
-											if (!isset($arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'])) {
-												$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] = [];
-											}
-										}
-									} else {
-									
-										if (empty($arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id])) {
-											
-											$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_connection_id]['object_sub_description_reference'] = $object_sub_connection_id;
-											
-											if (empty($arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details'])) {
-												$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_details'] = [];
-											}
-										}
-									}
+									$arr_selection_required = $this->collectConnectionSelection($arr_connection, $arr_selection_required, $arr_selection);
 								}
 							}
 						}
@@ -1289,7 +1438,7 @@ class CollectTypesObjects {
 
 							$arr_date_statement['start_end'] = ($date_start_end == 'start' ? StoreType::DATE_START_START : StoreType::DATE_END_END);
 							
-							$this->arr_path_object_connection_dates[$path_source][$arr_date_statement['source_target']][$arr_date_statement['identifier']] = $arr_date_statement;
+							$this->arr_path_connection_dates[$path_source][$arr_date_statement['source_target']][$arr_date_statement['identifier']] = $arr_date_statement;
 						}
 					}
 					
@@ -1431,14 +1580,14 @@ class CollectTypesObjects {
 					
 						// Post-collect source connection values
 
-						if ($in_out != 'start' && isset($this->arr_path_object_connection_dates[$path_source])) {
+						if ($in_out != 'start' && isset($this->arr_path_connection_dates[$path_source])) {
 
-							foreach ($this->arr_path_object_connection_dates[$path_source] as $source_target => $arr_date_statements) {
+							foreach ($this->arr_path_connection_dates[$path_source] as $source_target => $arr_date_statements) {
 								
 								if ($source_target == 'source') {
-									$arr_object_dates = $this->collectObjectConnectionDates($arr_date_statements, $source_type_id, $filter_source);
+									$arr_object_dates = $this->collectObjectsConnectionDates($arr_date_statements, $source_type_id, $filter_source);
 								} else {
-									$arr_object_dates = $this->collectObjectConnectionDates($arr_date_statements, $target_type_id, $filter);
+									$arr_object_dates = $this->collectObjectsConnectionDates($arr_date_statements, $target_type_id, $filter);
 								}
 								
 								if (isset($this->arr_path_objects_dates[$path_source][$source_target])) {
@@ -1461,8 +1610,8 @@ class CollectTypesObjects {
 				
 		return $arr;
 	}
-	
-	protected function collectObjectConnectionDates($arr_date_collect, $type_id, $filter) {
+		
+	protected function collectObjectsConnectionDates($arr_date_collect, $type_id, $filter) {
 		
 		$arr_type_set_date_flat = StoreType::getTypeSetFlat($type_id, ['object_sub_details_date' => true, 'object_sub_details_location' => false]);
 
@@ -1510,6 +1659,79 @@ class CollectTypesObjects {
 		return $arr_object_dates;
 	}
 	
+	protected function collectConnectionSelection($arr_connection, $arr_selection_required, $arr_selection) {
+		
+		if (!$arr_selection) {
+			return $arr_selection_required;
+		}
+		
+		if (isset($arr_connection['object_description_id'])) {
+			
+			$object_description_id = $arr_connection['object_description_id'];
+		
+			$arr_check_selection = ($arr_selection['object_descriptions'][$object_description_id] ?? null);
+			
+			if ($arr_connection['mutable']) {
+				
+				$target_type_id = $arr_connection['ref_type_id'];
+				
+				if (empty($arr_check_selection) || (is_array($arr_check_selection['object_description_reference']) && !in_array($target_type_id, $arr_check_selection['object_description_reference']))) {
+					
+					$arr_selection_required['object_descriptions'][$object_description_id]['object_description_reference'][$target_type_id] = $target_type_id;
+					$arr_selection_required['object_descriptions'][$object_description_id]['connection'] = $arr_connection;
+				}
+			} else {
+				
+				if (!$arr_check_selection) {
+					$arr_selection_required['object_descriptions'][$object_description_id]['object_description_reference'] = true;
+				}
+			}
+		} else if (isset($arr_connection['object_sub_description_id'])) {
+			
+			$object_sub_description_id = $arr_connection['object_sub_description_id'];
+			$object_sub_details_id = $arr_connection['object_sub_details_id'];
+			$arr_check_selection = ($arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id] ?? null);
+			$do_check_object_sub_details = false;
+			
+			if ($arr_connection['mutable']) {
+				
+				$target_type_id = $arr_connection['ref_type_id'];
+
+				if (empty($arr_check_selection) || (is_array($arr_check_selection['object_sub_description_reference']) && !in_array($target_type_id, $arr_check_selection['object_sub_description_reference']))) {
+					
+					$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_reference'][$target_type_id] = $target_type_id;
+					$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['connection'] = $arr_connection;
+					$do_check_object_sub_details = true;
+				}
+			} else {
+			
+				if (!$arr_check_selection) {
+					
+					$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_reference'] = true;
+					$do_check_object_sub_details = true;
+				}
+			}
+			
+			if ($do_check_object_sub_details && empty($arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details'])) {
+				$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_details'] = [];
+			}
+		} else if (isset($arr_connection['object_sub_location'])) {
+			
+			$object_sub_details_id = $arr_connection['object_sub_details_id'];
+			
+			if (empty($arr_selection['object_sub_details'][$object_sub_details_id]['object_sub_details'])) {
+				
+				$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_details'] = ['object_sub_location_reference' => true];
+				
+				if (!isset($arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'])) {
+					$arr_selection_required['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'] = [];
+				}
+			}
+		}
+		
+		return $arr_selection_required;
+	}
+	
 	protected function collectFilters($arr_type_connections) {
 		
 		$arr = [];
@@ -1537,9 +1759,13 @@ class CollectTypesObjects {
 					
 					if ($in_out == 'out') {
 						
-						if ($arr_connection['dynamic']) {
+						if ($arr_connection['mutable']) {
 							
-							$arr_filter['object_filter'][]['object_definitions'][$object_description_id]['type_tags'][$arr_connection['ref_type_id']]['objects'][] = $arr_source_filters;
+							if ($arr_connection['dynamic']) {
+								$arr_filter['object_filter'][]['object_definitions'][$object_description_id]['type_tags'][$arr_connection['ref_type_id']]['objects'][] = $arr_source_filters;
+							} else {
+								$arr_filter['object_filter'][]['object_definitions'][$object_description_id][$arr_connection['ref_type_id']][] = $arr_source_filters;
+							}
 						} else {
 							
 							$arr_filter['object_filter'][]['object_definitions'][$object_description_id][] = $arr_source_filters;
@@ -1548,7 +1774,8 @@ class CollectTypesObjects {
 						
 						$arr_filter['object_filter'][]['referenced_types'][$arr_connection['type_id']]['object_definitions'][$object_description_id][] = $arr_source_filters;
 					}
-				}						
+				}
+				
 				foreach (($arr_type_object_connections['object_sub_details'] ?? []) as $object_sub_details_id => $arr_object_sub_connections) {
 												
 					foreach ($arr_object_sub_connections as $object_sub_connection_id => $arr_connection) {
@@ -1567,9 +1794,13 @@ class CollectTypesObjects {
 							
 							if ($in_out == 'out') {
 								
-								if ($arr_connection['dynamic']) {
+								if ($arr_connection['mutable']) {
 									
-									$arr_filter['object_filter'][]['object_subs'][$object_sub_details_id]['object_sub_definitions'][$object_sub_connection_id]['type_tags'][$arr_connection['ref_type_id']]['objects'][] = $arr_source_filters;
+									if ($arr_connection['dynamic']) {
+										$arr_filter['object_filter'][]['object_subs'][$object_sub_details_id]['object_sub_definitions'][$object_sub_connection_id]['type_tags'][$arr_connection['ref_type_id']]['objects'][] = $arr_source_filters;
+									} else {
+										$arr_filter['object_filter'][]['object_subs'][$object_sub_details_id]['object_sub_definitions'][$object_sub_connection_id][$arr_connection['ref_type_id']][] = $arr_source_filters;
+									}
 								} else {
 									
 									$arr_filter['object_filter'][]['object_subs'][$object_sub_details_id]['object_sub_definitions'][$object_sub_connection_id][] = $arr_source_filters;

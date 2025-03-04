@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -13,7 +13,9 @@ class StoreCustomProject {
 	
 	const ACCESS_PURPOSE_VIEW = 'view';
 	const ACCESS_PURPOSE_EDIT = 'edit';
+	const ACCESS_PURPOSE_CREATE = 'create';
 	const ACCESS_PURPOSE_ANY = 'any';
+	const ACCESS_PURPOSE_NONE = '';
 	
 	const MODE_UPDATE = 1;
 	const MODE_OVERWRITE = 2;
@@ -131,18 +133,19 @@ class StoreCustomProject {
 					$str_information = trim($arr_definition['type_information']);
 					$str_information = ($str_information ? "'".DBFunctions::strEscape($str_information)."'" : 'NULL');					
 				}
-				
 				$has_information = ($str_information !== null);
+				
+				$num_type_edit = ($arr_definition['type_edit'] == static::ACCESS_PURPOSE_CREATE ? 2 : ($arr_definition['type_edit'] == static::ACCESS_PURPOSE_EDIT ? 1 : 0));
 				
 				$res = DB::query("UPDATE ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPES')." SET
 						color = '".str2Color($arr_definition['color'])."',
 						".($has_information ? "type_information = ".$str_information."," : "")."
 						type_filter_id = ".(int)$arr_definition['type_filter_id'].",
-						type_filter_object_subs = ".(int)$arr_definition['type_filter_object_subs'].",
+						type_filter_object_subs = ".DBFunctions::escapeAs($arr_definition['type_filter_object_subs'], DBFunctions::TYPE_BOOLEAN).",
 						type_context_id = ".(int)$arr_definition['type_context_id'].",
 						type_frame_id = ".(int)$arr_definition['type_frame_id'].",
 						type_condition_id = ".(int)$arr_definition['type_condition_id'].",
-						type_edit = ".DBFunctions::escapeAs($arr_definition['type_edit'], DBFunctions::TYPE_BOOLEAN).",
+						type_edit = ".(int)$num_type_edit.",
 						configuration_exclude = ".DBFunctions::escapeAs(($has_configuration && $arr_definition['configuration_exclude']), DBFunctions::TYPE_BOOLEAN).",
 						sort = ".$i."
 					WHERE project_id = ".$this->project_id." AND type_id = ".(int)$type_id."
@@ -579,7 +582,6 @@ class StoreCustomProject {
 		while ($arr_row = $arr_res[0]->fetchAssoc()) {
 			
 			if (!isset($arr[$arr_row['id']])) {
-				
 				$arr[$arr_row['id']] = ['project' => $arr_row, 'types' => [], 'date_types' => [], 'location_types' => [], 'source_types' => [], 'use_projects' => []];
 			}
 			
@@ -589,7 +591,10 @@ class StoreCustomProject {
 				
 				if (!$s_arr) {
 					
-					$arr_row['type_edit'] = DBFunctions::unescapeAs($arr_row['type_edit'], DBFunctions::TYPE_BOOLEAN);
+					$arr_row['type_filter_object_subs'] = DBFunctions::unescapeAs($arr_row['type_filter_object_subs'], DBFunctions::TYPE_BOOLEAN);
+					$arr_row['configuration_exclude'] = DBFunctions::unescapeAs($arr_row['configuration_exclude'], DBFunctions::TYPE_BOOLEAN);
+					$arr_row['type_edit'] = ($arr_row['type_edit'] == 2 ? static::ACCESS_PURPOSE_CREATE : ($arr_row['type_edit'] == 1 ? static::ACCESS_PURPOSE_EDIT : static::ACCESS_PURPOSE_NONE));
+					
 					$s_arr = $arr_row;
 				}
 				
@@ -709,6 +714,8 @@ class StoreCustomProject {
 				if ($arr_referenced_object_description['object_description_is_dynamic']) { // In the referenced view the focus lies with the singular source type, not the dynamic values.
 					$s_arr['object_description_is_dynamic'] = false;
 					$s_arr['object_description_value_type'] = 'reference';
+				} else if (is_array($arr_referenced_object_description['object_description_ref_type_id'])) { // Mutable references become singular plain references.
+					$s_arr['object_description_value_type'] = 'reference';
 				}
 			}
 			
@@ -718,7 +725,7 @@ class StoreCustomProject {
 					
 					$arr_referenced_object_sub_description = $arr_referenced_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
 					
-					if (($purpose != static::ACCESS_PURPOSE_ANY && !$arr_options[$purpose]) || !isset($arr_referenced_object_sub_description) || !$arr_referenced_object_sub_description['object_sub_description_ref_type_id']) {
+					if (($purpose != static::ACCESS_PURPOSE_ANY && !$arr_options[$purpose]) || !isset($arr_referenced_object_sub_description) || !$arr_referenced_object_sub_description['object_sub_description_ref_type_id'] || $arr_referenced_object_sub_description['object_sub_description_use_object_description_id']) {
 						continue;
 					}
 					
@@ -735,6 +742,8 @@ class StoreCustomProject {
 					
 					if ($arr_referenced_object_sub_description['object_sub_description_is_dynamic']) { // In the referenced view the focus lies with the singular source type, not the dynamic values.
 						$s_arr['object_sub_description_is_dynamic'] = false;
+						$s_arr['object_sub_description_value_type'] = 'reference';
+					} else if (is_array($arr_referenced_object_sub_description['object_sub_description_ref_type_id'])) { // Mutable references become singular plain references.
 						$s_arr['object_sub_description_value_type'] = 'reference';
 					}
 					
@@ -810,14 +819,22 @@ class StoreCustomProject {
 			$is_found = ($arr_project['types'][$type_id] ? 'project' : false);
 		}
 		
-		if ($type == static::ACCESS_PURPOSE_EDIT) {
+		if ($type == static::ACCESS_PURPOSE_EDIT || $type == static::ACCESS_PURPOSE_CREATE) {
 			
 			if ($is_found) {
 				
 				if ($type_id < 0) {
+					
 					$is_found = true;
-				} else if (!$arr_project['types'][$type_id]['type_edit']) {
-					$is_found = false;
+				} else {
+					
+					$type_edit = $arr_project['types'][$type_id]['type_edit'];
+					
+					if ($type == static::ACCESS_PURPOSE_CREATE && $type_edit != static::ACCESS_PURPOSE_CREATE) {
+						$is_found = false;
+					} else if ($type == static::ACCESS_PURPOSE_EDIT && $type_edit != static::ACCESS_PURPOSE_CREATE && $type_edit != static::ACCESS_PURPOSE_EDIT) {
+						$is_found = false;
+					}
 				}
 			}
 		} else {

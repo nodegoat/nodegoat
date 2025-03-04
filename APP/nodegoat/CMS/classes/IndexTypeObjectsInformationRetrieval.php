@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -319,7 +319,7 @@ class IndexTypeObjectsInformationRetrieval {
 			nodegoat_to.type_id,
 			nodegoat_to.id,
 			nodegoat_to_def.object_description_id,
-			".DBFunctions::sqlImplode($arr_sql_type_value['select'], ', ')." AS value
+			".DBFunctions::group2String($arr_sql_type_value['select'], ', ')." AS value
 				FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
 				".($this->table_name_objects ? "JOIN ".$this->table_name_objects." nodegoat_to_changed ON (nodegoat_to_changed.id = nodegoat_to.id)" : "")."
 				JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_DEFINITIONS')." nodegoat_to_def ON (nodegoat_to_def.object_id = nodegoat_to.id AND ".GenerateTypeObjects::generateVersioning(false, 'search', 'nodegoat_to_def').")
@@ -398,7 +398,7 @@ class IndexTypeObjectsInformationRetrieval {
 			nodegoat_to.id,
 			nodegoat_tos_def.object_sub_id,
 			nodegoat_tos_def.object_sub_description_id,
-			".DBFunctions::sqlImplode($arr_sql_type_value['select'], ', ')." AS value
+			".DBFunctions::group2String($arr_sql_type_value['select'], ', ')." AS value
 				FROM ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS')." nodegoat_to
 				".($this->table_name_objects ? "JOIN ".$this->table_name_objects." nodegoat_to_changed ON (nodegoat_to_changed.id = nodegoat_to.id)" : "")."
 				JOIN ".DB::getTable('DATA_NODEGOAT_TYPE_OBJECT_SUBS')." nodegoat_tos ON (nodegoat_tos.object_id = nodegoat_to.id AND ".GenerateTypeObjects::generateVersioning(false, 'search', 'nodegoat_tos').")

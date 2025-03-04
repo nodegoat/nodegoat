@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -67,6 +67,8 @@ class publish extends base_module {
 		if (isset($this->arr_query['download'])) {
 
 			try {
+				
+				Response::addHeaders('X-Robots-Tag: noindex');
 			
 				if ($this->arr_query['download'][0] == 'archive') {
 					
@@ -90,16 +92,22 @@ class publish extends base_module {
 			SiteEndEnvironment::setShortcut($this->mod_id, $this->arr_mod['shortcut'], $this->arr_mod['shortcut_root']);
 		}
 		
-		$arr_settings = ['url_file' => SiteStartEnvironment::getModuleURL($this->mod_id).$project_id.'/'.$str_date.'/download.v/'];
+		$arr_settings = [
+			'url_file' => SiteStartEnvironment::getModuleURL($this->mod_id).$project_id.'/'.$str_date.'/download.v/',
+			'url_file_attributes' => 'rel="nofollow"'
+		];
 		
 		$arr = $publish->getProject1100CC($arr_instance_project, $arr_settings);
 		
 		$str_title = $arr['title'].' ('.date('d-m-Y', strtotime($arr['date'])).')';
 		
 		SiteEndEnvironment::addTitle($str_title);
-		SiteEndEnvironment::addStyle($arr['style']);
+		
+		/*SiteEndEnvironment::addStyle($arr['style']);
 
-		$str_html = $arr['body'];
+		$str_html = $arr['body'];*/
+		
+		$str_html = '<template><style>'.$arr['style'].'</style>'.$arr['body'].'</template>';
 		
 		return $str_html;
 	}
@@ -113,7 +121,11 @@ class publish extends base_module {
 	
 	public static function js() {
 
-		$return = "";
+		$return = "
+			SCRIPTER.static('.publish', function(elm_scripter) {
+				ASSETS.createDocumentHost(elm_scripter.find('template'), 'page-publication');
+			});
+		";
 		
 		return $return;
 	}

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -246,7 +246,7 @@ class publish_instances extends base_module {
 			
 			$arr_data = $_POST;
 			
-			foreach ($arr_data['projects'] as $project_id) {
+			foreach ((array)$arr_data['projects'] as $project_id) {
 				
 				if (!$_SESSION['CUR_USER'][DB::getTableName('DEF_NODEGOAT_CUSTOM_PROJECTS')][$project_id]) {
 					error(getLabel('msg_not_allowed'));

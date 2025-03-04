@@ -1,18 +1,18 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
-function MapTimeline(element, obj_parent, options) {
+function MapTimeline(element, PARENT, options) {
 
 	var elm = $(element),
-	obj = this,
-	obj_map = obj_parent.obj_map;
+	elm_host = PARENT.elm_paint_host,
+	obj = this;
 
 	var	arr_data = {};
 		
@@ -56,7 +56,7 @@ function MapTimeline(element, obj_parent, options) {
 	mean = false,
 	num_width_bar = 20,
 	num_height_max = false,
-	font_family = window.getComputedStyle(elm[0])['font-family'],
+	font_family = window.getComputedStyle(elm_host)['font-family'],
 	size_text = 10,
 	color_bar = false,
 	opacity_bar = 0.5,
@@ -92,15 +92,15 @@ function MapTimeline(element, obj_parent, options) {
 			color_bar = options.arr_visual.time.bar.color;
 		}
 		
-		var pos_map = obj_map.getPosition();
+		var pos_map = PARENT.obj_map.getPosition();
 		
-		/*ASSETS.fetch({
+		/*ASSETS.fetch(elm_host, {
 			font: [
 				'pixel'
 			]
 		}, function() {*/
 			
-			arr_data = obj_parent.getData();
+			arr_data = PARENT.getData();
 			
 			num_resolution = pos_map.render.resolution;
 
@@ -164,13 +164,13 @@ function MapTimeline(element, obj_parent, options) {
 				
 				obj.drawData = drawData;
 				
-				obj_parent.doDraw();
+				PARENT.doDraw();
 				
 			};
 			
 			count_start++ // Labels loading
 			
-			ASSETS.getLabels(elm,
+			ASSETS.getLabels(elm_host,
 				['lbl_condition', 'lbl_conditions', 'lbl_object_subs', 'lbl_object', 'lbl_objects', 'lbl_relative', 'lbl_cumulative', 'lbl_total', 'lbl_amount', 'lbl_date'],
 				function(data) {
 					
@@ -199,7 +199,7 @@ function MapTimeline(element, obj_parent, options) {
 					
 					count_start++ // Media loading
 					
-					ASSETS.fetch({media: arr_media}, function() {
+					ASSETS.fetch(elm_host, {media: arr_media}, function() {
 
 						count_start--; // Media loaded
 						
@@ -213,11 +213,7 @@ function MapTimeline(element, obj_parent, options) {
 
 	this.close = function() {
 		
-		if (!obj_map) { // Nothing loaded yet
-			return;
-		}
-
-		runElementsSelectorFunction(obj_parent.elm_controls, '.legends figure[class^="timeline-graph"]', function(elm) {
+		runElementsSelectorFunction(PARENT.elm_controls, '.legends figure[class^="timeline-graph"]', function(elm) {
 			elm.remove();
 		});
 	};
@@ -234,7 +230,6 @@ function MapTimeline(element, obj_parent, options) {
 				for (const object_id in arr_data.objects) {
 					
 					if (graph_objects_type_id == arr_data.objects[object_id].type_id) {
-						
 						number_of_plots++;
 					}	
 				}
@@ -243,11 +238,9 @@ function MapTimeline(element, obj_parent, options) {
 			if (graph_conditions) {
 				
 				for (const condition_identifier in obj_conditions) {
-					
 					number_of_plots++;
 				}
 			}
-			
 		} else {
 			
 			number_of_plots = 1;
@@ -297,7 +290,7 @@ function MapTimeline(element, obj_parent, options) {
 	var addListeners = function() {
 		
 		let elm_legends = false;
-		runElementSelectorFunction(obj_parent.elm_controls, '.legends', function(elm_legend) {
+		runElementSelectorFunction(PARENT.elm_controls, '.legends', function(elm_legend) {
 			elm_legends = elm_legend;
 		});
 		
@@ -359,7 +352,7 @@ function MapTimeline(element, obj_parent, options) {
 				
 				elm_button.addEventListener('click', function(e) {
 					
-					runElementSelectorFunction(obj_parent.elm_controls, '.timeline-graphs button', function(elm_inactive_button) {
+					runElementSelectorFunction(PARENT.elm_controls, '.timeline-graphs button', function(elm_inactive_button) {
 						elm_inactive_button.classList.remove('active');
 					});
 		
@@ -436,12 +429,12 @@ function MapTimeline(element, obj_parent, options) {
 			});
 		}	
 		
-		ASSETS.getIcons(elm, ["chart-graph", "tiles-few"], function(data) {
+		ASSETS.getIcons(elm_host, ["chart-graph", "tiles-few"], function(data) {
 
-			runElementSelectorFunction(obj_parent.elm_controls, '.show-objects > .icon', function(elm_icon) {
+			runElementSelectorFunction(PARENT.elm_controls, '.show-objects > .icon', function(elm_icon) {
 				elm_icon.innerHTML = data["chart-graph"];
 			});
-			runElementSelectorFunction(obj_parent.elm_controls, '.show-objects-grid > .icon', function(elm_icon) {
+			runElementSelectorFunction(PARENT.elm_controls, '.show-objects-grid > .icon', function(elm_icon) {
 				elm_icon.innerHTML = data["tiles-few"];
 			});
 		});
@@ -554,18 +547,16 @@ function MapTimeline(element, obj_parent, options) {
 		
 		elm[0].addEventListener('mousemove', function(e) {
 		
-			var pos_hover = obj_map.getMousePosition();
+			var pos_hover = PARENT.obj_map.getMousePosition();
 			var do_redraw = false; 
 	
 			if (!pos_hover) {
 				
-				if (pos_hover_poll.x) {
-					
+				if (pos_hover_poll.x) {	
 					pos_hover_poll = pos_hover;
 				}
-				
 			} else {
-										
+				
 				var x_point = pos_hover.x * num_resolution;
 				var y_point = pos_hover.y * num_resolution;
 				var date_string = false;
@@ -580,7 +571,7 @@ function MapTimeline(element, obj_parent, options) {
 					var bar_id = false;
 					var info_box = false;
 					
-					elm.addClass('hovering');
+					elm_host.classList.add('hovering');
 					
 					// First check if hovering over circle
 					for (var i = 0, len = arr_circles.length; i < len; i++) {
@@ -775,8 +766,8 @@ function MapTimeline(element, obj_parent, options) {
 								}
 							}
 							
-							elm[0].arr_link = {object_sub_ids: arr_object_sub_ids};
-							elm[0].setAttribute('title', str_title);
+							elm_host.arr_link = {object_sub_ids: arr_object_sub_ids};
+							elm_host.setAttribute('title', str_title);
 							TOOLTIP.update();
 						}
 						
@@ -881,8 +872,8 @@ function MapTimeline(element, obj_parent, options) {
 								}
 							}
 							
-							elm[0].arr_link = {object_sub_ids: arr_object_sub_ids};
-							elm[0].setAttribute('title', str_title);
+							elm_host.arr_link = {object_sub_ids: arr_object_sub_ids};
+							elm_host.setAttribute('title', str_title);
 							TOOLTIP.update();
 						}
 						
@@ -893,9 +884,9 @@ function MapTimeline(element, obj_parent, options) {
 							do_redraw = true;
 							hover_id = bar_id;
 							
-							elm[0].arr_link = {object_sub_ids: arr_date_intervals[date_string].sorted_object_sub_ids[type_id][object_sub_details_id].ids};
+							elm_host.arr_link = {object_sub_ids: arr_date_intervals[date_string].sorted_object_sub_ids[type_id][object_sub_details_id].ids};
 
-							elm[0].setAttribute('title', '<span>'+arr_data.info.types[type_id].name+'</span> <span class="sub-name">'+arr_data.info.object_sub_details[object_sub_details_id].object_sub_details_name+'</span> '+arr_date_intervals[date_string].sorted_object_sub_ids[type_id][object_sub_details_id].amount+'');
+							elm_host.setAttribute('title', '<span>'+arr_data.info.types[type_id].name+'</span> <span class="sub-name">'+arr_data.info.object_sub_details[object_sub_details_id].object_sub_details_name+'</span> '+arr_date_intervals[date_string].sorted_object_sub_ids[type_id][object_sub_details_id].amount+'');
 							TOOLTIP.update();
 
 						}
@@ -1029,11 +1020,8 @@ function MapTimeline(element, obj_parent, options) {
 						
 						str_title = str_title+'</ul>';
 						
-						elm[0].setAttribute('title', str_title);
-						
-						
-						TOOLTIP.update();					
-					
+						elm_host.setAttribute('title', str_title);						
+						TOOLTIP.update();
 					} else {
 						
 						if (hover_id) {
@@ -1041,12 +1029,12 @@ function MapTimeline(element, obj_parent, options) {
 						}
 					
 						hover_id = false;
-						elm[0].removeAttribute('title');
-						elm.removeClass('hovering');
+						elm_host.removeAttribute('title');
+						elm_host.classList.remove('hovering');
 						TOOLTIP.update();
 	
-						elm[0].arr_link = false;
-						elm[0].arr_info_box = false;						
+						elm_host.arr_link = false;
+						elm_host.arr_info_box = false;						
 					}
 				}
 			}
@@ -1166,7 +1154,11 @@ function MapTimeline(element, obj_parent, options) {
 			
 			const arr_condition = arr_data.legend.conditions[condition_identifier];
 			
-			obj_conditions[condition_identifier] = {label: (arr_condition.label ? arr_condition.label : 'N/A'), color: arr_condition.color, icon: arr_condition.icon, weight: arr_condition.weight, positions: [], path_elm: false, circle_elms: []};
+			if (!arr_condition.label) {
+				continue;
+			}
+			
+			obj_conditions[condition_identifier] = {label: arr_condition.label, color: arr_condition.color, icon: arr_condition.icon, weight: arr_condition.weight, positions: [], path_elm: false, circle_elms: []};
 			has_conditions = true;
 		}
 		
@@ -1319,33 +1311,21 @@ function MapTimeline(element, obj_parent, options) {
 	
 	var checkInRange = function(arr_object_sub) {
 						
-		if (obj_parent.obj_data.arr_inactive_object_sub_details[arr_object_sub.object_sub_details_id]) {
+		if (PARENT.obj_data.arr_inactive_object_sub_details[arr_object_sub.object_sub_details_id]) {
 			return false;
 		}
 		
-		var len = obj_parent.obj_data.arr_loop_inactive_conditions.length;
+		const len = PARENT.obj_data.arr_loop_inactive_conditions.length;
 		
 		if (len) {
 			
-			var arr_conditions = arr_object_sub.style.conditions;
+			const arr_conditions = arr_object_sub.style_inherit.conditions;
 			
 			if (arr_conditions) {
 				
-				for (var i = 0; i < len; i++) {
+				for (let i = 0; i < len; i++) {
 					
-					if (arr_conditions[obj_parent.obj_data.arr_loop_inactive_conditions[i]]) {
-						return false;
-					}
-				}
-			}
-			
-			arr_conditions = arr_data.objects[arr_object_sub.object_id].style.conditions;
-			
-			if (arr_conditions) {
-				
-				for (var i = 0; i < len; i++) {
-					
-					if (arr_conditions[obj_parent.obj_data.arr_loop_inactive_conditions[i]]) {
+					if (arr_conditions[PARENT.obj_data.arr_loop_inactive_conditions[i]] !== undefined) {
 						return false;
 					}
 				}
@@ -1360,57 +1340,62 @@ function MapTimeline(element, obj_parent, options) {
 		// Single date sub objects
 		for (let i = 0, len = arr_data.date.arr_loop.length; i < len; i++) {
 			
-			var date = arr_data.date.arr_loop[i];
-			var dateinta = DATEPARSER.dateInt2Absolute(date);
-			var in_range_date = (dateinta >= date_int_absolute_range.min && dateinta <= date_int_absolute_range.max);
-			var arr_object_subs = arr_data.date[date];
+			const date = arr_data.date.arr_loop[i];
+			const dateinta = DATEPARSER.dateInt2Absolute(date);
+			const in_range_date = (dateinta >= date_int_absolute_range.min && dateinta <= date_int_absolute_range.max);
+			const arr_object_subs = arr_data.date[date];
 		
 			for (let j = 0, len_j = arr_object_subs.length; j < len_j; j++) {
 				
-				var in_range = in_range_date;
+				const object_sub_id = arr_object_subs[j];
+				const arr_object_sub = arr_data.object_subs[object_sub_id];
+				
+				if (arr_object_sub.object_sub_details_id === 'object' || arr_object_sub.object_sub_details_id === 'collapse') {
+					continue;
+				}
+				
+				let in_range = in_range_date;
 				
 				if (in_range) {
-					
-					var arr_object_sub = arr_data.object_subs[arr_object_subs[j]];
-					
 					in_range = checkInRange(arr_object_sub);
 				}
 				
-				setObjectSub(arr_object_subs[j], !in_range);
+				setObjectSub(object_sub_id, !in_range);
 			}
 		}
 		
 		// Sub objects with a date range
 		for (let i = 0, len = arr_data.range.length; i < len; i++) {
 			
-			var arr_object_sub = arr_data.object_subs[arr_data.range[i]];
+			const object_sub_id = arr_data.range[i];
+			const arr_object_sub = arr_data.object_subs[object_sub_id];
 			
-			var dateinta_start = DATEPARSER.dateInt2Absolute(arr_object_sub.date_start);
-			var dateinta_end = DATEPARSER.dateInt2Absolute(arr_object_sub.date_end);
+			if (arr_object_sub.object_sub_details_id === 'object' || arr_object_sub.object_sub_details_id === 'collapse') {
+				continue;
+			}
 			
-			var in_range = ((dateinta_start >= date_int_absolute_range.min && dateinta_start <= date_int_absolute_range.max) || (dateinta_end >= date_int_absolute_range.min && dateinta_end <= date_int_absolute_range.max) || (dateinta_start < date_int_absolute_range.min && dateinta_end > date_int_absolute_range.max));
+			const dateinta_start = DATEPARSER.dateInt2Absolute(arr_object_sub.date_start);
+			const dateinta_end = DATEPARSER.dateInt2Absolute(arr_object_sub.date_end);
+			
+			let in_range = ((dateinta_start >= date_int_absolute_range.min && dateinta_start <= date_int_absolute_range.max) || (dateinta_end >= date_int_absolute_range.min && dateinta_end <= date_int_absolute_range.max) || (dateinta_start < date_int_absolute_range.min && dateinta_end > date_int_absolute_range.max));
 
 			if (in_range) {
 				in_range = checkInRange(arr_object_sub);
 			}
 			
-			setObjectSub(arr_data.range[i], !in_range);
+			setObjectSub(object_sub_id, !in_range);
 		}
 		
 	};
 	
-	var setObjectSub = function(object_sub_id, remove) {
+	var setObjectSub = function(object_sub_id, do_remove) {
 		
-		if (remove) {
+		if (do_remove) {
 			return false;
 		}
 		
 		var object_sub = arr_data.object_subs[object_sub_id];
 		
-		if (object_sub.object_sub_details_id == 'object') {
-			return false;
-		}
-
 		if (interval.name == 'day') {
 			var object_sub_date_start_interval = parseInt(object_sub.date_start);
 			var object_sub_date_end_interval = parseInt(object_sub.date_end);
@@ -1420,9 +1405,8 @@ function MapTimeline(element, obj_parent, options) {
 		}
 		
 		if (object_sub_date_start_interval == object_sub_date_end_interval) {
-
+		
 			addSubToInterval(object_sub_id, 'date_'+object_sub_date_start_interval);
-			
 		} else {
 			
 			for (var key in arr_date_intervals) {
@@ -1444,46 +1428,47 @@ function MapTimeline(element, obj_parent, options) {
 	
 	var addSubToInterval = function(object_sub_id, key) {
 
-		if (arr_date_intervals[key]) {
+		if (!arr_date_intervals[key]) {
+			return;
+		}
 			
-			var object_sub = arr_data.object_subs[object_sub_id];
-			var object = arr_data.objects[object_sub.object_id];
-			var type_id = getObjectSubTypeId(object_sub.object_sub_details_id);
+		var object_sub = arr_data.object_subs[object_sub_id];
+		var object = arr_data.objects[object_sub.object_id];
+		var type_id = getObjectSubTypeId(object_sub.object_sub_details_id);
+		
+		if (arr_date_intervals[key].sorted_object_sub_ids[type_id] && arr_date_intervals[key].sorted_object_sub_ids[type_id][object_sub.object_sub_details_id]) {
 			
-			if (arr_date_intervals[key].sorted_object_sub_ids[type_id] && arr_date_intervals[key].sorted_object_sub_ids[type_id][object_sub.object_sub_details_id]) {
-				
-				arr_date_intervals[key].unsorted_weighted_object_sub_ids_amount += (object_sub.style.weight ? object_sub.style.weight : 1);
-				
-				if (arr_date_intervals[key].unsorted_weighted_object_sub_ids_amount > max_object_subs_amount) {
-					max_object_subs_amount = arr_date_intervals[key].unsorted_weighted_object_sub_ids_amount;
-				}
-				
-				total_amount += (object_sub.style.weight ? object_sub.style.weight : 1);
-				
-				arr_date_intervals[key].sorted_object_sub_ids[type_id][object_sub.object_sub_details_id].amount += (object_sub.style.weight ? object_sub.style.weight : 1);
-				arr_date_intervals[key].sorted_object_sub_ids[type_id][object_sub.object_sub_details_id].ids.push(object_sub_id);	
+			arr_date_intervals[key].unsorted_weighted_object_sub_ids_amount += (object_sub.style_inherit.weight ? object_sub.style_inherit.weight : 1);
+			
+			if (arr_date_intervals[key].unsorted_weighted_object_sub_ids_amount > max_object_subs_amount) {
+				max_object_subs_amount = arr_date_intervals[key].unsorted_weighted_object_sub_ids_amount;
 			}
 			
-			// Object Sub Style Conditions are inherited from Object Style Conditions (see MapData 251)
-			if (object_sub.style.conditions) {
-				addConditionsToInterval(object_sub.style.conditions, object_sub, object_sub_id, key);
-			}
+			total_amount += (object_sub.style_inherit.weight ? object_sub.style_inherit.weight : 1);
 			
-			// Plot Objects of Type as paths
-			if (graph_objects_type_id) {
-				
-				let object_sub_connected_object_ids_amount = object_sub.connected_object_ids.length;
+			arr_date_intervals[key].sorted_object_sub_ids[type_id][object_sub.object_sub_details_id].amount += (object_sub.style_inherit.weight ? object_sub.style_inherit.weight : 1);
+			arr_date_intervals[key].sorted_object_sub_ids[type_id][object_sub.object_sub_details_id].ids.push(object_sub_id);	
+		}
+		
+		// Object Sub Style Conditions are inherited from Object Style Conditions (see MapData)
+		if (object_sub.style_inherit.conditions) {
+			addConditionsToInterval(object_sub.style_inherit.conditions, object_sub, object_sub_id, key);
+		}
+		
+		// Plot Objects of Type as paths
+		if (graph_objects_type_id) {
+			
+			let object_sub_connected_object_ids_amount = object_sub.connected_object_ids.length;
 
-				if (object_sub_connected_object_ids_amount == 1) {
+			if (object_sub_connected_object_ids_amount == 1) {
+				
+				addObjectToInterval(object_sub.connected_object_ids[0], object_sub_id, key);
+				
+			} else if (object_sub_connected_object_ids_amount > 1) { 
+				
+				for (let i = 0; i < object_sub_connected_object_ids_amount; i++) {
 					
-					addObjectToInterval(object_sub.connected_object_ids[0], object_sub_id, key);
-					
-				} else if (object_sub_connected_object_ids_amount > 1) { 
-					
-					for (let i = 0; i < object_sub_connected_object_ids_amount; i++) {
-						
-						addObjectToInterval(object_sub.connected_object_ids[i], object_sub_id, key);
-					}
+					addObjectToInterval(object_sub.connected_object_ids[i], object_sub_id, key);
 				}
 			}
 		}
@@ -1531,7 +1516,7 @@ function MapTimeline(element, obj_parent, options) {
 				arr_date_intervals[key].conditions[condition_identifier] = arr_date_condition;
 			}
 			
-			arr_date_condition.amount += (object_sub.style.weight ? object_sub.style.weight : 1);
+			arr_date_condition.amount += (object_sub.style_inherit.weight ? object_sub.style_inherit.weight : 1);
 			arr_date_condition.ids.push(object_sub_id);
 		}
 	}

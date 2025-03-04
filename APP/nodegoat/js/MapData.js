@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -91,8 +91,10 @@ function MapData(element, PARENT, arr_settings_options) {
 				if (typeof arr_object.style === 'undefined') {
 					arr_object.style = [];
 				}
-								
-				if (typeof arr_object.style.weight !== 'undefined' && arr_object.style.weight instanceof Array) {
+				
+				if (arr_object.style.weight == null) {
+					arr_object.style.weight = null;
+				} else if (arr_object.style.weight instanceof Array) {
 					arr_object.style.weight = arr_object.style.weight.reduce(function(acc, val) { return acc + val; }, 0);
 				}
 				
@@ -106,7 +108,9 @@ function MapData(element, PARENT, arr_settings_options) {
 							arr_object_definition.style = [];
 						}
 						
-						if (typeof arr_object_definition.style.weight !== 'undefined' && arr_object_definition.style.weight instanceof Array) {
+						if (arr_object_definition.style.weight == null) {
+							arr_object_definition.style.weight = null;
+						} else if (arr_object_definition.style.weight instanceof Array) {
 							arr_object_definition.style.weight = arr_object_definition.style.weight.reduce(function(acc, val) { return acc + val; }, 0);
 						}
 					}
@@ -124,29 +128,29 @@ function MapData(element, PARENT, arr_settings_options) {
 				arr_data.date = {};
 			}
 			
-			var obj_date_unknown = {start: 0, end: 0};
-			var location_geometry_unknown = '';
+			let arr_date_unknown = {start: 0, end: 0};
+			let str_location_geometry_unknown = '';
 			
-			var unknown_date = (typeof arr_settings.object_subs.unknown.date != 'undefined' ? arr_settings.object_subs.unknown.date : false);
+			let unknown_date = (typeof arr_settings.object_subs.unknown.date != 'undefined' ? arr_settings.object_subs.unknown.date : false);
 			unknown_date = (unknown_date == 'ignore' ? false : unknown_date);
 			if (unknown_date) {
 				if (unknown_date == 'span') {
-					obj_date_unknown = {start: arr_data.date_range.min, end: arr_data.date_range.max};
+					arr_date_unknown = {start: arr_data.date_range.min, end: arr_data.date_range.max};
 				} else if (unknown_date == 'prefix') {
-					obj_date_unknown = {start: arr_data.date_range.min, end: arr_data.date_range.min};
+					arr_date_unknown = {start: arr_data.date_range.min, end: arr_data.date_range.min};
 				} else if (unknown_date == 'affix') {
-					obj_date_unknown = {start: arr_data.date_range.max, end: arr_data.date_range.max};
+					arr_date_unknown = {start: arr_data.date_range.max, end: arr_data.date_range.max};
 				}
-				if (obj_date_unknown.start == obj_date_unknown.end) {
-					if (!arr_data.date[obj_date_unknown.start]) {
-						arr_data.date[obj_date_unknown.start] = [];
+				if (arr_date_unknown.start == arr_date_unknown.end) {
+					if (!arr_data.date[arr_date_unknown.start]) {
+						arr_data.date[arr_date_unknown.start] = [];
 					}
 				}
 			}
-			var unknown_location = (typeof arr_settings.object_subs.unknown.location != 'undefined' ? arr_settings.object_subs.unknown.location : false);
+			let unknown_location = (typeof arr_settings.object_subs.unknown.location != 'undefined' ? arr_settings.object_subs.unknown.location : false);
 			unknown_location = (unknown_location == 'ignore' ? false : unknown_location);
 			if (unknown_location) {
-				location_geometry_unknown = '{"type": "Point", "coordinates": [0, 0]}';
+				str_location_geometry_unknown = '{"type": "Point", "coordinates": [0, 0]}';
 			}
 			
 			if (!arr_data.object_subs) {
@@ -156,14 +160,14 @@ function MapData(element, PARENT, arr_settings_options) {
 			for (const object_sub_id in arr_data.object_subs) {
 				
 				const arr_object_sub = arr_data.object_subs[object_sub_id];
-				
-				arr_data.objects[arr_object_sub.object_id].has_object_subs = true;
-				
-				if (typeof arr_object_sub.style === 'undefined') {
+
+				if (arr_object_sub.style === undefined) {
 					arr_object_sub.style = [];
 				}
 				
-				if (typeof arr_object_sub.style.weight !== 'undefined' && arr_object_sub.style.weight instanceof Array) {
+				if (arr_object_sub.style.weight == null) {
+					arr_object_sub.style.weight = null;
+				} else if (arr_object_sub.style.weight instanceof Array) {
 					arr_object_sub.style.weight = arr_object_sub.style.weight.reduce(function(acc, val) { return acc + val; }, 0);
 				}
 				
@@ -176,24 +180,36 @@ function MapData(element, PARENT, arr_settings_options) {
 						if (typeof arr_object_sub_definition.style === 'undefined') {
 							arr_object_sub_definition.style = [];
 						}
-							
-						if (typeof arr_object_sub_definition.style.weight !== 'undefined' && arr_object_sub_definition.style.weight instanceof Array) {
+						
+						if (arr_object_sub_definition.style.weight == null) {
+							arr_object_sub_definition.style.weight = null;
+						} else if (arr_object_sub_definition.style.weight instanceof Array) {
 							arr_object_sub_definition.style.weight = arr_object_sub_definition.style.weight.reduce(function(acc, val) { return acc + val; }, 0);
 						}
 					}
 				}
 				
-				if (unknown_date && !arr_object_sub.date_start) { // Force date, if applicable, before looping through all sub-objects and connecting them based on their date
+				if (!arr_object_sub.date_start) {
 					
-					arr_object_sub.date_start = obj_date_unknown.start;
-					arr_object_sub.date_end = obj_date_unknown.end;
-					
-					if (obj_date_unknown.start == obj_date_unknown.end) {
-						arr_data.date[obj_date_unknown.start].push(object_sub_id);
+					if (unknown_date) { // Force date, if applicable, before looping through all sub-objects and connecting them based on their date
+						
+						arr_object_sub.date_start = arr_date_unknown.start;
+						arr_object_sub.date_end = arr_date_unknown.end;
+						
+						if (arr_date_unknown.start == arr_date_unknown.end) {
+							arr_data.date[arr_date_unknown.start].push(object_sub_id);
+						} else {
+							arr_data.range.push(object_sub_id);
+						}
 					} else {
-						arr_data.range.push(object_sub_id);
+						
+						delete arr_data.object_subs[object_sub_id];
+						
+						continue;
 					}
 				}
+				
+				arr_data.objects[arr_object_sub.object_id].has_object_subs = true;
 			}
 		
 			for (const object_id in arr_data.objects) {
@@ -204,7 +220,7 @@ function MapData(element, PARENT, arr_settings_options) {
 					continue;
 				}
 								
-				if (unknown_date && !arr_object.has_object_subs) { // Make sure every object has a sub-object to make it 'exist' for relational purposes
+				if (unknown_date && !arr_object.has_object_subs) { // Make sure every Object has a Sub-Object to make it 'exist' for relational purposes
 					
 					var object_sub_id = 'object_'+object_id;
 					
@@ -213,52 +229,73 @@ function MapData(element, PARENT, arr_settings_options) {
 						object_sub_details_id: 'object',
 						location_object_id: false,
 						location_type_id: false,
-						date_start: obj_date_unknown.start,
-						date_end: obj_date_unknown.end,
-						style: []
+						date_start: arr_date_unknown.start,
+						date_end: arr_date_unknown.end,
+						style: {weight: null}
 					};
 					
-					if (obj_date_unknown.start == obj_date_unknown.end) {
-						arr_data.date[obj_date_unknown.start].push(object_sub_id);
+					if (arr_date_unknown.start == arr_date_unknown.end) {
+						arr_data.date[arr_date_unknown.start].push(object_sub_id);
 					} else {
 						arr_data.range.push(object_sub_id);
 					}
 				}
 				
-				// Connect all relevant sub-objects for geographical lineage
+				// Connect all relevant Sub-Objects for geographical lineage
 				
-				if (arr_object.connect_object_sub_ids == undefined) { // Object is not a starting point (i.e. not the main scoped object)
+				if (arr_object.connect_object_sub_ids == undefined) { // Object is not a starting point (i.e. not the main scoped Object)
 					
 					arr_object.connect_object_sub_ids = [];
 				} else {
 					
 					arr_object.connect_object_sub_ids = Object.values(arr_object.connect_object_sub_ids); // Force array
 					
-					const len_i = arr_object.connect_object_sub_ids.length;
-
-					for (let i = 0; i < len_i; i++) {
+					for (let i = 0, len_i = arr_object.connect_object_sub_ids.length; i < len_i; i++) {
 						
 						const object_sub_id = arr_object.connect_object_sub_ids[i];
 						const arr_object_sub = arr_data.object_subs[object_sub_id];
 						
-						// Link sub-objects to the scope of their objects
+						if (arr_object_sub === undefined) { // Removed due to i.e. ignored date
+							
+							arr_object.connect_object_sub_ids.splice(i, 1);
+							
+							i--;
+							len_i--;
+							continue;
+						}
+						
+						// Link Sub-Objects to the scope of their Objects
+						
 						if (!arr_object_sub.connected_object_ids) {
 							arr_object_sub.connected_object_ids = [];
 						}
 						arr_object_sub.connected_object_ids.push(object_id);
-
-						// Visual settings
-						const arr_object_sub_style = arr_object_sub.style;
-						const original_object_id = (arr_object_sub.original_object_id ? arr_object_sub.original_object_id : arr_object_sub.object_id);
-						if (original_object_id != object_id) { // Sub-object is part of a (possibly collapsed) scope, check their native object for the style
-							var arr_object_style = arr_data.objects[original_object_id].style;
-						} else {
-							var arr_object_style = arr_object.style;
+						
+						// Force location
+						
+						if (arr_object_sub.location_geometry === '' && unknown_location) {
+							arr_object_sub.location_geometry = str_location_geometry_unknown;
 						}
+
+						// Visual settings Sub-Object inheritance (Geo and Timeline)
+						
+						arr_object_sub.style_inherit = {};
+						const arr_object_sub_style = arr_object_sub.style_inherit;
+						
+						for (const key in arr_object_sub.style) {
+							arr_object_sub_style[key] = arr_object_sub.style[key];
+						}
+
+						let arr_object_style = arr_object.style;
+						
+						if (arr_object_sub.object_id != object_id) { // Sub-Object is part of a scope, check their native Object (or collapse Object) for the style
+							arr_object_style = arr_data.objects[arr_object_sub.object_id].style;
+						}
+						
 						if (arr_object_style.color && !arr_object_sub_style.color) {
 							arr_object_sub_style.color = arr_object_style.color;
 						}
-						if (arr_object_style.weight != null && arr_object_sub_style.weight == null) {
+						if (arr_object_style.weight !== null && arr_object_sub_style.weight === null) {
 							arr_object_sub_style.weight = arr_object_style.weight;
 						}
 						if (arr_object_style.geometry_color && !arr_object_sub_style.geometry_color) {
@@ -290,12 +327,6 @@ function MapData(element, PARENT, arr_settings_options) {
 
 								arr_object_sub_style.conditions[str_identifier_condition] = arr_object_style.conditions[str_identifier_condition];
 							}
-						}
-
-						// Force location
-						if (arr_object_sub.location_geometry === '' && unknown_location) {
-							
-							arr_object_sub.location_geometry = location_geometry_unknown;
 						}
 					}
 				}

@@ -1,14 +1,14 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
-function MapNetworkMetrics(element, obj_parent) {
+function MapNetworkMetrics(element, PARENT) {
 
 	var obj = this,
 	elm_parent = element[0],
@@ -356,12 +356,12 @@ function MapNetworkMetrics(element, obj_parent) {
 	
 	var setNetworkData = function() {
 		
-		var arr_data = obj_parent.getData();
+		var arr_data = PARENT.getData();
 		arr_network_data = {objects: {}, links: {}, object_subs: {}, date: arr_data.date, range: arr_data.range, active_nodes: [], active_links: []};
 		
 		if (!arr_data.links) {
 			
-			var labSoc = new MapSocial(false, obj_parent, {});
+			var labSoc = new MapSocial(false, PARENT, {});
 			var arr_set_data = labSoc.setObjectsLinks(arr_data);
 			
 			arr_data_objects = arr_set_data.objects;

@@ -76,7 +76,7 @@ CREATE TABLE `def_nodegoat_custom_project_types` (
   `type_id` int NOT NULL,
   `color` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `type_information` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `type_edit` tinyint(1) NOT NULL DEFAULT '1',
+  `type_edit` tinyint NOT NULL DEFAULT '2',
   `type_filter_id` int NOT NULL DEFAULT '0',
   `type_filter_object_subs` tinyint(1) NOT NULL DEFAULT '0',
   `type_context_id` int NOT NULL DEFAULT '0',
@@ -277,8 +277,7 @@ CREATE TABLE `def_nodegoat_custom_project_visual_settings` (
   `line_width_max` float NOT NULL,
   `line_offset` smallint DEFAULT NULL,
   `map_show` tinyint(1) DEFAULT NULL,
-  `map_url` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `map_attribution` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `map_layers` varchar(5000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `visual_hints_show` tinyint(1) DEFAULT NULL,
   `visual_hints_size` float NOT NULL,
   `visual_hints_color` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -311,6 +310,10 @@ CREATE TABLE `def_nodegoat_custom_project_visual_settings` (
   `social_label_condition` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `social_line_arrowhead_show` tinyint(1) DEFAULT NULL,
   `social_line_show` tinyint(1) DEFAULT NULL,
+  `social_line_color` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `social_line_opacity` float NOT NULL,
+  `social_line_width_min` float NOT NULL,
+  `social_line_width_max` float NOT NULL,
   `social_force` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `social_forceatlas2` varchar(250) COLLATE utf8mb4_unicode_ci NOT NULL,
   `social_disconnected_dot_show` tinyint(1) DEFAULT NULL,
@@ -493,6 +496,7 @@ CREATE TABLE `def_nodegoat_publish_custom_projects` (
   `date` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
 ALTER TABLE `data_nodegoat_custom_project_type_scenario_cache`
   ADD PRIMARY KEY (`project_id`,`scenario_id`,`use_project_id`);
 
@@ -635,6 +639,10 @@ ALTER TABLE `user_link_nodegoat_custom_project_type_filters`
 ALTER TABLE `user_preferences`
   ADD PRIMARY KEY (`user_id`);
 
+ALTER TABLE `def_nodegoat_publish_custom_projects`
+  ADD PRIMARY KEY (`project_id`);
+
+
 ALTER TABLE `def_nodegoat_custom_projects`
   MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
@@ -658,6 +666,3 @@ ALTER TABLE `def_nodegoat_public_interfaces`
 
 ALTER TABLE `def_nodegoat_public_interface_texts`
   MODIFY `id` int NOT NULL AUTO_INCREMENT;
-
-ALTER TABLE `def_nodegoat_publish_custom_projects`
-  ADD PRIMARY KEY (`project_id`);

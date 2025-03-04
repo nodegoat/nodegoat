@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -21,10 +21,10 @@ function MapManager(element) {
 		pos_view_frame: {top: 0, right: 0, bottom: 0, left: 0},
 		default_time: {selection: {}, bounds: {}},
 		attribution: '',
-		tile_path: '',
-		tile_subdomain_range: ['a','b','c'], // e.g. a,b,c - 1,2,3
+		arr_layers: false,
 		background_color: false,
 		allow_sizing: false,
+		map: {}, // Other map properties
 		call_class_paint: function() {},
 		call_class_data: function() { this.init = function() {}; this.setData = function() {}; this.setSettings = function() {}; },
 		arr_class_data_settings: {},
@@ -47,6 +47,7 @@ function MapManager(element) {
 	
 	this.obj_map = {};
 	this.obj_paint = {};
+	this.elm_paint_host = false;
 	this.obj_data = {};
 			
 	this.init = function(options) {
@@ -178,8 +179,8 @@ function MapManager(element) {
 	};
 	
 	var drawMap = function() {
-					
-		SELF.obj_map = new MapScroller(elm_map, {
+		
+		const arr_settings_map = {
 			arr_levels: settings.arr_levels,
 			default_center: settings.default_center,
 			origin: settings.origin,
@@ -188,18 +189,21 @@ function MapManager(element) {
 			pos_view_frame: settings.pos_view_frame,
 			show_zoom_levels: true,
 			attribution: settings.attribution,
-			tile_path: settings.tile_path,
+			arr_layers: settings.arr_layers,
 			background_color: settings.background_color,
-			allow_sizing: settings.allow_sizing,
-			tile_subdomain_range: settings.tile_subdomain_range
-		});
+			allow_sizing: settings.allow_sizing
+		};
+		$.extend(arr_settings_map, settings.map || {});
 		
-		SELF.obj_paint.obj_map = SELF.obj_map;
-		SELF.obj_data.obj_map = SELF.obj_map;
-		
+		SELF.obj_map = new MapScroller(elm_map, arr_settings_map);
+				
 		SELF.obj_map.init();
 		
-		elm_paint = SELF.obj_map.getPaint();					
+		elm_paint = SELF.obj_map.getPaint();
+		SELF.elm_paint_host = elm_paint[0];
+				
+		elm_paint = ASSETS.createDocumentHost(SELF.elm_paint_host, 'labmap-paint', ['.tooltip']);
+		elm_paint = $(elm_paint);
 	};	
 	
 	var drawTimeline = function() {
@@ -382,5 +386,9 @@ function MapManager(element) {
 		}
 		
 		return key;
+	};
+	
+	this.getMap = function() {
+		return SELF.obj_map;
 	};
 }

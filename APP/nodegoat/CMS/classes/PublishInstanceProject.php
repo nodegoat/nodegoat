@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -125,6 +125,11 @@ class PublishInstanceProject {
 		$arr = JSON2Value($arr);
 		
 		if (isset($arr_settings['url_file'])) {
+			
+			if (!empty($arr_settings['url_file_attributes'])) {
+				$arr['body'] = str_replace('href="'.static::PLACEHOLDER_URL_FILE, $arr_settings['url_file_attributes'].' href="'.static::PLACEHOLDER_URL_FILE, $arr['body']);
+			}
+			
 			$arr['body'] = str_replace(static::PLACEHOLDER_URL_FILE, $arr_settings['url_file'], $arr['body']);
 		}
 		
@@ -157,14 +162,18 @@ class PublishInstanceProject {
 			
 			foreach ($arr_box['elements'] as $str_identifier => $arr_element) {
 				
-				$arr_connect = $graph->getTypeBoxElementLinks($str_identifier);
+				$arr_connections = $graph->getTypeBoxElementLinks($str_identifier);
 				$str_html_connect = '';
 
-				if ($arr_connect) {
-					if (!$arr_connect['type_id']) {
-						$str_html_connect = '<span class="connect">'.$arr_connect['name'].'</span>';
-					} else {
-						$str_html_connect = '<a class="connect" href="#model-type-'.$arr_connect['type_id'].'">'.$arr_connect['name'].'</a>';
+				if ($arr_connections) {
+					
+					foreach ($arr_connections as $arr_connect) {
+
+						if (!$arr_connect['type_id']) {
+							$str_html_connect .= '<span class="connect">'.$arr_connect['name'].'</span>';
+						} else {
+							$str_html_connect .= '<a class="connect" href="#model-type-'.$arr_connect['type_id'].'">'.$arr_connect['name'].'</a>';
+						}
 					}
 				}
 
@@ -319,10 +328,8 @@ class PublishInstanceProject {
 		$str_svg_logo = FileStore::getDataURL(DIR_ROOT_SITE.DIR_CSS.'images/nodegoat.svg');
 		$str_date = date('Y-m-d H:i:s', (!is_integer($this->arr_instance['date']) ? strtotime($this->arr_instance['date']) : $this->arr_instance['date']));
 		
-		
 		$str_info = '<span>'.getLabel('lbl_instance').': '.SERVER_NAME.'</span><span>'.getLabel('lbl_published').': '.$str_date.'</span>';
 		
-
 		$str_html = '<header>'
 			.'<div><img src="'.$str_svg_logo.'" /></div>'
 			.'<h1>'.$this->getTitle().'</h1>'
@@ -339,7 +346,7 @@ class PublishInstanceProject {
 		if ($this->arr_html_model['type']) {
 			
 			$str_html .= '<section id="model-types">'
-				.'<h2>'.getLabel('lbl_model').': '.getLabel('lbl_object').' '.getLabel('lbl_types').'</h2>'
+				.'<h2>'.getLabel('lbl_model').': '.StoreType::getTypeClassName(StoreType::TYPE_CLASS_TYPE, true).'</h2>'
 				.$this->arr_html_model['type']
 			.'</section>';
 		}
@@ -347,7 +354,7 @@ class PublishInstanceProject {
 		if ($this->arr_html_model['classification']) {
 			
 			$str_html .= '<section id="model-classifications">'
-				.'<h2>'.getLabel('lbl_model').': '.getLabel('lbl_classifications').'</h2>'
+				.'<h2>'.getLabel('lbl_model').': '.StoreType::getTypeClassName(StoreType::TYPE_CLASS_CLASSIFICATION, true).'</h2>'
 				.$this->arr_html_model['classification']
 			.'</section>';
 		}
@@ -355,7 +362,7 @@ class PublishInstanceProject {
 		if ($this->arr_html_model['reversal']) {
 			
 			$str_html .= '<section id="model-reversals">'
-				.'<h2>'.getLabel('lbl_model').': '.getLabel('lbl_reversals').'</h2>'
+				.'<h2>'.getLabel('lbl_model').': '.StoreType::getTypeClassName(StoreType::TYPE_CLASS_REVERSAL, true).'</h2>'
 				.$this->arr_html_model['reversal']
 			.'</section>';
 		}
@@ -423,7 +430,7 @@ class PublishInstanceProject {
 			#publish a:hover { color: var(--highlight); text-decoration: underline; }
 			#publish a.connect, #publish a.connect:link, #publish a.connect:visited, #publish a.connect:active, #publish a.connect:hover { color: var(--highlight); }
 			#publish a.connect,
-			#publish span.connect { margin-left: 16px; }
+			#publish span.connect { display: block; margin-left: 16px; }
 			#publish a.connect::before,
 			#publish span.connect::before { content: \'-> \'; }
 			
@@ -434,7 +441,8 @@ class PublishInstanceProject {
 			#publish > header { min-height: 250px; margin-top: var(--margin-default); margin-right: calc(var(--margin-default) + 150px + (var(--margin-default) * 2)); margin-left: var(--margin-default); }
 			#publish > header > div:first-child { position: absolute; top: 0px; right: calc(var(--margin-default) * 2); padding: 75px 25px 25px 25px; background-color: var(--nodegoat-green); }
 			#publish > header > div:first-child > img { display: block; width: 100px; }
-			#publish > header > address { display: block; margin: 30px 0px; background-color: var(--back); padding: var(--margin-default); }
+			#publish > header > address { display: block; margin: 30px 0px; background-color: var(--back); padding: var(--margin-default); font: inherit; }
+			#publish > header > address > em { font-style: italic; }
 			#publish > header > address > * { display: block; }
 			#publish > header > address > * + * { margin-top: 0.2em; }
 			#publish > header > h3 + div { 10px 0px; }
@@ -486,7 +494,7 @@ class PublishInstanceProject {
 		return $str_html;
 	}
 	
-	public function getDocument1100CC() {
+	public function getDocument1100CC($arr_settings = []) {
 		
 		$str_date = date('c', (!is_integer($this->arr_instance['date']) ? strtotime($this->arr_instance['date']) : $this->arr_instance['date']));
 		

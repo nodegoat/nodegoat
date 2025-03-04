@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -656,7 +656,6 @@ abstract class ingest_source extends base_module {
 		$element_id = $arr_pointer['element_id'];
 		
 		if (!$element_id) {
-			
 			$element_id = key($arr_type_set);
 		}
 		
@@ -670,46 +669,53 @@ abstract class ingest_source extends base_module {
 			.'<select name="'.$this->form_name.'[pointers][map]['.$unique.'][element_id]" title="'.getLabel('inf_ingest_target_element').'">'.cms_general::createDropdown($arr_type_set, $element_id, false).'</select>'
 			.($arr_pointer['pointer_id'] ? '<input name="'.$this->form_name.'[pointers][map]['.$unique.'][pointer_id]" type="hidden" value="'.$arr_pointer['pointer_id'].'" />' : '')
 		;
-
+		
 		if ($arr_type_set[$element_id]['ref_type_id'] || $arr_type_set[$element_id]['is_location_reference']) {
 			
-			if ($arr_type_set[$element_id]['is_changeable_ref_type_id']) {
+			$arr_types = null;
+			
+			if ($arr_type_set[$element_id]['is_mutable_ref_type_id']) {
 				
-				$ref_type_id = ($arr_pointer['element_type_id'] ? $arr_pointer['element_type_id'] : $arr_type_set[$element_id]['ref_type_id']);
+				$type_set_ref_type_id = $arr_type_set[$element_id]['ref_type_id'];
 				
+				$ref_type_id = ($arr_pointer['element_type_id'] ?: $type_set_ref_type_id);
+				if (is_array($ref_type_id)) {
+					$ref_type_id = reset($ref_type_id);
+				}
+				
+				if (is_array($type_set_ref_type_id)) { // Use for selectable types
+					$arr_types = $type_set_ref_type_id;
+				}
 			} else {
 				
-				$disabled = true;
+				$is_disabled = true;
 				$ref_type_id = $arr_type_set[$element_id]['ref_type_id'];
 			}
-		
-			$arr_ref_type_set = StoreType::getTypeSetFlatMap($ref_type_id, ['object' => true, 'references' => false]);
-			$arr_types = StoreType::getTypes();
 			
-			$html_pointer .= '<select name="'.$this->form_name.'[pointers][map]['.$unique.'][element_type_id]" title="'.getLabel('inf_import_type_of_target_element').'"'.($disabled ? ' disabled="disabled"' : '').'>'.Labels::parseTextVariables(cms_general::createDropdown($arr_types, $ref_type_id, false)).'</select>';
+			$arr_types = StoreType::getTypes($arr_types);		
+			$arr_ref_type_set = StoreType::getTypeSetFlatMap($ref_type_id, ['object' => true, 'references' => false]);
+
+			$html_pointer .= '<select name="'.$this->form_name.'[pointers][map]['.$unique.'][element_type_id]" title="'.getLabel('inf_import_type_of_target_element').'"'.($is_disabled ? ' disabled="disabled"' : '').'>'.Labels::parseTextVariables(cms_general::createDropdown($arr_types, $ref_type_id, false)).'</select>';
 			
 			if ($arr_type_set[$element_id]['is_location_reference']) {
 				
-				if ($arr_type_set[$element_id]['is_changeable_object_sub_details_id']) {
+				if ($arr_type_set[$element_id]['is_mutable_object_sub_details_id']) {
 					
 					$object_sub_details_id = ($arr_pointer['element_type_object_sub_id'] ? $arr_pointer['element_type_object_sub_id'] : $arr_type_set[$element_id]['object_sub_details_id']);
 					
 				} else {
 					
-					$sub_disabled = true;
+					$is_disabled_sub = true;
 					$object_sub_details_id = $arr_type_set[$element_id]['object_sub_details_id'];
 				}
 						
-				$html_pointer .= '<select name="'.$this->form_name.'[pointers][map]['.$unique.'][element_type_object_sub_id]" title="'.getLabel('inf_import_sub_object_of_location_reference_type').'"'.($sub_disabled ? ' disabled="disabled"' : '').'>'.Labels::parseTextVariables(cms_general::createDropdown(StoreType::getTypeObjectSubsDetails($ref_type_id), $object_sub_details_id, false, 'object_sub_details_name', 'object_sub_details_id')).'</select>';
-			
+				$html_pointer .= '<select name="'.$this->form_name.'[pointers][map]['.$unique.'][element_type_object_sub_id]" title="'.getLabel('inf_import_sub_object_of_location_reference_type').'"'.($is_disabled_sub ? ' disabled="disabled"' : '').'>'.Labels::parseTextVariables(cms_general::createDropdown(StoreType::getTypeObjectSubsDetails($ref_type_id), $object_sub_details_id, false, 'object_sub_details_name', 'object_sub_details_id')).'</select>';
 			} else {
 				
 				$html_pointer .= '<input name="'.$this->form_name.'[pointers][map]['.$unique.'][element_type_object_sub_id]" type="hidden"/>';
-				
 			}
 			 
 			$html_pointer .= '<select name="'.$this->form_name.'[pointers][map]['.$unique.'][element_type_element_id]" title="'.getLabel('inf_import_element_used_for_reference').'">'.cms_general::createDropdown((array)$arr_ref_type_set, $arr_pointer['element_type_element_id'], true).'</select>';
-			
 		} else {
 			
 			$html_pointer .= '<input name="'.$this->form_name.'[pointers][map]['.$unique.'][element_type_id]" type="hidden" value="0" />'
@@ -732,11 +738,11 @@ abstract class ingest_source extends base_module {
 		$html_options = '<div>'
 			.'<label><input type="radio" name="'.$this->form_name.'[pointers][map]['.$unique.'][mode_write]" value="overwrite"'.($is_only_append ? ' disabled="disabled"' : ($is_mode_overwrite ? ' checked="checked"' : '')).'/><span>'.getLabel('lbl_overwrite').'</span></label>'
 			.'<label><input type="radio" name="'.$this->form_name.'[pointers][map]['.$unique.'][mode_write]" value="append"'.(!$is_appendable ? ' disabled="disabled"' : ($is_mode_append ? ' checked="checked"' : '')).' /><span>'.getLabel('lbl_append').'</span></label>'
-			.'<label><input type="checkbox" name="'.$this->form_name.'[pointers][map]['.$unique.'][ingore_empty]" value="1"'.($arr_pointer['ingore_empty'] ? ' checked="checked"' : '').'/><span>'.getLabel('lbl_import_ignore_empty').'</span></label>'
-			.'<label><input type="checkbox" name="'.$this->form_name.'[pointers][map]['.$unique.'][ingore_identical]"'.($arr_type_set[$element_id]['has_multi'] || $is_only_append ? ' disabled="disabled"' : '').' value="1"'.($arr_pointer['ingore_identical'] ? ' checked="checked"' : '').'/><span>'.getLabel('lbl_import_ignore_identical').'</span></label>'
+			.'<label><input type="checkbox" name="'.$this->form_name.'[pointers][map]['.$unique.'][ignore_empty]" value="1"'.($arr_pointer['ignore_empty'] ? ' checked="checked"' : '').'/><span>'.getLabel('lbl_import_ignore_empty').'</span></label>'
+			.'<label><input type="checkbox" name="'.$this->form_name.'[pointers][map]['.$unique.'][ignore_identical]"'.($arr_type_set[$element_id]['has_multi'] || $is_only_append ? ' disabled="disabled"' : '').' value="1"'.($arr_pointer['ignore_identical'] ? ' checked="checked"' : '').'/><span>'.getLabel('lbl_import_ignore_identical').'</span></label>'
 		.'</div>';
 		
-		$has_set_options = ($arr_pointer['mode_write'] == 'overwrite' || $arr_pointer['ingore_empty'] || $arr_pointer['ingore_identical']);
+		$has_set_options = ($arr_pointer['mode_write'] == 'overwrite' || $arr_pointer['ignore_empty'] || $arr_pointer['ignore_identical']);
 		
 		$html_options = '<fieldset class="pointer-options">
 			<ul><li>

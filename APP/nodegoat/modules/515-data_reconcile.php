@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -438,6 +438,7 @@ class data_reconcile extends base_module {
 		$arr_objects = $arr_reconcile['results'];
 		
 		$has_updates = false;
+		$arr_locked = false;
 		$storage_lock = new StoreTypeObjects($type_id, false, ['user_id' => $_SESSION['USER_ID'], 'system_object_id' => $system_object_id], 'lock');
 		
 		foreach ($arr_objects as $object_id => $arr_values) {
@@ -447,26 +448,19 @@ class data_reconcile extends base_module {
 			}
 			
 			$storage_lock->setObjectID($object_id);
-			
-			try {
-				$storage_lock->handleLockObject();
-			} catch (Exception $e) {
-				$arr_locked[] = $e;
-			}
-			
 			$has_updates = true;
+		}
+		
+		try {
+			$storage_lock->handleLockObject();
+		} catch (Exception $e) {
+			$arr_locked = $storage_lock->getLockErrors();
 		}
 		
 		if ($arr_locked) {
 			
 			$storage_lock->removeLockObject(); // Remove locks from all possible successful ones
-			
-			foreach ($arr_locked as &$e) {
-							
-				$e = Trouble::strMsg($e); // Convert to message only
-			}
-			unset($e);
-			
+
 			$this->has_feedback_template_process = true;
 			
 			return $this->createProcessTemplateStoreCheck(['locked' => $arr_locked]);
@@ -1397,7 +1391,7 @@ class data_reconcile extends base_module {
 	
 		foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 			
-			if (!$arr_object_description['object_description_ref_type_id'] || $arr_object_description['object_description_ref_type_id'] != $test_type_id) {
+			if (!StoreType::hasReferenceTypeID($arr_object_description['object_description_ref_type_id'], $test_type_id)) {
 				continue;
 			}
 			
@@ -1430,7 +1424,7 @@ class data_reconcile extends base_module {
 			
 			foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
 				
-				if (!$arr_object_sub_description['object_sub_description_ref_type_id'] || $arr_object_sub_description['object_sub_description_ref_type_id'] != $test_type_id) {
+				if (!StoreType::hasReferenceTypeID($arr_object_sub_description['object_sub_description_ref_type_id'], $test_type_id)) {
 					continue;
 				}
 				

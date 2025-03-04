@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -15,6 +15,7 @@ class AnalyseTypeObjects {
 	protected $arr_analyse = false;
 	protected $arr_algorithm = false;
 	
+	protected $is_external = false; // Target for external usage
 	protected $resource = false;
 	
 	protected $num_nodes = false;
@@ -29,12 +30,14 @@ class AnalyseTypeObjects {
 	
 	protected static $num_objects_collect = 100000;
 	
-    public function __construct($type_id, $arr_analyse) {
+    public function __construct($type_id, $arr_analyse, $is_external = false) {
 		
 		$this->type_id = $type_id;
 		$this->arr_analyse = $arr_analyse;
 		
 		$this->arr_algorithm = static::getAlgorithms($arr_analyse['algorithm']);
+		
+		$this->is_external = (bool)$is_external;
 		
 		$this->openInputResource();
     }
@@ -53,7 +56,7 @@ class AnalyseTypeObjects {
 		
 		status('Collecting data.', 'ANALYSIS', false, ['persist' => true]);
 
-		$arr_header = ['key', 'from', 'to', 'weight'];
+		$arr_header = ['key', 'from', 'to', 'weight', 'time'];
 		
 		fputcsv($this->resource, $arr_header);
 		
@@ -76,11 +79,17 @@ class AnalyseTypeObjects {
 			
 				$collect->getWalkedObject($object_id, [], function &($cur_target_object_id, $cur_arr, $source_path, $cur_path, $cur_target_type_id, $arr_info, $collect) use ($object_id, $do_weighted) {
 					
+					$cur_arr[$cur_path] = [$cur_target_type_id.'-'.$cur_target_object_id, null, null];
+					
 					if ($do_weighted) {
 						
 						$arr_object = $collect->getPathObject($cur_path, $arr_info['in_out'], $cur_target_object_id, $arr_info['object_id'], true);
 						
 						$num_weight = ($arr_object['object']['object_style']['weight'] ?? null);
+						
+						if ($num_weight !== null && is_array($num_weight)) {
+							$num_weight = array_sum($num_weight);
+						}
 						
 						if (isset($arr_info['object_sub_id'])) {
 							
@@ -99,58 +108,68 @@ class AnalyseTypeObjects {
 							$num_weight_sub = ($arr_object_source['object_subs'][$arr_info['object_sub_id']]['object_sub']['object_sub_style']['weight'] ?? null);
 							
 							if ($num_weight_sub !== null) {
+								
+								if (is_array($num_weight_sub)) {
+									$num_weight_sub = array_sum($num_weight_sub);
+								}
 								$num_weight = ($num_weight ?? 0) + $num_weight_sub;
 							}
 						}
 						
-						$cur_arr[$cur_path] = [$cur_target_type_id.'-'.$cur_target_object_id, $num_weight];
-					} else {
-					
-						$cur_arr[$cur_path] = $cur_target_type_id.'-'.$cur_target_object_id;
+						$cur_arr[$cur_path][1] = $num_weight;
+					}
+
+					if (!$arr_info['arr_collapse_source'] && isset($arr_info['date'])) { // Path end, use time
+
+						$s_arr = &$cur_arr[$cur_path][2];
+						$s_arr = '';
+							
+						foreach ($arr_info['date'] as $arr_date) {
+							if ($this->is_external) {
+								$s_arr .= ($s_arr !== '' ? ' ' : '').FormatTypeObjects::dateInt2DateStandard($arr_date['start']).','.FormatTypeObjects::dateInt2DateStandard($arr_date['end']);
+							} else {
+								$s_arr .= ($s_arr !== '' ? ' ' : '').$arr_date['start'].','.$arr_date['end'];
+							}
+						}
+						unset($s_arr);
 					}
 					
-					$do_collapse = ($arr_info['in_out'] == 'start' || $arr_info['arr_collapse_source'] ? true : false);
-					
+					$do_collapse = ($arr_info['in_out'] == 'start' || $arr_info['arr_collapse_source'] ? true : false); // Path start or not path end
+
 					if ($do_collapse) {
-						
 						return $cur_arr;
 					}
 					
 					$this->num_edges++;
-					
-					if ($do_weighted) {
+											
+					$str_path = '';
+					$num_weight = null;
+					$str_time = null;
+
+					foreach ($cur_arr as $arr_path) {
 						
-						$str_path = '';
-						$num_weight = null;
+						$str_path .= ($str_path === '' ? '' : '_').$arr_path[0];
 						
-						foreach ($cur_arr as $arr_path) {
-							
-							$str_path .= ($str_path === '' ? '' : '_').$arr_path[0];
-							
-							if ($arr_path[1] !== null) {
-								
-								$num_weight = (($num_weight ?? 0) + $arr_path[1]);
-							}
+						if ($arr_path[1] !== null) {
+							$num_weight = (($num_weight ?? 0) + $arr_path[1]);
 						}
-						
-						if ($num_weight !== null) {
-							
-							$num_weight = (int)$num_weight;
-						} else {
-							
-							$num_weight = 1;
+						if ($arr_path[2] !== null) {
+							$str_time = $arr_path[2];
 						}
-										
-						if ($num_weight !== 0) {
-							
-							$arr_row = [$str_path, $this->type_id.'-'.$object_id, $cur_target_type_id.'-'.$cur_target_object_id, $num_weight];
-						}
-					} else {
-						
-						$arr_row = [implode('_', $cur_arr), $this->type_id.'-'.$object_id, $cur_target_type_id.'-'.$cur_target_object_id, 1];
 					}
 					
-					fputcsv($this->resource, $arr_row);
+					if ($num_weight !== null) {
+						$num_weight = (int)$num_weight;
+					} else {
+						$num_weight = 1;
+					}
+									
+					if ($num_weight !== 0) {
+						
+						$arr_row = [$str_path, $this->type_id.'-'.$object_id, $cur_target_type_id.'-'.$cur_target_object_id, $num_weight, $str_time];
+						
+						fputcsv($this->resource, $arr_row);
+					}
 
 					return $cur_arr;
 				});
@@ -271,7 +290,7 @@ class AnalyseTypeObjects {
 				
 				$s_arr = &$this->arr_store[$object_id_from][0];
 				
-				if (!$s_arr) {
+				if ($s_arr === null) {
 					$s_arr = 0;
 				}
 			
@@ -288,11 +307,11 @@ class AnalyseTypeObjects {
 				
 				$s_arr = &$this->arr_store[$object_id_from][0];
 				
-				if (!$s_arr) {
+				if ($s_arr === null) {
 					$s_arr = 0;
 				}
 			
-				$s_arr++;
+				$s_arr += (int)$arr_row[3]; // Weight
 				
 				if ($s_arr > $num_weight_max) {
 					$num_weight_max = $s_arr;

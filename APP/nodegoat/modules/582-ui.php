@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -31,21 +31,29 @@ class ui extends base_module {
 		'ui_selection' => []
 	];
 	
+	public function __construct() {
+		
+		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
+		$project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
+		$arr_public_user_interface = cms_nodegoat_public_interfaces::getPublicInterfaces($public_user_interface_id);
+		
+		if ($arr_public_user_interface['interface']['settings']['default_language']) {
+		
+			$str_default_language = $arr_public_user_interface['interface']['settings']['default_language'];
+			$arr_language = cms_language::getLanguage($str_default_language);
+			
+			if ($arr_language) {
+				SiteStartEnvironment::setLanguagePreference($str_default_language);
+			}
+		}
+	}
+	
 	public function contents() {
 		
 		$public_user_interface_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_id');
 		$project_id = (int)SiteStartEnvironment::getFeedback('public_user_interface_active_custom_project_id');
 		$arr_public_user_interface = cms_nodegoat_public_interfaces::getPublicInterfaces($public_user_interface_id);	
 		$arr_public_user_interface_module_vars = SiteStartEnvironment::getFeedback('arr_public_user_interface_module_vars');	
-		
-		if ($arr_public_user_interface['interface']['settings']['default_language']) {
-			
-			$arr_language_hosts = cms_language::getLanguageHosts();
-			
-			if (!$arr_language_hosts[SERVER_NAME_SITE_NAME]) {
-				SiteStartEnvironment::setContext(SiteStartEnvironment::CONTEXT_LANGUAGE, $arr_public_user_interface['interface']['settings']['default_language']);
-			}
-		}
 		
 		if (!$arr_public_user_interface['interface']['settings']['disable_responsive_layout']) {
 			
@@ -66,9 +74,8 @@ class ui extends base_module {
 		if ($arr_public_user_interface['interface']['settings']['return_url']) {
 			
 			$return = '<a href="'.$arr_public_user_interface['interface']['settings']['return_url'].'" class="return" target="_parent">
-							<span class="icon" data-category="full">'.getIcon('prev').'</span>
-						</a>';	
-			
+				<span class="icon" data-category="full">'.getIcon('prev').'</span>
+			</a>';
 		}
 		
 		$elm_info = false;
@@ -84,23 +91,22 @@ class ui extends base_module {
 				$elm_info = '<span class="icon a quick" data-category="full" id="y:ui:view_text-0">'.getIcon('info-point').'</span>';
 			}
 		}
-		
 			
 		$return .= '<div class="header-info" data-public_user_interface_id="'.$public_user_interface_id.'">
-						<h1 class="a" id="y:ui:set_project-0">'.Labels::parseTextVariables($arr_public_user_interface['interface']['name']).'</h1>'.
-						$elm_info.
-					'</div>
-					<div class="fixed-view-container"></div>
-					<label for="nav-toggle">☰</label>
-					<input id="nav-toggle" type="checkbox" />
-					<nav class="'.$arr_public_user_interface['interface']['settings']['filter_form_position'].'">
-						<ul>
-							<li class="projects-nav">'.$this->createProjectsNavigation().'</li>
-							<li class="project-dynamic-nav">'.$this->createProjectNavigation().'</li>
-						</ul>
-					</nav>
-					<div class="project-dynamic-data" '.($arr_public_user_interface['interface']['settings']['show_device_location'] ? 'data-device_location="1"' : '').'>'.$this->getProjectDynamicDataElm().'</div>
-					'.ui_selection::createViewSelectionsContainer();	
+			<h1 class="a" id="y:ui:set_project-0">'.Labels::parseTextVariables($arr_public_user_interface['interface']['name']).'</h1>'.
+			$elm_info.
+		'</div>
+		<div class="fixed-view-container"></div>
+		<label for="nav-toggle">☰</label>
+		<input id="nav-toggle" type="checkbox" />
+		<nav class="'.$arr_public_user_interface['interface']['settings']['filter_form_position'].'">
+			<ul>
+				<li class="projects-nav">'.$this->createProjectsNavigation().'</li>
+				<li class="project-dynamic-nav">'.$this->createProjectNavigation().'</li>
+			</ul>
+		</nav>
+		<div class="project-dynamic-data" '.($arr_public_user_interface['interface']['settings']['show_device_location'] ? 'data-device_location="1"' : '').'>'.$this->getProjectDynamicDataElm().'</div>
+		'.ui_selection::createViewSelectionsContainer();	
 		
 		return $return;
 	}
@@ -365,11 +371,10 @@ class ui extends base_module {
 					.ui .datatable { background-color: #fdfdfd; }				
 					.ui .datatable tr.a:hover { background-color: #eee; text-decoration: none; color: #000; }
 					
-					.ui button { border: 0; border-radius: 0; background-color: rgba(255,255,255,0.3); display: inline-block;}
+					.ui .datatable button,
+					.ui .paginate button { border: 0; border-radius: 0; background-color: rgba(255,255,255,0.3); display: inline-block;}
 					.ui .paginate button { background-color: #ccc; }
 					.ui .paginate button.selected { background-color: rgba(255,255,255,0.1); color: #333; }
-					.ui .dialog > nav > button,
-					.ui .timeline button { background-color: #000; }
 
 					.ui > .fixed-view-container:empty { display: none; }
 					.ui > .fixed-view-container:not(:empty) ~ * { display: none; }
@@ -576,7 +581,8 @@ class ui extends base_module {
 					.ui > .project-dynamic-data > .data > .object .tabs.object-view > ul > li > a > span.amount {  position: absolute; top: -10px; right: -15px; display: block; padding: 0 5px; height: 15px; min-width: 20px; border-radius: 8px; background-color: #0096e4; text-align: center; font-size: 10px; line-height: 15px; color: #fff; }
 					.ui > .project-dynamic-data > .data > .object .tabs.object-view > div { margin-top: 1px; background-color: rgba(255,255,255,0.7); border: 0; }
 
-					.ui > .project-dynamic-data > .data > .object ul::after { content: " "; display: block; height: 0; clear: both; }
+					.ui > .project-dynamic-data > .data > .object .tabs.object-view > div > ul::after,
+					.ui > .project-dynamic-data > .data > .object > div > div > ul::after { content: " "; display: block; height: 0; clear: both; }
 					
 					.ui > .project-dynamic-data > .data > .object ul > li.object-descriptions { position: relative; }
 					
@@ -589,6 +595,7 @@ class ui extends base_module {
 					.ui > .project-dynamic-data > .data > .object ul > li.media > span iframe { max-height: 40vh; max-width: 100%; }
 					.ui > .project-dynamic-data > .data > .object ul > li.related-media { display: flex; flex-wrap: wrap; }
 					.ui > .project-dynamic-data > .data.fullscreen-object > .object ul > li.related-media { float: right; clear: left; margin-top: 50px; width: 340px; padding: 10px 0 0 10px; justify-content: flex-end;}
+					.ui > .project-dynamic-data > .data.fullscreen-object > .object ul > li.related-media ~ li { max-width: calc(100% - 350px); }
 					.ui > .project-dynamic-data > .data > .object ul > li.related-media > div { width: 150px; height: 150px; display: inline-block; margin: 0 10px 10px 0; background-repeat: no-repeat; background-position: center 10%; background-size: cover; background-color: #bbb; }
 					.ui > .project-dynamic-data > .data > .object ul > li.related-media > div > span { width: 100%; text-align: center; color: #fff; }
 					.ui > .project-dynamic-data > .data > .object ul > li.related-media > div > span > svg { height: 25%; }
@@ -961,12 +968,12 @@ class ui extends base_module {
 						});
 
 						elm_prev.on('click', function() {
-							moveScroll(elm_prev, {elm_con: elm_projects_nav_ul});
+							moveScroll(elm_prev, {elm_container: elm_projects_nav_ul});
 							elm_prev.addClass('hide');
 							elm_next.removeClass('hide');
 						});
 						elm_next.on('click', function() {
-							moveScroll(elm_next, {elm_con: elm_projects_nav_ul});
+							moveScroll(elm_next, {elm_container: elm_projects_nav_ul});
 							elm_next.addClass('hide');
 							elm_prev.removeClass('hide');
 						});

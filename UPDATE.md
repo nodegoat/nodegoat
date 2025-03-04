@@ -607,6 +607,8 @@ INSERT INTO user_page_clearance
 		GROUP BY user_id;
 ```
 
+---
+
 Run SQL queries in database nodegoat_home:
 
 ```sql
@@ -656,4 +658,87 @@ ALTER TABLE `data_type_object_sub_definition_version` CHANGE `version` `version`
 
 UPDATE def_type_object_descriptions SET value_type_settings = '{"html":true}' WHERE value_type_settings = '' AND (value_type_base = 'text_tags' OR value_type_base = 'text_layout')
 	AND EXISTS (SELECT TRUE FROM data_type_object_definitions AS test WHERE test.object_description_id = id AND test.value_text LIKE '%</%>');
+```
+
+## VERSION 8.4
+
+Update 1100CC to 10.8 ([1100CC UPDATE](https://github.com/LAB1100/1100CC/blob/master/UPDATE.md)).
+
+Update nodegoat [nodegoat_cms.cms_labels.sql](/setup/nodegoat_cms.cms_labels.sql).
+
+---
+
+Run SQL queries in database nodegoat_cms:
+
+```sql
+INSERT INTO `site_jobs` (`module`, `method`, `options`, `seconds`) VALUES ('cms_details', 'cleanFallbacks', '', 1800);
+
+UPDATE site_jobs SET method = 'cleanTypesObjects' WHERE method = 'runCleanupObjects';
+UPDATE site_jobs SET method = 'cleanOrphans' WHERE method = 'runCleanupOrphans';
+UPDATE site_jobs SET method = 'cacheTypesObjects' WHERE method = 'runTypeObjectCaching';
+UPDATE site_jobs SET method = 'buildTypesObjectsCache' WHERE method = 'buildTypeObjectCache';
+```
+
+---
+
+Run SQL queries in database nodegoat_home:
+
+```sql
+UPDATE def_nodegoat_custom_project_visual_settings SET map_url = JSON_ARRAY(JSON_OBJECT('url', map_url, 'attribution', map_attribution)) WHERE map_attribution != '';
+UPDATE def_nodegoat_custom_project_visual_settings SET map_url = JSON_ARRAY(JSON_OBJECT('url', map_url)) WHERE map_url != '' AND map_attribution = '';
+
+ALTER TABLE `def_nodegoat_custom_project_visual_settings` CHANGE `map_url` `map_layers` VARCHAR(5000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL; 
+ALTER TABLE `def_nodegoat_custom_project_visual_settings` DROP `map_attribution`;
+
+ALTER TABLE `def_nodegoat_custom_project_visual_settings` ADD `social_line_color` VARCHAR(10) NOT NULL AFTER `social_line_show`, ADD `social_line_opacity` FLOAT NOT NULL AFTER `social_line_color`, ADD `social_line_width_min` FLOAT NOT NULL AFTER `social_line_opacity`, ADD `social_line_width_max` FLOAT NOT NULL AFTER `social_line_width_min`;
+
+ALTER TABLE `def_nodegoat_custom_project_types` CHANGE `type_edit` `type_edit` TINYINT NOT NULL DEFAULT '2'; 
+UPDATE `def_nodegoat_custom_project_types` SET type_edit = 2 WHERE type_edit = 1;
+```
+
+---
+
+Run SQL queries in database nodegoat_content:
+
+```sql
+START TRANSACTION;
+
+UPDATE data_type_object_definitions SET value_int = value_int + (10000000000 * CASE WHEN value_int < 0 THEN -1 ELSE 1 END)
+	WHERE EXISTS (SELECT TRUE FROM def_type_object_descriptions AS test WHERE (test.value_type_base = 'numeric') AND test.id = object_description_id);
+	
+COMMIT;
+START TRANSACTION;
+
+UPDATE data_type_object_sub_definitions SET value_int = value_int + (10000000000 * CASE WHEN value_int < 0 THEN -1 ELSE 1 END)
+	WHERE EXISTS (SELECT TRUE FROM def_type_object_sub_descriptions AS test WHERE (test.value_type_base = 'numeric') AND test.id = object_sub_description_id);
+
+COMMIT;
+
+ALTER TABLE `def_type_object_descriptions` CHANGE `in_name` `in_name` TINYINT(1) NOT NULL DEFAULT '0'; 
+ALTER TABLE `def_type_object_descriptions` DROP INDEX `id_id`, ADD UNIQUE `id_id` (`id_id`, `type_id`, `ref_type_id`) USING BTREE; 
+
+ALTER TABLE `def_type_object_sub_descriptions` ADD `id_id` INT NULL DEFAULT NULL AFTER `id`;
+ALTER TABLE `def_type_object_sub_descriptions` ADD UNIQUE(`id_id`, `object_sub_details_id`, `ref_type_id`); 
+ALTER TABLE `def_type_object_sub_descriptions` CHANGE `name` `name` VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL, CHANGE `id` `id` INT NOT NULL AUTO_INCREMENT, CHANGE `value_type_base` `value_type_base` VARCHAR(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '', CHANGE `value_type_settings` `value_type_settings` VARCHAR(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '', CHANGE `is_required` `is_required` TINYINT(1) NOT NULL DEFAULT '0', CHANGE `use_object_description_id` `use_object_description_id` INT NOT NULL DEFAULT '0', CHANGE `in_name` `in_name` TINYINT(1) NOT NULL DEFAULT '0', CHANGE `in_search` `in_search` TINYINT(1) NOT NULL DEFAULT '0', CHANGE `in_overview` `in_overview` TINYINT(1) NOT NULL DEFAULT '0', CHANGE `clearance_edit` `clearance_edit` TINYINT NOT NULL DEFAULT '0', CHANGE `clearance_view` `clearance_view` TINYINT NOT NULL DEFAULT '0', CHANGE `sort` `sort` TINYINT NOT NULL DEFAULT '0'; 
+
+ALTER TABLE `data_type_object_definition_objects` DROP INDEX `state`; 
+ALTER TABLE `data_type_object_definition_objects` DROP INDEX `object_description_id`, ADD INDEX `object_description_id` (`object_description_id`, `state`, `ref_type_id`) USING BTREE; 
+
+ALTER TABLE `data_type_object_sub_definition_objects` DROP INDEX `state`;
+ALTER TABLE `data_type_object_sub_definition_objects` DROP INDEX `object_sub_description_id`, ADD INDEX `object_sub_description_id` (`object_sub_description_id`, `state`, `ref_type_id`) USING BTREE; 
+
+ALTER TABLE `data_type_objects` DROP INDEX `type_id`, ADD INDEX `type_id` (`type_id`, `id`) USING BTREE;
+
+ALTER TABLE `data_type_object_definition_objects` DROP INDEX `ref_object_id`, ADD INDEX `ref_object_id` (`ref_object_id`, `state`, `object_description_id`) USING BTREE; 
+ALTER TABLE `data_type_object_sub_definition_objects` DROP INDEX `ref_object_id`, ADD INDEX `ref_object_id` (`ref_object_id`, `state`, `object_sub_description_id`) USING BTREE; 
+
+ALTER TABLE `def_type_object_descriptions` DROP INDEX `in_search`, DROP INDEX `in_name`, DROP INDEX `is_identifier`;
+ALTER TABLE `def_type_object_descriptions` DROP INDEX `type_id`, ADD INDEX `type_id` (`type_id`, `is_identifier`) USING BTREE; 
+ALTER TABLE `def_type_object_descriptions` DROP INDEX `value_type`, ADD INDEX `value_type` (`value_type_base`, `id`) USING BTREE;
+
+ALTER TABLE `data_type_object_sub_definitions_references` ADD INDEX(`object_sub_description_id`, `ref_object_id`);
+
+ALTER TABLE `def_type_object_sub_descriptions` DROP INDEX `use_object_description_id`;
+ALTER TABLE `def_type_object_sub_descriptions` DROP INDEX `object_sub_details_id`, ADD INDEX `object_sub_details_id` (`object_sub_details_id`, `use_object_description_id`) USING BTREE;
+ALTER TABLE `def_type_object_sub_descriptions` DROP INDEX `value_type`, ADD INDEX `value_type` (`value_type_base`, `id`) USING BTREE;
 ```

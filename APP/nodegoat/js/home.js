@@ -1,7 +1,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -249,7 +249,7 @@ function TextTags(elm, arr_options) {
 			return;
 		}
 				
-		var elm_hover = getElementClosestSelector(e.target, selector);
+		const elm_hover = getElementClosestSelector(e.target, selector);
 		
 		if ((!elm_hover && !elm_hover_active) || (elm_hover && elm_hover_active === elm_hover)) {
 			return;
@@ -2077,7 +2077,7 @@ function UISelection() {
 	
 	var func_bookify_selection = function(data) {
 
-		ASSETS.fetch({script: [
+		ASSETS.fetch(false, {script: [
 			'/js/support/pdfmake.min.js',
 			'/js/support/vfs_fonts.js'
 		]}, function() {
@@ -2753,18 +2753,17 @@ function ModelGraph(elm_overview, arr_settings) {
 		
 		elm_connect.setAttribute('transform', 'translate('+arr_position_box.x+', '+arr_position_box.y+')');
 		
-		if (!arr_position.connect_type_id) {
-			return;
+		for (const connect_type_id of arr_position.connect_type_ids) {
+				
+			const arr_position_box_connect = arr_positions.boxes[connect_type_id];
+			
+			const elm_line = getGraphElement(elm_connect_lines[0], str_identifier+'-'+connect_type_id);
+			
+			elm_line.setAttribute('d', 
+				'M'+(arr_position_box.x + arr_position.x)+','+(arr_position_box.y + arr_position.y)
+				+' L'+(arr_position_box_connect.x + arr_position_box_connect.connect_x)+','+(arr_position_box_connect.y + arr_position_box_connect.connect_y)
+			);
 		}
-		
-		const arr_position_box_connect = arr_positions.boxes[arr_position.connect_type_id];
-		
-		const elm_line = getGraphElement(elm_connect_lines[0], str_identifier+'-'+arr_position['connect_type_id']);
-		
-		elm_line.setAttribute('d', 
-			'M'+(arr_position_box.x + arr_position.x)+','+(arr_position_box.y + arr_position.y)
-			+' L'+(arr_position_box_connect.x + arr_position_box_connect.connect_x)+','+(arr_position_box_connect.y + arr_position_box_connect.connect_y)
-		);
 	};
 	
 	var initPositioning = function() {
@@ -2788,16 +2787,15 @@ function ModelGraph(elm_overview, arr_settings) {
 		for (const str_identifier in arr_positions.elements) {
 			
 			const arr_position = arr_positions.elements[str_identifier];
-			
-			if (!arr_position.connect_type_id) {
-				continue;
+						
+			for (const connect_type_id of arr_position.connect_type_ids) {
+				
+				arr_links.push({
+					source: arr_nodes[arr_positions.boxes[arr_position.type_id].key],
+					target: arr_nodes[arr_positions.boxes[connect_type_id].key],
+					weight: arr_positions.size.box + (arr_positions.margin.box*2)
+				});
 			}
-			
-			arr_links.push({
-				source: arr_nodes[arr_positions.boxes[arr_position.type_id].key],
-				target: arr_nodes[arr_positions.boxes[arr_position.connect_type_id].key],
-				weight: arr_positions.size.box + (arr_positions.margin.box*2)
-			});
 		}
 	};
 	

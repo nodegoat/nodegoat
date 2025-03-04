@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -22,10 +22,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 		$count = 4;
 		
 		if (!$date_after) { // Requires TRUNCATE/DROP
-			
 			DB::setConnection(DB::CONNECT_CMS);
-			
-			GenerateTypeObjects::setSQLFunctionObjectSubDate(); // Make sure the date routine is up-to-date
 		}
 		
 		$sql = "
@@ -539,7 +536,7 @@ class StoreTypeObjectsProcessing extends StoreTypeObjects {
 		static::touchTypeObjects($type_id, $str_sql_table_name);
 	}
 	
-	public static function cleanupTypesObjects($str_sql_table_name = false) {
+	public static function cleanTypesObjects($str_sql_table_name = false) {
 		
 		if (!$str_sql_table_name) {
 			

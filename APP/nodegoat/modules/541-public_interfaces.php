@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -33,7 +33,7 @@ class public_interfaces extends base_module {
 				</thead>
 				<tbody>
 					<tr>
-						<td colspan="4" class="empty">'.getLabel('msg_loading_server_data').'</td>
+						<td colspan="2" class="empty">'.getLabel('msg_loading_server_data').'</td>
 					</tr>
 				</tbody>
 			</table>';
@@ -152,10 +152,12 @@ class public_interfaces extends base_module {
 	
 								$return .= '<div class="options"><fieldset><legend>'.getLabel('lbl_general').' '.getLabel('lbl_options').'</legend><ul>
 												<li><label>'.getLabel('lbl_public_interface_filter_position').'</label><div>'.cms_general::createSelectorRadio($arr_filter_form_positions, 'settings[filter_form_position]', ($arr_public_interface['interface']['settings']['filter_form_position'] ?: 'button')).'</div></li>
+												<li><label>'.getLabel('lbl_public_interface_filter_apply_button').'</label><input name="settings[filter_form_apply_button]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['filter_form_apply_button'] ? 'checked="checked"' : '').' /></li>
 												<li><label>'.getLabel('lbl_public_interface_device_location').'</label><input name="settings[show_device_location]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_device_location'] ? 'checked="checked"' : '').' /></li>
 												<li><label>'.getLabel('lbl_public_interface_show_objects_in_list').'</label><input name="settings[show_objects_list]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_objects_list'] ? 'checked="checked"' : '').' /></li>
 												<li><label>'.getLabel('lbl_public_interface_show_media_tiles').'</label><input name="settings[show_media_thumbnails]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_media_thumbnails'] ? 'checked="checked"' : '').' /></li>
 												<li><label>'.getLabel('lbl_public_interface_hide_object_subs_overview').'</label><input name="settings[hide_object_subs_overview]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['hide_object_subs_overview'] ? 'checked="checked"' : '').' /></li>
+												<li><label>'.getLabel('lbl_public_interface_object_descriptions_in_object_view').'</label><input name="settings[show_object_descriptions_in_object_view]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_object_descriptions_in_object_view'] ? 'checked="checked"' : '').' /></li>
 												<li><label>'.getLabel('lbl_public_interface_display_filter_objects_buttons').'</label><input name="settings[show_keyword_buttons]" type="checkbox" value="1" '.($arr_public_interface['interface']['settings']['show_keyword_buttons'] ? 'checked="checked"' : '').' /></li>
 											</ul></fieldset></div>
 											<div class="options"><fieldset><legend>'.getLabel('lbl_public_interface_object_buttons').'</legend><ul>
@@ -876,13 +878,14 @@ class public_interfaces extends base_module {
 		
 			if ($arr_object_description['object_description_value_type_base'] == 'reversal' || 
 				$arr_object_description['object_description_value_type_base'] == 'classification' || 
+				$arr_object_description['object_description_value_type_base'] == 'reference_mutable' || 
 				$arr_object_description['object_description_value_type_base'] == 'type' || 
 				$arr_object_description['object_description_value_type_base'] == 'boolean' ||
 				$arr_object_description['object_description_value_type_base'] == 'int') {
 				$arr_descriptions[$str_id] = $arr_type_set_flat[$str_id];
 			}
 			
-			if ($arr_object_description['object_description_value_type_base'] == 'reversal') {
+			if ($arr_object_description['object_description_value_type_base'] == 'reversal' || $arr_object_description['object_description_value_type_base'] == 'reference_mutable') {
 				$arr_reversals[$str_id] = true;
 			}
 		}
@@ -1215,14 +1218,15 @@ class public_interfaces extends base_module {
 			
 			while ($arr_row = $arr_datatable['result']->fetchAssoc())	{
 				
-				$t_row = [];
-				$t_row['id'] = 'x:public_interfaces:public_interface_id-'.$arr_row['id'];
-				$t_row[] = Labels::parseTextVariables($arr_row['name']);
-				$t_row[] = '<input type="button" class="data edit" value="edit" /><input type="button" class="data del msg del" value="del" />';
-				$output['data'][] = $t_row;
+				$arr_data = [];
+				$arr_data['id'] = 'x:public_interfaces:public_interface_id-'.$arr_row['id'];
+				$arr_data[] = Labels::parseTextVariables($arr_row['name']);
+				$arr_data[] = '<input type="button" class="data edit" value="edit" /><input type="button" class="data del msg del" value="del" />';
+				
+				$arr_datatable['output']['data'][] = $arr_data;
 			}
 			
-			$this->data = $output;
+			$this->data = $arr_datatable['output'];
 		}
 	
 		// QUERY

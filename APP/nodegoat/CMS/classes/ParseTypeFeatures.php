@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -14,6 +14,8 @@ class ParseTypeFeatures {
 	const CONDITION_NAMESPACE_VISUALISE = 'VISUALISE';
 	const CONDITION_NAMESPACE_ANALYSE = 'ANALYSE';
 	const CONDITION_NAMESPACES = [self::CONDITION_NAMESPACE_VISUALISE, self::CONDITION_NAMESPACE_ANALYSE];
+	
+	const INPUT_VALUE_SEPERATOR = '::';
 	
 	public static function parseTypeCondition($type_id, $arr, $arr_files = [], $num_user_clearance = 0) {
 		
@@ -55,7 +57,7 @@ class ParseTypeFeatures {
 							case 'regex':
 							
 								$arr_regex = $arr_condition_setting['condition_actions'][$action][$type];
-								$return = parseRegularExpression($arr_regex['pattern'], $arr_regex['flags'], $arr_regex['template']);
+								$return = parseRegularExpression($arr_regex['pattern'], $arr_regex['flags'], $arr_regex['template'], true);
 								
 								break;
 							case 'image':
@@ -121,10 +123,10 @@ class ParseTypeFeatures {
 					'condition_filter' => $condition_filter,
 					'condition_scope' => $condition_scope,
 					'condition_actions' => $condition_actions,
-					'condition_in_object_name' => (int)$arr_condition_setting['condition_in_object_name'],
-					'condition_in_object_values' => (int)$arr_condition_setting['condition_in_object_values'],
-					'condition_in_object_nodes_object' => (int)$arr_condition_setting['condition_in_object_nodes_object'],
-					'condition_in_object_nodes_referencing' => (int)$arr_condition_setting['condition_in_object_nodes_referencing'],
+					'condition_in_object_name' => (bool)$arr_condition_setting['condition_in_object_name'],
+					'condition_in_object_values' => (bool)$arr_condition_setting['condition_in_object_values'],
+					'condition_in_object_nodes_object' => (bool)$arr_condition_setting['condition_in_object_nodes_object'],
+					'condition_in_object_nodes_referencing' => (bool)$arr_condition_setting['condition_in_object_nodes_referencing'],
 					'condition_label' => $arr_condition_setting['condition_label']
 				];
 
@@ -161,7 +163,6 @@ class ParseTypeFeatures {
 						}					
 					}				
 				}
-				
 			}
 		} else {
 			
@@ -491,8 +492,7 @@ class ParseTypeFeatures {
 				'geometry_stroke_opacity' => $arr_settings_use['geometry']['stroke_opacity'],
 				'geometry_stroke_width' => $arr_settings_use['geometry']['stroke_width'],
 				'map_show' => $arr_settings_use['settings']['map_show'],
-				'map_url' => $arr_settings_use['settings']['map_url'],
-				'map_attribution' => $arr_settings_use['settings']['map_attribution'],
+				'map_layers' => $arr_settings_use['settings']['map_layers'],
 				'geo_info_show' => $arr_settings_use['settings']['geo_info_show'],
 				'geo_background_color' => $arr_settings_use['settings']['geo_background_color'],
 				'geo_mode' => $arr_settings_use['settings']['geo_mode'],
@@ -509,6 +509,10 @@ class ParseTypeFeatures {
 				'social_label_threshold' => $arr_settings_use['social']['label']['threshold'],
 				'social_label_condition' => $arr_settings_use['social']['label']['condition'],
 				'social_line_show' => $arr_settings_use['social']['line']['show'],
+				'social_line_color' => $arr_settings_use['social']['line']['color'],
+				'social_line_opacity' => $arr_settings_use['social']['line']['opacity'],
+				'social_line_width_min' => $arr_settings_use['social']['line']['width']['min'],
+				'social_line_width_max' => $arr_settings_use['social']['line']['width']['max'],
 				'social_line_arrowhead_show' => $arr_settings_use['social']['line']['arrowhead_show'],
 				'social_force' => $arr_settings_use['social']['force'],
 				'social_forceatlas2' => $arr_settings_use['social']['forceatlas2'],
@@ -529,17 +533,45 @@ class ParseTypeFeatures {
 		
 		$arr_settings['capture_settings'] = ($arr_settings['capture_settings'] ? (!is_array($arr_settings['capture_settings']) ? (array)json_decode($arr_settings['capture_settings'], true) : $arr_settings['capture_settings']) : []);
 		$arr_settings['location_position'] = ($arr_settings['location_position'] ? (!is_array($arr_settings['location_position']) ? (array)json_decode($arr_settings['location_position'], true) : $arr_settings['location_position']) : []);
+		$arr_settings['map_layers'] = ($arr_settings['map_layers'] ? (!is_array($arr_settings['map_layers']) ? (array)json_decode($arr_settings['map_layers'], true) : $arr_settings['map_layers']) : []);
 		$arr_settings['geo_advanced'] = ($arr_settings['geo_advanced'] ? (!is_array($arr_settings['geo_advanced']) ? (array)json_decode($arr_settings['geo_advanced'], true) : $arr_settings['geo_advanced']) : []);
 		$arr_settings['social_force'] = ($arr_settings['social_force'] ? (!is_array($arr_settings['social_force']) ? (array)json_decode($arr_settings['social_force'], true) : $arr_settings['social_force']) : []);
 		$arr_settings['social_forceatlas2'] = ($arr_settings['social_forceatlas2'] ? (!is_array($arr_settings['social_forceatlas2']) ? (array)json_decode($arr_settings['social_forceatlas2'], true) : $arr_settings['social_forceatlas2']) : []);
 		$arr_settings['social_advanced'] = ($arr_settings['social_advanced'] ? (!is_array($arr_settings['social_advanced']) ? (array)json_decode($arr_settings['social_advanced'], true) : $arr_settings['social_advanced']) : []);
+		
+		$arr_map_layers = [];
+		
+		foreach ($arr_settings['map_layers'] as $arr_map_layer) {
+			
+			if (!$arr_map_layer['url']) {
+				continue;
+			}
+			
+			$arr_layer = ['url' => $arr_map_layer['url'], 'opacity' => 1];
+			
+			if (isset($arr_map_layer['opacity']) && $arr_map_layer['opacity'] >= 0 && $arr_map_layer['opacity'] < 1) {
+				$arr_layer['opacity'] = (float)$arr_map_layer['opacity'];
+			}
+			if (!empty($arr_map_layer['attribution'])) {
+				$arr_layer['attribution'] = $arr_map_layer['attribution'];
+			}
+			
+			$arr_map_layers[] = $arr_layer;
+		}
+		
+		if (!$arr_map_layers) {
+			$arr_map_layers[] = ['url' => '//mt{s}.googleapis.com/vt?pb=!1m4!1m3!1i{z}!2i{x}!3i{y}!2m3!1e0!2sm!3i278000000!3m14!2sen-US!3sUS!5e18!12m1!1e47!12m3!1e37!2m1!1ssmartmaps!12m4!1e26!2m2!1sstyles!2zcy50OjE3fHAudjpvZmYscy50OjE4fHAudjpvZmYscy50OjIwfHMuZTpsfHAudjpvZmYscy50OjgxfHAudjpvZmYscy50OjJ8cC52Om9mZixzLnQ6NDl8cC52Om9mZixzLnQ6NTB8cy5lOmx8cC52Om9mZixzLnQ6NHxwLnY6b2ZmLHMudDo2fHMuZTpsfHAudjpvZmY!4e0!20m1!1b1', 'opacity' => 1, 'attribution' => 'Map data ©'.date('Y').' Google']; // //mt{s}.googleapis.com/vt?lyrs=m@205000000&src=apiv3&hl=en-US&x={x}&y={y}&z={z}&s=Galil&apistyle=p.v%3Aoff%2Cs.t%3A6%7Cp.v%3Aon%7Cp.c%3A%23ffc7d7e4%2Cs.t%3A82%7Cp.v%3Aon%2Cs.t%3A19%7Cp.v%3Aon&style=api%7Csmartmaps
+		}
+
+		$arr_settings['map_layers'] = $arr_map_layers;
 		
 		$arr = [
 			'capture' => [
 				'enable' => (int)((string)$arr_settings['capture_enable'] !== '' ? (bool)$arr_settings['capture_enable'] : false),
 				'settings' => [
 					'size' => ['width' => (float)($arr_settings['capture_settings']['size']['width'] ?? null ?: 30), 'height' => (float)($arr_settings['capture_settings']['size']['height'] ?? null ?: 20)],
-					'resolution' => (int)((string)($arr_settings['capture_settings']['resolution'] ?? '') !== '' ? $arr_settings['capture_settings']['resolution'] : 300)
+					'resolution' => (int)((string)($arr_settings['capture_settings']['resolution'] ?? '') !== '' ? $arr_settings['capture_settings']['resolution'] : 300),
+					'raster_include' => (int)((string)$arr_settings['capture_settings']['raster_include'] !== '' ? (bool)$arr_settings['capture_settings']['raster_include'] : false)
 				]
 			],
 			'dot' => [
@@ -590,8 +622,7 @@ class ParseTypeFeatures {
 			],
 			'settings' => [
 				'map_show' => (int)((string)$arr_settings['map_show'] !== '' ? (bool)$arr_settings['map_show'] : true),
-				'map_url' => ($arr_settings['map_url'] ?: '//mt{s}.googleapis.com/vt?pb=!1m4!1m3!1i{z}!2i{x}!3i{y}!2m3!1e0!2sm!3i278000000!3m14!2sen-US!3sUS!5e18!12m1!1e47!12m3!1e37!2m1!1ssmartmaps!12m4!1e26!2m2!1sstyles!2zcy50OjE3fHAudjpvZmYscy50OjE4fHAudjpvZmYscy50OjIwfHMuZTpsfHAudjpvZmYscy50OjgxfHAudjpvZmYscy50OjJ8cC52Om9mZixzLnQ6NDl8cC52Om9mZixzLnQ6NTB8cy5lOmx8cC52Om9mZixzLnQ6NHxwLnY6b2ZmLHMudDo2fHMuZTpsfHAudjpvZmY!4e0!20m1!1b1'), // //mt{s}.googleapis.com/vt?lyrs=m@205000000&src=apiv3&hl=en-US&x={x}&y={y}&z={z}&s=Galil&apistyle=p.v%3Aoff%2Cs.t%3A6%7Cp.v%3Aon%7Cp.c%3A%23ffc7d7e4%2Cs.t%3A82%7Cp.v%3Aon%2Cs.t%3A19%7Cp.v%3Aon&style=api%7Csmartmaps
-				'map_attribution' => ($arr_settings['map_attribution'] ?: 'Map data ©'.date('Y').' Google'),
+				'map_layers' => $arr_settings['map_layers'],
 				'geo_info_show' => (int)((string)$arr_settings['geo_info_show'] !== '' ? (bool)$arr_settings['geo_info_show'] : false),
 				'geo_background_color' => ($arr_settings['geo_background_color'] ?: ''),
 				'geo_mode' => (int)((string)$arr_settings['geo_mode'] !== '' ? $arr_settings['geo_mode'] : 1),
@@ -612,6 +643,9 @@ class ParseTypeFeatures {
 				],
 				'line' => [
 					'show' => (int)((string)$arr_settings['social_line_show'] !== '' ? (bool)$arr_settings['social_line_show'] : true),
+					'color' => ($arr_settings['social_line_color'] ?: '#646464'),
+					'opacity' => (float)($arr_settings['social_line_opacity'] ?: 0.2),
+					'width' =>  ['min' => (float)($arr_settings['social_line_width_min'] ?: 1.5), 'max' => (float)($arr_settings['social_line_width_max'] ?: 1.5)],
 					'arrowhead_show' => (int)((string)$arr_settings['social_line_arrowhead_show'] !== '' ? (bool)$arr_settings['social_line_arrowhead_show'] : false)
 				],
 				'force' => [
@@ -659,6 +693,28 @@ class ParseTypeFeatures {
 		$arr['line']['width']['min'] = min($arr['line']['width']['min'], $arr['line']['width']['max']);
 		$arr['social']['dot']['size']['min'] = min($arr['social']['dot']['size']['min'], $arr['social']['dot']['size']['max']);
 		$arr['social']['dot']['size']['start'] = min($arr['social']['dot']['size']['start'], $arr['social']['dot']['size']['stop']);
+		$arr['social']['line']['width']['min'] = min($arr['social']['line']['width']['min'], $arr['social']['line']['width']['max']);
+		
+		return $arr;
+	}
+	
+	public static function processVisualSettings($arr) {
+		
+		foreach ($arr['settings']['map_layers'] as &$arr_map_layer) {
+		
+			if (!$arr_map_layer['attribution']) {
+				continue;
+			}
+			
+			$arr_attribution = str2Array($arr_map_layer['attribution'], static::INPUT_VALUE_SEPERATOR);
+			
+			if (isset($arr_attribution[1])) {
+				$arr_map_layer['attribution_parsed'] = ['name' => parseBody(trim($arr_attribution[0])), 'source' => parseBody(trim($arr_attribution[1]))];
+			} else {
+				$arr_map_layer['attribution_parsed'] = parseBody(trim($arr_attribution[0]));
+			}
+		}
+		unset($arr_map_layer);
 		
 		return $arr;
 	}

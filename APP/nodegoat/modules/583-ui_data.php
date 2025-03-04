@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -516,7 +516,7 @@ class ui_data extends base_module {
 					$arr_frame['area']['geo'] = ['latitude' => false, 'longitude' => false];
 				}
 
-				$arr_visual_settings = data_visualise::getVisualSettings();
+				$arr_visual_settings = data_visualise::getVisualSettings(true, true);
 				$arr_types_all = StoreType::getTypes();
 				$arr_use_project_ids = array_keys($arr_project['use_projects']);
 				$create_visualisation_package = new CreateVisualisationPackage($arr_project, $arr_types_all, $arr_frame, $arr_visual_settings);
@@ -1203,7 +1203,114 @@ class ui_data extends base_module {
 		
 		return $str_html;
 	}
-
+	
+	private function createViewTypeObjectElmRelatedMedia($arr_object_description, $arr_object_definition, $arr_public_interface_settings) {
+		
+		$arr_pdf_value_images = [];
+		
+		// First collect all references to see if Media Objects have been linked to
+		if ($arr_object_description['object_description_ref_type_id']) {
+			
+			$arr_ref_type_objects = [];
+			
+			if ($arr_object_description['object_description_value_type'] == 'reversed_collection_resource_path') {
+				
+				return false;
+				
+			} else if ($arr_object_description['object_description_is_dynamic']) {
+				
+				$arr_reference = (!$arr_object_description['object_description_has_multi'] ? [$arr_object_definition['object_definition_ref_object_id']] : $arr_object_definition['object_definition_ref_object_id']);
+				
+				foreach ($arr_reference as $key => $arr_reference_type_objects) {
+				
+					foreach ($arr_reference_type_objects as $ref_type_id => $arr_ref_objects) {
+					
+						foreach ($arr_ref_objects as $cur_object_id => $arr_reference) {
+							
+							$arr_ref_type_objects[] = ['type_id' => $ref_type_id, 'object_id' => $cur_object_id, 'value' => $arr_reference['object_definition_ref_object_name']];
+						}
+					}
+				}
+				
+			} else {
+				
+				foreach ((array)$arr_object_definition['object_definition_ref_object_id'] as $key => $value) {
+					
+					$arr_id = explode('_', $value);	
+					
+					if ($arr_id[1]) {
+						
+						$type_id = $arr_id[0];
+						$object_id = $arr_id[1];
+						
+					} else {
+						
+						$type_id = $arr_object_description['object_description_ref_type_id'];
+						$object_id = $value;
+					}
+				
+					$arr_ref_type_objects[] = ['type_id' => $type_id, 'object_id' => $object_id, 'value' => $arr_object_definition['object_definition_value'][$key]];
+				}
+			}
+			
+			$str_html_image_figures = '';
+			$str_html_media_figures = '';
+			
+			// Then iterate over found objects to display media
+			foreach ($arr_ref_type_objects as $key => $arr_ref_type_object) {
+				
+				if ($arr_public_interface_settings['types'][$arr_ref_type_object['type_id']]['media']) {
+		
+					$arr_media_object = current(self::getPublicInterfaceObjects($arr_ref_type_object['type_id'], ['objects' => $arr_ref_type_object['object_id']], true, 1));
+					$object_image_thumbnail = $arr_media_object['object_thumbnail'];
+					$object_image_filename = $arr_media_object['object_image_filename'];
+		
+					$arr_media_object['object']['object_name_parsed'] = Response::addParseDelay('', function($foo) use ($arr_media_object) {
+						return FormatTags::parse(GenerateTypeObjects::printSharedTypeObjectNames($arr_media_object['object']['object_name']));
+					});	
+					
+					$arr_pdf_value_images[] = ['cache_url' => $object_image_thumbnail, 'caption' => $arr_ref_type_object['value']];		
+				
+					if ($arr_public_interface_settings['show_media_thumbnails']) {
+					
+						if ($object_image_thumbnail) {
+		
+							$elm_related_media_object_descriptions .= '<div class="a" style="background-image: url('.$object_image_thumbnail.');" data-type_id="'.$arr_ref_type_object['type_id'].'" data-object_id="'.$arr_ref_type_object['object_id'].'" id="y:ui_data:show_project_type_object-'.$arr_ref_type_object['type_id'].'_'.$arr_ref_type_object['object_id'].'" title="'.strEscapeHTML(GenerateTypeObjects::printSharedTypeObjectNames($arr_ref_type_object['value'])).'"></div>';
+							
+						} else {
+		
+							$icon = ($arr_public_interface_settings['icons']['type'][$arr_ref_type_object['type_id']] ? $arr_public_interface_settings['icons']['type'][$arr_ref_type_object['type_id']] : 'image');
+							$elm_related_media_object_descriptions .= '<div class="a" data-type_id="'.$arr_ref_type_object['type_id'].'" data-object_id="'.$arr_ref_type_object['object_id'].'" id="y:ui_data:show_project_type_object-'.$arr_ref_type_object['type_id'].'_'.$arr_ref_type_object['object_id'].'" title="'.strEscapeHTML(GenerateTypeObjects::printSharedTypeObjectNames($arr_ref_type_object['value'])).'">
+								<span class="icon" data-category="full">'.getIcon($icon).'</span>
+							</div>';
+						}
+						
+					} else {
+						
+						if ($object_image_filename) {
+							
+							$str_html_image_figures .= '<figure>
+								<div class="image">
+									<img src="'.$object_image_filename.'"  />
+								</div>
+								<figurecaption>'.$arr_media_object['object']['object_name_parsed'].'</figurecaption>
+							</figure>';
+							
+						} else {
+							
+							$arr_ref_type_set = StoreCustomProject::getTypeSetReferenced($arr_ref_type_object['type_id'], $arr_project['types'][$arr_ref_type_object['type_id']], StoreCustomProject::ACCESS_PURPOSE_VIEW);
+							$media_value = self::getObjectMedia($arr_ref_type_set, $arr_media_object);
+							$media = new EnucleateMedia($media_value, DIR_HOME_TYPE_OBJECT_MEDIA, '/'.DIR_TYPE_OBJECT_MEDIA);
+							$str_html_media_figures .= '<figure>'.$media->enucleate().'<figurecaption>'.$arr_media_object['object']['object_name_parsed'].'</figurecaption></figure>';
+						}
+					}
+				}
+			}
+		} 
+		
+		return ['thumb_elms' => $elm_related_media_object_descriptions, 'album_elms' => $str_html_image_figures, 'non_image_media_elms' => $str_html_media_figures, 'pdf_elms' => $arr_pdf_value_images];
+	}
+		
 	private function createViewTypeObjectElm($arr_object, $print, $project_id) {
 
 		$type_id = $arr_object['object']['type_id'];
@@ -1216,7 +1323,8 @@ class ui_data extends base_module {
 		$arr_public_interface_settings = cms_nodegoat_public_interfaces::getPublicInterfaceSettings($public_user_interface_id);
 		
 		$arr_project = StoreCustomProject::getProjects($project_id);		
-
+		$arr_types = StoreType::getTypes(array_keys($arr_project['types']));
+		
 		$arr_type_set = StoreCustomProject::getTypeSetReferenced($type_id, $arr_project['types'][$type_id], StoreCustomProject::ACCESS_PURPOSE_VIEW);
 		$arr_public_interface_project_types = cms_nodegoat_public_interfaces::getPublicInterfaceTypeIDs($public_user_interface_id);
 		$arr_source_types = $arr_object['object']['object_sources'];
@@ -1228,15 +1336,7 @@ class ui_data extends base_module {
 		
 		$arr_pdf_values['name'] = $arr_object['object']['object_name'];
 		
-		$has_media_types = false;
-		
-		foreach ((array)$arr_public_interface_settings['types'] as $setting_type_id => $arr_type_settings) {
-
-			if ($arr_type_settings['media']) {
-				
-				$has_media_types = true;
-			}
-		}
+		$arr_media = [];
 		
 		FormatTypeObjects::setInteractionCreateLink('ui_data::createTypeObjectLink');
 		FormatTypeObjects::setInteractionCreateLinkTag('ui_data::createTypeObjectLinkTag');
@@ -1245,264 +1345,107 @@ class ui_data extends base_module {
 		foreach ((array)$arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 			
 			$arr_object_definition = $arr_object['object_definitions'][$object_description_id];
+			$arr_configuration = $arr_project['types'][$type_id]['configuration']['object_descriptions'][$object_description_id];
 			
-			if ((!$arr_object_definition['object_definition_value'] && !$arr_object_definition['object_definition_ref_object_id']) || $_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view'] || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
+			if ((($arr_object_definition['object_definition_value'] === null || $arr_object_definition['object_definition_value'] === '' || $arr_object_definition['object_definition_value'] === []) && !$arr_object_definition['object_definition_ref_object_id']) || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, $object_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
 				continue;
 			}
+	
+			$use_value = $arr_object_definition['object_definition_value'];
+			if (!$arr_object_description['object_description_ref_type_id']) {
+				$use_value = arrParseRecursive($use_value, ['Labels', 'parseLanguage']);
+			}
+
+			$arr_extra = ['has_multi' => $arr_object_description['object_description_has_multi'], 'ref_type_id' => $arr_object_description['object_description_ref_type_id'], 'style' => $arr_object_definition['object_definition_style']];
+			$arr_value_type_settings = $arr_object_description['object_description_value_type_settings'];
 			
-			$arr_object_definition_style = $arr_object_definition['object_definition_style'];
+			if ($arr_object_description['object_description_value_type_base'] == 'text_tags') {
+					
+				$arr_value_type_settings['marginalia'] = false;
+				$arr_value_type_settings['list'] = false;
+			}
+	
+			$str_html_value = FormatTypeObjects::formatToHTMLValue($arr_object_description['object_description_value_type'], $use_value, $arr_object_definition['object_definition_ref_object_id'], $arr_value_type_settings, $arr_extra);
+			
 			$str_name = strEscapeHTML(Labels::parseTextVariables($arr_object_description['object_description_name']));
-			$str_id = 'object_description_'.$object_description_id;
-
-			if ($arr_object_description['object_description_is_referenced']) {
-				
-				$use_type_id = $arr_object_description['object_description_ref_type_id'];
-				$use_object_description_id = $arr_object_description['object_description_id'];
-				
-				$str_object_description_name = '<span class="icon" data-category="direction" title="'.getLabel('lbl_referenced').'">'.getIcon('leftright-right').'</span><span>'.strEscapeHTML(Labels::parseTextVariables($arr_types[$use_type_id]['name'])).' - '.$str_object_description_name.'</span>';
-				$arr_configuration = $arr_project['types'][$type_id]['include_referenced_types'][$use_type_id]['object_descriptions'][$use_object_description_id];
-			} else {
-				
-				$arr_configuration = $arr_project['types'][$type_id]['configuration']['object_descriptions'][$object_description_id];
+					
+			$arr_cite_as_values['object_description_'.$object_description_id][] = $str_html_value;
+			$arr_pdf_values['object_descriptions'][$object_description_id][] = $str_html_value;	
+	
+			if ($arr_public_interface_settings['types'][$type_id]['meta_description'] == $str_id) {
+					
+				$meta_description = strEscapeHTML($str_html_value);
+				SiteEndEnvironment::addDescription($str_html_value);
 			}
 			
-			$rev_path_elms = '';
+			$arr_media = $this->createViewTypeObjectElmRelatedMedia($arr_object_description, $arr_object_definition, $arr_public_interface_settings);
 			
-			if ($arr_object_description['object_description_ref_type_id']) {
+			if ($arr_media['thumb_elms']) {
 				
-				$arr_ref_type_objects = [];
+				$elm_related_media_object_descriptions .= $arr_media['thumb_elms'];
+				$arr_pdf_values['images'] = array_merge((array)$arr_pdf_values['images'], (array)$arr_media['pdf_elms']);
+				continue;
+			}
+
+			if ($arr_media['album_elms']) {
+							
+				$str_html_value = '<div class="album">'
+							.$arr_media['album_elms']
+						.'</div>'
+						.$arr_media['non_image_media_elms'];
+				$arr_pdf_values['images'] = array_merge((array)$arr_pdf_values['images'], (array)$arr_media['pdf_elms']);
+
+			}
+			
+			if ($arr_object_description['object_description_value_type_base'] == 'media' || $arr_object_description['object_description_value_type_base'] == 'media_external') {
+
+				foreach ((array)$arr_object_definition['object_definition_value'] as $media_value) {
 				
-				if ($arr_object_description['object_description_value_type'] == 'reversed_collection_resource_path') {
-					
-					$arr_extra = ['ref_type_id' => $arr_object_description['object_description_ref_type_id'], 'style' => $arr_object_definition['object_definition_style']];
-										
-					$rev_path_elms .= FormatTypeObjects::formatToHTMLValue($arr_object_description['object_description_value_type'], $arr_object_definition['object_definition_value'], $arr_object_definition['object_definition_ref_object_id'], $arr_object_description['object_description_value_type_settings'], $arr_extra);
-		
-				} if ($arr_object_description['object_description_is_dynamic']) {
-					
-					$arr_reference = (!$arr_object_description['object_description_has_multi'] ? [$arr_object_definition['object_definition_ref_object_id']] : $arr_object_definition['object_definition_ref_object_id']);
-					
-					foreach ($arr_reference as $key => $arr_reference_type_objects) {
-					
-						foreach ($arr_reference_type_objects as $ref_type_id => $arr_ref_objects) {
-						
-							foreach($arr_ref_objects as $cur_object_id => $arr_reference) {
+					$media = new EnucleateMedia($media_value, DIR_HOME_TYPE_OBJECT_MEDIA, '/'.DIR_TYPE_OBJECT_MEDIA);
+					$url = $media->enucleate(EnucleateMedia::VIEW_URL);
+					$type = $media->enucleate(EnucleateMedia::VIEW_TYPE);	
 								
-								$arr_ref_type_objects[] = ['type_id' => $ref_type_id, 'object_id' => $cur_object_id, 'value' => $arr_reference['object_definition_ref_object_name']];
-							}
-						}
-					}
-				} else if ($arr_object_description['object_description_has_multi']) {
-
-					foreach ($arr_object_definition['object_definition_ref_object_id'] as $key => $value) {
-
-						$arr_ref_type_objects[] = ['type_id' => $arr_object_description['object_description_ref_type_id'], 'object_id' => $value, 'value' => $arr_object_definition['object_definition_value'][$key]];
-					}
-				} else {
-					
-					$arr_ref_type_objects[] = ['type_id' => $arr_object_description['object_description_ref_type_id'], 'object_id' => $arr_object_definition['object_definition_ref_object_id'], 'value' => $arr_object_definition['object_definition_value']];
-				}
-				
-				if ($arr_public_interface_settings['types'][$arr_object_description['object_description_ref_type_id']]['media']) {
-					
-					$str_html_image_figures = '';
-					$str_html_media_figures = '';
-					
-					foreach ($arr_ref_type_objects as $key => $arr_ref_type_object) {
-
-						$arr_media_object = current(self::getPublicInterfaceObjects($arr_ref_type_object['type_id'], ['objects' => $arr_ref_type_object['object_id']], true, 1));
-						$object_image_thumbnail = $arr_media_object['object_thumbnail'];
-						$object_image_filename = $arr_media_object['object_image_filename'];
-
-						$arr_media_object['object']['object_name_parsed'] = Response::addParseDelay('', function($foo) use ($arr_media_object) {
-							return FormatTags::parse(GenerateTypeObjects::printSharedTypeObjectNames($arr_media_object['object']['object_name']));
-						});	
-					
-						if ($arr_public_interface_settings['show_media_thumbnails']) {
+					if ($type == 'image') {
 						
-							if ($object_image_thumbnail) {
-
-								$elm_related_media_object_descriptions .= '<div class="a" style="background-image: url('.$object_image_thumbnail.');" data-type_id="'.$arr_ref_type_object['type_id'].'" data-object_id="'.$arr_ref_type_object['object_id'].'" id="y:ui_data:show_project_type_object-'.$arr_ref_type_object['type_id'].'_'.$arr_ref_type_object['object_id'].'" title="'.strEscapeHTML(GenerateTypeObjects::printSharedTypeObjectNames($arr_ref_type_object['value'])).'"></div>';
-								
-							} else {
-
-								$icon = ($arr_public_interface_settings['icons']['type'][$arr_ref_type_object['type_id']] ? $arr_public_interface_settings['icons']['type'][$arr_ref_type_object['type_id']] : 'image');
-								$elm_related_media_object_descriptions .= '<div class="a" data-type_id="'.$arr_ref_type_object['type_id'].'" data-object_id="'.$arr_ref_type_object['object_id'].'" id="y:ui_data:show_project_type_object-'.$arr_ref_type_object['type_id'].'_'.$arr_ref_type_object['object_id'].'" title="'.strEscapeHTML(GenerateTypeObjects::printSharedTypeObjectNames($arr_ref_type_object['value'])).'">
-									<span class="icon" data-category="full">'.getIcon($icon).'</span>
-								</div>';
-							}
+						if ($arr_public_interface_settings['types'][$type_id]['media']) {
+						
+							$arr_pdf_values['images_full'][] = ['url' => $url];
+						
 						} else {
-						
-							if ($object_image_thumbnail) {
-
-								$arr_pdf_values['images'][] = ['cache_url' => $object_image_thumbnail, 'caption' => $arr_ref_type_object['value']];							
-							}
 							
-							if ($object_image_filename) {
-								
-								$str_html_image_figures .= '<figure>
-									<div class="image">
-										<img src="'.$object_image_filename.'"  />
-									</div>
-									<figurecaption>'.$arr_media_object['object']['object_name_parsed'].'</figurecaption>
-								</figure>';
-							} else {
-								
-								$arr_ref_type_set = StoreCustomProject::getTypeSetReferenced($arr_ref_type_object['type_id'], $arr_project['types'][$arr_ref_type_object['type_id']], StoreCustomProject::ACCESS_PURPOSE_VIEW);
-								$media_value = self::getObjectMedia($arr_ref_type_set, $arr_media_object);
-								$media = new EnucleateMedia($media_value, DIR_HOME_TYPE_OBJECT_MEDIA, '/'.DIR_TYPE_OBJECT_MEDIA);
-								$str_html_media_figures .= '<figure>'.$media->enucleate().'<figurecaption>'.$arr_media_object['object']['object_name_parsed'].'</figurecaption></figure>';
-							}
+							$arr_pdf_values['images'][] = ['cache_url' => $url, 'caption' => ''];
 						}
-					}
-					
-					if (!$arr_public_interface_settings['show_media_thumbnails']) {
-						
-						$arr_html_object_descriptions[] = [
-							'attributes' => 'data-object_description_id="'.$object_description_id.'" class="'.(count($arr_ref_type_objects) > 1 ? 'images' : 'image').' '.strtolower(preg_replace('/[^A-Za-z]/', '', $str_name)).' '.($arr_public_interface_settings['show_object_descriptions_in_object_view'] ? 'object-description' : '').' '.$arr_object_description['object_description_value_type_base'].'"',
-							'label' => $str_name.($arr_configuration['information'] ? '<span title="'.parseBody($arr_configuration['information'], ['function' => 'strEscapeHTML']).'" class="icon a info">'.getIcon('info-point').'</span>' : ''),
-							'content' => '<div class="album">'
-									.$str_html_image_figures
-								.'</div>'
-								.$str_html_media_figures
-						];
-					}
-
-				} else {
-					
-					$str_html_elms = '';
-					
-					if ($arr_object_description['object_description_value_type'] == 'reversed_collection_resource_path') {
-					
-						$str_html_elms .= $rev_path_elms;
-						
-					} else if ($arr_object_description['object_description_is_dynamic']) {
-
-						$str_html_elms .= Response::addParseDelay('', function($foo) use ($arr_ref_type_objects) {
-					
-							foreach ($arr_ref_type_objects as $key => $value) {
-								$arr_ref_type_objects[$key]['value'] = FormatTags::parse(GenerateTypeObjects::printSharedTypeObjectNames($value['value']));
-							}
-							
-							usort($arr_ref_type_objects, function($a, $b) { return strcmp($a['value'], $b['value']); });
-								
-							foreach ($arr_ref_type_objects as $key => $arr_ref_type_object) {
-								
-								$return .= '<span class="a type-'.$arr_ref_type_object['type_id'].'" data-type_id="'.$arr_ref_type_object['type_id'].'" data-object_id="'.$arr_ref_type_object['object_id'].'" id="y:ui_data:show_project_type_object-'.$arr_ref_type_object['type_id'].'_'.$arr_ref_type_object['object_id'].'">'.$arr_ref_type_object['value'].'</span>';
-							}				
-							
-							return $return;
-						});		
-										
-					} else {	
-						
-						foreach ($arr_ref_type_objects as $key => $arr_ref_type_object) {
-							
-							$str_html_elms .= '<span class="a type-'.$arr_ref_type_object['type_id'].'" data-type_id="'.$arr_ref_type_object['type_id'].'" data-object_id="'.$arr_ref_type_object['object_id'].'" id="y:ui_data:show_project_type_object-'.$arr_ref_type_object['type_id'].'_'.$arr_ref_type_object['object_id'].'">'.$arr_ref_type_object['value'].'</span>';
-						}
-						
-					}
-							
-					foreach ($arr_ref_type_objects as $key => $arr_ref_type_object) {
-						
-						$arr_cite_as_values['object_description_'.$object_description_id][] = $arr_ref_type_object['value'];
-						$arr_pdf_values['object_descriptions'][$object_description_id][] = $arr_ref_type_object['value'];
-					}
-					
-					if ($arr_public_interface_settings['show_keyword_buttons'] && $arr_public_interface_project_filter_types[$arr_object_description['object_description_ref_type_id']]) {
-						
-						$elm_keyword_object_descriptions .= $str_html_elms;
-					} else {
-						
-						$arr_html_object_descriptions[] = [
-							'attributes' => 'data-object_description_id="'.$object_description_id.'" class="'
-								.($arr_public_interface_settings['show_object_descriptions_in_object_view'] ? 'object-description ' : '')
-								.strtolower(preg_replace('/[^A-Za-z]/', '', $str_name))
-								.' '.$arr_object_description['object_description_value_type_base']
-								.($arr_object_description['object_description_value_type'] != $arr_object_description['object_description_value_type_base'] ? ' '.$arr_object_description['object_description_value_type'] : '')
-							.'"',
-							'label' => $str_name.($arr_configuration['information'] ? '<span title="'.parseBody($arr_configuration['information'], ['function' => 'strEscapeHTML']).'" class="icon a info">'.getIcon('info-point').'</span>' : ''),
-							'content' => $str_html_elms
-						];
-					}
+					}													
 				}
 				
-			} else {
-				
-				$html_value = arrParseRecursive($arr_object_definition['object_definition_value'], ['Labels', 'parseLanguage']);
-				$arr_value_type_settings = $arr_object_description['object_description_value_type_settings'];
-				
-				if ($arr_public_interface_settings['types'][$type_id]['meta_description'] == $str_id) {
+				if ($arr_public_interface_settings['types'][$type_id]['media']) {
 					
-					$meta_description = strEscapeHTML($html_value);
-					SiteEndEnvironment::addDescription($html_value);
-				}
-				
-				if ($arr_object_description['object_description_value_type_base'] == 'text_tags') {
+					$elm_media_object_descriptions .= '<span>'.$str_html_value.'</span>';
 					
-					$arr_value_type_settings['marginalia'] = false;
-					$arr_value_type_settings['list'] = false;
-					
-					$html_value = FormatTypeObjects::formatToHTMLValue($arr_object_description['object_description_value_type'], $html_value, $arr_object_definition['object_definition_ref_object_id'], $arr_value_type_settings);
-				} else {
-					
-					$html_value = FormatTypeObjects::formatToHTMLValue($arr_object_description['object_description_value_type'], $html_value, $arr_object_definition['object_definition_ref_object_id'], $arr_value_type_settings);
-					
-					$text_color = $arr_object_definition_style['text_color'];
-					
-					$html_value = ($text_color ? '<span style="color: '.$text_color.'">'.$html_value.'</span>' : $html_value);
-				}
-				
-				$arr_cite_as_values['object_description_'.$object_description_id] .= $html_value;
-				
-				if ($arr_object_description['object_description_value_type_base'] == 'media' || $arr_object_description['object_description_value_type_base'] == 'media_external') {
-					
-					$show_full = false;
-					
-					if (!$has_media_types || $arr_public_interface_settings['types'][$type_id]['media']) {
-						
-						$elm_media_object_descriptions .= '<span>'.$html_value.'</span>';
-
-						$show_full = true;
-					}							
-
-					foreach ((array)$arr_object_definition['object_definition_value'] as $media_value) {
-					
-						$media = new EnucleateMedia($media_value, DIR_HOME_TYPE_OBJECT_MEDIA, '/'.DIR_TYPE_OBJECT_MEDIA);
-						$url = $media->enucleate(EnucleateMedia::VIEW_URL);
-						$type = $media->enucleate(EnucleateMedia::VIEW_TYPE);	
-									
-						if ($type == 'image') {
-							
-							if ($show_full) {
-							
-								$arr_pdf_values['images_full'][] = ['url' => $url];
-							
-							} else {
-								
-								if ($arr_public_interface_settings['show_media_thumbnails']) {
-									$elm_related_media_object_descriptions .= '<div style="background-image: url('.$url.');" data-type_id="'.$type_id.'" data-object_id="'.$object_id.'" ></div>';
-								}
-								
-								$arr_pdf_values['images'][] = ['cache_url' => $url, 'caption' => ''];
-							}
-						}													
-					}
-
-				} else {
-					
-					$arr_pdf_values['object_descriptions'][$object_description_id][] = $html_value;
-
-					$arr_html_object_descriptions[] = [
-						'attributes' => 'data-object_description_id="'.$object_description_id.'" class="'.($arr_public_interface_settings['show_object_descriptions_in_object_view'] ? 'object-description ' : '').strtolower(preg_replace('/[^A-Za-z]/', '', $str_name)).' '.$arr_object_description['object_description_value_type_base'].'"',
-						'label' => $str_name.($arr_configuration['information'] ? '<span title="'.parseBody($arr_configuration['information'], ['function' => 'strEscapeHTML']).'" class="icon a info">'.getIcon('info-point').'</span>' : ''),
-						'content' => $html_value
-					];
-				}
-			}
-			
-		}
+					continue;
+				}	
+			}	
 		
+			if ($arr_public_interface_settings['show_keyword_buttons'] && array_intersect((array)$arr_object_description['object_description_ref_type_id'], (array)$arr_public_interface_project_filter_types)) {
+						
+				$elm_keyword_object_descriptions .= $str_html_value;
+				
+				continue;
+			}
+				
+			$arr_html_object_descriptions[] = [
+				'attributes' => 'data-object_description_id="'.$object_description_id.'" class="'
+					.($arr_public_interface_settings['show_object_descriptions_in_object_view'] ? 'object-description ' : '')
+					.strtolower(preg_replace('/[^A-Za-z]/', '', $str_name))
+					.' '.$arr_object_description['object_description_value_type_base']
+					.($arr_object_description['object_description_value_type'] != $arr_object_description['object_description_value_type_base'] ? ' '.$arr_object_description['object_description_value_type'] : '')
+				.'"',
+				'label' => $str_name.($arr_configuration['information'] ? '<span title="'.parseBody($arr_configuration['information'], ['function' => 'strEscapeHTML']).'" class="icon a info">'.getIcon('info-point').'</span>' : ''),
+				'content' => $str_html_value
+			];	
+
+		}
+			
 		$str_html_object_subs = '';
 
 		if ($arr_public_interface_settings['projects'][$project_id]['show_object_subs'][$type_id] && $arr_object['object_subs_info']) {
@@ -1702,20 +1645,24 @@ class ui_data extends base_module {
 			</menu>';
 		}
 		
-		$str_html_object .= '<ul>
-			<li class="meta-description hide">
-				'.$meta_description.'
-			</li>
-			<li class="media">
-				'.$elm_media_object_descriptions.'
-			</li>
-			<li class="related-media">
-				'.$elm_related_media_object_descriptions.'
-			</li>
-			<li class="keywords">
-				'.$elm_keyword_object_descriptions.'
-			</li>';
+		$str_html_object .= '<ul>';
 			
+		if ($meta_description) {
+			$str_html_object .= '<li class="meta-description hide">'.$meta_description.'</li>';
+		}
+		
+		if ($elm_media_object_descriptions) {
+			$str_html_object .= '<li class="media">'.$elm_media_object_descriptions.'</li>';
+		}
+		
+		if ($elm_related_media_object_descriptions) {
+			$str_html_object .= '<li class="related-media">'.$elm_related_media_object_descriptions.'</li>';
+		}
+		
+		if ($elm_keyword_object_descriptions) {
+			$str_html_object .= '<li class="keywords">'.$elm_keyword_object_descriptions.'</li>';
+		}
+		
 		if ($arr_public_interface_settings['show_object_descriptions_in_object_view']) {
 
 			$str_html_object_descriptions = '';
@@ -1995,18 +1942,19 @@ class ui_data extends base_module {
 			$arr_ref = self::getObjectReferences($type_id, $object_id, 'both', (count($arr_primary_types) ? $arr_primary_types : false));
 			
 			$elm_ref_count = '<div class="ref-count">
-								<div>
-									<span class="arrow">→</span>
-									<span class="count">'.$arr_ref['count']['referenced'].'</span>
-								</div>
-								<div>
-									<span class="count">'.$arr_ref['count']['references'].'</span>
-									<span class="arrow">→</span>
-								</div>
-							</div>';
+				<div>
+					<span class="arrow">→</span>
+					<span class="count">'.$arr_ref['count']['referenced'].'</span>
+				</div>
+				<div>
+					<span class="count">'.$arr_ref['count']['references'].'</span>
+					<span class="arrow">→</span>
+				</div>
+			</div>';
 		}
 
 		$scope_id = $arr_public_interface_settings['projects'][$public_user_interface_active_custom_project_id]['scope']['browse'][$type_id]['grid'];
+		$elm_defs = '';
 		
 		if ($scope_id) {
 			
@@ -2086,12 +2034,12 @@ class ui_data extends base_module {
 		}		
 		
 		$return = '<div class="object-thumbnail a '.$classes.'" id="y:ui_data:show_project_type_object-'.$type_id.'_'.$object_id.'"><div>'
-					.$elm_color
-					.'<div class="image" '.($arr_object['object_thumbnail'] ? 'style="background-image: url('.$arr_object['object_thumbnail'].');"' : '').'>'.($arr_object['object_thumbnail'] ? '' : '<span>'.$first_char.'</span>').'</div>'
-					.'<div class="name"><span>'.$object_name_parsed.'</span></div>'
-					.'<div class="object-definitions">'.$elm_defs.'</div>'
-					.$elm_ref_count
-				.'</div></div>'; 
+			.$elm_color
+			.'<div class="image" '.($arr_object['object_thumbnail'] ? 'style="background-image: url('.$arr_object['object_thumbnail'].');"' : '').'>'.($arr_object['object_thumbnail'] ? '' : '<span>'.$first_char.'</span>').'</div>'
+			.'<div class="name"><span>'.$object_name_parsed.'</span></div>'
+			.'<div class="object-definitions">'.$elm_defs.'</div>'
+			.$elm_ref_count
+		.'</div></div>'; 
 		
 		return $return;
 	}
@@ -2376,14 +2324,15 @@ class ui_data extends base_module {
 						elm_table.on('commandfinished', function() {
 						
 							elm_table.find('.popup').each(function() {
+								
+								const elm_popup = $(this);
 							
-								if (!$(this).is('tr') && $(this).closest('.object-subs').length) {
+								if (!elm_popup.is('tr') && elm_popup.closest('.object-subs').length) {
 								
-									$(this).removeClass('popup a');
-									
-								} else if (!$(this).is('tr') || $(this).attr('data-method') == 'view_type_object') {
+									elm_popup.removeClass('popup a');
+								} else if (!elm_popup.is('tr') || elm_popup.attr('data-method') == 'view_type_object') {
 								
-									$(this).removeClass('popup').addClass('a quick');
+									elm_popup.removeClass('popup').addClass('a quick');
 								}
 							});
 						});
@@ -2674,7 +2623,7 @@ class ui_data extends base_module {
 									
 								} else {
 								
-									for (var type_id in arr_data.info.types) { // Prepare and order the Types list
+									for (const type_id in arr_data.info.types) { // Prepare and order the Types list
 										arr_type_object_ids[type_id] = {};
 									}
 									
@@ -2687,23 +2636,32 @@ class ui_data extends base_module {
 								
 									if (arr_link.object_sub_ids) { // Sub-objects
 									
-										for (var i = 0; i < arr_link.object_sub_ids.length; i++) {
+										for (let i = 0; i < arr_link.object_sub_ids.length; i++) {
 										
-											var object_sub_id = arr_link.object_sub_ids[i];
-											var arr_object_sub = arr_data.object_subs[object_sub_id];
-											var object_id = (arr_object_sub.original_object_id ? arr_object_sub.original_object_id : arr_object_sub.object_id);
-											var type_id = arr_data.objects[object_id].type_id;
+											const object_sub_id = arr_link.object_sub_ids[i];
+											const arr_object_sub = arr_data.object_subs[object_sub_id];
+											
+											let object_id = arr_object_sub.object_id;
+											let type_id = arr_data.objects[object_id].type_id;
 
 											arr_type_object_ids[type_id][object_id] = object_id;
+											
+											if (arr_object_sub.original_object_id) {
+												
+												object_id = arr_object_sub.original_object_id;
+												type_id = arr_data.objects[object_id].type_id;
+
+												arr_type_object_ids[type_id][object_id] = object_id;
+											}
 										}
 									}
 									if (arr_link.connect_object_ids) { // Object descriptions
 									
-										for (var i = 0; i < arr_link.connect_object_ids.length; i++) {
+										for (let i = 0; i < arr_link.connect_object_ids.length; i++) {
 										
-											var arr_object_link = arr_link.connect_object_ids[i];
-											var object_id = arr_object_link.object_id;
-											var type_id = arr_object_link.type_id;
+											const arr_object_link = arr_link.connect_object_ids[i];
+											const object_id = arr_object_link.object_id;
+											const type_id = arr_object_link.type_id;
 											
 											if (!arr_type_object_ids[type_id]) {
 												arr_type_object_ids[type_id] = {};
@@ -2714,11 +2672,11 @@ class ui_data extends base_module {
 									}
 									if (arr_link.object_ids) { // Objects
 									
-										for (var i = 0; i < arr_link.object_ids.length; i++) {
+										for (let i = 0; i < arr_link.object_ids.length; i++) {
 										
-											var object_id = arr_link.object_ids[i];
-											var arr_object = arr_data.objects[object_id];
-											var type_id = arr_object.type_id;
+											const object_id = arr_link.object_ids[i];
+											const arr_object = arr_data.objects[object_id];
+											const type_id = arr_object.type_id;
 
 											arr_type_object_ids[type_id][object_id] = object_id;
 										}
@@ -2748,7 +2706,7 @@ class ui_data extends base_module {
 										if (elm_overlay_object_thumbnail.length) {
 								
 											elm_overlay_grid_toggle.prop('checked', true);
-											moveScroll(elm_overlay_object_thumbnail, {elm_con: elm_overlay_grid});
+											moveScroll(elm_overlay_object_thumbnail, {elm_container: elm_overlay_grid});
 										}
 									
 									} else {
@@ -2815,18 +2773,24 @@ class ui_data extends base_module {
 										arr_levels.push({level: i, width: 256 * Math.pow(2,i), height: 256 * Math.pow(2,i), tile_width: 256, tile_height: 256});
 									}
 									
-									var attribution = obj_data.data.attribution;
-									attribution = (attribution.source ? attribution.source+' - ' : '')+(obj_data.visual.settings.map_attribution ? obj_data.visual.settings.map_attribution+' - ' : '')+attribution.base;
+									var arr_layers = [];
 									
+									if (obj_data.visual.settings.map_show) {
+									
+										for (let i = 0, len_i = obj_data.visual.settings.map_layers.length; i < len_i; i++) {
+											
+											const arr_map_layer = obj_data.visual.settings.map_layers[i];
+											arr_layers.push({url: arr_map_layer.url, opacity: arr_map_layer.opacity, attribution: arr_map_layer.attribution_parsed});
+										}
+									}
+																		
 									var obj_options = {
-										call_class_paint: MapGeo,
 										call_class_paint: MapGeo,
 										arr_class_paint_settings: {arr_visual: obj_data.visual},
 										arr_class_data_settings: obj_data.data.options,
 										arr_levels: arr_levels,
-										tile_path: (obj_data.visual.settings.map_show ? obj_data.visual.settings.map_url : false),
-										tile_subdomain_range: [1,2,3],
-										attribution: attribution,
+										arr_layers: (arr_layers.length ? arr_layers : false),
+										attribution: obj_data.data.attribution,
 										background_color: obj_data.visual.settings.geo_background_color,
 										allow_sizing: true,
 										center_pointer: true,
@@ -2865,17 +2829,14 @@ class ui_data extends base_module {
 											arr_levels.push({level: i, width: 100000 * Math.pow(1.5, i), height: 50000 * Math.pow(1.5, i)});
 										}
 									}
-								
-									var attribution = obj_data.data.attribution;
-									attribution = (attribution.source ? attribution.source+' - ' : '')+attribution.base;
 																
 									var obj_options = {
 										call_class_paint: MapSocial,
 										arr_class_paint_settings: {arr_visual: obj_data.visual},
 										arr_class_data_settings: obj_data.data.options,
 										arr_levels: arr_levels,
-										tile_path: false,
-										attribution: attribution,
+										arr_layers: false,
+										attribution: obj_data.data.attribution,
 										background_color: obj_data.visual.social.settings.background_color,
 										allow_sizing: false,
 										default_center: {x: 0.5, y: 0.5},
@@ -2896,16 +2857,13 @@ class ui_data extends base_module {
 									
 									var arr_levels = [{auto: true}];
 									
-									var attribution = obj_data.data.attribution;
-									attribution = (attribution.source ? attribution.source+' - ' : '')+attribution.base;
-									
 									var obj_options = {
 										call_class_paint: MapTimeline,
 										arr_class_paint_settings: {arr_visual: obj_data.visual},
 										arr_class_data_settings: obj_data.data.options,
 										arr_levels: arr_levels,
-										tile_path: false,
-										attribution: attribution,
+										arr_layers: false,
+										attribution: obj_data.data.attribution,
 										background_color: obj_data.visual.time.settings.background_color,
 										allow_sizing: false,
 										default_center: {x: 0.5, y: 0.5},
@@ -3865,7 +3823,7 @@ class ui_data extends base_module {
 						$use_value = arrParseRecursive($use_value, ['Labels', 'parseLanguage']);
 					}
 					
-					$arr_extra = ['has_multi' => $arr_object_description['object_description_has_multi'], 'ref_type_id' => $arr_object_description['object_description_ref_type_id']];
+					$arr_extra = ['has_multi' => $arr_object_description['object_description_has_multi'], 'ref_type_id' => $arr_object_description['object_description_ref_type_id'], 'limit_text' => true];
 						
 					$arr_data[] = FormatTypeObjects::formatToHTMLPreviewPlainValue($arr_object_description['object_description_value_type'], $use_value, $arr_object_definition['object_definition_ref_object_id'], $arr_object_description['object_description_value_type_settings'], $arr_extra);
 					
@@ -4007,7 +3965,7 @@ class ui_data extends base_module {
 		//	$filter->setFilter(FilterTypeObjects::convertFilterInput($arr_project_filters['object']));
 		//}
 
-		$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_FULL, toolbar::getTypeConditions($type_id));
+		$filter->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE_INCLUDE, toolbar::getTypeConditions($type_id));
 
 		$arr_object = current($filter->init());
 
@@ -4075,6 +4033,13 @@ class ui_data extends base_module {
 							}
 							
 							$ref_type_id = $arr_object_description['object_description_ref_type_id'];
+							
+							$arr_ids = explode('_', $ref_object_id);
+							
+							if ($arr_ids[1]) {
+								$ref_object_id = $arr_ids[0];
+								$ref_type_id = $arr_ids[1];
+							}
 							
 							$arr_object['object_references'][$ref_type_id][$ref_object_id]['object'] = ['type_id' => $ref_type_id, 'object_id' => $ref_object_id];
 						}
@@ -4422,27 +4387,42 @@ class ui_data extends base_module {
 		$arr_thumbnail_objects = [];
 	
 		foreach ((array)$arr_object['object_definitions'] as $object_description_id => $arr_object_definition) {
-
-			if ($arr_object_definition['object_definition_ref_object_id'] && $arr_public_interface_settings['types'][$arr_type_set['object_descriptions'][$object_description_id]['object_description_ref_type_id']]['media']) {
-		
-				foreach ((array)$arr_object_definition['object_definition_ref_object_id'] as $key => $object_definition_ref_object_id) {
-
-					$ref_media_type_id = $arr_type_set['object_descriptions'][$object_description_id]['object_description_ref_type_id'];
-					$ref_media_object_id = $object_definition_ref_object_id;
-					
-					if ($object_id != $ref_media_object_id) {
-					
-						$arr_thumbnail_object = self::getPublicInterfaceObjects($ref_media_type_id, ['objects' => $ref_media_object_id], true, false, false, false, ['no_thumbnails' => true]);
-						$arr_media_type_set = StoreType::getTypeSet($ref_media_type_id);
-						$image_filename = self::getObjectImage($arr_media_type_set, $arr_thumbnail_object[$ref_media_object_id]);
 			
-						if ($image_filename) {
+			foreach ((array)$arr_type_set['object_descriptions'][$object_description_id]['object_description_ref_type_id'] as $object_description_ref_type_id) {
+
+				if ($arr_object_definition['object_definition_ref_object_id'] && $arr_public_interface_settings['types'][$object_description_ref_type_id]['media']) {
 			
-							return $image_filename;
+					foreach ((array)$arr_object_definition['object_definition_ref_object_id'] as $key => $object_definition_ref_object_id) {
+						
+						$ref_media_type_id = $object_description_ref_type_id;
+						$ref_media_object_id = $object_definition_ref_object_id;
+
+						$arr_id = explode('_', $object_definition_ref_object_id);	
+						
+						if ($arr_id[1]) {
 							
-						} else {
-							
-							$arr_thumbnail_objects[$ref_media_object_id] = $arr_thumbnail_object[$ref_media_object_id];
+							$ref_media_type_id = $arr_id[0];
+							$ref_media_object_id = $arr_id[1];
+						}
+						
+						if ($ref_media_type_id != $object_description_ref_type_id) {
+							continue;
+						}
+						
+						if ($object_id != $ref_media_object_id) {
+						
+							$arr_thumbnail_object = self::getPublicInterfaceObjects($ref_media_type_id, ['objects' => $ref_media_object_id], true, false, false, false, ['no_thumbnails' => true]);
+							$arr_media_type_set = StoreType::getTypeSet($ref_media_type_id);
+							$image_filename = self::getObjectImage($arr_media_type_set, $arr_thumbnail_object[$ref_media_object_id]);
+				
+							if ($image_filename) {
+				
+								return $image_filename;
+								
+							} else {
+								
+								$arr_thumbnail_objects[$ref_media_object_id] = $arr_thumbnail_object[$ref_media_object_id];
+							}
 						}
 					}
 				}
@@ -4544,14 +4524,17 @@ class ui_data extends base_module {
 			
 			if ($arr_object_description['object_description_ref_type_id']) {
 				
-				if ($arr_options['media'] && $arr_public_interface_settings['types'][$arr_object_description['object_description_ref_type_id']]['media']) {
-					$arr_selection['object_descriptions'][$object_description_id] = true;
-					continue;
-				}
-				
-				if ($arr_options['referencing']) {
-					$arr_selection['object_descriptions'][$object_description_id] = true;
-					continue;
+				foreach ((array)$arr_object_description['object_description_ref_type_id'] as $object_description_ref_type_id) {
+			
+					if ($arr_options['media'] && $arr_public_interface_settings['types'][$object_description_ref_type_id]['media']) {
+						$arr_selection['object_descriptions'][$object_description_id] = true;
+						continue;
+					}
+					
+					if ($arr_options['referencing']) {
+						$arr_selection['object_descriptions'][$object_description_id] = true;
+						continue;
+					}
 				}
 				
 			} else {
@@ -4641,10 +4624,14 @@ class ui_data extends base_module {
 			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view']) {
 				continue;
 			}
-						
-			if ($arr_public_interface_project_filter_types[$arr_object_description['object_description_ref_type_id']]) {
-				
-				$arr_matched_filter_types[$arr_object_description['object_description_ref_type_id']][$type_id][] = $object_description_id;
+			
+			foreach ((array)$arr_object_description['object_description_ref_type_id'] as $object_description_ref_type_id) {		
+					
+				if ($arr_public_interface_project_filter_types[$object_description_ref_type_id]) {
+					
+					$arr_matched_filter_types[$object_description_ref_type_id][$type_id][] = $object_description_id;
+				}
+			
 			}
 		}
 		
@@ -4654,10 +4641,13 @@ class ui_data extends base_module {
 			if ($_SESSION['NODEGOAT_CLEARANCE'] < $arr_object_description['object_description_clearance_view']) {
 				continue;
 			}
-						
-			if ($arr_matched_filter_types[$arr_object_description['object_description_ref_type_id']] && $arr_public_interface_project_filter_types[$arr_object_description['object_description_ref_type_id']]) {
-		
-				$arr_matched_filter_types[$arr_object_description['object_description_ref_type_id']][$target_type_id][] = $object_description_id;
+			
+			foreach ((array)$arr_object_description['object_description_ref_type_id'] as $object_description_ref_type_id) {	
+				
+				if ($arr_matched_filter_types[$object_description_ref_type_id] && $arr_public_interface_project_filter_types[$object_description_ref_type_id]) {
+			
+					$arr_matched_filter_types[$object_description_ref_type_id][$target_type_id][] = $object_description_id;
+				}
 			}
 		}
 		
@@ -4804,10 +4794,10 @@ class ui_data extends base_module {
 		if ($arr_object['object_explore_referenced_references'][$target_type_id]) {	
 		
 			$elm_filters = '<div>
-						<input type="checkbox" data-filter="'.strEscapeHTML(value2JSON(['active_object' => ['type_id' => $type_id, 'object_id' => $object_id]])).'" checked>
-						<div>'.$arr_object['object']['object_name'].'</div>
-						<span>'.count((array)$arr_object['object_explore_referenced_references'][$target_type_id]).'</span>
-					</div>';	
+				<input type="checkbox" data-filter="'.strEscapeHTML(value2JSON(['active_object' => ['type_id' => $type_id, 'object_id' => $object_id]])).'" checked>
+				<div>'.$arr_object['object']['object_name'].'</div>
+				<span>'.count((array)$arr_object['object_explore_referenced_references'][$target_type_id]).'</span>
+			</div>';	
 		
 		}
 		
@@ -4824,14 +4814,14 @@ class ui_data extends base_module {
 			foreach ($arr_filters as $arr_filter) {
 	
 				$elm_filters .= '<div>
-							<input type="checkbox" data-filter="'.strEscapeHTML(value2JSON($arr_filter['filter'])).'" '.($i < 3 && !count((array)$arr_object['object_explore_referenced_references'][$target_type_id]) ? ' checked ' : '').'>';
+					<input type="checkbox" data-filter="'.strEscapeHTML(value2JSON($arr_filter['filter'])).'" '.($i < 3 && !count((array)$arr_object['object_explore_referenced_references'][$target_type_id]) ? ' checked ' : '').'>';
 
-							foreach ($arr_filter['arr_elms'] as $arr_elm) {
-								$elm_filters .= '<div class="keyword type-'.$arr_elm['type_id'].'">'.$arr_elm['value'].'</div>';
-							}
+					foreach ($arr_filter['arr_elms'] as $arr_elm) {
+						$elm_filters .= '<div class="keyword type-'.$arr_elm['type_id'].'">'.$arr_elm['value'].'</div>';
+					}
 				
-				$elm_filters .= '<span>'.$arr_filter['result'].'</span>
-						</div>';
+					$elm_filters .= '<span>'.$arr_filter['result'].'</span>
+				</div>';
 				
 				$i++;
 			}
@@ -4839,7 +4829,7 @@ class ui_data extends base_module {
 		}
 		
 		$return = '<div class="combined-filters">'.$elm_filters.'</div>
-					<div class="list-results" id="y:ui_data:set_combined_references_filter-'.$target_type_id.'"></div>';
+			<div class="list-results" id="y:ui_data:set_combined_references_filter-'.$target_type_id.'"></div>';
 		
 		return '<div data-method="combined_references_filter">'.$return.'</div>';
 	}

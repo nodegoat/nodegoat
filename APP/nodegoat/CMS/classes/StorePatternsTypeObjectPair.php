@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -40,7 +40,7 @@ class StorePatternsTypeObjectPair extends PatternEntity {
 				nodegoat_ptop.object_id
 					FROM ".DB::getTable('DEF_NODEGOAT_PATTERN_TYPE_OBJECT_PAIRS')." nodegoat_ptop
 				WHERE nodegoat_ptop.type_id = ".DBStatement::assign('type_id', 'i')."
-					AND nodegoat_ptop.identifier = UNHEX(".DBStatement::assign('identifier', 's').")
+					AND nodegoat_ptop.identifier = ".DBFunctions::convertTo(DBStatement::assign('identifier', 's'), DBFunctions::TYPE_BINARY, DBFunctions::TYPE_STRING, DBFunctions::FORMAT_STRING_HEX)."
 					"."
 			");
 		}
@@ -68,7 +68,7 @@ class StorePatternsTypeObjectPair extends PatternEntity {
 		$arr_identifiers_ignorable = [];
 
 		$res = DB::query("SELECT
-				LOWER(HEX(nodegoat_ptop.identifier)),
+				LOWER(".DBFunctions::convertTo('nodegoat_ptop.identifier', DBFunctions::TYPE_STRING, DBFunctions::TYPE_BINARY, DBFunctions::FORMAT_STRING_HEX)."),
 				nodegoat_ptop.object_id
 			FROM ".DB::getTable('DEF_NODEGOAT_PATTERN_TYPE_OBJECT_PAIRS')." nodegoat_ptop
 			WHERE nodegoat_ptop.type_id = ".(int)$type_id."
@@ -115,13 +115,13 @@ class StorePatternsTypeObjectPair extends PatternEntity {
 				
 		$this->arr_pairs[$type_id][$str_identifier] = ($object_id === static::PATTERN_IGNORE ? null : (int)$object_id);
 
-		$this->arr_sql_pairs[] = "(UNHEX('".DBFunctions::strEscape($str_identifier)."')".", ".(int)$type_id.", ".($object_id === static::PATTERN_IGNORE ? 'NULL' : (int)$object_id).", '".DBFunctions::strEscape($str_pattern_value)."', ".(int)$num_composition.")";						
+		$this->arr_sql_pairs[] = "(".DBFunctions::convertTo("'".DBFunctions::strEscape($str_identifier)."'", DBFunctions::TYPE_BINARY, DBFunctions::TYPE_STRING, DBFunctions::FORMAT_STRING_HEX).", ".(int)$type_id.", ".($object_id === static::PATTERN_IGNORE ? 'NULL' : (int)$object_id).", '".DBFunctions::strEscape($str_pattern_value)."', ".(int)$num_composition.")";						
 	}
 	
 	public function delTypeObjectPair($type_id, $str_identifier) {
 		
 		$res = DB::query("DELETE FROM ".DB::getTable('DEF_NODEGOAT_PATTERN_TYPE_OBJECT_PAIRS')."
-			WHERE identifier = UNHEX('".DBFunctions::strEscape($str_identifier)."')
+			WHERE identifier = ".DBFunctions::convertTo("'".DBFunctions::strEscape($str_identifier)."'", DBFunctions::TYPE_BINARY, DBFunctions::TYPE_STRING, DBFunctions::FORMAT_STRING_HEX)."
 				"."
 				AND type_id = ".(int)$type_id."
 		");
@@ -133,7 +133,7 @@ class StorePatternsTypeObjectPair extends PatternEntity {
 		
 		$res = DB::query("UPDATE ".DB::getTable('DEF_NODEGOAT_PATTERN_TYPE_OBJECT_PAIRS')."
 				SET object_id = ".($object_id === static::PATTERN_IGNORE ? 'NULL' : (int)$object_id)."
-			WHERE identifier = UNHEX('".DBFunctions::strEscape($str_identifier)."')
+			WHERE identifier = ".DBFunctions::convertTo("'".DBFunctions::strEscape($str_identifier)."'", DBFunctions::TYPE_BINARY, DBFunctions::TYPE_STRING, DBFunctions::FORMAT_STRING_HEX)."
 				"."
 				AND type_id = ".(int)$type_id."
 		");
@@ -199,13 +199,13 @@ class StorePatternsTypeObjectPair extends PatternEntity {
 		
 		$res = DB::query("SELECT
 			nodegoat_ptop.*,
-			LOWER(HEX(nodegoat_ptop.identifier)) AS identifier
+			LOWER(".DBFunctions::convertTo('nodegoat_ptop.identifier', DBFunctions::TYPE_STRING, DBFunctions::TYPE_BINARY, DBFunctions::FORMAT_STRING_HEX).") AS identifier
 				FROM ".DB::getTable('DEF_NODEGOAT_PATTERN_TYPE_OBJECT_PAIRS')." AS nodegoat_ptop
-				".($sql_table_name_objects ? "JOIN ".$sql_table_name_objects." AS nodegoat_to ON (nodegoat_to.id = nodegoat_ptop.object_id)" : "")."
+				".($sql_table_name_objects ? "JOIN ".$sql_table_name_objects." AS nodegoat_to ON (nodegoat_to.id = nodegoat_ptop.object_id)" : '')."
 			WHERE nodegoat_ptop.type_id = ".(int)$type_id."
-				".($str_identifier ? "AND nodegoat_ptop.identifier = UNHEX('".DBFunctions::strEscape($str_identifier)."')" : "")."
-				".($sql_object_ids ? "AND nodegoat_ptop.object_id IN (".$sql_object_ids.")" : "")."
-				".($sql_composition ? "AND nodegoat_ptop.composition ".$sql_composition : "")."
+				".($str_identifier ? "AND nodegoat_ptop.identifier = ".DBFunctions::convertTo("'".DBFunctions::strEscape($str_identifier)."'", DBFunctions::TYPE_BINARY, DBFunctions::TYPE_STRING, DBFunctions::FORMAT_STRING_HEX) : '')."
+				".($sql_object_ids ? "AND nodegoat_ptop.object_id IN (".$sql_object_ids.")" : '')."
+				".($sql_composition ? "AND nodegoat_ptop.composition ".$sql_composition : '')."
 				"."
 		");
 		

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -82,11 +82,11 @@ class cms_nodegoat_definitions extends base_module {
 	
 	public static function jobProperties() {
 		return [
-			'runCleanupObjects' => [
+			'cleanTypesObjects' => [
 				'label' => 'nodegoat '.getLabel('lbl_cleanup_objects'),
 				'options' => false,
 			],
-			'runCleanupOrphans' => [
+			'cleanOrphans' => [
 				'label' => 'nodegoat '.getLabel('lbl_cleanup_orphans'),
 				'options' => function($arr_options) {
 					return '<label>'.getLabel('lbl_model').'</label><input type="checkbox" name="options[model]" value="1"'.($arr_options['model'] ? ' checked="checked"' :'').' />'
@@ -94,29 +94,29 @@ class cms_nodegoat_definitions extends base_module {
 						.'<label>'.getLabel('lbl_media').'</label><input type="checkbox" name="options[media]" value="1"'.($arr_options['media'] ? ' checked="checked"' :'').' />';
 				}
 			],
-			'buildTypeObjectCache' => [
+			'buildTypesObjectsCache' => [
 				'label' => 'nodegoat '.getLabel('lbl_cache_objects').' ('.getLabel('lbl_reset').')',
 				'options' => false,
 			],
-			'runTypeObjectCaching' => [
+			'cacheTypesObjects' => [
 				'label' => 'nodegoat '.getLabel('lbl_cache_objects'),
 				'options' => function($arr_options) {
 					return '<label>'.getLabel('lbl_reset').'</label><input type="checkbox" name="options[reset]" value="1"'.($arr_options['reset'] ? ' checked="checked"' :'').' />';
 				}
 			],
 			'runReversals' => [
-				'label' => 'nodegoat '.getLabel('lbl_reversals'),
+				'label' => 'nodegoat '.StoreType::getTypeClassName(StoreType::TYPE_CLASS_REVERSAL, true),
 				'options' => false
 			],
 			'runReversalsSelection' => [
-				'label' => 'nodegoat '.getLabel('lbl_reversals').' ('.getLabel('lbl_select').')',
+				'label' => 'nodegoat '.StoreType::getTypeClassName(StoreType::TYPE_CLASS_REVERSAL, true).' ('.getLabel('lbl_select').')',
 				'options' => function($arr_options) {
 					
 					$arr_values = [];
 					
 					if ($arr_options['type_ids']) {
 						
-						$arr_types = StoreType::getTypes(false, $arr_options['type_ids'], StoreType::TYPE_CLASS_REVERSAL);
+						$arr_types = StoreType::getTypes($arr_options['type_ids'], StoreType::TYPE_CLASS_REVERSAL);
 						
 						$arr_values = [];
 						
@@ -127,7 +127,7 @@ class cms_nodegoat_definitions extends base_module {
 
 					return '<fieldset><ul>
 						<li>
-							<label>'.getLabel('lbl_reversals').'</label>
+							<label>'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_REVERSAL, true).'</label>
 							<div>'.cms_general::createMultiSelect('options[type_ids]', 'y:cms_nodegoat_definitions:get_type-reversal', $arr_values, false, ['list' => true]).'</div>
 						</li>
 						<li>
@@ -168,8 +168,50 @@ class cms_nodegoat_definitions extends base_module {
 		];
 	}
 	
+	public static function setupProperties() {
+		
+		return [
+			'nodegoat_database_functions' => [
+				'label' => 'Configure nodegoat database functions.',
+				'run' => function() {
+					
+					GenerateTypeObjects::setSQLFunctionObjectSubDate();
+				}
+			]
+		];
+	}
+	
+	public function commands($method, $id, $value = '') {
+		
+		if ($method == "get_type") {
+			
+			$type_id = (int)$value;
+			
+			$arr = [];
+			
+			if ($type_id) {
+				
+				$class = ($id == 'reversal' ? StoreType::TYPE_CLASS_REVERSAL : ($id == 'classification' ? StoreType::TYPE_CLASS_CLASSIFICATION : ($id == 'type' ? StoreType::TYPE_CLASS_TYPE : false)));
+				$arr_type = StoreType::getTypes($type_id, $class);
+				
+				$type_id = $arr_type['id'];
+				
+				if ($type_id) {
+					
+					$arr[] = ['id' => $type_id, 'label' => Labels::parseTextVariables($arr_type['name']), 'value' => Labels::parseTextVariables($arr_type['name'])];
+				}
+			}
+			
+			if (!$type_id) {
+				
+				$arr[] = ['id' => '', 'label' => getLabel('msg_no_results'), 'value' => ''];
+			}
 
-	public static function cleanupOrphansModel() {
+			$this->html = $arr;
+		}
+	}
+
+	public static function cleanOrphansModel() {
 					
 		$arr = [
 			['delete' => [DB::getTable('DEF_NODEGOAT_TYPE_DEFINITIONS'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id'], 'clause' => 'type_id > 0'],
@@ -184,7 +226,7 @@ class cms_nodegoat_definitions extends base_module {
 		DBFunctions::cleanupTables($arr);
 	}
 	
-	public static function cleanupOrphansData() {
+	public static function cleanOrphansData() {
 			
 		$arr = [
 			['delete' => [DB::getTable('DATA_NODEGOAT_TYPE_OBJECTS'), 'type_id'], 'test' => [DB::getTable('DEF_NODEGOAT_TYPES'), 'id'], 'clause' => 'type_id > 0'],
@@ -235,7 +277,7 @@ class cms_nodegoat_definitions extends base_module {
 		DBFunctions::cleanupTables($arr);
 	}
 	
-	public static function cleanupOrphansMedia() {
+	public static function cleanOrphansMedia() {
 		
 		$arr_types = StoreType::getTypes();
 		
@@ -326,7 +368,7 @@ class cms_nodegoat_definitions extends base_module {
 	
 	// Caching
 	
-	public static function runTypeObjectCaching($arr_options = []) {
+	public static function cacheTypesObjects($arr_options = []) {
 		
 		$date_start = false;
 		$date_end = false;
@@ -346,13 +388,13 @@ class cms_nodegoat_definitions extends base_module {
 		StoreTypeObjectsProcessing::cacheTypesObjectSubs($date_start, $date_end);
 	}
 	
-	public static function buildTypeObjectCache($arr_options = []) {
+	public static function buildTypesObjectsCache($arr_options = []) {
 		
-		$arr_job = cms_jobs::getJob('cms_nodegoat_definitions', 'runTypeObjectCaching');
+		$arr_job = cms_jobs::getJob('cms_nodegoat_definitions', 'cacheTypesObjects');
 		
 		$arr_job['reset'] = true;
 				
-		cms_jobs::runJob('cms_nodegoat_definitions', 'runTypeObjectCaching', 'reset', $arr_job);
+		cms_jobs::runJob('cms_nodegoat_definitions', 'cacheTypesObjects', 'reset', $arr_job);
 	}
 
 	// Reversal
@@ -374,9 +416,9 @@ class cms_nodegoat_definitions extends base_module {
 		}
 		
 		if ($arr_options['type_ids']) {
-			$arr_reversals = StoreType::getTypes(false, $arr_options['type_ids'], StoreType::TYPE_CLASS_REVERSAL);
+			$arr_reversals = StoreType::getTypes($arr_options['type_ids'], StoreType::TYPE_CLASS_REVERSAL);
 		} else {
-			$arr_reversals = StoreType::getTypes(false, false, StoreType::TYPE_CLASS_REVERSAL);
+			$arr_reversals = StoreType::getTypes(false, StoreType::TYPE_CLASS_REVERSAL);
 		}
 		
 		memoryBoost(false);
@@ -397,29 +439,29 @@ class cms_nodegoat_definitions extends base_module {
 	
 	// Cleanup
 	
-	public static function runCleanupObjects($arr_options = []) {
+	public static function cleanTypesObjects($arr_options = []) {
 		
-		StoreTypeObjectsProcessing::cleanupTypesObjects();
+		StoreTypeObjectsProcessing::cleanTypesObjects();
 	}
 	
-	public static function runCleanupOrphans($arr_options = []) {
+	public static function cleanOrphans($arr_options = []) {
 		
 		if ($arr_options['model']) {
 			
-			self::cleanupOrphansModel();
+			self::cleanOrphansModel();
 		}
 		
 		if ($arr_options['data']) {
 			
-			self::cleanupOrphansData();
+			self::cleanOrphansData();
 		}
 		
 		if ($arr_options['media']) {
 			
-			self::cleanupOrphansMedia();
+			self::cleanOrphansMedia();
 		}
 	}
-	
+		
 	// Graph analysis
 	
 	public static function runGraphAnalysisService($arr_options) {

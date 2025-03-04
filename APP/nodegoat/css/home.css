@@ -1,27 +1,28 @@
 /* HOME STYLE */
 
 :root {
-	--nodegoat-green: #a3ce6c;
+	--nodegoat-green: #a3ce6c; --nodegoat-green-rgb: 163,206,108;
 	--nodegoat-blue: #009cff;
 	--nodegoat-dark: #131617;
+	
+	--button: var(--nodegoat-dark); --button-hover: var(--nodegoat-dark); --button-focus: var(--nodegoat-dark);
+}
+
+@font-face {
+	font-family: 'pixel';
+	src: url('/css/fonts/Unibody8Pro-Regular.eot');
+	src: url('/css/fonts/Unibody8Pro-Regular.eot?#iefix') format('embedded-opentype'), 
+		url('/css/fonts/Unibody8Pro-Regular.woff') format('woff'),
+		/*url('type/filename.otf') format('opentype'),*/
+		url('/css/fonts/Unibody8Pro-Regular.ttf') format('truetype');
+	font-style: normal;
+	font-weight: normal;
 }
 
 body { background-color: #a3ce6c; }
 
 h1 { margin: 10px 0px; }
 hr { border-bottom-width: 1px; }
-
-@font-face 
-	{
-		font-family: 'pixel';
-		src: url('/css/fonts/Unibody8Pro-Regular.eot');
-		src: url('/css/fonts/Unibody8Pro-Regular.eot?#iefix') format('embedded-opentype'), 
-			url('/css/fonts/Unibody8Pro-Regular.woff') format('woff'),
-			/*url('type/filename.otf') format('opentype'),*/
-			url('/css/fonts/Unibody8Pro-Regular.ttf') format('truetype');
-		font-style: normal;
-		font-weight: normal;
-	}
 
 /* TEMPLATE */
 
@@ -142,12 +143,6 @@ span.icon ~ sub { background-color: #fafafa; color: var(--nodegoat-dark); }
 .data_model .object-sub-details > .sorter > li > div > fieldset > *:last-child,
 .data_model .import_confirm .options #tab-object-sub .options > fieldset > *:last-child { margin-bottom: 0px; }
 
-.entry.object-subs fieldset .tags > ul > li > span:first-child,
-.entry.object-subs fieldset .tags > ul > li > span.handler:not(:hover),
-.entry.object-various fieldset .tags > ul > li > span:first-child,
-.entry.object-various fieldset .tags > ul > li > span.handler:not(:hover),
-.entry.object-various .fieldsets > div > fieldset .tags > ul > li > span:first-child,
-.entry.object-various .fieldsets > div > fieldset .tags > ul > li > span.handler:not(:hover) { background-color: #f5f5f5; }
 .options fieldset .entry.object-subs > fieldset,
 .options fieldset .entry.object-various fieldset { display: inline-block; margin-left: 0px; }
 
@@ -203,7 +198,7 @@ div.analysis-object > span + span::before { content: "|"; padding: 0px 4px; }
 .data_viewer .record > dl > div > dd > span.icon svg,
 .data_viewer .record > dl > div > dd ul > li span.icon svg { height: 12px; }
 .data_viewer .record > dl > div > dd > span.a,
-.data_viewer .record > dl > div > dd ul > li span.a { text-decoration: underline currentColor dashed 1px; text-underline-offset: 4px; display: inline-block; padding-bottom: 2px; }
+.data_viewer .record > dl > div > dd ul > li span.a { text-decoration: underline; text-decoration-color: currentColor; text-decoration-style: dashed; text-decoration-thickness: 1px; text-underline-offset: 4px; display: inline-block; padding-bottom: 2px; }
 .data_viewer .record > dl > div > dd > span.a:not(:hover),
 .data_viewer .record > dl > div > dd ul > li span.a:not(:hover) { text-decoration-color: var(--text); }
 .data_viewer .record > dl > div > dd > span.a:hover > span[style] { color: inherit !important; }
@@ -211,11 +206,14 @@ div.analysis-object > span + span::before { content: "|"; padding: 0px 4px; }
 .data_viewer .record > dl > div > dd > div { display: inline-block; }
 .data_viewer .record > dl > div > dd > div.analysis-object > span + span::before { content: "|"; }
 .data_viewer .record > dl > div > dd > div > img { display: block; }
-.data_viewer .record > dl > div > dd > div > div.album > * + * { margin-top: 8px; }
 .data_viewer .record > dl > div > dd object,
 .data_viewer .record > dl > div > dd iframe { width: 800px; height: 600px; }
 .data_viewer .record > dl > div > dd .tabs.text_layout > ul + div,
 .data_viewer .record > dl > div > dd .tabs.text_tags > ul + div { min-width: 600px; white-space: nowrap; }
+.data_viewer .record > dl > div > dd div.album { display: grid; grid-auto-flow: column; justify-content: start; justify-items: center; align-items: start; gap: 8px; }
+.data_viewer .record > dl > div > dd div.album > img,
+.data_viewer .record > dl > div > dd div.album > video { object-fit: contain; }
+.data_viewer .record > dl > div > dd div.album > object { width: 100%; height: 100%; min-width: 300px; min-height: 400px; }
 
 /* CUSTOM & BODY CONTENT */
 
@@ -237,8 +235,6 @@ div.analysis-object > span + span::before { content: "|"; padding: 0px 4px; }
 
 /* INTERFACE */
 
-*[type=button], *[type=submit],
-.tabs > ul li,
 section.info { background-color: var(--nodegoat-dark); }
 
 *[type=button].pulse, *[type=submit].pulse,
@@ -267,7 +263,9 @@ fieldset > ul > li > label:first-child + * input[type=text].colorpicker,
 .custom_projects > form > h1 > small,
 .project-overview > div > h1 > small,
 .public_interfaces > form > h1 > small,
+.popup > form.storage fieldset ul > li > div > small,
 .popup > form[data-method*="handle_"] > h2 > small { display: block; margin-top: 1px; vertical-align: middle; font-size: 1.1rem; font-weight: normal; font-family: var(--font-mono); }
+.popup > form.storage fieldset ul > li > div > small { display: inline-block; }
 .view_type_object .overview h1 > small::before,
 .entry .object h1 > small::before,
 .entry.object h1 > small::before,
@@ -275,6 +273,7 @@ fieldset > ul > li > label:first-child + * input[type=text].colorpicker,
 .custom_projects > form > h1 > small::before,
 .project-overview > div > h1 > small::before,
 .public_interfaces > form > h1 > small::before,
+.popup > form.storage fieldset ul > li > div > small::before,
 .popup > form[data-method*="handle_"] > h2 > small::before { content: "("; margin-right: 0.14em; }
 .view_type_object .overview h1 > small::after,
 .entry .object h1 > small::after,
@@ -283,13 +282,14 @@ fieldset > ul > li > label:first-child + * input[type=text].colorpicker,
 .custom_projects > form > h1 > small::after,
 .project-overview > div > h1 > small::after,
 .public_interfaces > form > h1 > small::after,
+.popup > form.storage fieldset ul > li > div > small::after,
 .popup > form[data-method*="handle_"] > h2 > small::after { content: ")"; margin-left: 0.14em; }
 .view_type_object .overview h1 > small > span + span::before,
 .entry .object h1 > small > span + span::before,
 .entry.object h1 > small > span + span::before { content: "/"; margin-left: 0.28em; margin-right: 0.28em; }
 
-.display td > img.enlarge { background-color: var(--back-nested); border: 2px solid var(--back-nested); }
-.display td > img.enlarge + img.enlarge { margin-left: 2px; }
+.display td img.enlarge { background-color: var(--back-nested); border: 2px solid var(--back-nested); }
+.display td img.enlarge + img.enlarge { margin-left: 2px; }
 
 .tschuifje > div:first-child { height: 22px; }
 .tschuifje > div:first-child > button { display: inline-block; width: 22px; height: 22px; margin: 0; padding: 0; }

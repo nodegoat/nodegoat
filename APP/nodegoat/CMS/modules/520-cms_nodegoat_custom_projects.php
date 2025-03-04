@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -583,7 +583,9 @@ class cms_nodegoat_custom_projects extends base_module {
 		
 		$res = DB::query("INSERT INTO ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_VISUAL_SETTINGS')."
 			(project_id, user_id, id, name, description,
-				capture_enable, capture_settings, dot_show, dot_color, dot_opacity, dot_color_condition, dot_size_min, dot_size_max, dot_size_start, dot_size_stop, dot_stroke_color, dot_stroke_opacity, dot_stroke_width, location_show, location_color, location_opacity, location_size, location_threshold, location_offset, location_position, location_condition, line_show, line_color, line_opacity, line_width_min, line_width_max, line_offset, visual_hints_show, visual_hints_color, visual_hints_opacity, visual_hints_size, visual_hints_stroke_color, visual_hints_stroke_opacity, visual_hints_stroke_width, visual_hints_duration, visual_hints_delay, geometry_show, geometry_color, geometry_opacity, geometry_stroke_color, geometry_stroke_opacity, geometry_stroke_width, map_show, map_url, map_attribution, geo_info_show, geo_background_color, geo_mode, geo_display, geo_advanced, social_dot_color, social_dot_size_min, social_dot_size_max, social_dot_size_start, social_dot_size_stop, social_dot_stroke_color, social_dot_stroke_width, social_label_show, social_label_threshold, social_label_condition, social_line_show, social_line_arrowhead_show, social_force, social_forceatlas2, social_disconnected_dot_show, social_include_location_references, social_background_color, social_display, social_static_layout, social_static_layout_interval, social_advanced, time_bar_color, time_bar_opacity, time_background_color, time_relative_graph, time_cumulative_graph
+				capture_enable, capture_settings, dot_show, dot_color, dot_opacity, dot_color_condition, dot_size_min, dot_size_max, dot_size_start, dot_size_stop, dot_stroke_color, dot_stroke_opacity, dot_stroke_width, location_show, location_color, location_opacity, location_size, location_threshold, location_offset, location_position, location_condition, line_show, line_color, line_opacity, line_width_min, line_width_max, line_offset, visual_hints_show, visual_hints_color, visual_hints_opacity, visual_hints_size, visual_hints_stroke_color, visual_hints_stroke_opacity, visual_hints_stroke_width, visual_hints_duration, visual_hints_delay, geometry_show, geometry_color, geometry_opacity, geometry_stroke_color, geometry_stroke_opacity, geometry_stroke_width, map_show, map_layers, geo_info_show, geo_background_color, geo_mode, geo_display, geo_advanced,
+				social_dot_color, social_dot_size_min, social_dot_size_max, social_dot_size_start, social_dot_size_stop, social_dot_stroke_color, social_dot_stroke_width, social_label_show, social_label_threshold, social_label_condition, social_line_show, social_line_color, social_line_opacity, social_line_width_min, social_line_width_max, social_line_arrowhead_show, social_force, social_forceatlas2, social_disconnected_dot_show, social_include_location_references, social_background_color, social_display, social_static_layout, social_static_layout_interval, social_advanced,
+				time_bar_color, time_bar_opacity, time_background_color, time_relative_graph, time_cumulative_graph
 			)
 				VALUES 
 			(
@@ -639,8 +641,7 @@ class cms_nodegoat_custom_projects extends base_module {
 					".(float)((float)$arr_visual_settings['geometry']['stroke_opacity'] != $arr_default['geometry']['stroke_opacity'] ? $arr_visual_settings['geometry']['stroke_opacity'] : '').",
 					".((string)$arr_visual_settings['geometry']['stroke_width'] !== '' && (float)$arr_visual_settings['geometry']['stroke_width'] != $arr_default['geometry']['stroke_width'] ? (float)$arr_visual_settings['geometry']['stroke_width'] : 'NULL').",
 					".((string)$arr_visual_settings['settings']['map_show'] !== '' && (int)$arr_visual_settings['settings']['map_show'] != $arr_default['settings']['map_show'] ? (int)$arr_visual_settings['settings']['map_show'] : 'NULL').",
-					'".($arr_visual_settings['settings']['map_url'] != $arr_default['settings']['map_url'] ? DBFunctions::strEscape($arr_visual_settings['settings']['map_url']) : '')."',
-					'".($arr_visual_settings['settings']['map_attribution'] != $arr_default['settings']['map_attribution'] ? DBFunctions::strEscape($arr_visual_settings['settings']['map_attribution']) : '')."',
+					'".($arr_visual_settings['settings']['map_layers'] && $arr_visual_settings['settings']['map_layers'] !== $arr_default['settings']['map_layers'] ? DBFunctions::strEscape(value2JSON($arr_visual_settings['settings']['map_layers'])) : '')."',
 					".((string)$arr_visual_settings['settings']['geo_info_show'] !== '' && (int)$arr_visual_settings['settings']['geo_info_show'] != $arr_default['settings']['geo_info_show'] ? (int)$arr_visual_settings['settings']['geo_info_show'] : 'NULL').",
 					'".(str2Color($arr_visual_settings['settings']['geo_background_color']) != $arr_default['settings']['geo_background_color'] ? str2Color($arr_visual_settings['settings']['geo_background_color']) : '')."',
 					".((string)$arr_visual_settings['settings']['geo_mode'] !== '' && (int)$arr_visual_settings['settings']['geo_mode'] != $arr_default['settings']['geo_mode'] ? (int)$arr_visual_settings['settings']['geo_mode'] : 'NULL').",
@@ -657,6 +658,10 @@ class cms_nodegoat_custom_projects extends base_module {
 					".((string)$arr_visual_settings['social']['label']['threshold'] !== '' && (float)$arr_visual_settings['social']['label']['threshold'] != $arr_default['social']['label']['threshold'] ? (float)$arr_visual_settings['social']['label']['threshold'] : 'NULL').",
 					'".($arr_visual_settings['social']['label']['condition'] != $arr_default['social']['label']['condition'] ? DBFunctions::strEscape($arr_visual_settings['social']['label']['condition']) : '')."',
 					".((string)$arr_visual_settings['social']['line']['show'] !== '' && (int)$arr_visual_settings['social']['line']['show'] != $arr_default['social']['line']['show'] ? (int)$arr_visual_settings['social']['line']['show'] : 'NULL').",
+					'".(str2Color($arr_visual_settings['social']['line']['color']) != $arr_default['social']['line']['color'] ? str2Color($arr_visual_settings['social']['line']['color']) : '')."',
+					".(float)((float)$arr_visual_settings['social']['line']['opacity'] != $arr_default['social']['line']['opacity'] ? $arr_visual_settings['social']['line']['opacity'] : '').",
+					".(float)((float)$arr_visual_settings['social']['line']['width']['min'] != $arr_default['social']['line']['width']['min'] ? $arr_visual_settings['social']['line']['width']['min'] : '').",
+					".(float)((float)$arr_visual_settings['social']['line']['width']['max'] != $arr_default['social']['line']['width']['max'] ? $arr_visual_settings['social']['line']['width']['max'] : '').",
 					".((string)$arr_visual_settings['social']['line']['arrowhead_show'] !== '' && (int)$arr_visual_settings['social']['line']['arrowhead_show'] != $arr_default['social']['line']['arrowhead_show'] ? (int)$arr_visual_settings['social']['line']['arrowhead_show'] : 'NULL').",
 					'".($arr_visual_settings['social']['force'] && $arr_visual_settings['social']['force'] !== $arr_default['social']['force'] ? DBFunctions::strEscape(value2JSON($arr_visual_settings['social']['force'])) : '')."',
 					'".($arr_visual_settings['social']['forceatlas2'] && $arr_visual_settings['social']['forceatlas2'] !== $arr_default['social']['forceatlas2'] ? DBFunctions::strEscape(value2JSON($arr_visual_settings['social']['forceatlas2'])) : '')."',
@@ -674,7 +679,9 @@ class cms_nodegoat_custom_projects extends base_module {
 					".((string)$arr_visual_settings['time']['settings']['cumulative_graph'] !== '' && (int)$arr_visual_settings['time']['settings']['cumulative_graph'] != $arr_default['time']['settings']['cumulative_graph'] ? (int)$arr_visual_settings['time']['settings']['cumulative_graph'] : 'NULL')."
 			)
 			".DBFunctions::onConflict('project_id, user_id, id', ['name', 'description',
-				'capture_enable', 'capture_settings', 'dot_show', 'dot_color', 'dot_opacity', 'dot_color_condition', 'dot_size_min', 'dot_size_max', 'dot_size_start', 'dot_size_stop', 'dot_stroke_color', 'dot_stroke_opacity', 'dot_stroke_width', 'location_show', 'location_color', 'location_opacity', 'location_size', 'location_threshold', 'location_offset', 'location_position', 'location_condition', 'line_show', 'line_color', 'line_opacity', 'line_width_min', 'line_width_max', 'line_offset', 'visual_hints_show', 'visual_hints_color', 'visual_hints_opacity', 'visual_hints_size', 'visual_hints_stroke_color', 'visual_hints_stroke_opacity', 'visual_hints_stroke_width', 'visual_hints_duration', 'visual_hints_delay', 'geometry_show', 'geometry_color', 'geometry_opacity', 'geometry_stroke_color', 'geometry_stroke_opacity', 'geometry_stroke_width', 'map_show', 'map_url', 'map_attribution', 'geo_info_show', 'geo_background_color', 'geo_mode', 'geo_display', 'geo_advanced', 'social_dot_color', 'social_dot_size_min', 'social_dot_size_max', 'social_dot_size_start', 'social_dot_size_stop', 'social_dot_stroke_color', 'social_dot_stroke_width', 'social_label_show', 'social_label_threshold', 'social_label_condition', 'social_line_show', 'social_line_arrowhead_show', 'social_force', 'social_forceatlas2', 'social_disconnected_dot_show', 'social_include_location_references', 'social_background_color', 'social_display', 'social_static_layout', 'social_static_layout_interval', 'social_advanced', 'time_bar_color', 'time_bar_opacity', 'time_background_color', 'time_relative_graph', 'time_cumulative_graph'
+				'capture_enable', 'capture_settings', 'dot_show', 'dot_color', 'dot_opacity', 'dot_color_condition', 'dot_size_min', 'dot_size_max', 'dot_size_start', 'dot_size_stop', 'dot_stroke_color', 'dot_stroke_opacity', 'dot_stroke_width', 'location_show', 'location_color', 'location_opacity', 'location_size', 'location_threshold', 'location_offset', 'location_position', 'location_condition', 'line_show', 'line_color', 'line_opacity', 'line_width_min', 'line_width_max', 'line_offset', 'visual_hints_show', 'visual_hints_color', 'visual_hints_opacity', 'visual_hints_size', 'visual_hints_stroke_color', 'visual_hints_stroke_opacity', 'visual_hints_stroke_width', 'visual_hints_duration', 'visual_hints_delay', 'geometry_show', 'geometry_color', 'geometry_opacity', 'geometry_stroke_color', 'geometry_stroke_opacity', 'geometry_stroke_width', 'map_show', 'map_layers', 'geo_info_show', 'geo_background_color', 'geo_mode', 'geo_display', 'geo_advanced',
+				'social_dot_color', 'social_dot_size_min', 'social_dot_size_max', 'social_dot_size_start', 'social_dot_size_stop', 'social_dot_stroke_color', 'social_dot_stroke_width', 'social_label_show', 'social_label_threshold', 'social_label_condition', 'social_line_show', 'social_line_color', 'social_line_opacity', 'social_line_width_min', 'social_line_width_max', 'social_line_arrowhead_show', 'social_force', 'social_forceatlas2', 'social_disconnected_dot_show', 'social_include_location_references', 'social_background_color', 'social_display', 'social_static_layout', 'social_static_layout_interval', 'social_advanced',
+				'time_bar_color', 'time_bar_opacity', 'time_background_color', 'time_relative_graph', 'time_cumulative_graph'
 			])."
 		");
 		
@@ -886,7 +893,7 @@ class cms_nodegoat_custom_projects extends base_module {
 				".$sql_use_project_id."
 				".$sql_user_id."
 				".$sql_type_id."
-			".(!$condition_id ? "ORDER BY pc.name, pc.user_id" : "")."
+			ORDER BY pc.name, pc.user_id
 		");		
 		
 		if (($condition_id || $is_user_default) && !is_array($condition_id)) {
@@ -1030,6 +1037,7 @@ class cms_nodegoat_custom_projects extends base_module {
 		
 		$func_parse = function(&$arr) {
 			
+			$arr['format_include_description_name'] = ($arr['format_include_description_name'] !== null ? DBFunctions::unescapeAs($arr['format_include_description_name'], DBFunctions::TYPE_BOOLEAN) : $arr['format_include_description_name']);
 			$arr['format_settings'] = (array)json_decode($arr['format_object'], true);
 			$arr['scope'] = (array)json_decode($arr['scope_object'], true);
 		};
@@ -1198,22 +1206,22 @@ class cms_nodegoat_custom_projects extends base_module {
 				'".DBFunctions::strEscape($arr['description'])."',
 				'".DBFunctions::strEscape($arr['attribution'])."',
 				".(int)($arr_options['filter_use_current'] ? 0 : $arr_options['filter_id']).",
-				".(int)$arr_options['filter_use_current'].",
+				".DBFunctions::escapeAs($arr_options['filter_use_current'], DBFunctions::TYPE_BOOLEAN).",
 				".(int)($arr_options['scope_use_current'] ? 0 : $arr_options['scope_id']).",
-				".(int)$arr_options['scope_use_current'].",
+				".DBFunctions::escapeAs($arr_options['scope_use_current'], DBFunctions::TYPE_BOOLEAN).",
 				".(int)($arr_options['condition_use_current'] ? 0 : $arr_options['condition_id']).",
-				".(int)$arr_options['condition_use_current'].",
+				".DBFunctions::escapeAs($arr_options['condition_use_current'], DBFunctions::TYPE_BOOLEAN).",
 				".(int)($arr_options['context_use_current'] ? 0 : $arr_options['context_id']).",
-				".(int)$arr_options['context_use_current'].",
+				".DBFunctions::escapeAs($arr_options['context_use_current'], DBFunctions::TYPE_BOOLEAN).",
 				".(int)($arr_options['frame_use_current'] ? 0 : $arr_options['frame_id']).",
-				".(int)$arr_options['frame_use_current'].",
+				".DBFunctions::escapeAs($arr_options['frame_use_current'], DBFunctions::TYPE_BOOLEAN).",
 				".(int)($arr_options['visual_settings_use_current'] ? 0 : $arr_options['visual_settings_id']).",
-				".(int)$arr_options['visual_settings_use_current'].",
+				".DBFunctions::escapeAs($arr_options['visual_settings_use_current'], DBFunctions::TYPE_BOOLEAN).",
 				".(int)($arr_options['analysis_use_current'] ? 0 : $arr_options['analysis_id']).",
-				".(int)$arr_options['analysis_use_current'].",
+				".DBFunctions::escapeAs($arr_options['analysis_use_current'], DBFunctions::TYPE_BOOLEAN).",
 				".(int)($arr_options['analysis_context_use_current'] ? 0 : $arr_options['analysis_context_id']).",
-				".(int)$arr_options['analysis_context_use_current'].",
-				".(int)$arr_options['cache_retain']."
+				".DBFunctions::escapeAs($arr_options['analysis_context_use_current'], DBFunctions::TYPE_BOOLEAN).",
+				".DBFunctions::escapeAs($arr_options['cache_retain'], DBFunctions::TYPE_BOOLEAN)."
 			)
 			".DBFunctions::onConflict('project_id, id', ['user_id', 'name', 'type_id', 'description',
 				'attribution', 'filter_id', 'filter_use_current', 'scope_id', 'scope_use_current', 'condition_id', 'condition_use_current', 'context_id', 'context_use_current', 'frame_id', 'frame_use_current', 'visual_settings_id', 'visual_settings_use_current', 'analysis_id', 'analysis_use_current', 'analysis_context_id', 'analysis_context_use_current', 'cache_retain'
@@ -1251,6 +1259,8 @@ class cms_nodegoat_custom_projects extends base_module {
 	
 	public static function getProjectTypeScenarios($project_id, $user_id = false, $type_id = false, $scenario_id = false, $arr_use_project_ids = []) {
 		
+		$str_identifier = null;
+		
 		if ($scenario_id && !is_array($scenario_id)) {
 			
 			$str_identifier = $project_id.'_'.(int)$scenario_id;
@@ -1274,31 +1284,37 @@ class cms_nodegoat_custom_projects extends base_module {
 					".($type_id ? "AND psc.type_id = ".(int)$type_id : "")."
 				ORDER BY psc.name, psc.user_id
 		");		
-		
-		if ($str_identifier) {
+				
+		while ($arr_row = $res->fetchAssoc()) {
 			
-			if ($res->getRowCount()) {
-				$arr = $res->fetchAssoc();
-				$arr['label'] = ($arr['user_id'] ? '• ' : '').$arr['name'];
-			}
+			$arr_row['label'] = ($arr_row['user_id'] ? '• ' : '').$arr_row['name'];
 			
-			self::setCache($str_identifier, $arr);
+			$arr_row['filter_use_current'] = DBFunctions::unescapeAs($arr_row['filter_use_current'], DBFunctions::TYPE_BOOLEAN);
+			$arr_row['scope_use_current'] = DBFunctions::unescapeAs($arr_row['scope_use_current'], DBFunctions::TYPE_BOOLEAN);
+			$arr_row['condition_use_current'] = DBFunctions::unescapeAs($arr_row['condition_use_current'], DBFunctions::TYPE_BOOLEAN);
+			$arr_row['context_use_current'] = DBFunctions::unescapeAs($arr_row['context_use_current'], DBFunctions::TYPE_BOOLEAN);
+			$arr_row['frame_use_current'] = DBFunctions::unescapeAs($arr_row['frame_use_current'], DBFunctions::TYPE_BOOLEAN);
+			$arr_row['visual_settings_use_current'] = DBFunctions::unescapeAs($arr_row['visual_settings_use_current'], DBFunctions::TYPE_BOOLEAN);
+			$arr_row['analysis_use_current'] = DBFunctions::unescapeAs($arr_row['analysis_use_current'], DBFunctions::TYPE_BOOLEAN);
+			$arr_row['analysis_context_use_current'] = DBFunctions::unescapeAs($arr_row['analysis_context_use_current'], DBFunctions::TYPE_BOOLEAN);
+			$arr_row['cache_retain'] = DBFunctions::unescapeAs($arr_row['cache_retain'], DBFunctions::TYPE_BOOLEAN);
+			
+			if ($str_identifier !== null) {
+				
+				$arr = $arr_row;
+				self::setCache($str_identifier, $arr);
 
-			return $arr;
-		} else {
-		
-			while($row = $res->fetchAssoc()) {
-				
-				$row['label'] = ($row['user_id'] ? '• ' : '').$row['name'];
-				if ($project_id != $row['project_id']) {
-					$row['label'] = $row['project_name'].cms_general::OPTION_GROUP_SEPARATOR.$row['label'];
-				}
-				
-				$arr[$row['type_id']][$row['id']] = $row;
+				return $arr;
 			}
 			
-			return ($arr && $type_id ? current($arr) : $arr);
+			if ($project_id != $arr_row['project_id']) {
+				$arr_row['label'] = $arr_row['project_name'].cms_general::OPTION_GROUP_SEPARATOR.$arr_row['label'];
+			}
+			
+			$arr[$arr_row['type_id']][$arr_row['id']] = $arr_row;
 		}
+		
+		return ($arr && $type_id ? current($arr) : $arr);
 	}
 	
 	// User related (i.e. following) project type filters

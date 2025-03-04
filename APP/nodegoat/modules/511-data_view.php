@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -157,7 +157,7 @@ class data_view extends base_module {
 						
 						$arr_object_definition = $arr_object['object_definitions'][$object_description_id];
 						
-						if ((!$arr_object_definition['object_definition_value'] && !$arr_object_definition['object_definition_ref_object_id']) || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, $object_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
+						if ((($arr_object_definition['object_definition_value'] === null || $arr_object_definition['object_definition_value'] === '' || $arr_object_definition['object_definition_value'] === []) && !$arr_object_definition['object_definition_ref_object_id']) || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, $object_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id) || $arr_object_definition['object_definition_style'] == 'hide') {
 							continue;
 						}
 	
@@ -409,7 +409,7 @@ class data_view extends base_module {
 					
 					$return .= '<div>
 						<dt>'.getLabel('lbl_chronology').'</dt>
-						<dd>'.($arr_object_sub_value['object_sub_date_chronology'] ? self::createTypeObjectSubChronology($type_id, $object_sub_details_id, $object_id, FormatTypeObjects::formatToCleanValue('chronology', $arr_object_sub_value['object_sub_date_chronology'])) : '-').'</dd>
+						<dd>'.($arr_object_sub_value['object_sub_date_chronology'] ? self::createTypeObjectSubChronology($type_id, $object_sub_details_id, $object_id, FormatTypeObjects::formatToChronologyDetails($arr_object_sub_value['object_sub_date_chronology'])) : '-').'</dd>
 					</div>';
 				}
 				if ($arr_object_sub_details['object_sub_details']['object_sub_details_has_location']) {
@@ -432,7 +432,7 @@ class data_view extends base_module {
 					
 					$return .= '<div>
 						<dt>'.getLabel('lbl_geometry').'</dt>
-						<dd>'.($arr_object_sub_value['object_sub_location_geometry'] ? FormatTypeObjects::formatToCleanValue('geometry', $arr_object_sub_value['object_sub_location_geometry']) : '-').'</dd>
+						<dd>'.($arr_object_sub_value['object_sub_location_geometry'] ? FormatTypeObjects::formatToGeometrySummary($arr_object_sub_value['object_sub_location_geometry']) : '-').'</dd>
 					</div>';
 				}
 										
@@ -443,7 +443,7 @@ class data_view extends base_module {
 						$object_sub_description_id = $arr_object_sub_description['object_sub_description_id'];
 						$arr_object_sub_definition = $arr_object_sub['object_sub_definitions'][$object_sub_description_id];
 
-						if ((!$arr_object_sub_definition['object_sub_definition_value'] && !$arr_object_sub_definition['object_sub_definition_ref_object_id']) || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) || $arr_object_sub_definition['object_sub_definition_style'] == 'hide') {
+						if ((($arr_object_sub_definition['object_sub_definition_value'] === null || $arr_object_sub_definition['object_sub_definition_value'] === '') && !$arr_object_sub_definition['object_sub_definition_ref_object_id']) || !data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $object_sub_details_id, $object_sub_description_id) || $arr_object_sub_definition['object_sub_definition_style'] == 'hide') {
 							continue;
 						}
 						
@@ -684,7 +684,7 @@ class data_view extends base_module {
 				
 				if ($arr_object_sub_value['object_sub_location_geometry']) {
 					$arr['object_sub_location_reference_label'] = getLabel('lbl_geometry');
-					$arr['object_sub_location_reference_value'] = FormatTypeObjects::formatToCleanValue('geometry', $arr_object_sub_value['object_sub_location_geometry']);
+					$arr['object_sub_location_reference_value'] = FormatTypeObjects::formatToGeometrySummary($arr_object_sub_value['object_sub_location_geometry']);
 				}
 			}
 		} else {
@@ -710,9 +710,9 @@ class data_view extends base_module {
 			$use_value = $arr_object_sub_definition['object_sub_definition_value'];
 			if (!$arr_object_sub_description['object_sub_description_ref_type_id']) {
 				$use_value = arrParseRecursive($use_value, ['Labels', 'parseLanguage']);
-			}			
+			}
 			
-			$arr_extra = ['ref_type_id' => $arr_object_sub_description['object_sub_description_ref_type_id']];
+			$arr_extra = ['ref_type_id' => $arr_object_sub_description['object_sub_description_ref_type_id'], 'limit_text' => true];
 			
 			$return = FormatTypeObjects::formatToHTMLPreviewValue($arr_object_sub_description['object_sub_description_value_type'], $use_value, $arr_object_sub_definition['object_sub_definition_ref_object_id'], $arr_object_sub_description['object_sub_description_value_type_settings'], $arr_extra);
 			
@@ -1099,8 +1099,12 @@ class data_view extends base_module {
 				$str_settings .= ($str_settings ? '|' : '').'filter|'.$arr_options['filter_id'];
 			}
 		}
-		if ($arr_options['select']) {
+		$is_select = (bool)$arr_options['select'];
+		if ($is_select) {
 			$str_mode = 'select';
+			if ($arr_options['multi']) {
+				$str_mode .= '|multi';
+			}
 		}
 		if ($arr_options['filter']) {
 			$do_filter = true;
@@ -1114,12 +1118,18 @@ class data_view extends base_module {
 		
 		$return = cms_general::createDataTableHeading('d:data_view:data-'.$type_id.'_'.$str_mode.'_'.$str_settings, ['filter' => ($do_filter ? 'y:data_filter:open_filter-'.$type_id : false), 'pause' => $do_pause, 'order' => true]).'
 			<thead><tr>';
-			
-				if ($str_mode == 'select') {
+				
+				$num_column = 0;
+				
+				if ($is_select) {
+					
 					$return .= '<th class="disable-sort"></th>';
+					$num_column++;
 				}
 				if ($arr_type_set['type']['object_name_in_overview']) {
+					
 					$return .= '<th class="max limit"><span>'.getLabel('lbl_name').'</span></th>';
+					$num_column++;
 				}
 				
 				if ($arr_options['dynamic_object_descriptions']) {
@@ -1131,10 +1141,9 @@ class data_view extends base_module {
 						}
 						
 						$return .= '<th class="limit'.(!$arr_type_set['type']['object_name_in_overview'] ? ' max' : '').'"><span>'.Labels::parseTextVariables($arr_type_set['object_descriptions'][$object_description_id]['object_description_name']).'</span></th>';
+						$num_column++;
 					}
 				} else {
-					
-					$num_column = 0;
 					
 					foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
 					
@@ -1143,7 +1152,6 @@ class data_view extends base_module {
 						}
 						
 						$return .= '<th class="limit'.(!$arr_type_set['type']['object_name_in_overview'] && $num_column == 0 ? ' max' : '').'"><span>'.Labels::parseTextVariables($arr_object_description['object_description_name']).'</span></th>';
-						
 						$num_column++;
 					}
 				}
@@ -1151,7 +1159,7 @@ class data_view extends base_module {
 			$return .= '</tr></thead>
 			<tbody>
 				<tr>
-					<td colspan="'.(count($arr_type_set['object_descriptions'])).'" class="empty">'.getLabel('msg_loading_server_data').'</td>
+					<td colspan="'.$num_column.'" class="empty">'.getLabel('msg_loading_server_data').'</td>
 				</tr>
 			</tbody>
 		</table>';
@@ -1170,7 +1178,8 @@ class data_view extends base_module {
 		if ($arr_options['session']) {
 			$str_settings = 'session';
 		}
-		if ($arr_options['select']) {
+		$is_select = (bool)$arr_options['select'];
+		if ($is_select) {
 			$str_mode = 'select';
 		}
 		if ($arr_options['filter']) {
@@ -1187,7 +1196,7 @@ class data_view extends base_module {
 		$arr_columns = [];
 		$num_column = 0;
 		
-		if ($str_mode == 'select') {
+		if ($is_select) {
 			$arr_columns[] = '<th class="disable-sort"></th>';
 		}
 		
@@ -1242,8 +1251,12 @@ class data_view extends base_module {
 		if ($arr_options['session']) {
 			$str_settings = 'session';
 		}
-		if ($arr_options['select']) {
+		$is_select = (bool)$arr_options['select'];
+		if ($is_select) {
 			$str_mode = 'select';
+			if ($arr_options['multi']) {
+				$str_mode .= '|multi';
+			}
 		}
 		if ($arr_options['filter']) {
 			$filter = true;
@@ -1256,7 +1269,7 @@ class data_view extends base_module {
 		
 		$return = cms_general::createDataTableHeading('d:data_view:data_external-'.$resource_id.'_'.$str_mode.'_'.$str_settings, ['filter' => ($do_filter ? 'y:data_filter:open_filter_external-'.$resource_id : false), 'pause' => $do_pause, 'delay' => 2]).'
 			<thead><tr>
-				'.($str_mode == 'select' ? '<th class="disable-sort"></th>' : '').'
+				'.($is_select ? '<th class="disable-sort"></th>' : '').'
 				<th class="max limit" data-sort="asc-0"><span>'.getLabel('lbl_name').'</span></th>
 				<th class="max limit"><span>URI</span></th>';
 				
@@ -1268,7 +1281,7 @@ class data_view extends base_module {
 			$return .= '</tr></thead>
 			<tbody>
 				<tr>
-					<td colspan="'.(($str_mode == 'select' ? 1 : 0)+2+count($arr_values)).'" class="empty">'.getLabel('msg_loading_server_data').'</td>
+					<td colspan="'.(($is_select ? 1 : 0)+2+count($arr_values)).'" class="empty">'.getLabel('msg_loading_server_data').'</td>
 				</tr>
 			</tbody>
 		</table>';
@@ -1334,7 +1347,7 @@ class data_view extends base_module {
 				
 				elm_scripter.on('open', '.referenced > .tabs > div', function(e) {
 					
-					if (getElementsSelector(e.target, '.tabs')) {
+					if (getElementSelector(e.target, '.tabs')) {
 						return;
 					}
 					
@@ -1597,7 +1610,7 @@ class data_view extends base_module {
 				
 				foreach ($_POST['arr_order_column'] as $nr_order => list($nr_column, $str_direction)) {
 				
-					if ($str_mode == 'select') {
+					if ($str_mode == 'select' || $str_mode == 'select|multi') {
 						$nr_column--;
 					}
 					
@@ -1842,6 +1855,9 @@ class data_view extends base_module {
 				if ($str_mode == 'select') {
 					$arr_data[] = '<input name="type_object_id" value="'.$arr_object['object']['object_id'].'" type="radio" />';
 					$count++;
+				} else if ($str_mode == 'select|multi') {
+					$arr_data[] = '<input name="type_object_id[]" value="'.$arr_object['object']['object_id'].'" type="checkbox" />';
+					$count++;
 				}
 				
 				if ($arr_type_set['type']['object_name_in_overview']) {
@@ -1884,7 +1900,7 @@ class data_view extends base_module {
 							$use_value = arrParseRecursive($use_value, ['Labels', 'parseLanguage']);
 						}
 						
-						$arr_extra = ['has_multi' => $arr_object_description['object_description_has_multi'], 'ref_type_id' => $arr_object_description['object_description_ref_type_id']];
+						$arr_extra = ['has_multi' => $arr_object_description['object_description_has_multi'], 'ref_type_id' => $arr_object_description['object_description_ref_type_id'], 'limit_text' => true];
 							
 						$arr_data[] = FormatTypeObjects::formatToHTMLPreviewValue($arr_object_description['object_description_value_type'], $use_value, $arr_object_definition['object_definition_ref_object_id'], $arr_object_description['object_description_value_type_settings'], $arr_extra);
 					}

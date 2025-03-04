@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -258,44 +258,30 @@ class data_analysis extends base_module {
 		return $return;
 	}
 		
-	private function createSelectAnalysis($type_id, $store = false) {
+	private function createSelectAnalysis($type_id, $is_store = false) {
 		
 		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
-		$return = '<fieldset><legend>'.getLabel(($store ? 'lbl_save' : 'lbl_select')).'</legend>
-			<ul>
-				<li><label>'.getLabel('lbl_analysis').'</label><span id="x:custom_projects:analysis_storage-'.(int)$type_id.'">'
-					.'<select name="analysis_id">'.Labels::parseTextVariables(cms_general::createDropdown(cms_nodegoat_custom_projects::getProjectTypeAnalyses($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, $arr_use_project_ids), false, true, 'label')).'</select>'
-					.($store ?
-						'<input type="button" class="data add popup add_analysis_storage" value="store" />'
-						.'<input type="button" class="data del msg del_analysis_storage" value="del" />'
-					: '')
-				.'</span></li>
-			</ul>
-		</fieldset>';
+		$arr_options = cms_nodegoat_custom_projects::getProjectTypeAnalyses($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, $arr_use_project_ids);		
+		$command_id = 'x:custom_projects:analysis_storage-'.(int)$type_id;
 
-		return $return;
+		$str_html = custom_projects::createStorageSelect('analysis', $is_store, $arr_options, $command_id, getLabel('lbl_analysis'));
+
+		return $str_html;
 	}
 	
-	private function createSelectAnalysisContext($type_id, $store = false) {
+	private function createSelectAnalysisContext($type_id, $is_store = false) {
 		
 		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
-		
-		$return = '<fieldset><legend>'.getLabel(($store ? 'lbl_save' : 'lbl_select')).'</legend>
-			<ul>
-				<li><label>'.getLabel('lbl_analysis_context').'</label><span id="x:custom_projects:analysis_context_storage-'.(int)$type_id.'">'
-					.'<select name="analysis_context_id">'.Labels::parseTextVariables(cms_general::createDropdown(cms_nodegoat_custom_projects::getProjectTypeAnalysesContexts($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, $arr_use_project_ids), false, true, 'label')).'</select>'
-					.($store ?
-						'<input type="button" class="data add popup add_analysis_context_storage" value="store" />'
-						.'<input type="button" class="data del msg del_analysis_context_storage" value="del" />'
-					: '')
-				.'</span></li>
-			</ul>
-		</fieldset>';
+				
+		$arr_options = cms_nodegoat_custom_projects::getProjectTypeAnalysesContexts($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, $arr_use_project_ids);		
+		$command_id = 'x:custom_projects:analysis_context_storage-'.(int)$type_id;
 
-		return $return;
+		$str_html = custom_projects::createStorageSelect('analysis_context', $is_store, $arr_options, $command_id, getLabel('lbl_analysis_context'));
+
+		return $str_html;
 	}
 
 	public static function createTypeAnalysisTableHeader($type_id, $arr_analysis, $arr_analysis_context) {
@@ -707,7 +693,7 @@ class data_analysis extends base_module {
 			
 			$type_id = $id;
 			
-			$this->html = '<form class="options storage" data-method="'.($method == 'open_analysis_context' ? 'return_analysis_context' : 'return_analysis').'">
+			$this->html = '<form class="options storage open" data-method="'.($method == 'open_analysis_context' ? 'return_analysis_context' : 'return_analysis').'">
 				'.($method == 'open_analysis_context' ? $this->createSelectAnalysisContext($type_id) : $this->createSelectAnalysis($type_id)).'
 				<input type="submit" value="'.getLabel('lbl_select').'" />
 			</form>';
@@ -829,7 +815,6 @@ class data_analysis extends base_module {
 				$collapse = false;
 							
 				if ($arr_scope && !$arr_collect_info['connections'][$path]['end']) { // Not the end of a path, collapse it
-					
 					$collapse = true;
 				}
 	

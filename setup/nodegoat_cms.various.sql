@@ -29,13 +29,14 @@ INSERT INTO `site_directory_closure` (`ancestor_id`, `descendant_id`, `path_leng
 (6, 6, 0, 0),
 (7, 7, 0, 1);
 
-INSERT INTO `site_jobs` (`module`, `method`, `options`, `seconds`,  `running`, `process_id`, `process_date`) VALUES
-('cms_nodegoat_definitions', 'buildTypeObjectCache', '', -1, 0, NULL, NULL),
-('cms_nodegoat_definitions', 'runTypeObjectCaching', '', 1, 0, NULL, NULL),
-('cms_nodegoat_definitions', 'runReversals', '', 43200, 0, NULL, NULL),
+INSERT INTO `site_jobs` (`module`, `method`, `options`, `seconds`, `running`, `process_id`, `process_date`) VALUES
+('cms_details', 'cleanFallbacks', '', 1800, 0, NULL, NULL),
 ('cms_details', 'runWebService', '{\"port\":\"8000\"}', 0, 0, NULL, NULL),
 ('cms_log', 'cleanRequests', '{\"age_amount\":\"30\",\"age_unit\":\"1\"}', 1800, 0, NULL, NULL),
-('cms_nodegoat_definitions', 'runGraphAnalysisService', '{\"port\":\"44444\"}', -1, 0, NULL, NULL);
+('cms_nodegoat_definitions', 'buildTypesObjectsCache', '', -1, 0, NULL, NULL),
+('cms_nodegoat_definitions', 'cacheTypesObjects', '', 1, 0, NULL, NULL),
+('cms_nodegoat_definitions', 'runGraphAnalysisService', '{\"port\":\"44444\"}', -1, 0, NULL, NULL),
+('cms_nodegoat_definitions', 'runReversals', '', 43200, 0, NULL, NULL);
 
 INSERT INTO `site_pages` (`id`, `name`, `title`, `directory_id`, `template_id`, `master_id`, `url`, `html`, `script`, `publish`, `clearance`, `sort`) VALUES
 (11, 'home', 'Home', 5, 3, 0, '', '', '', 0, 0, 2),

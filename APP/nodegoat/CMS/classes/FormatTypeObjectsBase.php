@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -28,12 +28,14 @@ abstract class FormatTypeObjectsBase {
 	const PIXEL_TO_CENTIMETER = 0.026458333;
 	
 	const FORMAT_DATE_YMD = 1;
-	/*const FORMAT_X = 2;
-	const FORMAT_XX = 4;*/
+	const FORMAT_DATA_TYPE = 2;
+	/*const FORMAT_X = 4;
+	const FORMAT_XX = 8;*/
 	
 	const FORMAT_MULTI_SEPERATOR = ' '; // U+2002 - EN SPACE
 	const FORMAT_MULTI_SEPERATOR_LIST = ', ';
 	
+	protected static $mode_format = 0;
 	protected static $func_create_link = 'data_view::createTypeObjectLink';
 	protected static $func_create_link_tag = 'data_view::createTypeObjectLinkTag';
 	protected static $str_command_hover = false;
@@ -41,6 +43,12 @@ abstract class FormatTypeObjectsBase {
 	public static $num_media_preview_height = 50;
 	public static $num_text_preview_characters = 500;
 	
+	public static function setFormatMode($num = 0) {
+		static::$mode_format = $num;
+	}
+	public static function getFormatMode() {
+		return static::$mode_format;
+	}
 	public static function setInteractionCreateLink($func) {
 		static::$func_create_link = ($func ?: 'data_view::createTypeObjectLink');
 	}
@@ -200,48 +208,147 @@ abstract class FormatTypeObjectsBase {
 		
 		return $str_text;
 	}
-
-	public static function formatToCleanValue($type, $value, $arr_type_settings = [], $mode_format = null) { // From raw database to display
+	
+	public static function parseValue($type, $value, $arr_type_settings = []) {
 		
-		$format = false;
-			
 		switch ($type) {
+			case 'int':
+				if (static::$mode_format & static::FORMAT_DATA_TYPE) {
+					if (is_array($value)) {
+						$value = arrParseRecursive($value, TYPE_INTEGER);
+					} else {
+						$value = (int)$value;
+					}
+				}
+				break;
 			case 'numeric':
-				$format = ($value ? self::int2Numeric($value) : '');
-				break;
-			case 'date':
-			
-				$do_mode_ymd = ($mode_format !== null && ($mode_format & static::FORMAT_DATE_YMD));
-				
-				$format = ($value ? self::int2Date($value, $do_mode_ymd) : '');
-				break;
-			case 'chronology':
-				$format = self::formatToChronologyDetails($value);
-				break;
-			case 'geometry':
-				$format = self::formatToGeometrySummary($value);
+				if (is_array($value)) {
+					foreach ($value as &$v) {
+						$v = static::int2Numeric($v);
+						if (static::$mode_format & static::FORMAT_DATA_TYPE) {
+							$v = (float)$v;
+						}
+					}
+				} else {
+					$value = static::int2Numeric($value);
+					if (static::$mode_format & static::FORMAT_DATA_TYPE) {
+						$value = (float)$value;
+					}
+				}
 				break;
 			case 'boolean':
-				$format = ($value !== '' && $value !== null ? ($value == 1 || $value === 'yes' ? getLabel('lbl_yes') : getLabel('lbl_no')) : '');
+				if (static::$mode_format & static::FORMAT_DATA_TYPE) {
+					$value = ($value == 1 || $value === 'yes' ? true : false);
+				} else {
+					$value = ($value == 1 || $value === 'yes' ? getLabel('lbl_yes') : getLabel('lbl_no'));
+				}
+				break;
+			case 'date':				
+				if (is_array($value)) {
+					foreach ($value as &$v) {
+						$v = ($v ? static::int2Date($v) : '');
+					}
+				} else {
+					$value = ($value ? static::int2Date($value) : '');
+				}
+				break;
+			case 'chronology':
+				$value = static::formatToChronology($value);
+				break;
+			case 'geometry':
+				$value = static::formatToGeometry($value);
 				break;
 			case 'module':
 				
 				$module = EnucleateValueTypeModule::init($arr_type_settings['type']);
 				$module->setValue(JSON2Value($value));
 				
-				$format = $module->enucleate(EnucleateValueTypeModule::VIEW_TEXT);
+				$value = $module->enucleate(EnucleateValueTypeModule::VIEW_TEXT);
 
 				break;
 			case 'external_module':
 			case 'reconcile_module':
 			case 'reversal_module':
-				$format = $value;
+				$value = $value;
 				break;
 			default:
-				$format = $value;
+				$value = $value;
 		}
 		
-		return $format;
+		return $value;
+	}
+	
+	public static function formatToValue($type, $value, $arr_type_settings = []) { // From raw database to native interchangable values
+		
+		if ($value === '' || $value === null) {
+			return null;
+		}
+		
+		$arr_parse = Response::extractParse($value);
+		
+		$value = static::parseValue($type, $value, $arr_type_settings);
+		
+		if ($arr_parse !== false) {
+			Response::restoreParse($value, $arr_parse);
+		}
+		
+		return $value;
+	}
+	
+	public static function formatToInputValue($type, $value, $arr_type_settings = []) { // From raw database to direct input (i.e in a field). No conditions/Response Parse expected
+		
+		if ($value === '' || $value === null) {
+			return '';
+		}
+					
+		switch ($type) {
+			case 'numeric':
+				if (is_array($value)) {
+					foreach ($value as &$v) {
+						$v = static::int2Numeric($v);
+					}
+				} else {
+					$value = static::int2Numeric($value);
+				}
+				break;
+			case 'date':
+				if (is_array($value)) {
+					foreach ($value as &$v) {
+						$v = ($v ? static::int2Date($v) : '');
+					}
+				} else {
+					$value = ($value ? static::int2Date($value) : '');
+				}
+				break;
+			case 'boolean':
+				$value = ($value == 1 || $value === 'yes' ? 'yes' : 'no');
+				break;
+			case 'date_cycle':
+			
+				if ($value) {
+					
+					$value = [
+						'month' => $value[0],
+						'day' => $value[1],
+					];
+				}
+				break;
+			case 'date_compute':
+			
+				if ($value) {
+					
+					$value = [
+						'year' => $value[0],
+						'month' => $value[1],
+						'day' => $value[2],
+					];
+				}
+				break;
+			default:
+				$value = $value;
+		}
+		
+		return $value;
 	}
 		
 	public static function formatToHTMLValue($type, $value, $reference, $arr_type_settings = [], $arr_extra = []) { // From formatted database to display
@@ -280,12 +387,43 @@ abstract class FormatTypeObjectsBase {
 				$do_group = false;
 				
 				break;
+			case 'reference_mutable':
+			
+				if ($arr_extra['has_multi']) {
+					
+					$arr_html = [];
+					
+					foreach ($reference as $key => $str_object_identifier) {
+						
+						list($ref_type_id, $object_id) = explode('_', $str_object_identifier);
+						
+						$str_html = ($arr_extra['style'] ? '<span style="'.$arr_extra['style'].'">'.$value[$key].'</span>' : $value[$key]);
+						
+						$arr_html[] = $func_create_link($ref_type_id, $object_id, $str_html);
+					}
+					
+					$format = implode('<span class="separator">'.($arr_type_settings['separator'] ?: static::FORMAT_MULTI_SEPERATOR).'</span>', $arr_html);
+				} else {
+					
+					$str_html = ($arr_extra['style'] ? '<span style="'.$arr_extra['style'].'">'.$value.'</span>' : $value);
+					
+					if ($reference) {
+						
+						list($ref_type_id, $object_id) = explode('_', $reference);
+						
+						$format = $func_create_link($ref_type_id, $object_id, $str_html);
+					}
+				}
+				
+				$do_group = false;
+				
+				break;
 			case 'int':
 			case 'numeric':
 			case 'float':
 			case 'serial_varchar':
 			case '':
-								
+				
 				if (is_array($value)) {
 					$format = '<span>'.implode('</span><span class="separator">'.($arr_type_settings['separator'] ?: static::FORMAT_MULTI_SEPERATOR).'</span><span>', arrParseRecursive($value, 'strEscapeHTML')).'</span>';
 				} else {
@@ -470,6 +608,13 @@ abstract class FormatTypeObjectsBase {
 								$str_path = str_replace(GenerateTypeObjects::NAME_REFERENCE_TYPE_OBJECT_OPEN.$type_id.'_'.$object_id.GenerateTypeObjects::NAME_REFERENCE_TYPE_OBJECT_CLOSE, $str_html, $str_path);
 							}
 						}*/
+												
+						if ($arr_type_settings['html']) {
+							$str_path = parseBody($str_path, ['sanitise' => true, 'newlines' => FormatHTML::NEWLINES_SIMPLE]);
+						} else {
+							$str_path = strEscapeHTML($str_path);
+							$str_path = parseBody($str_path, ['newlines' => FormatHTML::NEWLINES_SIMPLE]);
+						}
 						
 						$str_path = preg_replace_callback(
 							'/'.FormatTypeObjects::TAGCODE_PARSE_TEXT_OBJECT_OPEN.'/s',
@@ -480,8 +625,8 @@ abstract class FormatTypeObjectsBase {
 							$str_path
 						);
 						$str_path = preg_replace('/'.FormatTypeObjects::TAGCODE_PARSE_TEXT_OBJECT_CLOSE.'/s', '</span>', $str_path);
-						
-						$arr_html[] = nl2br($str_path);
+
+						$arr_html[] = $str_path;
 					}
 				}
 				
@@ -514,7 +659,6 @@ abstract class FormatTypeObjectsBase {
 						}
 						
 						if (!$show_url && count($arr_html) > 1) {
-							
 							$format = '<div class="album">'.implode('', $arr_html).'</div>';
 						} else {
 							$format = implode('<span class="separator">'.($arr_type_settings['separator'] ?: static::FORMAT_MULTI_SEPERATOR).'</span>', $arr_html);
@@ -644,7 +788,13 @@ abstract class FormatTypeObjectsBase {
 							}
 						}
 						
-						$format = implode(($show_url ? ($arr_type_settings['separator'] ?: static::FORMAT_MULTI_SEPERATOR_LIST) : ''), $arr_html);
+						
+						
+						if (!$show_url && count($arr_html) > 1) {
+							$format = '<div class="album">'.implode('', $arr_html).'</div>';
+						} else {
+							$format = implode($arr_type_settings['separator'] ?: static::FORMAT_MULTI_SEPERATOR_LIST, $arr_html);
+						}
 					} else {
 								
 						$media = new EnucleateMedia($value, DIR_HOME_TYPE_OBJECT_MEDIA, '/'.DIR_TYPE_OBJECT_MEDIA);
@@ -698,21 +848,27 @@ abstract class FormatTypeObjectsBase {
 						
 						$str_path = static::clearObjectDefinitionText($str_path, static::TEXT_TAG_OBJECT);
 						
-						$arr_html[] = nl2br($str_path);
+						if ($arr_extra['limit_text'] && mb_strlen($str_path) > static::$num_text_preview_characters) {
+							$str_path = mb_substr($str_path, 0, static::$num_text_preview_characters).' [...]';
+						}
+						
+						$str_path = parseBody($str_path, ['newlines' => FormatHTML::NEWLINES_SIMPLE]);
+						
+						if ($str_path) {
+							$str_path = Response::addParsePost($str_path, ['strip' => true]);
+						}
+						
+						$arr_html[] = $str_path;
 					}
 					
 					$format = implode(($arr_type_settings['separator'] ?: static::FORMAT_MULTI_SEPERATOR), $arr_html);
-					
-					if (mb_strlen($format) > static::$num_text_preview_characters) {
-						$format = mb_substr($format, 0, static::$num_text_preview_characters).' [...]';
-					}
 				}
 				break;
 			case 'text':
 				
 				if ($value) {
 					
-					if (mb_strlen($value) > static::$num_text_preview_characters) {
+					if ($arr_extra['limit_text'] && mb_strlen($value) > static::$num_text_preview_characters) {
 						$value = mb_substr($value, 0, static::$num_text_preview_characters).' [...]';
 					}
 					
@@ -725,17 +881,19 @@ abstract class FormatTypeObjectsBase {
 				
 				if ($value) {
 					
-					if (mb_strlen($value) > static::$num_text_preview_characters) {
+					if ($arr_extra['limit_text'] && mb_strlen($value) > static::$num_text_preview_characters) {
 						$value = mb_substr($value, 0, static::$num_text_preview_characters).' [...]';
 					}
 					
-					if ($arr_type_settings['html']) {
+					/*if ($arr_type_settings['html']) {
 						$format = parseBody($value, ['sanitise' => true]);
 					} else {
 						$value = strEscapeHTML($value);
 						$format = parseBody($value);
-					}
-
+					}*/
+					
+					$format = parseBody($value);
+					
 					if ($format) {
 						$format = Response::addParsePost($format, ['strip' => true]);
 					}
@@ -773,6 +931,7 @@ abstract class FormatTypeObjectsBase {
 			case 'classification':
 			case 'reversed_classification':
 			case 'object_description':
+			case 'reference_mutable':
 
 				if ($arr_extra['has_multi']) {
 					
@@ -836,7 +995,17 @@ abstract class FormatTypeObjectsBase {
 						
 						$str_path = static::clearObjectDefinitionText($str_path, static::TEXT_TAG_OBJECT);
 						
-						$arr_html[] = nl2br($str_path);
+						if ($arr_extra['limit_text'] && mb_strlen($str_path) > static::$num_text_preview_characters) {
+							$str_path = mb_substr($str_path, 0, static::$num_text_preview_characters).' [...]';
+						}
+						
+						$str_path = parseBody($str_path, ['newlines' => FormatHTML::NEWLINES_SIMPLE]);
+						
+						if ($str_path) {
+							$str_path = Response::addParsePost($str_path, ['strip' => true]);
+						}
+						
+						$arr_html[] = $str_path;
 					}
 				}
 				
@@ -969,55 +1138,68 @@ abstract class FormatTypeObjectsBase {
 		
 		return $format;
 	}
-	
-	public static function formatToInputValue($type, $value, $arr_type_settings = []) { // From raw database to direct input (i.e in a field)
+		
+	public static function formatToFormValue($type, $value, $reference, $name, $arr_type_settings = [], $arr_extra = []) { // From raw database to input field. No conditions/Response Parse expected
 		
 		$format = false;
-			
-		switch ($type) {
-			case 'numeric':
-				$format = ($value ? static::int2Numeric($value) : '');
-				break;
-			case 'date':
-				$format = ($value ? static::int2Date($value) : '');
-				break;
-			case 'boolean':
-				$format = ($value !== '' && $value !== null ? ($value == 1 || $value === 'yes' ? 'yes' : 'no') : '');
-				break;
-			case 'date_cycle':
-			
-				if ($value) {
-					
-					$format = [
-						'month' => $value[0],
-						'day' => $value[1],
-					];
-				}
-				break;
-			case 'date_compute':
-			
-				if ($value) {
-					
-					$format = [
-						'year' => $value[0],
-						'month' => $value[1],
-						'day' => $value[2],
-					];
-				}
-				break;
-			default:
-				$format = $value;
-		}
-		
-		return $format;
-	}
-	
-	public static function formatToFormValue($type, $value, $reference, $name, $arr_type_settings = [], $arr_extra = []) { // From raw database to input field 
-		
-		$format = false;
-		$html_menu = ($arr_extra['menu'] ?? '');
+		$str_html_menu = ($arr_extra['menu'] ?? '');
 	
 		switch ($type) {
+			case 'reference':
+			case 'type':
+			case 'classification':
+			case 'reversed_classification':
+			case 'reversed_collection':
+			case 'reversed_collection_resource_path':
+				
+				$str_lookup_identifier = (int)$arr_extra['ref_type_id'].'_'.(int)$arr_extra['type_id'].'_';
+				if (isset($arr_extra['context']['object_sub_details_id'])) {
+					$str_lookup_identifier .= '0_'.$arr_extra['context']['object_sub_details_id'].'_'.($arr_extra['context']['object_sub_description_id'] ?? 0);
+				} else {
+					$str_lookup_identifier .= ($arr_extra['context']['object_description_id'] ?? 0);
+				}
+				
+				if ($arr_extra['has_multi']) {
+					$format = '<div class="input">'.cms_general::createMultiSelect($name, 'y:data_filter:lookup_type_object-'.$str_lookup_identifier.'|multi', $value, 'y:data_filter:lookup_type_object_pick-'.$str_lookup_identifier, ['list' => ($arr_extra['list'] ?? false), 'order' => true])
+						.$str_html_menu
+					.'</div>';
+				} else {
+					$format = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$str_lookup_identifier.'" name="'.$name.'" value="'.$reference.'" /><input type="search" id="y:data_filter:lookup_type_object-'.$str_lookup_identifier.'" class="autocomplete" value="'.$value.'" />'
+						.$str_html_menu;
+				}
+				
+				$str_html_menu = '';
+				
+				break;
+			case 'reference_mutable':
+
+				$arr_reference_types = ($arr_extra['ref_type_id'] ? StoreType::getTypes($arr_extra['ref_type_id']) : []);
+				
+				$str_lookup_identifier = '0_'.(int)$arr_extra['type_id'].'_';
+				if (isset($arr_extra['context']['object_sub_details_id'])) {
+					$str_lookup_identifier .= '0_'.$arr_extra['context']['object_sub_details_id'].'_'.($arr_extra['context']['object_sub_description_id'] ?? 0);
+				} else {
+					$str_lookup_identifier .= ($arr_extra['context']['object_description_id'] ?? 0);
+				}
+				
+				$object_reference_type_id = false;
+				if ($reference) {
+					list($object_reference_type_id) = explode('_', (is_array($reference) ? current($reference) : $reference));
+				}
+				$str_html_select = '<select class="update_object_type clear_type_object">'.Labels::parseTextVariables(cms_general::createDropdown($arr_reference_types, $object_reference_type_id)).'</select>';
+								
+				if ($arr_extra['has_multi']) {					
+					$format = '<div class="input">'.cms_general::createMultiSelect($name, 'y:data_filter:lookup_type_object-'.$str_lookup_identifier.'|multi', $value, 'y:data_filter:lookup_type_object_pick-'.$str_lookup_identifier, ['list' => ($arr_extra['list'] ?? false), 'order' => true, 'attr' => ['data-object_identifier' => true]])
+						.$str_html_select.$str_html_menu
+					.'</div>';
+				} else {
+					$format = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$str_lookup_identifier.'" name="'.$name.'" value="'.$reference.'" /><input type="search" id="y:data_filter:lookup_type_object-'.$str_lookup_identifier.'" class="autocomplete" value="'.$value.'" data-object_identifier="1" />'
+						.$str_html_select.$str_html_menu;
+				}
+				
+				$str_html_menu = '';
+				
+				break;
 			case 'media_external':
 			case 'serial_varchar':
 			case '':
@@ -1127,12 +1309,12 @@ abstract class FormatTypeObjectsBase {
 				$format = '<textarea name="'.$name.'">'.strEscapeHTML($value).'</textarea>';
 				break;
 			case 'text_layout':
-				$format = cms_general::editBody($value, $name, ['inline' => true, 'menu' => $html_menu]);
-				$html_menu = '';
+				$format = cms_general::editBody($value, $name, ['inline' => true, 'menu' => $str_html_menu]);
+				$str_html_menu = '';
 				break;
 			case 'text_tags':
-				$format = cms_general::editBody($value, $name, ['inline' => true, 'menu' => $html_menu, 'data' => ['tag_object' => true]]);
-				$html_menu = '';
+				$format = cms_general::editBody($value, $name, ['inline' => true, 'menu' => $str_html_menu, 'data' => ['tag_object' => true]]);
+				$str_html_menu = '';
 				break;
 			case 'boolean':
 				$arr_boolean = [['id' => 'yes', 'name' => getLabel('lbl_yes')], ['id' => 'no', 'name' => getLabel('lbl_no')], ['id' => '', 'name' => getLabel('lbl_none')]];
@@ -1226,7 +1408,7 @@ abstract class FormatTypeObjectsBase {
 			$format = '<fieldset class="input"><ul>
 				<li>
 					<label></label><div><menu class="sorter">'
-						.'<input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" />'.$html_menu			
+						.'<input type="button" class="data del" value="del" title="'.getLabel('inf_remove_empty_fields').'" /><input type="button" class="data add" value="add" />'.$str_html_menu			
 					.'</menu></div>
 				</li><li>
 					<label></label>
@@ -1235,7 +1417,35 @@ abstract class FormatTypeObjectsBase {
 			</ul></fieldset>';
 		} else {
 			
-			$format .= $html_menu;
+			$format .= $str_html_menu;
+		}
+		
+		return $format;
+	}
+	
+	public static function formatToHTMLVersionValue($type, $value, $reference, $arr_type_settings = [], $arr_extra = []) {  // From raw database to version overview
+		
+		$format = '';
+		
+		if ($arr_extra['ref_type_id']) {
+			
+			$format = FormatTypeObjects::formatToHTMLValue($type, $value, $reference, $arr_type_settings, $arr_extra);
+		} else {
+			
+			if ($arr_extra['has_multi']) {
+				
+				$arr_html = [];
+				
+				foreach ($value as $key => $v) {
+					
+					$arr_html[] = FormatTypeObjects::formatToValue($type, $v, $arr_type_settings);
+				}
+				
+				$format = implode(($arr_type_settings['separator'] ?: FormatTypeObjects::FORMAT_MULTI_SEPERATOR_LIST), $arr_html);
+			} else {
+				
+				$format = FormatTypeObjects::formatToValue($type, $value, $arr_type_settings);
+			}
 		}
 		
 		return $format;
@@ -1247,40 +1457,64 @@ abstract class FormatTypeObjectsBase {
 	
 		switch ($type) {
 			case 'boolean':
+			
 				$arr_boolean = [['id' => 'yes', 'name' => getLabel('lbl_yes')], ['id' => 'no', 'name' => getLabel('lbl_no')], ['id' => '', 'name' => getLabel('lbl_any')]];
-				$format = '<span class="input">'.cms_general::createSelectorRadio($arr_boolean, $name, ($value !== '' && $value !== null ? ($value == 1 || $value === 'yes' ? 'yes' : 'no') : '')).'</span>';
+				$str_bool = '';
+				if ($value === 'no' || $value == 0) {
+					$str_bool = 'no';
+				} else if ($value === 'yes' || $value == 1 || $value === getLabel('lbl_yes', 'L', true)) {
+					$str_bool = 'yes';
+				} else {
+					$str_bool = 'no';
+				}
+				$format = '<span class="input">'.cms_general::createSelectorRadio($arr_boolean, $name, $str_bool).'</span>';
+				
 				break;
 			case 'date':
+			
 				$value = (is_array($value) ? $value : ['equality' => '=', 'value' => $value]);
 				$arr_equality = FilterTypeObjects::getEqualityValues();
 				unset($arr_equality['≠']);
+				
 				$format = '<select name="'.$name.'[equality]">'.cms_general::createDropdown($arr_equality, $value['equality']).'</select>'
 					.'<input type="text" class="date" name="'.$name.'[value]" value="'.($value['value'] !== 'now' ? $value['value'] : '').'" />'
 					.'<input type="checkbox" name="'.$name.'[value_now]" value="1" title="'.getLabel('inf_date_now').'"'.($value['value'] === 'now' ? ' checked="checked"' : '').' />'
 					.'<input type="text" class="date" name="'.$name.'[range]" value="'.($value['range'] !== 'now' ? $value['range'] : '').'" />'
 					.'<input type="checkbox" name="'.$name.'[range_now]" value="1" title="'.getLabel('inf_date_now').'"'.($value['range'] === 'now' ? ' checked="checked"' : '').' />';
+				
 				break;
 			case 'int':
 			case 'numeric':
 			case 'float':
+				
 				$value = (is_array($value) ? $value : ['equality' => '=', 'value' => $value]);
 				$arr_equality = FilterTypeObjects::getEqualityValues();
 				unset($arr_equality['≠']);
+				
 				$format = '<select name="'.$name.'[equality]">'.cms_general::createDropdown($arr_equality, $value['equality']).'</select>'
 					.'<input type="number" name="'.$name.'[value]" value="'.$value['value'].'" />'
 					.'<input type="number" name="'.$name.'[range]" value="'.$value['range'].'" />';
+					
 				break;
 			case 'text':
 			case 'text_layout':
+			case 'media':
 			case 'media_external':
 			case 'external':
 			case 'serial_varchar':
 			case '':
+			
 				$value = (is_array($value) ? $value : ['equality' => '*', 'value' => $value]);
 				$arr_equality = FilterTypeObjects::getEqualityStringValues();
 				unset($arr_equality['≠']);
+				
+				$is_regex = ($value['equality'] == '(.*)');
+				
 				$format = '<select name="'.$name.'[equality]">'.cms_general::createDropdown($arr_equality, $value['equality']).'</select>'
-					.'<input type="text" name="'.$name.'[value]" value="'.strEscapeHTML($value['value']).'" />';
+					.'<input type="text"'.($is_regex ? ' class="hide"' : '').'name="'.$name.'[value]" value="'.strEscapeHTML($value['value']).'" />'
+					.'<input type="checkbox"'.($is_regex ? ' class="hide"' : '').' name="'.$name.'[modifier]" value="ḓC" title="'.getLabel('inf_search_sensitive').'"'.($value['modifier'] == 'ḓC' ? ' checked="checked"' : '').' />'
+					.cms_general::createRegularExpressionEditor(($value['regex'] ?: []), $name.'[regex]', ['class' => (!$is_regex ? 'hide' : '')]);
+				
 				break;
 			default:
 				$format = self::formatToFormValue($type, $value, false, $name, $arr_type_settings);
@@ -1289,7 +1523,7 @@ abstract class FormatTypeObjectsBase {
 		return $format;
 	}
 		
-	public static function formatFromSQLValue($type, $value, $arr_type_settings = [], $mode_format = null) {
+	public static function formatFromSQLValue($type, $value, $arr_type_settings = []) {
 		
 		$format = false;
 		
@@ -1298,22 +1532,22 @@ abstract class FormatTypeObjectsBase {
 				$format = "CASE WHEN ".$value." = 1 THEN '".getLabel('lbl_yes')."' WHEN ".$value." = 0 THEN '".getLabel('lbl_no')."' ELSE '' END";
 				break;
 			case 'date':
-				
-				$do_mode_ymd = ($mode_format !== null && ($mode_format & static::FORMAT_DATE_YMD));
-				
+								
 				$sql_string = DBFunctions::castAs($value, DBFunctions::CAST_TYPE_STRING);
 
 				$format = "CASE ".$value."
 					WHEN ".static::DATE_INT_MAX." THEN '∞'
 					WHEN ".static::DATE_INT_MIN." THEN '-∞'
 					ELSE CONCAT(";
+					
+						$sql_abs_string = DBFunctions::castAs('ABS('.$value.')', DBFunctions::CAST_TYPE_STRING);
 						
-						$sql_year = "CASE WHEN LENGTH(".$sql_string.")-8 < 3 
-							THEN SUBSTRING(CONCAT('00', ".$sql_string.") FROM -(8+3) FOR 3)
+						$sql_year = "CASE WHEN LENGTH(".$sql_abs_string.")-8 < 3 
+							THEN CONCAT(CASE WHEN ".$value." < 0 THEN '-' ELSE '' END, SUBSTRING(CONCAT('00', ".$sql_abs_string.") FROM -(8+3) FOR 3))
 							ELSE SUBSTRING(".$sql_string." FROM 1 FOR LENGTH(".$sql_string.")-8)
 						END";
 						
-						if ($do_mode_ymd) {
+						if (static::$mode_format & static::FORMAT_DATE_YMD) {
 							
 							$format .="
 								".$sql_year.",
@@ -1366,16 +1600,18 @@ abstract class FormatTypeObjectsBase {
 				break;
 			case 'numeric':
 				
-				$value = DBFunctions::castAs($value, DBFunctions::CAST_TYPE_STRING);
-				$value = "LPAD(".$value.", GREATEST(LENGTH(".$value."), ".(static::VALUE_NUMERIC_DECIMALS + 1)."), '0')";
+				$sql_value = '('.$value.' * CASE WHEN '.$value.' < 0 THEN -1 ELSE 1 END) - '.static::VALUE_NUMERIC_MULTIPLIER;  // Remove sign / make absolute
+				$sql_value = DBFunctions::castAs($sql_value, DBFunctions::CAST_TYPE_STRING);
+				$sql_value = "LPAD(".$sql_value.", GREATEST(LENGTH(".$sql_value."), ".(static::VALUE_NUMERIC_DECIMALS + 1)."), '0')";
 				
 				if (DB::ENGINE_IS_MYSQL) {
-					$format = "INSERT(".$value.", LENGTH(".$value.")+1-".static::VALUE_NUMERIC_DECIMALS.", 0, '.')";
+					$format = "INSERT(".$sql_value.", LENGTH(".$sql_value.")+1-".static::VALUE_NUMERIC_DECIMALS.", 0, '.')";
 					$format = "TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM ".$format."))";
 				} else {
-					$format = "OVERLAY(".$value." PLACING '.' FROM LENGTH(".$value.")+1-".static::VALUE_NUMERIC_DECIMALS." FOR 0)";
+					$format = "OVERLAY(".$sql_value." PLACING '.' FROM LENGTH(".$sql_value.")+1-".static::VALUE_NUMERIC_DECIMALS." FOR 0)";
 					$format = "RTRIM(RTRIM(".$format.", '0'), '.')";
 				}
+				$format = "CONCAT(CASE WHEN ".$value." < 0 THEN '-' ELSE '' END, ".$format.")"; // Add back possible sign
 
 				break;
 			default:
@@ -1392,7 +1628,16 @@ abstract class FormatTypeObjectsBase {
 	
 		switch ($type) {
 			case 'boolean':
-				$format = ($value !== '' && $value !== null ? ($value === 'no' || !$value ? 0 : 1) : '');
+				$format = '';
+				if ($value !== '' && $value !== null) {
+					if ($value === 'no' || $value == 0) {
+						$format = 0;
+					} else if ($value === 'yes' || $value == 1 || $value === getLabel('lbl_yes', 'L', true)) {
+						$format = 1;
+					} else {
+						$format = 0;
+					}
+				}
 				break;
 			case 'date':
 				$format = self::date2Integer($value);
@@ -1529,6 +1774,29 @@ abstract class FormatTypeObjectsBase {
 				$do_unique = false;
 				$format = (!empty($value) ? (is_array($value) ? value2JSON($value) : $value) : '');
 				break;
+			case 'reference_mutable':
+				
+				$do_unique = false;
+				
+				if (is_array($value)) {
+					
+					foreach ($value as &$object_id) {
+						
+						if ($object_id === StoreTypeObjects::LAST_OBJECT_ID) {
+							continue;
+						}
+						
+						$object_id = GenerateTypeObjects::parseTypeObjectID($object_id);
+					}
+				} else {
+					
+					if ($value !== null && $value !== StoreTypeObjects::LAST_OBJECT_ID) {
+						$value = GenerateTypeObjects::parseTypeObjectID($value);
+					}
+				}
+				
+				$format = $value;
+				break;
 			default:
 				$format = $value;
 		}
@@ -1557,12 +1825,13 @@ abstract class FormatTypeObjectsBase {
 				$arr_num_value = static::dateInt2Compontents(static::date2Integer($value['value']));
 				$arr_num_range = static::dateInt2Compontents(static::date2Integer($value['range']));
 				$arr_sql_name = static::dateSQL2Compontents($name);
+				$sql_equality = ($value['equality'] == '==' ? '=' : $value['equality']); // Check generic exact match string/numeric
 
-				switch ($value['equality']) {
+				switch ($sql_equality) {
 					case '=':
 					case '>':
 					case '<':
-						$format = $arr_sql_name['absolute'].' '.$value['equality'].' '.$arr_num_value['absolute'];
+						$format = $arr_sql_name['absolute'].' '.$sql_equality.' '.$arr_num_value['absolute'];
 						break;
 					case '≥':
 						$format = $arr_sql_name['absolute'].' >= '.$arr_num_value['absolute'];
@@ -1593,12 +1862,13 @@ abstract class FormatTypeObjectsBase {
 					$value['value'] = (int)$value['value'];
 					$value['range'] = (int)$value['range'];
 				}
+				$sql_equality = ($value['equality'] == '==' ? '=' : $value['equality']); // Check generic exact match string/numeric
 
-				switch ($value['equality']) {
+				switch ($sql_equality) {
 					case '=':
 					case '>':
 					case '<':
-						$format = $name.' '.$value['equality'].' '.$value['value'];
+						$format = $name.' '.$sql_equality.' '.$value['value'];
 						break;
 					case '≥':
 						$format = $name.' >= '.$value['value'];
@@ -1617,28 +1887,42 @@ abstract class FormatTypeObjectsBase {
 			case 'text':
 			case 'text_layout':
 			case 'text_tags':
+			case 'media':
 			case 'media_external':
 			case 'external':
 			case 'serial_varchar':
 			case '':
 			
 				$value = (is_array($value) ? $value : ['equality' => '*', 'value' => $value]);
-				$sql_value = self::formatToSQLValue($type, $value['value']);
+				$sql_equality = $value['equality'];
 
-				switch ($value['equality']) {
-					case '*':
-						$format = $name." LIKE '%".DBFunctions::str2Search($sql_value)."%'";
-						break;
-					case '^':
-						$format = $name." LIKE '".DBFunctions::str2Search($sql_value)."%'";
-						break;
-					case '$':
-						$format = $name." LIKE '%".DBFunctions::str2Search($sql_value)."'";
-						break;
-					case '=':
-						$format = $name." LIKE '".DBFunctions::str2Search($sql_value)."'";
-						break;
+				if ($sql_equality == '(.*)') {
+					
+					$format = DBFunctions::searchRegularExpression($name, DBFunctions::SQL_IS_LITERAL.DBFunctions::strEscape($value['regex']['pattern']), $value['regex']['flags']);
+				} else {
+					
+					$sql_value = self::formatToSQLValue($type, $value['value']);
+					$is_ḓC = ($value['modifier'] == 'ḓC');
+					
+					switch ($sql_equality) {
+						case '==': // Check generic exact match string/numeric
+							$format = DBFunctions::searchMatchSensitivity($name, DBFunctions::SQL_IS_LITERAL.DBFunctions::strEscape($sql_value), false, true, true);
+							break;
+						case '*':
+							$format = DBFunctions::searchMatchSensitivity($name, DBFunctions::SQL_IS_LITERAL.DBFunctions::str2Search($sql_value), MATCH_ANY, $is_ḓC, $is_ḓC);
+							break;
+						case '^':
+							$format = DBFunctions::searchMatchSensitivity($name, DBFunctions::SQL_IS_LITERAL.DBFunctions::str2Search($sql_value), MATCH_START, $is_ḓC, $is_ḓC);
+							break;
+						case '$':
+							$format = DBFunctions::searchMatchSensitivity($name, DBFunctions::SQL_IS_LITERAL.DBFunctions::str2Search($sql_value), MATCH_END, $is_ḓC, $is_ḓC);
+							break;
+						case '=':
+							$format = DBFunctions::searchMatchSensitivity($name, DBFunctions::SQL_IS_LITERAL.DBFunctions::str2Search($sql_value), MATCH_FULL, $is_ḓC, $is_ḓC);
+							break;
+					}
 				}
+
 				break;
 			case 'boolean':
 				$format = self::formatToSQLValue($type, $value_plain);
@@ -1748,24 +2032,32 @@ abstract class FormatTypeObjectsBase {
 	
 	public static function num2Integer($num) {
 		
-		if ((int)$num >= static::VALUE_NUMERIC_MULTIPLIER && strpos((string)$num, '.') === false) { // Already converted
+		// Multiply by VALUE_NUMERIC_MULTIPLIER, add one time (sign)VALUE_NUMERIC_MULTIPLIER to account for values > -1 < 1
+		
+		$num_sign = ($num < 0 ? -1 : 1);
+		
+		if (((int)$num * $num_sign) >= static::VALUE_NUMERIC_MULTIPLIER && strpos((string)$num, '.') === false) { // Already converted
 			return $num;
 		}
 		if (!is_numeric($num)) {
 			return '';
 		}
 		
-		return bcmul($num, static::VALUE_NUMERIC_MULTIPLIER);
+		return bcadd(bcmul($num, static::VALUE_NUMERIC_MULTIPLIER), static::VALUE_NUMERIC_MULTIPLIER * $num_sign);
 	}
 	
 	public static function int2Numeric($int) {
 		
-		return rtrim(rtrim(bcdiv($int, static::VALUE_NUMERIC_MULTIPLIER, static::VALUE_NUMERIC_DECIMALS), '0'), '.');
+		// Subtract one time (sign)VALUE_NUMERIC_MULTIPLIER to account for values > -1 < 1, divide by VALUE_NUMERIC_MULTIPLIER, 
+		
+		$num_sign = ($int < 0 ? -1 : 1);
+		
+		return rtrim(rtrim(bcdiv(bcsub($int, static::VALUE_NUMERIC_MULTIPLIER * $num_sign), static::VALUE_NUMERIC_MULTIPLIER, static::VALUE_NUMERIC_DECIMALS), '0'), '.');
 	}
 	
 	public static function sqlInt2SQLNumeric($sql_value) {
 		
-		return '('.$sql_value.' * '.(1 / static::VALUE_NUMERIC_MULTIPLIER).')'; // Convert multiplier to decimal for float precision purposes
+		return '(('.$sql_value.' - ('.static::VALUE_NUMERIC_MULTIPLIER.' * CASE WHEN '.$sql_value.' < 0 THEN -1 ELSE 1 END)) * '.(1 / static::VALUE_NUMERIC_MULTIPLIER).')'; // Convert multiplier to decimal for float precision purposes
 	}
 	
 	// Chronology
@@ -1871,7 +2163,7 @@ abstract class FormatTypeObjectsBase {
 			CONCAT('.$sql_table_name.'.span_period_amount, \',\', '.$sql_table_name.'.span_period_unit, \',\', '.$sql_table_name.'.span_cycle_object_id),
 			\';\',
 			COALESCE((SELECT
-					'.DBFunctions::sqlImplode(
+					'.DBFunctions::group2String(
 						'CONCAT(identifier, \',\', offset_amount, \',\', offset_unit, \',\', cycle_object_id, \',\', cycle_direction, \',\', COALESCE('.DBFunctions::castAs('date_value', DBFunctions::CAST_TYPE_STRING).', \'\'), \',\', COALESCE('.DBFunctions::castAs('date_object_sub_id', DBFunctions::CAST_TYPE_STRING).', \'\'), \',\', date_direction)',
 						';'
 					).'
@@ -2277,7 +2569,6 @@ abstract class FormatTypeObjectsBase {
 			}
 			
 			if ($msg_client) {
-				
 				error($msg_client, TROUBLE_ERROR, LOG_BOTH, false, $e);
 			}
 		}
@@ -2296,7 +2587,11 @@ abstract class FormatTypeObjectsBase {
 			if ($is_json) {
 				$sql_value = "ST_GeomFromGeoJSON('".$value."', 2, ".$num_srid.")";
 			} else {
-				$sql_value = "ST_SRID(ST_GeomFromText('".$value."'), ".$num_srid.")";
+				if (DB::ENGINE_IS_MARIADB) {
+					$sql_value = "ST_GeomFromText('".$value."', ".$num_srid.")";
+				} else {
+					$sql_value = "ST_SRID(ST_GeomFromText('".$value."'), ".$num_srid.")";
+				}
 			}
 			
 			//$sql_geojson = "ST_AsGeoJSON(@check, ".static::GEOMETRY_COORDINATE_DECIMALS.", ".($num_srid != static::GEOMETRY_SRID ? '2' : '0').")"; // MariaDB does not support the option for adding the crs
@@ -2308,35 +2603,34 @@ abstract class FormatTypeObjectsBase {
 			
 			$sql = "
 				SET @check = ".$sql_value.";
-				SELECT ST_Intersects(@check, @check), ST_IsEmpty(@check);
-				SELECT ".$sql_geojson.";
+				SELECT ST_Intersects(@check, @check), ST_IsEmpty(@check), ".$sql_geojson.";
 			";
+			
+			$res = DB::queryMulti($sql);
+			$arr_result = $res[1]->fetchRow();
 		} else {
 			
 			$sql_value = ($is_json ? "ST_GeomFromGeoJSON('".$value."')" : "ST_GeomFromText('".$value."', ".$num_srid.")");
 			$sql_geojson = "ST_AsGeoJSON(vars.check, ".static::GEOMETRY_COORDINATE_DECIMALS.", ".($num_srid != static::GEOMETRY_SRID ? '2' : '0').")";
 			
 			$sql = "
-				WITH vars AS (SELECT ".$sql_value." AS check);
-				SELECT ST_Intersects(vars.check, vars.check), ST_IsEmpty(vars.check) FROM vars;
-				SELECT ".$sql_geojson." FROM vars;
+				WITH vars AS (SELECT ".$sql_value." AS check)
+				SELECT ST_Intersects(vars.check, vars.check), ST_IsEmpty(vars.check), ".$sql_geojson." FROM vars;
 			";
+			
+			$res = DB::query($sql);
+			$arr_result = $res->fetchRow();
 		}
 
-		$res = DB::queryMulti($sql);
-		
-		$is_empty = $res[1]->fetchRow();
-		$is_empty = (bool)$is_empty[1];
+		$is_empty = DBFunctions::unescapeAs($arr_result[1], DBFunctions::TYPE_BOOLEAN);
 		
 		if ($is_empty) {
 			
 			Labels::setVariable('type', ($is_json ? 'GeoJSON' : 'Geometry'));
-			
 			error(getLabel('msg_malformed_geometry_empty'), TROUBLE_ERROR, LOG_BOTH, false, $e);
 		}
 		
-		$value = $res[2]->fetchRow();
-		$value = $value[0];
+		$value = $arr_result[2];
 		
 		return $value;
 	}
@@ -2361,7 +2655,6 @@ abstract class FormatTypeObjectsBase {
 		$str_error = $process->getError();
 		
 		if ($str_error !== '') {
-			
 			error(getLabel('msg_malformed_geometry_transform'), TROUBLE_ERROR, LOG_BOTH, $str_error, $e);
 		}
 		
@@ -2512,7 +2805,11 @@ abstract class FormatTypeObjectsBase {
 				}
 			} else {
 				
-				$arr_date = [$date, '00', '00', static::DATE_INT_SEQUENCE_NULL];
+				if (strlen($date) >= 11) { // Semi-real integer: should be the internal nodegoat date-value, which has minimum length 3+2+2+4
+					$date = (int)$date;
+				} else {
+					$arr_date = [$date, '00', '00', static::DATE_INT_SEQUENCE_NULL];
+				}
 			}
 		}
 		
@@ -2549,7 +2846,6 @@ abstract class FormatTypeObjectsBase {
 	public static function date2Components($date) {
 		
 		$num_sequence = 0;
-		
 		$str_sequence_separator = null;
 		
 		if (strpos($date, ' ') !== false) {
@@ -2561,14 +2857,24 @@ abstract class FormatTypeObjectsBase {
 		if ($str_sequence_separator !== null) {
 				
 			$date = explode($str_sequence_separator, $date);
+			$str_sequence = $date[1];
 
-			if (strpos($date[1], ':') !== false) { // hours:minutes(:seconds+zone)
+			if (strpos($str_sequence, ':') !== false) { // hours:minutes(:seconds(+/-)zone)
 				
-				$arr_time = explode(':', $date[1]);
+				$arr_time = explode(':', $str_sequence);
 				$num_sequence = (((int)$arr_time[0] * 60) + (int)$arr_time[1]);
+				$str_zone_modifier = (strpos($str_sequence, '+') !== false ? '+' : (strpos($str_sequence, '-') !== false ? '-' : null));
+				
+				if ($str_zone_modifier !== null) {
+					
+					$arr_time = explode($str_zone_modifier, $str_sequence);
+					$arr_time = explode(':', ($arr_time[1] ?? ':'));
+					$num_sequence_offset = (((int)$arr_time[0] * 60) + (int)($arr_time[1] ?? 0));
+					$num_sequence += ($str_zone_modifier === '-' ? -$num_sequence_offset : $num_sequence_offset);
+				}
 			} else {
 				
-				$num_sequence = (int)$date[1];
+				$num_sequence = (int)$str_sequence;
 			}
 			
 			$date = $date[0];
@@ -2608,7 +2914,7 @@ abstract class FormatTypeObjectsBase {
 		return $arr_date;
 	}
 	
-	public static function int2Date($date, $do_ymd = false) {
+	public static function int2Date($date) {
 		
 		if ($date == static::DATE_INT_MAX) {
 			
@@ -2627,13 +2933,13 @@ abstract class FormatTypeObjectsBase {
 				$str_year = substr($date, 0, -8);
 			}
 			
-			if (strlen($date) < 8 + 3) {
+			if (strlen(abs($date)) < 8 + 3) {
 				$str_year = str_pad($str_year, 3, '0', STR_PAD_LEFT);
 			}
 			
 			$num_sequence = (int)substr($date, -4, 4);
 			
-			if ($do_ymd) {
+			if (static::$mode_format & static::FORMAT_DATE_YMD) {
 				$date = $str_min.$str_year.'-'.substr($date, -8, 2).'-'.substr($date, -6, 2);
 				$date = str_replace('-00', '', $date);
 			} else {
@@ -2642,7 +2948,6 @@ abstract class FormatTypeObjectsBase {
 			}
 
 			if ($num_sequence != static::DATE_INT_SEQUENCE_NULL) {
-
 				$date .= ' '.($num_sequence - static::DATE_INT_SEQUENCE_NULL);
 			}
 		}
@@ -2652,9 +2957,56 @@ abstract class FormatTypeObjectsBase {
 		
 	public static function dateInt2DateStandard($date) {
 		
-		$date = substr($date, 0, -8).'-'.substr($date, -8, 2).'-'.substr($date, -6, 2);
-		$date = str_replace('-00', '', $date);
-		
+		if ($date == static::DATE_INT_MAX) {
+			
+			$date = '∞';
+		} else if ($date == static::DATE_INT_MIN) {
+			
+			$date = '-∞';
+		} else {
+			
+			$num_sequence = (int)substr($date, -4, 4);
+			$date = substr($date, 0, -8).'-'.substr($date, -8, 2).'-'.substr($date, -6, 2);
+			
+			if ($num_sequence != static::DATE_INT_SEQUENCE_NULL) {
+				
+				$num_sequence = ($num_sequence - static::DATE_INT_SEQUENCE_NULL);
+				$is_min = ($num_sequence < 0);
+				if ($is_min) {
+					$num_sequence = -$num_sequence;
+				}
+				
+				$num_hours = floor($num_sequence/60);
+				$num_minutes = ceil($num_sequence-($num_hours*60));
+				$num_hours_offset = 0;
+				$num_minutes_offset = 0;
+				if ($num_hours > 23) {
+					$num_hours_offset = $num_hours - 23;
+					$num_hours = 23;
+				}
+				if ($num_minutes > 59) {
+					$num_minutes_offset = $num_minutes - 59;
+					$num_minutes = 59;
+				}
+				$str_zone = 'Z';
+			
+				if ($is_min) {
+					$num_hours_offset = ($num_hours + $num_hours_offset);
+					$num_hours = 0;
+					$num_minutes_offset = ($num_minutes + $num_minutes_offset);
+					$num_minutes = 0;
+					$str_zone = '-'.str_pad($num_hours_offset, 2, '0', STR_PAD_LEFT).':'.str_pad($num_minutes_offset, 2, '0', STR_PAD_LEFT);
+				} else if ($num_hours_offset || $num_minutes_offset) {
+					$str_zone = '+'.str_pad($num_hours_offset, 2, '0', STR_PAD_LEFT).':'.str_pad($num_minutes_offset, 2, '0', STR_PAD_LEFT);
+				}
+				
+				$date .= 'T'.str_pad($num_hours, 2, '0', STR_PAD_LEFT).':'.str_pad($num_minutes, 2, '0', STR_PAD_LEFT).$str_zone;
+			} else {
+				
+				$date .= 'T00:00Z';
+			}
+		}
+			
 		return $date;
 	}
 	

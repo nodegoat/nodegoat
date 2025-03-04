@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -259,9 +259,11 @@ class StoreTypeObjectsReversals extends StoreTypeObjects {
 					unset($arr_category['types'][$referenced_type_id]);
 						
 					// Cleanup
-					GenerateTypeObjects::cleanupResults();
+					GenerateTypeObjects::cleanResults();
 				}
 			} catch (Exception $e) {
+				
+				DB::rollbackTransaction(false);
 				
 				$store_state->updateModuleState(StoreTypeObjects::MODULE_STATE_DISABLED, BIT_MODE_ADD);
 				
@@ -270,7 +272,7 @@ class StoreTypeObjectsReversals extends StoreTypeObjects {
 				TROUBLE_NOTICE, LOG_BOTH, false, $e); // Make notice
 				
 				// Cleanup
-				GenerateTypeObjects::cleanupResults();
+				GenerateTypeObjects::cleanResults();
 			}
 			
 			if (empty($arr_category['types'])) {
@@ -343,11 +345,12 @@ class StoreTypeObjectsReversals extends StoreTypeObjects {
 		}
 		
 		$arr_scope = [];
+		$num_clearance_type = static::getReferencedTypeClearance($referenced_type_id, $arr_referenced_type); // Get the required clearance of the referenced Type
 		
 		if ($num_mode == StoreTypeObjectReversalCategoryReferencedType::MODE_COLLECTION) {
-			$arr_scope = StoreType::parseTypeNetwork($arr_object_type_filter['scope']);
+			$arr_scope = StoreType::parseTypeNetwork($arr_object_type_filter['scope'], false, $num_clearance_type);
 		} else if ($num_mode == StoreTypeObjectReversalCategoryReferencedType::MODE_COLLECTION_RESOURCE_PATH) {
-			$arr_scope = StoreType::parseTypeNetworkModePick($arr_object_type_filter['scope']);
+			$arr_scope = StoreType::parseTypeNetworkModePick($arr_object_type_filter['scope'], $num_clearance_type);
 		}
 
 		if (($num_mode == StoreTypeObjectReversalCategoryReferencedType::MODE_COLLECTION || $num_mode == StoreTypeObjectReversalCategoryReferencedType::MODE_COLLECTION_RESOURCE_PATH) && $arr_scope['paths']) {
@@ -360,7 +363,7 @@ class StoreTypeObjectsReversals extends StoreTypeObjects {
 				$trace = new TraceTypesNetwork($arr_scope_type_ids, true, true);
 				$trace->filterTypesNetwork($arr_scope['paths']);
 				$trace->run($referenced_type_id, false, cms_nodegoat_details::$num_network_trace_depth);
-								
+				
 				$this->arr_cache_trace_type_network[$str_identifier] = [
 					'network_paths' => $trace->getTypeNetworkPaths(true),
 					'type_ids' => $trace->getFoundTypeIDs(true)
@@ -377,7 +380,6 @@ class StoreTypeObjectsReversals extends StoreTypeObjects {
 		$str_resource_path = null;
 		
 		if ($num_mode == StoreTypeObjectReversalCategoryReferencedType::MODE_COLLECTION_RESOURCE_PATH) {
-			
 			$str_resource_path = $arr_object_type_filter['resource_path'];
 		}
 		
@@ -1265,5 +1267,48 @@ class StoreTypeObjectsReversals extends StoreTypeObjects {
 		$this->arr_check_type_ids += $arr_changed_type_ids;
 		
 		return $arr_changed_type_ids;
+	}
+	
+	public static function getReferencedTypeClearance($type_id, $arr_referenced_type) {
+		
+		$arr_type_set = StoreType::getTypeSet($type_id);
+		$num_type_clearance = 0;
+		
+		if ($arr_referenced_type['object_descriptions']) {
+			
+			foreach ($arr_referenced_type['object_descriptions'] as $object_description_id => $arr_object_description) {
+				
+				$num_clearance = $arr_type_set['object_descriptions'][$object_description_id]['object_description_clearance_view'];
+				
+				if ($num_clearance > $num_type_clearance) {
+					$num_type_clearance = $num_clearance;
+				}
+			}
+		}
+		if ($arr_referenced_type['object_sub_details']) {
+					
+			foreach ($arr_referenced_type['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
+				
+				$num_clearance = $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_clearance_view'];
+				
+				if ($num_clearance > $num_type_clearance) {
+					$num_type_clearance = $num_clearance;
+				}
+				
+				if ($arr_object_sub_details['object_sub_descriptions']) {
+								
+					foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
+						
+						$num_clearance = $arr_type_set['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['object_sub_description_clearance_view'];
+						
+						if ($num_clearance > $num_type_clearance) {
+							$num_type_clearance = $num_clearance;
+						}
+					}
+				}
+			}
+		}
+		
+		return $num_type_clearance;
 	}
 }

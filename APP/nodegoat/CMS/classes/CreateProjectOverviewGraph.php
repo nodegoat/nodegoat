@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -115,7 +115,7 @@ class CreateProjectOverviewGraph {
 			$this->arr_type_boxes[$type_id]['info'] = [
 				'filter' => (bool)$arr_project_type['type_filter_id'],
 				'condition' => (bool)$arr_project_type['type_condition_id'],
-				'lock' => ($arr_project_type['type_edit'] ? false : true),
+				'lock' => ($arr_project_type['type_edit'] == StoreCustomProject::ACCESS_PURPOSE_NONE ? true : false),
 				'objects' => $arr_info['total_filtered'],
 				'name' => $str_objects_name
 			];
@@ -130,9 +130,9 @@ class CreateProjectOverviewGraph {
 			
 				$str_identifier = 'object_description_'.$object_description_id;
 				
-				$connect_type_id = $arr_object_description['object_description_ref_type_id'];
+				$arr_connect_type_ids = $arr_object_description['object_description_ref_type_id'];
 				
-				if ($this->mode == static::MODE_REFERENCES && !$connect_type_id) {
+				if ($this->mode == static::MODE_REFERENCES && !$arr_connect_type_ids) {
 					continue;
 				}
 				
@@ -141,7 +141,7 @@ class CreateProjectOverviewGraph {
 				$has_multi = $arr_object_description['object_description_has_multi'];
 				
 				if ($is_referenced) {
-					$connect_type_id = false;
+					$arr_connect_type_ids = false;
 					$str_value_type = '';
 					$has_multi = false;
 				}
@@ -154,12 +154,16 @@ class CreateProjectOverviewGraph {
 					'information' => ($arr_project_type['configuration']['object_descriptions'][$object_description_id]['information'] ?? '')
 				];
 				
-				if ($connect_type_id) {
+				if ($arr_connect_type_ids) {
 					
-					if (isset($this->arr_type_sets[$connect_type_id])) {
-						$this->arr_element_links[$str_identifier] = ['type_id' => $connect_type_id, 'name' => Labels::parseTextVariables($this->arr_types[$connect_type_id]['name'])];
-					} else {
-						$this->arr_element_links[$str_identifier] = ['type_id' => false, 'name' => Labels::parseTextVariables($this->arr_types[$connect_type_id]['name'])];
+					foreach ((array)$arr_connect_type_ids as $connect_type_id) {
+						
+						$use_type_id = $connect_type_id;
+						if (!isset($this->arr_type_sets[$connect_type_id])) {
+							$use_type_id = false;
+						}
+						
+						$this->arr_element_links[$str_identifier][$connect_type_id] = ['type_id' => $use_type_id, 'name' => Labels::parseTextVariables($this->arr_types[$connect_type_id]['name'])];
 					}
 				}
 			}
@@ -195,16 +199,16 @@ class CreateProjectOverviewGraph {
 				
 					$str_identifier = 'object_sub_details_'.$object_sub_details_id.static::ELEMENT_SEPARATOR_IDENTIFIER.'object_sub_description_'.$object_sub_description_id;
 					
-					$connect_type_id = $arr_object_sub_description['object_sub_description_ref_type_id'];
+					$arr_connect_type_ids = $arr_object_sub_description['object_sub_description_ref_type_id'];
 				
-					if ($this->mode == static::MODE_REFERENCES && !$connect_type_id) {
+					if ($this->mode == static::MODE_REFERENCES && !$arr_connect_type_ids) {
 						continue;
 					}
 					
 					$str_value_type = $arr_value_types[$arr_object_sub_description['object_sub_description_value_type_base']]['name_base'];
 					
 					if ($is_referenced) {
-						$connect_type_id = false;
+						$arr_connect_type_ids = false;
 						$str_value_type = '';
 					}
 					
@@ -216,12 +220,16 @@ class CreateProjectOverviewGraph {
 						'information' => ($arr_project_type['configuration']['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id]['information'] ?? '')
 					];
 					
-					if ($connect_type_id) {
+					if ($arr_connect_type_ids) {
 						
-						if (isset($this->arr_type_sets[$connect_type_id])) {
-							$this->arr_element_links[$str_identifier] = ['type_id' => $connect_type_id, 'name' => Labels::parseTextVariables($this->arr_types[$connect_type_id]['name'])];
-						} else {
-							$this->arr_element_links[$str_identifier] = ['type_id' => false, 'name' => Labels::parseTextVariables($this->arr_types[$connect_type_id]['name'])];
+						foreach ((array)$arr_connect_type_ids as $connect_type_id) {
+							
+							$use_type_id = $connect_type_id;
+							if (!isset($this->arr_type_sets[$connect_type_id])) {
+								$use_type_id = false;
+							}
+							
+							$this->arr_element_links[$str_identifier][$connect_type_id] = ['type_id' => $use_type_id, 'name' => Labels::parseTextVariables($this->arr_types[$connect_type_id]['name'])];
 						}
 					}
 				}
@@ -475,7 +483,7 @@ class CreateProjectOverviewGraph {
 			
 			foreach ($this->arr_type_boxes[$type_id]['elements'] as $str_identifier => $arr_element) {
 				
-				$arr_connect = $this->arr_element_links[$str_identifier];
+				$arr_connections = $this->arr_element_links[$str_identifier];
 				
 				$svg_text = '';
 				
@@ -493,7 +501,7 @@ class CreateProjectOverviewGraph {
 				
 				$svg_value = '';
 				
-				if (!$arr_connect) {
+				if (!$arr_connections) {
 					$svg_value = '<text class="value"><textPath startOffset="100%" href="#box-element-value-text">'.$arr_element['value_type'].'</textPath></text>';
 				}
 				
@@ -511,20 +519,29 @@ class CreateProjectOverviewGraph {
 
 				$arr_svg_box_elements[] = $svg_element;
 				
-				if ($arr_connect) {
+				if ($arr_connections) {
 					
 					$num_connect_x = (static::$num_box_width-($num_box_element_connect_size/2)-$num_box_element_text_margin_x);
 					$num_connect_y = ($num_box_element_height/2);
-	
+		
 					$svg_connect = '<circle data-identifier="'.$str_identifier.'" transform="translate('.$num_box_x.', '.$num_box_y.')" cx="'.($num_box_element_x + $num_connect_x).'" cy="'.($num_box_element_y + $num_connect_y).'" r="'.($num_box_element_connect_size/2).'"></circle>';
 					
 					$this->arr_element_connect_positions[$str_identifier] = [
 						'type_id' => $type_id,
-						'connect_type_id' => $arr_connect['type_id'],
+						'connect_type_ids' => [],
 						'x' => ($num_box_element_x + $num_connect_x),
 						'y' => ($num_box_element_y + $num_connect_y),
 						'svg' => $svg_connect
 					];
+					
+					foreach ($arr_connections as $arr_connect) {
+						
+						if (!$arr_connect['type_id']) {
+							continue;
+						}
+						
+						$this->arr_element_connect_positions[$str_identifier]['connect_type_ids'][] = $arr_connect['type_id'];
+					}
 				}
 				
 				$num_box_element_y += $num_box_element_height;
@@ -598,27 +615,30 @@ class CreateProjectOverviewGraph {
 		$svg_element_connections = '';
 		$svg_connections = '';
 		
-		foreach ($this->arr_element_links as $str_identifier => $arr_connect) {
+		foreach ($this->arr_element_links as $str_identifier => $arr_connections) {
 			
 			$arr_element_connect_position = $this->arr_element_connect_positions[$str_identifier];
-			
+				
 			$svg_element_connections .= $arr_element_connect_position['svg'];
-			
-			if (!$arr_connect['type_id']) { // Type not available in Project
-				continue;
-			}
-			
+				
 			$arr_type_box_position = $this->arr_type_box_positions[$arr_element_connect_position['type_id']];
-			$arr_type_box_connect_position = $this->arr_type_box_positions[$arr_element_connect_position['connect_type_id']];
-			
-			$svg_connections .= '<path data-identifier="'.$str_identifier.static::ELEMENT_SEPARATOR_TYPE.$arr_connect['type_id'].'" d="'
-				.'M'.($arr_type_box_position['x'] + $arr_element_connect_position['x']).','.($arr_type_box_position['y'] + $arr_element_connect_position['y'])
-				.' L'.($arr_type_box_connect_position['x'] + $arr_type_box_connect_position['connect_x']).','.($arr_type_box_connect_position['y'] + $arr_type_box_connect_position['connect_y'])
-			.'" />';
+
+			foreach ($arr_connections as $arr_connect) {
+				
+				if (!$arr_connect['type_id']) { // Type not available in Project
+					continue;
+				}
+				
+				$arr_type_box_connect_position = $this->arr_type_box_positions[$arr_connect['type_id']];
+
+				$svg_connections .= '<path data-identifier="'.$str_identifier.static::ELEMENT_SEPARATOR_TYPE.$arr_connect['type_id'].'" d="'
+					.'M'.($arr_type_box_position['x'] + $arr_element_connect_position['x']).','.($arr_type_box_position['y'] + $arr_element_connect_position['y'])
+					.' L'.($arr_type_box_connect_position['x'] + $arr_type_box_connect_position['connect_x']).','.($arr_type_box_connect_position['y'] + $arr_type_box_connect_position['connect_y'])
+				.'" />';
+			}
 		}
 		
 		foreach ($this->arr_type_box_positions as $type_id => $arr_type_box_position) {
-			
 			$svg_type_box_connections .= $arr_type_box_position['connect_svg'];
 		}
 		

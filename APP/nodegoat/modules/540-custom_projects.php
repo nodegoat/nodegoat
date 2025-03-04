@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -68,8 +68,6 @@ class custom_projects extends base_module {
 						
 					$arr_style_type[] = '.body span.a[data-id^="'.$type_id.'_"], .body span.a[id*="-'.$type_id.'_"] { color: '.$arr_type['color'].'; }
 						.body span.tag-active[id*="-'.$type_id.'_"], .view_type_object .marginalia p[class^="'.$type_id.'"].tag-active span { color: #fff; background-color: '.$arr_type['color'].'; border-color: '.$arr_type['color'].';}
-						.labmap.soc g[class~="type-'.$type_id.'"] > circle { fill: '.$arr_type['color'].'; }
-						.ui .graph g[class~="type-'.$type_id.'"] > circle { fill: '.$arr_type['color'].'; }
 						.ui li[class~="type-'.$type_id.'"], .ui div[class~="type-'.$type_id.'"], .ui .keywords span[class~="type-'.$type_id.'"] { background-color: '.$arr_type['color'].'; } ';
 				}
 				
@@ -87,8 +85,6 @@ class custom_projects extends base_module {
 							
 						$arr_style_type[] = '.body span.a[data-id^="'.$type_id.'_"], .body span.a[id*="-'.$type_id.'_"] { color: '.$arr_type['color'].'; }
 							.body span.tag-active[id*="-'.$type_id.'_"], .view_type_object .marginalia p[class^="'.$type_id.'"].tag-active span { color: #fff; background-color: '.$arr_type['color'].'; border-color: '.$arr_type['color'].';}
-							.labmap.soc g[class~="type-'.$type_id.'"] > circle { fill: '.$arr_type['color'].'; }
-							.ui .graph g[class~="type-'.$type_id.'"] > circle { fill: '.$arr_type['color'].'; }
 							.ui li[class~="type-'.$type_id.'"], .ui div[class~="type-'.$type_id.'"], .ui .keywords span[class~="type-'.$type_id.'"] { background-color: '.$arr_type['color'].'; } ';
 					}
 				}					
@@ -207,8 +203,7 @@ class custom_projects extends base_module {
 							
 							$arr_style_type[] = '.network.type .node[data-type_id="'.$type_id.'"] > h4 > span:first-child { display: inline-block; color: '.$str_color.'; }'
 								.' .body span.a[data-id^="'.$type_id.'_"], .body span.a[id*="-'.$type_id.'_"] { color: '.$str_color.'; }'
-								.' .body span.tag-active[id*="-'.$type_id.'_"], .view_type_object .marginalia p[class^="'.$type_id.'"].tag-active span { color: #fff; background-color: '.$str_color.'; border-color: '.$str_color.';}'
-								.' .labmap.soc g[class~="type-'.$type_id.'"] > circle { fill: '.$str_color.'; }';
+								.' .body span.tag-active[id*="-'.$type_id.'_"], .view_type_object .marginalia p[class^="'.$type_id.'"].tag-active span { color: #fff; background-color: '.$str_color.'; border-color: '.$str_color.';}';
 						}
 					}
 
@@ -332,15 +327,15 @@ class custom_projects extends base_module {
 				<thead>
 					<tr>
 						<th class="max limit" data-sort="asc-0"><span>'.getLabel('lbl_name').'</span></th>
-						<th class="disable-sort"><span>'.getLabel('lbl_types').'</span></th>
-						<th class="disable-sort"><span>'.getLabel('lbl_classifications').'</span></th>
-						<th class="disable-sort"><span>'.getLabel('lbl_reversals').'</span></th>
+						<th class="disable-sort"><span>'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_TYPE, true).'</span></th>
+						<th class="disable-sort"><span>'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_CLASSIFICATION, true).'</span></th>
+						<th class="disable-sort"><span>'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_REVERSAL, true).'</span></th>
 						<th class="disable-sort"></th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr>
-						<td colspan="4" class="empty">'.getLabel('msg_loading_server_data').'</td>
+						<td colspan="5" class="empty">'.getLabel('msg_loading_server_data').'</td>
 					</tr>
 				</tbody>
 			</table>';
@@ -425,15 +420,15 @@ class custom_projects extends base_module {
 						<div>
 							<div class="options fieldsets"><div>
 								
-								'.($arr_classes_types[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.getLabel('lbl_types').'</legend><ul>
+								'.($arr_classes_types[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_TYPE, true).'</legend><ul>
 									<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_TYPE], 'types', array_keys((array)$arr_project['types']))).'</li>
 								</ul></fieldset>' : '').'
 								
-								'.($arr_classes_types[StoreType::TYPE_CLASS_CLASSIFICATION] ? '<fieldset><legend>'.getLabel('lbl_classifications').'</legend><ul>
+								'.($arr_classes_types[StoreType::TYPE_CLASS_CLASSIFICATION] ? '<fieldset><legend>'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_CLASSIFICATION, true).'</legend><ul>
 									<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_CLASSIFICATION], 'types', array_keys((array)$arr_project['types']))).'</li>
 								</ul></fieldset>' : '').'
 								
-								'.($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL] ? '<fieldset><legend>'.getLabel('lbl_reversals').'</legend><ul>
+								'.($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL] ? '<fieldset><legend>'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_REVERSAL, true).'</legend><ul>
 									<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL], 'types', array_keys((array)$arr_project['types']))).'</li>
 								</ul></fieldset>' : '');
 								
@@ -477,11 +472,11 @@ class custom_projects extends base_module {
 											
 											<div class="fieldsets"><div>
 												
-												'.($arr_classes_types[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.getLabel('lbl_types').'</legend><ul>
+												'.($arr_classes_types[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_TYPE, true).'</legend><ul>
 													<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_TYPE], 'date_types', array_keys((array)$arr_project['date_types']))).'</li>
 												</ul></fieldset>' : '').'
 												
-												'.($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL] ? '<fieldset><legend>'.getLabel('lbl_reversals').'</legend><ul>
+												'.($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL] ? '<fieldset><legend>'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_REVERSAL, true).'</legend><ul>
 													<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL], 'date_types', array_keys((array)$arr_project['date_types']))).'</li>
 												</ul></fieldset>' : '').'
 												
@@ -497,11 +492,11 @@ class custom_projects extends base_module {
 											
 											<div class="fieldsets"><div>
 												
-												'.($arr_classes_types[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.getLabel('lbl_types').'</legend><ul>
+												'.($arr_classes_types[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_TYPE, true).'</legend><ul>
 													<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_TYPE], 'location_types', array_keys((array)$arr_project['location_types']))).'</li>
 												</ul></fieldset>' : '').'
 												
-												'.($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL] ? '<fieldset><legend>'.getLabel('lbl_reversals').'</legend><ul>
+												'.($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL] ? '<fieldset><legend>'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_REVERSAL, true).'</legend><ul>
 													<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_REVERSAL], 'location_types', array_keys((array)$arr_project['location_types']))).'</li>
 												</ul></fieldset>' : '').'
 												
@@ -522,7 +517,7 @@ class custom_projects extends base_module {
 								
 								<div class="fieldsets"><div>
 									
-									'.($arr_classes_types[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.getLabel('lbl_types').'</legend><ul>
+									'.($arr_classes_types[StoreType::TYPE_CLASS_TYPE] ? '<fieldset><legend>'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_TYPE, true).'</legend><ul>
 										<li>'.Labels::parseTextVariables(cms_general::createSelectorList($arr_classes_types[StoreType::TYPE_CLASS_TYPE], 'source_types', array_keys((array)$arr_project['source_types']))).'</li>
 									</ul></fieldset>' : '').'
 									
@@ -590,9 +585,9 @@ class custom_projects extends base_module {
 												.'</div>
 											</li>' : '')
 											.'<li>
-												<label>'.getLabel('lbl_add').'/'.getLabel('lbl_edit').'</label>
-												<div title="'.getLabel('inf_project_type_edit').'">'.cms_general::createSelectorRadio([['id' => 1, 'name' => getLabel('lbl_yes')], ['id' => 0, 'name' => getLabel('lbl_no')]], 'types_organise[type_id-'.$type_id.'][type_edit]', (!$arr_project_type || $arr_project_type['type_edit'] ? true : false)).'</div>
-											</li>											
+												<label>'.getLabel('lbl_editing').'</label>
+												<div title="'.getLabel('inf_project_type_edit').'">'.cms_general::createSelectorRadio([['id' => StoreCustomProject::ACCESS_PURPOSE_CREATE, 'name' => getLabel('lbl_add').' & '.getLabel('lbl_edit')], ['id' => StoreCustomProject::ACCESS_PURPOSE_EDIT, 'name' => getLabel('lbl_edit')], ['id' => StoreCustomProject::ACCESS_PURPOSE_NONE, 'name' => getLabel('lbl_none')]], 'types_organise[type_id-'.$type_id.'][type_edit]', (!$arr_project_type ? StoreCustomProject::ACCESS_PURPOSE_CREATE : $arr_project_type['type_edit'])).'</div>
+											</li>
 										</ul></fieldset>
 										
 										<fieldset><legend>'.getLabel('lbl_appearance').'</legend><ul>
@@ -637,7 +632,7 @@ class custom_projects extends base_module {
 																	$arr_configuration = (array)$arr_project_type['configuration']['object_descriptions'][$object_description_id];
 																	$str_name = 'types_organise[type_id-'.$type_id.'][configuration][object_descriptions]['.$object_description_id.']';
 																	
-																	$is_reversal = ($arr_object_description['object_description_ref_type_id'] && $arr_types[$arr_object_description['object_description_ref_type_id']]['class'] == StoreType::TYPE_CLASS_REVERSAL ? true : false);
+																	$is_reversal = ($arr_object_description['object_description_ref_type_id'] && !is_array($arr_object_description['object_description_ref_type_id']) && $arr_types[$arr_object_description['object_description_ref_type_id']]['class'] == StoreType::TYPE_CLASS_REVERSAL ? true : false);
 																	$is_not_editable = $is_reversal;
 																	
 																	$str_html_options = '<input type="checkbox" name="'.$str_name.'[edit]" value="1" title="'.getLabel('inf_project_object_description_edit').'"'.($arr_configuration['edit'] ? ' checked="checked"' : '').($is_not_editable ? ' disabled="disabled"' : '').' />'
@@ -648,7 +643,7 @@ class custom_projects extends base_module {
 																			.'<button type="button" id="y:custom_projects:set_information-'.$type_id.'_'.$object_description_id.'" title="'.getLabel('inf_project_object_description_information').'" class="data neutral popup"><span>info</span></button>';
 																	}
 																		
-																	if ($arr_object_description['object_description_ref_type_id'] && !$is_not_editable) {
+																	if ($arr_object_description['object_description_ref_type_id'] && !is_array($arr_object_description['object_description_ref_type_id']) && !$is_not_editable) {
 																		
 																		$arr_project_type_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($id, false, $arr_object_description['object_description_ref_type_id'], false, true, $arr_use_project_ids);
 																		$str_html_select = '<select name="'.$str_name.'[filter_id]" title="'.getLabel('inf_project_type_filter').'">'.cms_general::createDropdown($arr_project_type_filters, $arr_configuration['filter_id'], true, 'label').'</select>';
@@ -698,7 +693,7 @@ class custom_projects extends base_module {
 																				$arr_configuration = (array)$arr_project_type['configuration']['object_sub_details'][$object_sub_details_id]['object_sub_descriptions'][$object_sub_description_id];
 																				$str_name = 'types_organise[type_id-'.$type_id.'][configuration][object_sub_details]['.$object_sub_details_id.'][object_sub_descriptions]['.$object_sub_description_id.']';
 																				
-																				$is_reversal = ($arr_object_sub_description['object_sub_description_ref_type_id'] && $arr_types[$arr_object_sub_description['object_sub_description_ref_type_id']]['class'] == StoreType::TYPE_CLASS_REVERSAL ? true : false);
+																				$is_reversal = ($arr_object_sub_description['object_sub_description_ref_type_id'] && !is_array($arr_object_sub_description['object_sub_description_ref_type_id']) && $arr_types[$arr_object_sub_description['object_sub_description_ref_type_id']]['class'] == StoreType::TYPE_CLASS_REVERSAL ? true : false);
 																				$use_object_description_id = ($arr_object_sub_description['object_sub_description_ref_type_id'] && $arr_object_sub_description['object_sub_description_use_object_description_id'] ? true : false);
 																				$is_not_editable = ($is_reversal || $use_object_description_id);
 																				
@@ -710,7 +705,7 @@ class custom_projects extends base_module {
 																						.'<button type="button" id="y:custom_projects:set_information-'.$type_id.'_0_'.$object_sub_details_id.'_'.$object_sub_description_id.'" title="'.getLabel('inf_project_object_description_information').'" class="data neutral popup"><span>info</span></button>';
 																				}
 																				
-																				if ($arr_object_sub_description['object_sub_description_ref_type_id'] && !$is_not_editable) {
+																				if ($arr_object_sub_description['object_sub_description_ref_type_id'] && !is_array($arr_object_sub_description['object_sub_description_ref_type_id']) && !$is_not_editable) {
 																		
 																					$arr_project_type_filters = cms_nodegoat_custom_projects::getProjectTypeFilters($id, false, $arr_object_sub_description['object_sub_description_ref_type_id'], false, true, $arr_use_project_ids);
 																					$str_html_select = '<select name="'.$str_name.'[filter_id]" title="'.getLabel('inf_project_type_filter').'">'.cms_general::createDropdown($arr_project_type_filters, $arr_configuration['filter_id'], true, 'label').'</select>';
@@ -1279,6 +1274,79 @@ class custom_projects extends base_module {
 		return $return;
 	}
 	
+	public static function createStorageSelect($str_identifier, $is_store, $arr_options, $command_id, $str_label) {
+		
+		$str_html = '<fieldset><legend>'.getLabel(($is_store ? 'lbl_save' : 'lbl_select')).'</legend>
+			<ul>
+				<li><label>'.$str_label.'</label><div id="'.$command_id.'">'
+					.'<select name="'.$str_identifier.'_id" placeholder="'.getLabel(($is_store ? 'lbl_new' : 'lbl_empty')).'">'.static::createStorageDropdown($arr_options).'</select>'
+					.($is_store ?
+						'<input type="button" class="data add popup add_'.$str_identifier.'_storage" value="save" />'
+						.'<input type="button" class="data del msg del_'.$str_identifier.'_storage" value="del" />'
+					: '')
+					.'<small class="input" title="'.$str_label.' ID"></small>'
+				.'</div></li>
+				<li><label></label>'
+					.'<section class="info tip"></section>'
+				.'</li>
+			</ul>
+		</fieldset>';
+		
+		return $str_html;
+	}
+	
+	public static function createStorageSelectAdvanced($str_identifier, $is_store, $arr_options, $command_id, $str_label, $str_html_advanced) {
+		
+		$str_html = '<div class="tabs">
+			<ul>
+				<li><a href="#storage">'.getLabel(($is_store ? 'lbl_save' : 'lbl_select')).'</a></li>
+				<li><a href="#advanced">'.getLabel('lbl_advanced').'</a></li>
+			</ul>
+			<div>
+				<div class="options">
+					<fieldset>
+						<ul>
+							<li><label>'.$str_label.'</label><div id="'.$command_id.'">'
+								.'<select name="'.$str_identifier.'_id" placeholder="'.getLabel(($is_store ? 'lbl_new' : 'lbl_empty')).'">'.custom_projects::createStorageDropdown($arr_options).'</select>'
+								.($is_store ?
+									'<input type="button" class="data add popup add_'.$str_identifier.'_storage" value="save" />'
+									.'<input type="button" class="data del msg del_'.$str_identifier.'_storage" value="del" />'
+								: '')
+								.'<small class="input" title="'.$str_label.' ID"></small>'
+							.'</div></li>
+							<li><label></label>'
+								.'<section class="info tip"></section>'
+							.'</li>
+						</ul>
+					</fieldset>
+				</div>
+			</div>
+			<div>
+				<div class="options">
+					'.$str_html_advanced.'
+				</div>
+			</div>
+		</div>';
+		
+		return $str_html;
+	}
+	
+	public static function createStorageDropdown($arr, $select_id = false) {
+		
+		foreach ($arr as &$arr_value) {
+			
+			if (!$arr_value['description']) {
+				continue;
+			}
+			
+			$arr_value['attr']['data-description'] = parseBody($arr_value['description'], ['function' => 'strEscapeHTML']);
+		}
+		
+		$str_html = Labels::parseTextVariables(cms_general::createDropdown($arr, $select_id, true, 'label'));
+		
+		return $str_html;
+	}
+	
 	public static function createInformationIcon($str_html, $str_icon = 'info-point') {
 		
 		if (!$str_html) {
@@ -1306,6 +1374,10 @@ class custom_projects extends base_module {
 			.project-overview > div:last-child > svg .box { cursor: pointer; }
 			.project-overview > div:last-child > svg .connect-boxes > circle,
 			.project-overview > div:last-child > svg .connect-lines > path { pointer-events: none; }
+			
+			.popup > form.storage fieldset ul > li > div > small { display: inline-block; }
+			.popup > form.storage fieldset ul > li > div > small:empty { display: none; } 
+			.popup > form.storage fieldset > ul > li:has(> section:empty) { display: none; } 
 		';
 		
 		return $return;
@@ -1421,21 +1493,49 @@ class custom_projects extends base_module {
 		
 		SCRIPTER.dynamic('form.storage', function(elm_scripter) {
 		
-			elm_scripter.on('ajaxloaded scripter', function() {
-			
-				elm_scripter.find('select[name=scenario_id]').trigger('change');
-			}).on('change', 'select[name=scope_id], select[name=context_id], select[name=frame_id], select[name=visual_settings_id], select[name=condition_id], select[name=analysis_id], select[name=export_settings_id], select[name=scenario_id]', function() {
+			const is_save = !elm_scripter[0].matches('.open');
+		
+			elm_scripter.on('change', 'select[name=filter_id], select[name=scope_id], select[name=context_id], select[name=frame_id], select[name=visual_settings_id], select[name=condition_id], select[name=analysis_id], select[name=analysis_context_id], select[name=export_settings_id], select[name=scenario_id]', function() {
 									
 				var cur = $(this);
 				var elm_option = cur.find('option:selected');
-				var elm_target = cur.nextAll();
 				
-				if (elm_option.parent('optgroup').not('[label=Administrator]').length) {
-					elm_target.addClass('hide');
-				} else {
-					elm_target.removeClass('hide');
+				if (is_save) {
+				
+					const elm_target = cur.nextAll();
+					
+					if (elm_option.parent('optgroup').not('[label=Administrator]').length) {
+						elm_target.addClass('hide');
+					} else {
+						elm_target.removeClass('hide');
+					}
 				}
-			}).on('change', 'select[name=scenario_id]', function() {
+				
+				const elm_small_id = elm_scripter.find('small[title]');
+				const elm_description = elm_scripter.find('section.info');
+				
+				if (elm_small_id) {
+					if (elm_option[0].value) {
+						elm_small_id[0].innerHTML = elm_option[0].value;
+					} else {
+						elm_small_id[0].innerHTML = '';
+					}
+				}
+				if (elm_description.length) {
+				
+					if (elm_option[0].dataset.description) {
+						elm_description[0].innerHTML = elm_option[0].dataset.description;
+					} else {
+						elm_description[0].innerHTML = '';
+					}
+				}
+			});
+			
+			if (!is_save) {
+				return;
+			}
+			
+			elm_scripter.on('change', 'select[name=scenario_id]', function() {
 				
 				var cur = $(this);
 				var elm_target = cur.closest('ul').find('.clear_scenario_storage_cache').closest('fieldset').parent('li');
@@ -1557,11 +1657,12 @@ class custom_projects extends base_module {
 		if ($method == "data") {
 			
 			$arr_sql_columns = ['p.name'];
-			$arr_sql_columns_as = ['p.name', DBFunctions::sqlImplode(DBFunctions::castAs('pt.type_id', DBFunctions::CAST_TYPE_STRING), DBFunctions::SQL_GROUP_SEPERATOR, 'ORDER BY pt.type_id DESC').' AS types', 'p.id'];
+			$arr_sql_columns_as = ['p.name', DBFunctions::group2String(DBFunctions::castAs('pt.type_id', DBFunctions::CAST_TYPE_STRING), DBFunctions::SQL_GROUP_SEPERATOR, 'ORDER BY pt.type_id DESC').' AS types', 'p.id'];
 
 			$sql_table = DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECTS').' AS p';
 									
 			$sql_index = 'p.id';
+			$sql_index_body = 'p.id, pt.project_id';
 			
 			$sql_body = $sql_table."
 				LEFT JOIN ".DB::getTable('DEF_NODEGOAT_CUSTOM_PROJECT_TYPES')." pt ON (pt.project_id = p.id)
@@ -1569,7 +1670,7 @@ class custom_projects extends base_module {
 			
 			$sql_where_default = '';
 			
-			$arr_datatable = cms_general::prepareDataTable($arr_sql_columns, false, $arr_sql_columns_as, $sql_table, $sql_index, $sql_body, '', $sql_where_default);
+			$arr_datatable = cms_general::prepareDataTable($arr_sql_columns, false, $arr_sql_columns_as, $sql_table, $sql_index, $sql_body, $sql_index_body, $sql_where_default);
 			
 			$arr_types = StoreType::getTypes();
 			
@@ -1605,12 +1706,17 @@ class custom_projects extends base_module {
 		if ($method == 'add_filter_storage' || $method == 'handle_filter_storage' || $method == 'del_filter_storage') {
 			
 			$type_id = (int)$id;
-			
 			$arr_filter = json_decode($value['filter'], true);
-			$arr_filter = $arr_filter['filter']; // Set correct key in form
 			
-			if ($arr_filter[$type_id]) { // Tabbed filtering with various types (e.g. Reversed Classification)
-				$arr_filter = $arr_filter[$type_id];
+			// Get the correct key/position in the form
+			
+			if (isset($arr_filter['object_definition'])) { // Access a tabbed data_entry form (e.g. Reversal)
+				
+				$arr_filter = current($arr_filter['object_definition']); // Access the specific object_desciption_id
+				$arr_filter = $arr_filter['object_definition_value'][$type_id]['filter'];
+			} else {
+				
+				$arr_filter = $arr_filter['filter'];
 			}
 		}
 		if ($method == 'add_filter_storage') {
@@ -1640,7 +1746,6 @@ class custom_projects extends base_module {
 			$arr_type_filter = $filter->cleanupFilterInput(($arr_filter ?: []));
 			
 			if (!$arr_type_filter) {
-				
 				error(getLabel('msg_filter_store_empty'));
 			}
 			
@@ -1659,7 +1764,7 @@ class custom_projects extends base_module {
 			$arr_use_project_ids = array_keys($arr_project['use_projects']);
 			
 			$this->msg = true;
-			$this->html = Labels::parseTextVariables(cms_general::createDropdown(cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN ? true : false), $arr_use_project_ids), $filter_id, true, 'label'));
+			$this->html = static::createStorageDropdown(cms_nodegoat_custom_projects::getProjectTypeFilters($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN ? true : false), $arr_use_project_ids), $filter_id);
 		}
 
 		// Visual settings storage
@@ -1697,7 +1802,7 @@ class custom_projects extends base_module {
 			$arr_use_project_ids = array_keys($arr_project['use_projects']);
 			
 			$this->msg = true;
-			$this->html = Labels::parseTextVariables(cms_general::createDropdown(cms_nodegoat_custom_projects::getProjectVisualSettings($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], false, $arr_use_project_ids), $visual_settings_id, true, 'label'));
+			$this->html = static::createStorageDropdown(cms_nodegoat_custom_projects::getProjectVisualSettings($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], false, $arr_use_project_ids), $visual_settings_id);
 		}
 		
 		// Scenario storage
@@ -1715,7 +1820,7 @@ class custom_projects extends base_module {
 				error(getLabel('msg_not_allowed'));
 				return;
 			}
-						
+			
 			$type_id = $id;
 		}
 		if ($method == 'handle_scenario_storage') {
@@ -1766,7 +1871,7 @@ class custom_projects extends base_module {
 			unset($arr_scenario);
 			
 			$this->msg = true;
-			$this->html = Labels::parseTextVariables(cms_general::createDropdown($arr_scenarios, $_POST['scenario_id'], true, 'label'));
+			$this->html = static::createStorageDropdown($arr_scenarios, $_POST['scenario_id']);
 		}
 		
 		if ($method == 'clear_scenario_storage_cache') {
@@ -1914,10 +2019,10 @@ class custom_projects extends base_module {
 			
 			if ($what == 'condition') {
 				
-				$this->html = Labels::parseTextVariables(cms_general::createDropdown(cms_nodegoat_custom_projects::$function($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN ? true : false), $arr_use_project_ids), $what_id, true, 'label'));
+				$this->html = static::createStorageDropdown(cms_nodegoat_custom_projects::$function($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN ? true : false), $arr_use_project_ids), $what_id);
 			} else {
 				
-				$this->html = Labels::parseTextVariables(cms_general::createDropdown(cms_nodegoat_custom_projects::$function($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, $arr_use_project_ids), $what_id, true, 'label'));
+				$this->html = static::createStorageDropdown(cms_nodegoat_custom_projects::$function($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, $arr_use_project_ids), $what_id);
 			}
 		}
 		

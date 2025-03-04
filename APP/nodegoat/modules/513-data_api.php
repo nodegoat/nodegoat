@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -44,7 +44,7 @@ class data_api extends base_module {
 		
 	public function api() {
 
-		$arr_request_vars = SiteStartEnvironment::getModuleVariables(0);
+		$arr_request_vars = SiteStartEnvironment::getRequestVariables();
 		
 		if ($arr_request_vars && !end($arr_request_vars)) { // Remove the last empty request variable to allow for a final '/'
 			unset($arr_request_vars[key($arr_request_vars)]);
@@ -58,7 +58,7 @@ class data_api extends base_module {
 						
 			$this->apiIdentifier($arr_request_vars[0]);
 			return;
-		} else if (($num_request_vars == 2 || $num_request_vars == 3) && $arr_request_vars[0] == 'project' && !variableHasValue($arr_request_vars[2], 'data', 'model', 'analysis', 'reconcile')) {
+		} else if (($num_request_vars == 2 || $num_request_vars == 3) && $arr_request_vars[0] == 'project' && !variableHasValue($arr_request_vars[2], 'data', 'model', 'graph', 'reconcile')) {
 						
 			$this->apiIdentifier($arr_request_vars[2]);
 			return;
@@ -75,10 +75,10 @@ class data_api extends base_module {
 		
 		foreach ($arr_request_vars as $value) {
 			
-			if (variableHasValue($value, 'data', 'model', 'analysis', 'reconcile')) {
+			if (variableHasValue($value, 'data', 'model', 'graph', 'reconcile')) {
 				
 				$this->arr_settings['mode'] = $value;
-			} else if (variableHasValue($value, 'type', 'scope', 'filter', 'object', 'use')) {
+			} else if (variableHasValue($value, 'type', 'scope', 'filter', 'condition', 'object', 'analysis')) {
 				
 				$setting = $value;
 				$this->arr_settings[$setting] = false;
@@ -117,12 +117,12 @@ class data_api extends base_module {
 			} else {
 				$this->apiDataModel();
 			}
-		} else if ($this->arr_settings['mode'] == 'analysis') {
+		} else if ($this->arr_settings['mode'] == 'graph') {
 			
 			if ($_SERVER['REQUEST_METHOD'] === 'PUT' || $_SERVER['REQUEST_METHOD'] === 'DELETE') {
-				$this->apiDataAnalysisStore();
+				$this->apiDataGraphStore();
 			} else {
-				$this->apiDataAnalysis();
+				$this->apiDataGraph();
 			}
 		} else if ($this->arr_settings['mode'] == 'reconcile') {
 			
@@ -292,11 +292,10 @@ class data_api extends base_module {
 			$arr_scope = data_model::parseTypeNetwork($arr_scope);
 		}
 		
-		$_SESSION['custom_projects'][toolbar::getActionSpace()]['condition_id'] = false;
+		SiteEndEnvironment::setFeedback('condition_id', false, true);
 		
 		if ((int)$this->arr_settings['condition']) {
-			
-			$_SESSION['custom_projects'][toolbar::getActionSpace()]['condition_id'] = (int)$this->arr_settings['condition'];
+			SiteEndEnvironment::setFeedback('condition_id', (int)$this->arr_settings['condition'], true);
 		}
 
 		$arr_filters = $this->getRequestTypeFilters();
@@ -338,10 +337,13 @@ class data_api extends base_module {
 		
 		if ($output_mode != 'raw') {
 			
-			$collect->setConditions(GenerateTypeObjects::CONDITIONS_MODE_STYLE_INCLUDE, function($type_id) {
+			$collect->setConditions(GenerateTypeObjects::CONDITIONS_MODE_FULL, function($type_id) {
 				return toolbar::getTypeConditions($type_id);
 			});
 		}
+		$collect->setGenerateCallback(function($generate, $cur_type_id) {
+			$generate->setFormatMode(FormatTypeObjects::FORMAT_DATE_YMD | FormatTypeObjects::FORMAT_DATA_TYPE);
+		});
 		
 		$collect->init($arr_filters, false);
 			
@@ -506,9 +508,11 @@ class data_api extends base_module {
 			Response::setFormat(Response::getFormat() | Response::RENDER_LINKED_DATA);
 			
 			$request_id = URL_BASE.implode('/', $this->arr_request_vars);
-			if ($_REQUEST) {
-				$request_id = $request_id.'?'.implode('&', $_REQUEST);
+			$arr_modifier_variables = SiteStartEnvironment::getModifierVariables();
+			if ($arr_modifier_variables) {
+				$request_id = $request_id.'?'.rawurldecode(http_build_query($arr_modifier_variables)); // Or use $_REQUEST for all variables
 			}
+			
 			$schema = SERVER_SCHEME.SERVER_NAME_1100CC.'/model/type/';
 			
 			// Target and output to the Response object directly
@@ -677,7 +681,6 @@ class data_api extends base_module {
 				});
 				
 				if ($this->arr_client_update_objects) {
-
 					$this->apiDataStoreUpdateTypeObjects();
 				}
 				
@@ -714,7 +717,6 @@ class data_api extends base_module {
 				});
 				
 				if ($this->arr_client_add_objects) {
-
 					$this->apiDataStoreAddTypeObjects();
 				}
 				
@@ -752,7 +754,6 @@ class data_api extends base_module {
 				});
 				
 				if ($this->arr_client_update_objects) {
-
 					$this->apiDataStoreUpdateTypeObjects();
 				}
 				
@@ -790,7 +791,6 @@ class data_api extends base_module {
 					});
 					
 					if ($this->arr_client_add_objects) {
-					
 						$this->apiDataStoreAddTypeObjects();
 					}
 					
@@ -832,7 +832,6 @@ class data_api extends base_module {
 		}
 
 		if (!$this->count_objects_updated && !$this->count_objects_added) {
-			
 			$this->errorInput('No (valid) data provided');
 		}
 	}
@@ -857,31 +856,24 @@ class data_api extends base_module {
 			$this->arr_client_update_objects = [];
 			return;
 		}
-		
-		$arr_locked = [];
-		
+
 		$storage_lock = new StoreTypeObjects($this->type_id, false, $_SESSION['USER_ID'], 'lock');
 		
 		foreach ($arr_objects as $object_id => $arr_object) {
-			
 			$storage_lock->setObjectID($object_id);
-			
-			try {
-				$storage_lock->handleLockObject();
-			} catch (Exception $e) {
-				$arr_locked[] = $e;
-			}
+		}
+		
+		$arr_locked = false;
+		
+		try {
+			$storage_lock->handleLockObject();
+		} catch (Exception $e) {
+			$arr_locked = $storage_lock->getLockErrors();
 		}
 		
 		if ($arr_locked) {
 			
 			$storage_lock->removeLockObject(); // Remove locks from all possible successful ones
-			
-			foreach ($arr_locked as &$e) {
-				
-				$e = Trouble::strMsg($e); // Convert to message only
-			}
-			unset($e);
 			
 			Labels::setVariable('total', count($arr_locked));
 			
@@ -1110,13 +1102,33 @@ class data_api extends base_module {
 				if (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, $object_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, $object_description_id)) {
 					continue;
 				}
-							
-				$object_description_ref_type_id = ((int)$arr_object_description['object_description_ref_type_id'] ?: false);
 				
 				if ($output_mode == 'template') {
-					
 					$object_description_id = $arr_object_description['object_description_name'];
-					$object_description_ref_type_id = $store_type->getTypeName($object_description_ref_type_id);
+				}
+				
+				$object_description_ref_type_id = false;
+				
+				if ($arr_object_description['object_description_ref_type_id']) {
+					
+					$object_description_ref_type_id = arrParseRecursive($arr_object_description['object_description_ref_type_id'], TYPE_INTEGER);
+					if (is_array($object_description_ref_type_id)) {
+						$object_description_ref_type_id = array_values($object_description_ref_type_id);
+					}
+					
+					if ($output_mode == 'template') {
+						
+						if (is_array($object_description_ref_type_id)) {
+							
+							foreach ($object_description_ref_type_id as &$ref_type_id) {
+								$ref_type_id = $store_type->getTypeName($ref_type_id);
+							}
+							unset($ref_type_id);
+						} else {
+							
+							$object_description_ref_type_id = $store_type->getTypeName($object_description_ref_type_id);
+						}
+					}
 				}
 				
 				$s_arr_type['object_descriptions'][$object_description_id] = [
@@ -1224,17 +1236,39 @@ class data_api extends base_module {
 					if (!data_model::checkClearanceTypeConfiguration(StoreType::CLEARANCE_PURPOSE_VIEW, $arr_type_set, false, $original_object_sub_details_id, $object_sub_description_id) || !custom_projects::checkAccessTypeConfiguration(StoreCustomProject::ACCESS_PURPOSE_VIEW, $arr_project['types'], $arr_type_set, false, $original_object_sub_details_id, $object_sub_description_id)) {
 						continue;
 					}
-								
-					$object_sub_description_ref_type_id = ((int)$arr_object_sub_description['object_sub_description_ref_type_id'] ?: false);
+					
 					$object_sub_description_use_object_description_id = ((int)$arr_object_sub_description['object_sub_description_use_object_description_id'] ?: false);
 					
 					if ($output_mode == 'template') {
 						
 						$object_sub_description_id = $arr_object_sub_description['object_sub_description_name'];
-						$object_sub_description_ref_type_id = $store_type->getTypeName($object_sub_description_ref_type_id);
 						$object_sub_description_use_object_description_id = $store_type->getTypeObjectDescriptionName($type_id, $object_sub_description_use_object_description_id);
 					}
-									
+					
+					$object_sub_description_ref_type_id = false;
+
+					if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
+					
+						$object_sub_description_ref_type_id = arrParseRecursive($arr_object_sub_description['object_sub_description_ref_type_id'], TYPE_INTEGER);
+						if (is_array($object_sub_description_ref_type_id)) {
+							$object_sub_description_ref_type_id = array_values($object_sub_description_ref_type_id);
+						}
+						
+						if ($output_mode == 'template') {
+							
+							if (is_array($object_sub_description_ref_type_id)) {
+								
+								foreach ($object_sub_description_ref_type_id as &$ref_type_id) {
+									$ref_type_id = $store_type->getTypeName($ref_type_id);
+								}
+								unset($ref_type_id);
+							} else {
+								
+								$object_sub_description_ref_type_id = $store_type->getTypeName($object_sub_description_ref_type_id);
+							}
+						}
+					}
+														
 					$s_arr_object_sub_details['object_sub_descriptions'][$object_sub_description_id] = [
 						'object_sub_description_id' => $object_sub_description_id,
 						'object_sub_description_name' => $arr_object_sub_description['object_sub_description_name'],
@@ -1444,7 +1478,7 @@ class data_api extends base_module {
 	
 	// Get Data Analysis
 		
-	protected function apiDataAnalysis() {
+	protected function apiDataGraph() {
 		
 		if (!$this->arr_settings['type']) {
 			$this->errorInput('No Type specified');
@@ -1459,7 +1493,7 @@ class data_api extends base_module {
 			$this->errorInput('No valid Type specified');
 		}
 		
-		$analysis_id = (int)$this->arr_settings['use'];
+		$analysis_id = (int)$this->arr_settings['analysis'];
 		$arr_analysis = false;
 		
 		if ($analysis_id) {
@@ -1475,11 +1509,17 @@ class data_api extends base_module {
 		$arr_filters = $this->getRequestTypeFilters();
 		$arr_scope = $arr_analysis['scope'];
 		
+		SiteEndEnvironment::setFeedback('condition_id', false, true);
+		
+		if ((int)$this->arr_settings['condition']) {
+			SiteEndEnvironment::setFeedback('condition_id', (int)$this->arr_settings['condition'], true);
+		}
+		
 		Response::setOutputUpdates(false); // Do not output anything that could mess up the export headers
 		
 		$collect = data_analysis::getTypeAnalysisCollector($type_id, $arr_analysis, $arr_filters, $arr_scope);
 			
-		$analyse = new AnalyseTypeObjects($type_id, $arr_analysis);
+		$analyse = new AnalyseTypeObjects($type_id, $arr_analysis, true);
 			
 		$resource = $analyse->input($collect, $arr_filters);
 		
@@ -1490,7 +1530,7 @@ class data_api extends base_module {
 		exit;
 	}
 	
-	protected function apiDataAnalysisStore() {
+	protected function apiDataGraphStore() {
 		
 		if (!$this->arr_settings['type'] || !isset($this->arr_settings['object'])) {
 			$this->errorInput('No Type/Object specified');
@@ -1505,7 +1545,7 @@ class data_api extends base_module {
 			$this->errorInput('No valid Type specified');
 		}
 		
-		$analysis_id = (int)$this->arr_settings['use'];
+		$analysis_id = (int)$this->arr_settings['analysis'];
 		$arr_analysis = false;
 		
 		if ($analysis_id) {

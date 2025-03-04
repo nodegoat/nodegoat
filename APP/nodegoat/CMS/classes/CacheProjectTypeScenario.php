@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -59,7 +59,7 @@ class CacheProjectTypeScenario {
 								
 			$code = $str_hash.'_'.(!$this->arr_scenario['cache_retain'] ? $this->arr_scenario_cache['hash_date'] : '0');
 			
-			$store_scenario = Mediator::setLock($this->path_scenario, $code);
+			$store_scenario = Mediator::attachLock($this->path_scenario, $code);
 			
 			if (!$store_scenario) {
 				$is_path = true; // Should now be a path
@@ -90,7 +90,7 @@ class CacheProjectTypeScenario {
 			
 			$code = $str_hash.'_'.(!$this->arr_scenario['cache_retain'] ? $this->arr_scenario_cache['hash_date'] : '0');
 			
-			$store_scenario = Mediator::setLock($this->path_scenario, $code);
+			$store_scenario = Mediator::attachLock($this->path_scenario, $code);
 			
 			if (!$store_scenario) {
 				$is_path = true; // Should now be a path

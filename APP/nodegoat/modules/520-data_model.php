@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -33,6 +33,7 @@ class data_model extends base_module {
 	const TYPE_NETWORK_DESCRIPTIONS_DATE = 'date';
 	const SYMBOL_IN = '🡩';
 	const SYMBOL_OUT = '🡫';
+	const SYMBOL_MUTABLE = '~';
 	const SYMBOL_DYNAMIC = '*';
 	
 	function __construct() {
@@ -79,9 +80,9 @@ class data_model extends base_module {
 						
 		$return .= '<div class="tabs">
 			<ul>
-				<li><a href="#">'.getLabel('lbl_object').' '.getLabel('lbl_types').'</a></li>
-				<li><a href="#">'.getLabel('lbl_classifications').'</a></li>
-				<li><a href="#">'.getLabel('lbl_reversals').'</a></li>
+				<li><a href="#">'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_TYPE, true).'</a></li>
+				<li><a href="#">'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_CLASSIFICATION, true).'</a></li>
+				<li><a href="#">'.StoreType::getTypeClassName(StoreType::TYPE_CLASS_REVERSAL, true).'</a></li>
 			</ul>
 			<div>
 				
@@ -151,14 +152,8 @@ class data_model extends base_module {
 	
 	private function createAddType($num_class) {
 		
-		if ($num_class == StoreType::TYPE_CLASS_CLASSIFICATION) {
-			$str_class = getLabel('lbl_classification');
-		} else if ($num_class == StoreType::TYPE_CLASS_REVERSAL) {
-			$str_class = getLabel('lbl_reversal');
-		} else {
-			$str_class = getLabel('lbl_object').' '.getLabel('lbl_type');
-		}
-	
+		$str_class = StoreType::getTypeClassName($num_class);
+
 		$return = '<form id="f:data_model:add-'.$num_class.'" class="options">
 			<menu>
 				<input type="submit" value="'.getLabel('lbl_add').' '.$str_class.'" />
@@ -185,13 +180,13 @@ class data_model extends base_module {
 		}
 		
 		if ($type_id === 'reversal' || $arr_type_set['type']['class'] == StoreType::TYPE_CLASS_REVERSAL) {
-			$str_class = getLabel('lbl_reversal');
+			$str_class = StoreType::getTypeClassName(StoreType::TYPE_CLASS_REVERSAL);
 			$num_type_class = StoreType::TYPE_CLASS_REVERSAL;
 		} else if ($type_id === 'classification' || $arr_type_set['type']['class'] == StoreType::TYPE_CLASS_CLASSIFICATION) {
-			$str_class = getLabel('lbl_classification');
+			$str_class = StoreType::getTypeClassName(StoreType::TYPE_CLASS_CLASSIFICATION);
 			$num_type_class = StoreType::TYPE_CLASS_CLASSIFICATION;
 		} else {
-			$str_class = getLabel('lbl_object').' '.getLabel('lbl_type');
+			$str_class = StoreType::getTypeClassName(StoreType::TYPE_CLASS_TYPE);
 			$num_type_class = StoreType::TYPE_CLASS_TYPE;
 		}
 		$type_id = (int)$type_id;
@@ -207,7 +202,20 @@ class data_model extends base_module {
 			
 			$arr_types_classifications[$arr_cur_type['class']][$cur_type_id] = $arr_cur_type;
 		}
+		
+		$arr_mutable_references = [];
+		
+		foreach ([StoreType::TYPE_CLASS_TYPE, StoreType::TYPE_CLASS_CLASSIFICATION] as $num_cur_type_class) {
+			
+			$str_cur_class_name = StoreType::getTypeClassName($num_cur_type_class);
+			
+			foreach ($arr_types_classifications[$num_cur_type_class] as $cur_type_id => $arr_cur_type) {
 				
+				$arr_cur_type['name'] = $str_cur_class_name.cms_general::OPTION_GROUP_SEPARATOR.$arr_cur_type['name'];
+				$arr_mutable_references[$cur_type_id] = $arr_cur_type;
+			}
+		}
+		
 		$return = '<h1>'.($type_id ? '<span>'.$str_class.': '.strEscapeHTML(Labels::parseTextVariables($arr_type_set['type']['name'])).'</span><small title="'.getLabel('lbl_type').' ID">'.$type_id.'</small>' : '<span>'.$str_class.'</span>').'</h1>';
 		
 		$return .= '<div class="definition options">
@@ -308,6 +316,7 @@ class data_model extends base_module {
 										
 										$arr_value_types = StoreType::getValueTypesBase();
 										unset($arr_value_types['object_description']);
+										Settings::get('hook_data_model_value_types', false, [&$arr_value_types, 'object_description']);
 										
 										foreach ($arr_value_types as &$arr_value_type) {
 											
@@ -332,6 +341,25 @@ class data_model extends base_module {
 											
 											$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
 											
+											$arr_referencing_type_ids = [];
+											$arr_sorter_reference_mutable = [];
+											
+											if (is_array($arr_object_description['object_description_ref_type_id'])) {
+												$arr_referencing_type_ids += $arr_object_description['object_description_ref_type_id'];
+											}
+											if (count($arr_referencing_type_ids) < StoreType::$num_mutable_references) {
+												$arr_referencing_type_ids[] = '';
+											}
+
+											foreach ($arr_referencing_type_ids as $referencing_type_id) {
+												
+												$arr_sorter_reference_mutable[] = ['value' => [
+													'<select name="object_descriptions['.$unique.'][object_description_ref_type_id][reference_mutable][]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_mutable_references, $referencing_type_id, true)).'</select>'
+												]];
+											}												
+											
+											$str_html_reference_mutable = cms_general::createSorter($arr_sorter_reference_mutable, 'append', false, ['auto_add' => true, 'auto_clean' => true, 'limit' => StoreType::$num_mutable_references]);
+											
 											$has_default_value = (bool)$arr_object_description['object_description_value_type_settings']['default']['value'];
 											
 											$arr_sorter[] = ['source' => ($key == 0 ? true : false), 'value' => [
@@ -340,6 +368,7 @@ class data_model extends base_module {
 												.'<select name="object_descriptions['.$unique.'][object_description_ref_type_id][type]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types_classifications[StoreType::TYPE_CLASS_TYPE], $arr_object_description['object_description_ref_type_id'])).'</select>'
 												.'<select name="object_descriptions['.$unique.'][object_description_ref_type_id][classification]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types_classifications[StoreType::TYPE_CLASS_CLASSIFICATION], $arr_object_description['object_description_ref_type_id'])).'</select>'
 												.'<select name="object_descriptions['.$unique.'][object_description_ref_type_id][reversal]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types_classifications[StoreType::TYPE_CLASS_REVERSAL], $arr_object_description['object_description_ref_type_id'])).'</select>'
+												.'<div class="reference_mutable input">'.$str_html_reference_mutable.'</div>'
 												.'<input type="hidden" name="object_descriptions['.$unique.'][object_description_id]" value="'.$arr_object_description['object_description_id'].'" />'
 												,'<fieldset><ul>
 													<li>'
@@ -414,7 +443,7 @@ class data_model extends base_module {
 								</li>
 								<li>
 									<label>'.getLabel('lbl_reversed_classification_reference').'</label>
-									<span>'.cms_general::createSelectorRadio([['id' => '', 'name' => getLabel('lbl_none')], ['id' => 'type', 'name' => getLabel('lbl_type')], ['id' => 'classification', 'name' => getLabel('lbl_classification')]], 'reversal_reference_class', $reference).'</span>
+									<span>'.cms_general::createSelectorRadio([['id' => '', 'name' => getLabel('lbl_none')], ['id' => 'type', 'name' => StoreType::getTypeClassName(StoreType::TYPE_CLASS_TYPE)], ['id' => 'classification', 'name' => StoreType::getTypeClassName(StoreType::TYPE_CLASS_CLASSIFICATION)]], 'reversal_reference_class', $reference).'</span>
 								</li>
 								<li>
 									<label></label>
@@ -524,14 +553,35 @@ class data_model extends base_module {
 		$arr_types = StoreType::getTypes();
 		
 		$arr_types_classifications = [StoreType::TYPE_CLASS_TYPE => [], StoreType::TYPE_CLASS_CLASSIFICATION => [], StoreType::TYPE_CLASS_REVERSAL => []];
-		$arr_object_sub_details_reference_types = [];
-				
+
 		foreach ($arr_types as $cur_type_id => $arr_cur_type) {
 			
 			$arr_types_classifications[$arr_cur_type['class']][$cur_type_id] = $arr_cur_type;
+		}
+		
+		$arr_mutable_references = [];
+		
+		foreach ([StoreType::TYPE_CLASS_TYPE, StoreType::TYPE_CLASS_CLASSIFICATION] as $num_cur_type_class) {
 			
-			if ($arr_cur_type['class'] != StoreType::TYPE_CLASS_CLASSIFICATION) {
-				$arr_object_sub_details_reference_types[$cur_type_id] = $arr_cur_type;
+			$str_cur_class_name = StoreType::getTypeClassName($num_cur_type_class);
+			
+			foreach ($arr_types_classifications[$num_cur_type_class] as $cur_type_id => $arr_cur_type) {
+				
+				$arr_cur_type['name'] = $str_cur_class_name.cms_general::OPTION_GROUP_SEPARATOR.$arr_cur_type['name'];
+				$arr_mutable_references[$cur_type_id] = $arr_cur_type;
+			}
+		}
+		
+		$arr_object_sub_details_references = [];
+		
+		foreach ([StoreType::TYPE_CLASS_TYPE, StoreType::TYPE_CLASS_REVERSAL] as $num_cur_type_class) {
+			
+			$str_cur_class_name = StoreType::getTypeClassName($num_cur_type_class);
+			
+			foreach ($arr_types_classifications[$num_cur_type_class] as $cur_type_id => $arr_cur_type) {
+				
+				$arr_cur_type['name'] = $str_cur_class_name.cms_general::OPTION_GROUP_SEPARATOR.$arr_cur_type['name'];
+				$arr_object_sub_details_references[$cur_type_id] = $arr_cur_type;
 			}
 		}
 		
@@ -557,7 +607,7 @@ class data_model extends base_module {
 			$object_sub_details_location_setting = ($arr_location_options[$arr_object_sub_details['object_sub_details_location_setting']]['id'] ?? $object_sub_details_location_setting);
 		}
 
-		$return = '<fieldset>
+		$return = '<fieldset data-group_iterator="'.$unique.'">
 			<legend><span class="handle"><span class="icon">'.getIcon('updown').'</span></span><span>'.getLabel('lbl_object_sub').'</span></legend>
 			<ul>
 				<li>
@@ -617,7 +667,7 @@ class data_model extends base_module {
 							</li><li>
 								<label>'.getLabel('lbl_reference').'</label>
 								<div>'
-									.'<select id="y:data_model:selector_object_sub_details-0" name="object_sub_details['.$unique.'][object_sub_details][object_sub_details_date_setting_type_id]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_object_sub_details_reference_types, $arr_object_sub_details['object_sub_details_date_setting_type_id'], true)).'</select>'
+									.'<select id="y:data_model:selector_object_sub_details-0" name="object_sub_details['.$unique.'][object_sub_details][object_sub_details_date_setting_type_id]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_object_sub_details_references, $arr_object_sub_details['object_sub_details_date_setting_type_id'], true)).'</select>'
 									.'<select name="object_sub_details['.$unique.'][object_sub_details][object_sub_details_date_setting_object_sub_details_id]">'.Labels::parseTextVariables(cms_general::createDropdown(StoreType::getTypeObjectSubsDetails($arr_object_sub_details['object_sub_details_date_setting_type_id']), $arr_object_sub_details['object_sub_details_date_setting_object_sub_details_id'], true, 'object_sub_details_name', 'object_sub_details_id')).'</select>'
 								.'</div>
 							</li>
@@ -643,7 +693,7 @@ class data_model extends base_module {
 							</li><li>
 								<label>'.getLabel('lbl_reference').'</label>
 								<div>'
-									.'<select id="y:data_model:selector_object_sub_details-0" name="object_sub_details['.$unique.'][object_sub_details][object_sub_details_location_ref_type_id]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_object_sub_details_reference_types, $arr_object_sub_details['object_sub_details_location_ref_type_id'], true)).'</select>'
+									.'<select id="y:data_model:selector_object_sub_details-0" name="object_sub_details['.$unique.'][object_sub_details][object_sub_details_location_ref_type_id]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_object_sub_details_references, $arr_object_sub_details['object_sub_details_location_ref_type_id'], true)).'</select>'
 									.'<input type="checkbox" value="1" name="object_sub_details['.$unique.'][object_sub_details][object_sub_details_location_ref_type_id_locked]" title="'.getLabel('inf_location_reference_lock').'"'.($arr_object_sub_details['object_sub_details_location_ref_type_id_locked'] ? ' checked="checked"' : '').' />'
 									.'<select name="object_sub_details['.$unique.'][object_sub_details][object_sub_details_location_ref_object_sub_details_id]">'.Labels::parseTextVariables(cms_general::createDropdown(StoreType::getTypeObjectSubsDetails($arr_object_sub_details['object_sub_details_location_ref_type_id']), $arr_object_sub_details['object_sub_details_location_ref_object_sub_details_id'], true, 'object_sub_details_name', 'object_sub_details_id')).'</select>'
 									.'<input type="checkbox" value="1" name="object_sub_details['.$unique.'][object_sub_details][object_sub_details_location_ref_object_sub_details_id_locked]" title="'.getLabel('inf_location_reference_lock').'"'.($arr_object_sub_details['object_sub_details_location_ref_object_sub_details_id_locked'] ? ' checked="checked"' : '').' />'
@@ -673,6 +723,7 @@ class data_model extends base_module {
 								<div class="object-sub-descriptions">';
 									
 									$arr_value_types = StoreType::getValueTypesBase();
+									Settings::get('hook_data_model_value_types', false, [&$arr_value_types, 'object_sub_description']);
 																		
 									if (!$arr_object_sub_descriptions) {
 										$arr_object_sub_descriptions[] = [];
@@ -681,16 +732,36 @@ class data_model extends base_module {
 								
 									foreach ($arr_object_sub_descriptions as $key => $arr_object_sub_description) {
 										
-										$has_default_value = (bool)$arr_object_sub_description['object_sub_description_value_type_settings']['default']['value'];
-										
 										$unique2 = uniqid(cms_general::NAME_GROUP_ITERATOR);
 										
-										$arr_sorter[] = ['source' => ($key == 0 ? true : false), 'value' => [
+										$arr_referencing_type_ids = [];
+										$arr_sorter_reference_mutable = [];
+										
+										if (is_array($arr_object_sub_description['object_sub_description_ref_type_id'])) {
+											$arr_referencing_type_ids += $arr_object_sub_description['object_sub_description_ref_type_id'];
+										}
+										if (count($arr_referencing_type_ids) < StoreType::$num_mutable_references) {
+											$arr_referencing_type_ids[] = '';
+										}
+
+										foreach ($arr_referencing_type_ids as $referencing_type_id) {
+											
+											$arr_sorter_reference_mutable[] = ['value' => [
+												'<select name="object_sub_details['.$unique.'][object_sub_descriptions]['.$unique2.'][object_sub_description_ref_type_id][reference_mutable][]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_mutable_references, $referencing_type_id, true)).'</select>'
+											]];
+										}												
+										
+										$str_html_reference_mutable = cms_general::createSorter($arr_sorter_reference_mutable, 'append', false, ['auto_add' => true, 'auto_clean' => true, 'limit' => StoreType::$num_mutable_references]);
+										
+										$has_default_value = (bool)$arr_object_sub_description['object_sub_description_value_type_settings']['default']['value'];
+										
+										$arr_sorter[] = ['source' => ($key == 0 ? true : false), 'attr' => ['data-group_iterator' => $unique2], 'value' => [
 											'<input type="text" name="object_sub_details['.$unique.'][object_sub_descriptions]['.$unique2.'][object_sub_description_name]" value="'.strEscapeHTML($arr_object_sub_description['object_sub_description_name']).'" />'
 											.'<select name="object_sub_details['.$unique.'][object_sub_descriptions]['.$unique2.'][object_sub_description_value_type_base]" id="y:data_model:selector_value_type-0">'.cms_general::createDropdown($arr_value_types, $arr_object_sub_description['object_sub_description_value_type_base']).'</select>'
 											.'<select name="object_sub_details['.$unique.'][object_sub_descriptions]['.$unique2.'][object_sub_description_ref_type_id][type]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types_classifications[StoreType::TYPE_CLASS_TYPE], $arr_object_sub_description['object_sub_description_ref_type_id'])).'</select>'
 											.'<select name="object_sub_details['.$unique.'][object_sub_descriptions]['.$unique2.'][object_sub_description_ref_type_id][classification]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types_classifications[StoreType::TYPE_CLASS_CLASSIFICATION], $arr_object_sub_description['object_sub_description_ref_type_id'])).'</select>'
 											.'<select name="object_sub_details['.$unique.'][object_sub_descriptions]['.$unique2.'][object_sub_description_ref_type_id][reversal]">'.Labels::parseTextVariables(cms_general::createDropdown($arr_types_classifications[StoreType::TYPE_CLASS_REVERSAL], $arr_object_sub_description['object_sub_description_ref_type_id'])).'</select>'
+											.'<div class="reference_mutable input">'.$str_html_reference_mutable.'</div>'
 											.'<input type="hidden" name="object_sub_details['.$unique.'][object_sub_descriptions]['.$unique2.'][object_sub_description_id]" value="'.$arr_object_sub_description['object_sub_description_id'].'" />'
 											,'<fieldset><ul>
 												<li>'
@@ -839,39 +910,43 @@ class data_model extends base_module {
 		
 		if ($has_default_value) {
 				
-			$arr_values = ($arr_value_type_settings['default']['value'] ?: '');
+			$value_value = ($arr_value_type_settings['default']['value'] ?: '');
+			$value_reference = false;
+			$arr_format_extra = ['has_multi' => $has_multi, 'ref_type_id' => $ref_type_id];
 			$str_name_default = $str_name_settings.'[default][value]';
 			
-			if ($value_type == 'reversal') {
+			if ($value_type == 'type' || $value_type == 'classification' || $value_type == 'reference_mutable') {
 				
-				$html_default_value = false;
-			} else if ($value_type == 'type' || $value_type == 'classification') {
+				$value_reference = $value_value;
 				
 				if (!$has_multi) { // Could be switching from multi to non-multi
-					$arr_values = (is_array($arr_values) ? current($arr_values) : $arr_values);
+					$value_reference = (is_array($value_reference) ? current($value_reference) : $value_reference);
 				}
-				
-				$arr_type_object_names = ($arr_values ? FilterTypeObjects::getTypeObjectNames($ref_type_id, $arr_values) : []);
+
+				$value_value = ($value_reference ? FilterTypeObjects::getTypeObjectNames($ref_type_id, $value_reference) : []);
 				
 				if ($has_multi) {
-					$html_default_value = '<div class="input">'.cms_general::createMultiSelect($str_name_default, 'y:data_filter:lookup_type_object-'.$ref_type_id, $arr_type_object_names, false, ['list' => true, 'order' => true]).'</div>';
+					$value_reference = ($value_reference ?: []);
+					$arr_format_extra['list'] = true;
 				} else {
-					$html_default_value = '<input type="hidden" id="y:data_filter:lookup_type_object_pick-'.$ref_type_id.'" name="'.$str_name_default.'" value="'.$arr_values.'" /><input type="search" id="y:data_filter:lookup_type_object-'.$ref_type_id.'" class="autocomplete" value="'.$arr_type_object_names[$arr_values].'" />';
+					$value_value = $value_value[$value_reference];
 				}
 			} else {
-				
+			
 				if ($value_type == 'text' || $value_type == 'text_layout' || $value_type == 'text_tags') {
 					$value_type = '';
 				}
 				
 				if ($has_multi) {
-					$arr_values = ((array)$arr_values ?: []);
+					$value_value = ((array)$value_value ?: []);
 				} else {
-					$arr_values = (is_array($arr_values) ? current($arr_values) : $arr_values);
+					$value_value = (is_array($arr_values) ? current($value_value) : $value_value);
 				}
 				
-				$html_default_value = FormatTypeObjects::formatToFormValue($value_type, FormatTypeObjects::formatToSQLValue($value_type, $arr_values), false, $str_name_default, $arr_value_type_settings);
+				$value_value = FormatTypeObjects::formatToSQLValue($value_type, $value_value);
 			}
+			
+			$html_default_value = FormatTypeObjects::formatToFormValue($value_type, $value_value, $value_reference, $str_name_default, $arr_value_type_settings, $arr_format_extra);
 			
 			$html_default_value = '<li>
 				<label title="'.getLabel('inf_object_description_default_value').'"><span>'.getLabel('lbl_default').'</label>
@@ -1263,7 +1338,7 @@ class data_model extends base_module {
 					
 					foreach ($arr_types_classifications as $type_or_classification => $arr_types) {
 							
-						$return .= '<fieldset><legend>'.getLabel('lbl_'.($type_or_classification == StoreType::TYPE_CLASS_REVERSAL ? 'reversal' : ($type_or_classification == StoreType::TYPE_CLASS_CLASSIFICATION ? 'classification' : 'type'))).'</legend><ul>';
+						$return .= '<fieldset><legend>'.StoreType::getTypeClassName($type_or_classification).'</legend><ul>';
 							
 							foreach ($arr_types as $cur_type_id => $arr_type) {
 								
@@ -1333,14 +1408,14 @@ class data_model extends base_module {
 					break;
 				case 'regex':
 					
-					$html = cms_general::createRegularExpressionEditor($arr_selected['regex'], $name, false, ['info' => $info]);
+					$html = cms_general::createRegularExpressionReplaceEditor($arr_selected['regex'], $name, false, ['info' => $info]);
 
 					if (!$arr_selected['regex']) {
 						
 						$return .= '<div class="hide-edit hide">'
 							.$html
 						.'</div>'
-						.'<input type="button" class="data neutral" value="regex" />';
+						.'<input type="button" class="data neutral" value="'.getLabel('lbl_regular_expression_abbr').'" />';
 					} else {
 						$return .= $html;
 					}
@@ -1373,24 +1448,17 @@ class data_model extends base_module {
 		return $return;
 	}
 	
-	private function createSelectCondition($type_id, $store = false) {
+	private function createSelectCondition($type_id, $is_store = false) {
 		
 		$arr_project = StoreCustomProject::getProjects($_SESSION['custom_projects']['project_id']);
 		$arr_use_project_ids = array_keys($arr_project['use_projects']);
 		
-		$return = '<fieldset><legend>'.getLabel(($store ? 'lbl_save' : 'lbl_select')).'</legend>
-			<ul>
-				<li><label>'.getLabel('lbl_conditions').'</label><span id="x:custom_projects:condition_storage-'.(int)$type_id.'">'
-					.'<select name="condition_id">'.Labels::parseTextVariables(cms_general::createDropdown(cms_nodegoat_custom_projects::getProjectTypeConditions($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN ? true : false), $arr_use_project_ids), false, true, 'label')).'</select>'
-					.($store ?
-						'<input type="button" class="data add popup add_condition_storage" value="store" />'
-						.'<input type="button" class="data del msg del_condition_storage" value="del" />'
-					: '')
-				.'</span></li>
-			</ul>
-		</fieldset>';
+		$arr_options = cms_nodegoat_custom_projects::getProjectTypeConditions($_SESSION['custom_projects']['project_id'], $_SESSION['USER_ID'], $type_id, false, ($_SESSION['NODEGOAT_CLEARANCE'] == NODEGOAT_CLEARANCE_ADMIN ? true : false), $arr_use_project_ids);		
+		$command_id = 'x:custom_projects:condition_storage-'.(int)$type_id;
 
-		return $return;
+		$str_html = custom_projects::createStorageSelect('condition', $is_store, $arr_options, $command_id, getLabel('lbl_conditions'));
+
+		return $str_html;
 	}
 	
 	public static function createTypeNetwork($from_type_id, $to_type_id, $num_steps, $arr_options = []) {
@@ -1488,11 +1556,18 @@ class data_model extends base_module {
 								
 							unset($arr_type_set_flat[$str_id_check]);
 						}
+						
+						foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
+					
+							$str_id = 'object_sub_description_'.$object_sub_description_id;
+							
+							unset($arr_type_set_flat[$str_id]);
+						}
 					}
 					
 					continue;
 				}
-					
+				
 				if ($str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_FLAT || $str_descriptions_type == static::TYPE_NETWORK_DESCRIPTIONS_CONCEPT) {
 					
 					$arr_type_set_flat[$str_id.'id']['name'] = $arr_type_set_flat[$str_id.'id']['name'].' Sub-Object ID';
@@ -1559,7 +1634,7 @@ class data_model extends base_module {
 			
 			// Network
 			
-			$arr_type_set_dynamic_referencing = [];
+			$arr_type_set_mutable_referencing = [];
 			$arr_return_paths = [];
 			$arr_target_type_set_date_flat = [];
 			
@@ -1603,13 +1678,13 @@ class data_model extends base_module {
 							
 							if ($object_sub_description_id == 'object_sub_location') {
 								
-								if ($arr_connection['dynamic']) {
+								if ($arr_connection['mutable']) {
 									
 									$arr_checked = $arr_options['value']['paths'][$path]['object_sub_locations'][$object_sub_details_id][$in_out][$ref_type_id];
 									$str_name_path_connection = ($do_compact ? 'object_sub_locations-'.$object_sub_details_id.'-'.$in_out.'-'.$ref_type_id : '[object_sub_locations]['.$object_sub_details_id.']['.$in_out.']['.$ref_type_id.']');
 									
 									if ($in_out == 'out') {
-										$arr_type_set_dynamic_referencing['object_sub_locations'][$object_sub_details_id][$ref_type_id] = $ref_type_id;
+										$arr_type_set_mutable_referencing['object_sub_locations'][$object_sub_details_id][$ref_type_id] = $ref_type_id;
 									}
 								} else {
 									
@@ -1620,13 +1695,13 @@ class data_model extends base_module {
 								$str_name = getLabel('lbl_location');
 							} else {
 								
-								if ($arr_connection['dynamic']) {
+								if ($arr_connection['mutable']) {
 									
 									$arr_checked = $arr_options['value']['paths'][$path]['object_sub_descriptions'][$object_sub_description_id][$in_out][$ref_type_id];
 									$str_name_path_connection = ($do_compact ? 'object_sub_descriptions-'.$object_sub_description_id.'-'.$in_out.'-'.$ref_type_id : '[object_sub_descriptions]['.$object_sub_description_id.']['.$in_out.']['.$ref_type_id.']');
 									
 									if ($in_out == 'out') {
-										$arr_type_set_dynamic_referencing['object_sub_descriptions'][$object_sub_description_id][$ref_type_id] = $ref_type_id;
+										$arr_type_set_mutable_referencing['object_sub_descriptions'][$object_sub_description_id][$ref_type_id] = $ref_type_id;
 									}
 								} else {
 									
@@ -1641,9 +1716,11 @@ class data_model extends base_module {
 							
 							if ($do_compact) {
 								
+								$str_name_reference = ($in_out == 'in' ? getLabel('lbl_referenced') : getLabel('lbl_referencing')).cms_general::OPTION_GROUP_SEPARATOR.' '.($in_out == 'in' ? static::SYMBOL_IN : static::SYMBOL_OUT).' ['.Labels::parseTextVariables($arr_use_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_name']).'] '.Labels::parseTextVariables($str_name).($arr_connection['dynamic'] ? static::SYMBOL_DYNAMIC : ($arr_connection['mutable'] ? static::SYMBOL_MUTABLE : ''));
+								
 								$arr_return_paths[$ref_type_id]['html']['options'][$in_out][] = [
 									'id' => $str_name_path_connection,
-									'name' => ($in_out == 'in' ? getLabel('lbl_referenced') : getLabel('lbl_referencing')).cms_general::OPTION_GROUP_SEPARATOR.' '.($in_out == 'in' ? static::SYMBOL_IN : static::SYMBOL_OUT).' ['.Labels::parseTextVariables($arr_use_type_set['object_sub_details'][$object_sub_details_id]['object_sub_details']['object_sub_details_name']).'] '.Labels::parseTextVariables($str_name).($arr_connection['dynamic'] ? static::SYMBOL_DYNAMIC : '')
+									'name' => $str_name_reference
 								];
 								
 								if ($arr_checked) {
@@ -1676,13 +1753,13 @@ class data_model extends base_module {
 						
 						$str_name_path = $arr_options['name'].'[paths]['.$path.']';
 						
-						if ($arr_connection['dynamic']) {
+						if ($arr_connection['mutable']) {
 							
 							$arr_checked = $arr_options['value']['paths'][$path]['object_descriptions'][$object_description_id][$in_out][$ref_type_id];
 							$str_name_path_connection = ($do_compact ? 'object_descriptions-'.$object_description_id.'-'.$in_out.'-'.$ref_type_id : '[object_descriptions]['.$object_description_id.']['.$in_out.']['.$ref_type_id.']');
 							
 							if ($in_out == 'out') {
-								$arr_type_set_dynamic_referencing['object_descriptions'][$object_description_id][$ref_type_id] = $ref_type_id;
+								$arr_type_set_mutable_referencing['object_descriptions'][$object_description_id][$ref_type_id] = $ref_type_id;
 							}
 						} else {
 							
@@ -1695,9 +1772,11 @@ class data_model extends base_module {
 						
 						if ($do_compact) {
 							
+							$str_name_reference = ($in_out == 'in' ? getLabel('lbl_referenced') : getLabel('lbl_referencing')).cms_general::OPTION_GROUP_SEPARATOR.' '.($in_out == 'in' ? static::SYMBOL_IN : static::SYMBOL_OUT).' '.Labels::parseTextVariables($arr_use_type_set['object_descriptions'][$object_description_id]['object_description_name']).($arr_connection['dynamic'] ? static::SYMBOL_DYNAMIC : ($arr_connection['mutable'] ? static::SYMBOL_MUTABLE : ''));
+							
 							$arr_return_paths[$ref_type_id]['html']['options'][$in_out][] = [
 								'id' => $str_name_path_connection,
-								'name' => ($in_out == 'in' ? getLabel('lbl_referenced') : getLabel('lbl_referencing')).cms_general::OPTION_GROUP_SEPARATOR.' '.($in_out == 'in' ? static::SYMBOL_IN : static::SYMBOL_OUT).' '.Labels::parseTextVariables($arr_use_type_set['object_descriptions'][$object_description_id]['object_description_name']).($arr_connection['dynamic'] ? static::SYMBOL_DYNAMIC : '')
+								'name' => $str_name_reference
 							];
 							
 							if ($arr_checked) {
@@ -1861,23 +1940,28 @@ class data_model extends base_module {
 						
 							if ($is_dynamic) {
 								
-								$arr_type_set_flat_separated['referencing'][$str_id.'_reference'] = $arr_type_set_flat[$str_id];
-								$arr_type_set_flat_separated['referencing'][$str_id.'_reference']['id'] = $str_id.'_reference';
+								$str_id_reference = $str_id.'_reference';
+								$arr_type_set_flat_separated['referencing'][$str_id_reference] = $arr_type_set_flat[$str_id];
+								$arr_type_set_flat_separated['referencing'][$str_id_reference]['id'] = $str_id_reference;
+							} else {
 								
-								foreach ((array)$arr_type_set_dynamic_referencing['object_descriptions'][$object_description_id] as $ref_type_id) {
+								$str_id_reference = $str_id;
+								$arr_type_set_flat_separated['referencing'][$str_id_reference] = $arr_type_set_flat[$str_id];
+							}
+							
+							if ($is_dynamic || is_array($arr_object_description['object_description_ref_type_id'])) {
+								
+								foreach ((array)$arr_type_set_mutable_referencing['object_descriptions'][$object_description_id] as $ref_type_id) {
 									
-									$s_arr =& $arr_type_set_flat_separated['referencing'][$str_id.'_reference_'.$ref_type_id];
+									$s_arr =& $arr_type_set_flat_separated['referencing'][$str_id_reference.'_mutable_'.$ref_type_id];
 									$s_arr = $arr_type_set_flat[$str_id];
 									
 									$arr_ref_type_set = StoreType::getTypeSet($ref_type_id);
 									
-									$s_arr['id'] = $str_id.'_reference_'.$ref_type_id;
-									$s_arr['name'] = Labels::addContainer($s_arr['name']).static::SYMBOL_DYNAMIC.' '.Labels::addContainer($arr_ref_type_set['type']['name']);
+									$s_arr['id'] = $str_id_reference.'_mutable_'.$ref_type_id;
+									$s_arr['name'] = Labels::addContainer($s_arr['name']).($is_dynamic ? static::SYMBOL_DYNAMIC : static::SYMBOL_MUTABLE).' '.Labels::addContainer($arr_ref_type_set['type']['name']);
 								}
 								unset($s_arr);
-							} else {
-								
-								$arr_type_set_flat_separated['referencing'][$str_id] = $arr_type_set_flat[$str_id];
 							}
 						}
 						if (!$arr_object_description['object_description_ref_type_id']) {
@@ -1901,23 +1985,28 @@ class data_model extends base_module {
 								
 								if ($is_dynamic) {
 									
-									$arr_type_set_flat_separated['referencing'][$str_id.'_reference'] = $arr_type_set_flat[$str_id];
-									$arr_type_set_flat_separated['referencing'][$str_id.'_reference']['id'] = $str_id.'_reference';
+									$str_id_reference = $str_id.'_reference';
+									$arr_type_set_flat_separated['referencing'][$str_id_reference] = $arr_type_set_flat[$str_id];
+									$arr_type_set_flat_separated['referencing'][$str_id_reference]['id'] = $str_id_reference;
+								} else {
 									
-									foreach ((array)$arr_type_set_dynamic_referencing['object_sub_descriptions'][$object_sub_description_id] as $ref_type_id) {
+									$str_id_reference = $str_id;
+									$arr_type_set_flat_separated['referencing'][$str_id_reference] = $arr_type_set_flat[$str_id];
+								}
+								
+								if ($is_dynamic || is_array($arr_object_sub_description['object_sub_description_ref_type_id'])) {
 									
-										$s_arr =& $arr_type_set_flat_separated['referencing'][$str_id.'_reference_'.$ref_type_id];
+									foreach ((array)$arr_type_set_mutable_referencing['object_sub_descriptions'][$object_sub_description_id] as $ref_type_id) {
+									
+										$s_arr =& $arr_type_set_flat_separated['referencing'][$str_id_reference.'_mutable_'.$ref_type_id];
 										$s_arr = $arr_type_set_flat[$str_id];
 										
 										$arr_ref_type_set = StoreType::getTypeSet($ref_type_id);
 
-										$s_arr['id'] = $str_id.'_reference_'.$ref_type_id;
-										$s_arr['name'] = Labels::addContainer($s_arr['name']).static::SYMBOL_DYNAMIC.' '.Labels::addContainer($arr_ref_type_set['type']['name']);
+										$s_arr['id'] = $str_id_reference.'_mutable_'.$ref_type_id;
+										$s_arr['name'] = Labels::addContainer($s_arr['name']).($is_dynamic ? static::SYMBOL_DYNAMIC : static::SYMBOL_MUTABLE).' '.Labels::addContainer($arr_ref_type_set['type']['name']);
 									}
 									unset($s_arr);
-								} else {
-									
-									$arr_type_set_flat_separated['referencing'][$str_id] = $arr_type_set_flat[$str_id];
 								}
 							}
 							if (!$arr_object_sub_description['object_sub_description_ref_type_id']) {
@@ -1938,15 +2027,15 @@ class data_model extends base_module {
 					
 					foreach ((array)$arr_options_values['selection'] as $id => $arr_selected) {
 						
-						if (strpos($id, '_reference') !== false) { // Check if dynamic references are targeting specific type IDs and separate them
+						if (isset($arr_selected['use_reference'])) { // Check if mutable references are targeting specific type IDs and separate them
 							
 							$arr_ref_type_ids = $arr_selected['use_reference'];
 							
-							if ($arr_ref_type_ids && is_array($arr_ref_type_ids)) {
-								
+							if (is_array($arr_ref_type_ids)) {
+																
 								foreach ($arr_ref_type_ids as $ref_type_id) {
 									
-									$arr_selection_referencing_or_values['referencing'][$id.'_'.$ref_type_id] = $arr_selected;
+									$arr_selection_referencing_or_values['referencing'][$id.'_mutable_'.$ref_type_id] = $arr_selected;
 								}
 								continue;
 							}
@@ -1958,7 +2047,7 @@ class data_model extends base_module {
 					}
 					
 					foreach ($arr_type_set_flat_separated as $referencing_or_values => $arr_type_set_flat_separate) {		
-								
+						
 						foreach (($arr_selection_referencing_or_values[$referencing_or_values] ?: [[]]) as $id => $arr_selected) {
 							
 							$unique = uniqid(cms_general::NAME_GROUP_ITERATOR);
@@ -2220,6 +2309,9 @@ class data_model extends base_module {
 			.data_model .object-sub-descriptions > ul.sorter > li + li { margin-top: 25px; }
 			.data_model .object-sub-details > .sorter > li > div > fieldset { margin: 0px; }
 			
+			.data_model .object-descriptions > ul.sorter > li > ul > li > div.reference_mutable,
+			.data_model .object-sub-descriptions > ul.sorter > li > ul > li > div.reference_mutable { vertical-align: top; }
+			
 			.data_model .object-description-options:empty { display: none; }
 			.data_model .object-description-options fieldset > ul > li > label:first-child + div > input[name$="[separator]"] { width: 75px; }
 			
@@ -2278,23 +2370,36 @@ class data_model extends base_module {
 		
 			var func_update_value_type = function(elm_value_type) {
 			
-				var elm_parent = elm_value_type.closest('ul');
-				var elm_options = elm_parent.find('.object-description-options');
+				const elm_parent = elm_value_type.closest('ul');
+				const elm_options = elm_parent.find('.object-description-options');
 
-				var type_id = COMMANDS.getID(elm_parent.closest('form'), true);
-				var str_value_type = elm_value_type.val();
-				var str_name = elm_value_type.attr('name');
-				var ref_type_id = elm_parent.find('select[name*=description_ref_type_id]:not(.hide)').val();
-				ref_type_id = (ref_type_id ? ref_type_id : false);
-				var has_multi = elm_parent.find('input[name*=description_has_multi]').is(':enabled:checked');
-				var has_default_value = elm_parent.find('[name*=description_has_default_value]').is(':enabled:checked');
-				var in_name = elm_parent.find('input[name*=description_in_name]').is(':enabled:checked');
-				var elms_option_settings = elm_options.find('[name]:not([name*=\"[default]\"])'); // Do not include changes in default values for the identifier
-				var value_settings = (elms_option_settings.length ? serializeArrayByName(elms_option_settings) : false);
+				const type_id = COMMANDS.getID(elm_parent.closest('form'), true);
+				const str_value_type = elm_value_type.val();
+				const str_name = elm_value_type.attr('name');
 				
-				var arr_identifier = {type_id: type_id, value_type: str_value_type, name: str_name, ref_type_id: ref_type_id, has_multi: has_multi, has_default_value: has_default_value, in_name: in_name, value_settings: value_settings};
-				var identifier = JSON.stringify(arr_identifier);
-				var identifier_check = elm_value_type[0].identifier_value_type_settings;
+				const elms_ref_type_id = elm_parent.find('select[name*=\"description_ref_type_id]['+str_value_type+']\"]');
+				let elm_ref_type_id = elms_ref_type_id[0];
+				let ref_type_id = false;
+				if (elm_ref_type_id) {
+					if (elm_ref_type_id.name.endsWith('[]')) {
+						ref_type_id = [];
+						for (elm_ref_type_id of elms_ref_type_id) {
+							ref_type_id.push(elm_ref_type_id.value);
+						}
+					} else {
+						ref_type_id = elm_ref_type_id.value;
+					}
+				}
+				
+				const has_multi = elm_parent.find('input[name*=description_has_multi]').is(':enabled:checked');
+				const has_default_value = elm_parent.find('[name*=description_has_default_value]').is(':enabled:checked');
+				const in_name = elm_parent.find('input[name*=description_in_name]').is(':enabled:checked');
+				let elms_option_settings = elm_options.find('[name]:not([name*=\"[default]\"])'); // Do not include changes in default values for the identifier
+				let value_settings = (elms_option_settings.length ? serializeArrayByName(elms_option_settings) : false);
+				
+				const arr_identifier = {type_id: type_id, value_type: str_value_type, name: str_name, ref_type_id: ref_type_id, has_multi: has_multi, has_default_value: has_default_value, in_name: in_name, value_settings: value_settings};
+				let identifier = JSON.stringify(arr_identifier);
+				let identifier_check = elm_value_type[0].identifier_value_type_settings;
 				
 				elm_value_type[0].identifier_value_type_settings = identifier;
 				
@@ -2319,7 +2424,7 @@ class data_model extends base_module {
 
 				COMMANDS.quickCommand(elm_value_type, function(arr_data) {
 					
-					var elm_options_new = $(arr_data.object_description_options);
+					const elm_options_new = $(arr_data.object_description_options);
 					elm_options.html(elm_options_new);
 					
 					return elm_options;
@@ -2347,18 +2452,23 @@ class data_model extends base_module {
 				var elm_targets = elm_parent.find('input[name*=description_has_multi], input[name*=description_is_required], input[name*=description_has_default_value], input[name*=object_description_is_unique], input[name*=object_description_is_identifier]');
 				elm_targets.prop('disabled', false);
 				
-				var elm_target = elm_parent.find('select[name*=description_ref_type_id]').addClass('hide');
+				var elm_target = elm_parent.find('> li > select[name*=description_ref_type_id], > li > div.reference_mutable').addClass('hide');
 				elm_target.addClass('hide');
 				
 				if (str_value_type == 'type' || str_value_type == 'classification' || str_value_type == 'reversal') {
 				
-					elm_target.filter('[name*=\"['+str_value_type+']\"]').removeClass('hide')
+					elm_target.filter('[name*=\"['+str_value_type+']\"]').removeClass('hide');
 
 					if (str_value_type == 'reversal') {
 						elm_parent.find('input[name*=description_has_multi], input[name*=description_is_required], input[name*=description_has_default_value], input[name*=object_description_is_unique], input[name*=object_description_is_identifier]').prop('disabled', true);
 					} else {
 						elm_parent.find('input[name*=object_description_is_identifier]').prop('disabled', true);
 					}
+				} else if (str_value_type == 'reference_mutable') {
+					
+					elm_target.filter('div.reference_mutable').removeClass('hide');
+					
+					elm_parent.find('input[name*=object_description_is_identifier]').prop('disabled', true);
 				} else if (str_value_type == 'object_description') {
 				
 					elm_parent.find('input[name*=description_is_required], input[name*=description_has_default_value]').prop('disabled', true);
@@ -2379,7 +2489,7 @@ class data_model extends base_module {
 				func_update_value_type(elm_value_type);
 			}).on('change', 'select[name*=description_ref_type_id]', function(e) {
 			
-				var elm_value_type = $(this).closest('ul').find('[name*=\"description_value_type_base]\"]');
+				var elm_value_type = $(this).closest('.object-descriptions > ul > li, .object-sub-descriptions > ul > li').find('[name*=\"description_value_type_base]\"]');
 				
 				func_update_value_type(elm_value_type);
 			}).on('change', '[name*=description_has_default_value], input[name*=description_has_multi], input[name*=description_in_name], [name*=\"description_value_type_settings]\"]', function(e) {
@@ -2531,6 +2641,8 @@ class data_model extends base_module {
 			});
 		});
 		
+		SCRIPTER.dynamic('[id^=f\\\:data_model\\\:]', 'filter_select');
+		
 		// CONDITIONS
 		
 		SCRIPTER.dynamic('[data-method=update_condition]', function(elm_scripter) {
@@ -2607,7 +2719,7 @@ class data_model extends base_module {
 
 					if (elm_compact.length) {
 					
-						const elms_target = getElementsSelector(elm_compact, 'select[name$=\"[connection]\"]');
+						const elms_target = getElementSelector(elm_compact, 'select[name$=\"[connection]\"]');
 		
 						for (let i = 0, len = elms_target.length; i < len; i++) {
 							
@@ -2627,8 +2739,11 @@ class data_model extends base_module {
 							
 							elm_check.classList.remove('inactive');
 							
-							const elm_use_date = getElementsSelector(elm_check, 'input[name$=\"[use_date]\"]');
-							func_update_type_network_use_date(elm_use_date[0]);
+							const elm_use_date = getElementSelector(elm_check, 'input[name$=\"[use_date]\"]');
+							
+							if (elm_use_date) {
+								func_update_type_network_use_date(elm_use_date[0]);
+							}
 						}
 					} else {
 					
@@ -2642,14 +2757,17 @@ class data_model extends base_module {
 					
 						cur.removeClass('inactive');
 						
-						const elm_target = getElementsSelector(cur, ':scope > div:first-of-type > fieldset input[name$=\"[object_only]\"]');
-						func_update_type_network_object_only(elm_target[0]);
+						const elm_target = getElementSelector(cur, ':scope > div:first-of-type > fieldset input[name$=\"[object_only]\"]');
+						
+						if (elm_target) {
+							func_update_type_network_object_only(elm_target[0]);
+						}
 					}
 				};
 			};
 			var func_update_type_network_use_date = function(elm) {
-								
-				let elm_target = getElementClosestSelector(getElement(elm), 'li');
+				
+				let elm_target = getElementClosestSelector(elm, 'li');
 				elm_target = elm_target.nextSibling;
 				
 				elm_target.classList.toggle('hide', !elm.checked);
@@ -2676,8 +2794,11 @@ class data_model extends base_module {
 				
 				if (e.type == 'scripter') {
 					
-					const elm_target = getElementsSelector(elm_scripter, ':scope > .node > .node > div:first-of-type > fieldset input[name$=\"[object_only]\"]');
-					func_update_type_network_object_only(elm_target[0]);
+					const elm_target = getElementSelector(elm_scripter, ':scope > .node > .node > div:first-of-type > fieldset input[name$=\"[object_only]\"]');
+					
+					if (elm_target) {
+						func_update_type_network_object_only(elm_target[0]);
+					}
 				}
 			}).on('change removed', '.node > div + div > div > label > input[type=checkbox], .node > div + div > div > fieldset .sorter, .node > div + div > div > fieldset select[name$=\"[connection]\"]', function(e) {
 				
@@ -2692,7 +2813,7 @@ class data_model extends base_module {
 				
 				var func_scroll = function() {
 										
-					moveScroll(cur, {elm_con: elm_source});
+					moveScroll(cur, {elm_container: elm_source});
 					new Pulse(elm_target.children('h4'));
 					new Pulse(elm_target.children('h4 + div'));
 				};
@@ -2748,8 +2869,9 @@ class data_model extends base_module {
 		if ($method == "selector_value_type") {
 			
 			$str_name = str_replace(['[object_description_value_type_base]', '[object_sub_description_value_type_base]'], '', $value['name']);
+			$ref_type_id = arrParseRecursive($value['ref_type_id'], TYPE_INTEGER);
 			
-			$html_object_description_options = $this->createTypeObjectDescriptionValueTypeOptions((int)$value['type_id'], $str_name, $value['value_type'], $value['ref_type_id'], $value['has_multi'], $value['has_default_value'], $value['in_name'], ($value['value_settings'] ?: []));
+			$html_object_description_options = $this->createTypeObjectDescriptionValueTypeOptions((int)$value['type_id'], $str_name, $value['value_type'], $ref_type_id, $value['has_multi'], $value['has_default_value'], $value['in_name'], ($value['value_settings'] ?: []));
 			
 			$this->html = ['object_description_options' => $html_object_description_options];
 		}
@@ -2841,7 +2963,7 @@ class data_model extends base_module {
 			
 			$type_id = $id;
 			
-			$this->html = '<form class="options storage" data-method="return_condition">
+			$this->html = '<form class="options storage open" data-method="return_condition">
 				'.$this->createSelectCondition($type_id).'
 				<input type="submit" value="'.getLabel('lbl_select').'" />
 			</form>';
@@ -2878,7 +3000,7 @@ class data_model extends base_module {
 		if ($method == "data") {
 	
 			$sql_type_definitions = "(SELECT
-					".DBFunctions::sqlImplode("CONCAT('<strong>', nodegoat_t_des.name, '</strong><br />', nodegoat_t_des.text)", '<br />', 'ORDER BY nodegoat_t_des.sort')."
+					".DBFunctions::group2String("CONCAT('<strong>', nodegoat_t_des.name, '</strong><br />', nodegoat_t_des.text)", '<br />', 'ORDER BY nodegoat_t_des.sort')."
 				FROM ".DB::getTable('DEF_NODEGOAT_TYPE_DEFINITIONS')." nodegoat_t_des
 				WHERE nodegoat_t_des.type_id = nodegoat_t.id
 			)";
@@ -2902,7 +3024,7 @@ class data_model extends base_module {
 			} else {
 				
 				$sql_object_descriptions = "(SELECT
-					".DBFunctions::sqlImplode('nodegoat_to_des.name', '<br />', 'ORDER BY nodegoat_to_des.sort')."
+					".DBFunctions::group2String('nodegoat_to_des.name', '<br />', 'ORDER BY nodegoat_to_des.sort')."
 						FROM ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS')." nodegoat_to_des
 					WHERE nodegoat_to_des.type_id = nodegoat_t.id
 				)";
@@ -2912,8 +3034,8 @@ class data_model extends base_module {
 					WHERE nodegoat_to_des.type_id = nodegoat_t.id
 				)";
 				$sql_object_sub_details = "(SELECT
-					".DBFunctions::sqlImplode("CONCAT(nodegoat_tos_det.name, ' (', COALESCE((SELECT
-						".DBFunctions::sqlImplode('nodegoat_tos_des.name', ', ', 'ORDER BY nodegoat_tos_des.sort')."
+					".DBFunctions::group2String("CONCAT(nodegoat_tos_det.name, ' (', COALESCE((SELECT
+						".DBFunctions::group2String('nodegoat_tos_des.name', ', ', 'ORDER BY nodegoat_tos_des.sort')."
 							FROM ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_SUB_DESCRIPTIONS')." nodegoat_tos_des
 						WHERE nodegoat_tos_des.object_sub_details_id = nodegoat_tos_det.id
 					), '".getLabel('inf_none')."'), ')')", '<br />', 'ORDER BY nodegoat_tos_det.sort')."
@@ -2936,22 +3058,20 @@ class data_model extends base_module {
 					$arr_sql_columns_as[] = 'nodegoat_t.label';
 				}
 			}
-				
+			
+			$sql_index = 'nodegoat_t.id';
+			
 			if ($id =='reversals') {
 
 				$sql_table = DB::getTable('DEF_NODEGOAT_TYPES')." nodegoat_t
 					LEFT JOIN ".DB::getTable('DEF_NODEGOAT_TYPE_OBJECT_DESCRIPTIONS')." nodegoat_to_des ON (nodegoat_to_des.type_id = nodegoat_t.id AND nodegoat_to_des.id_id = ".StoreType::getSystemTypeObjectDescriptionID(StoreType::getSystemTypeID('reversal'), 'reference').")
 					LEFT JOIN ".DB::getTable('DEF_NODEGOAT_TYPES')." nodegoat_t_ref ON (nodegoat_t_ref.id = nodegoat_to_des.ref_type_id)
 				";
-
-				$sql_index = 'nodegoat_t.id, nodegoat_to_des.ref_type_id';
 			} else {
 				
 				$sql_table = DB::getTable('DEF_NODEGOAT_TYPES').' nodegoat_t';
-
-				$sql_index = 'nodegoat_t.id';
 			}
-						
+
 			$sql_where = "nodegoat_t.class = ".($id == 'classifications' ? StoreType::TYPE_CLASS_CLASSIFICATION : ($id == 'reversals' ? StoreType::TYPE_CLASS_REVERSAL : StoreType::TYPE_CLASS_TYPE));
 			
 			if (Settings::get('domain_administrator_mode')) {
@@ -2992,7 +3112,7 @@ class data_model extends base_module {
 				} else {
 					$arr_data[] = ($arr_row['reversal_ref_type_id'] ? $arr_row['reversal_ref_type_name'] : '<span class="icon" data-category="status">'.getIcon('min').'</span>');
 				}
-				$arr_data[] = '<input type="button" class="data edit" value="edit" /><input type="button" class="data del msg empty" value="empty" /><input type="button" class="data del msg del" value="del" />';
+				$arr_data[] = '<input type="button" class="data edit" value="edit" /><input type="button" class="data del quick empty" value="empty" /><input type="button" class="data del quick del" value="del" />';
 				
 				$arr_datatable['output']['data'][] = $arr_data;
 			}
@@ -3069,7 +3189,13 @@ class data_model extends base_module {
 					if ($value['object_description_value_type_settings'] && is_array($value['object_description_value_type_settings'])) {
 						$object_description_value_type_settings = $value['object_description_value_type_settings'];
 					}
-										
+					
+					if ($object_description_value_type_base == 'reference_mutable') {
+						$object_description_ref_type_id = (array)$value['object_description_ref_type_id']['reference_mutable'];
+					} else {
+						$object_description_ref_type_id = (int)($object_description_value_type_base == 'reversal' ? $value['object_description_ref_type_id']['reversal'] : ($object_description_value_type_base == 'classification' ? $value['object_description_ref_type_id']['classification'] : $value['object_description_ref_type_id']['type']));
+					}
+					
 					$arr_object_descriptions[] = [
 						'object_description_name' => $value['object_description_name'],
 						'object_description_value_type_base' => $object_description_value_type_base,
@@ -3077,7 +3203,7 @@ class data_model extends base_module {
 						'object_description_is_required' => (int)$value['object_description_is_required'],
 						'object_description_is_unique' => (int)$value['object_description_is_unique'],
 						'object_description_has_multi' => (int)$value['object_description_has_multi'],
-						'object_description_ref_type_id' => (int)($object_description_value_type_base == 'reversal' ? $value['object_description_ref_type_id']['reversal'] : ($object_description_value_type_base == 'classification' ? $value['object_description_ref_type_id']['classification'] : $value['object_description_ref_type_id']['type'])),
+						'object_description_ref_type_id' => $object_description_ref_type_id,
 						'object_description_in_name' => (int)$value['object_description_in_name'],
 						'object_description_in_search' => (int)$value['object_description_in_search'],
 						'object_description_in_overview' => (int)$value['object_description_in_overview'],
@@ -3108,13 +3234,19 @@ class data_model extends base_module {
 							if ($value['object_sub_description_value_type_settings'] && is_array($value['object_sub_description_value_type_settings'])) {
 								$object_sub_description_value_type_settings = $value['object_sub_description_value_type_settings'];
 							}
-
+							
+							if ($object_sub_description_value_type_base == 'reference_mutable') {
+								$object_sub_description_ref_type_id = (array)$value['object_sub_description_ref_type_id']['reference_mutable'];
+							} else {
+								$object_sub_description_ref_type_id = (int)($object_sub_description_value_type_base == 'reversal' ? $value['object_sub_description_ref_type_id']['reversal'] : ($object_sub_description_value_type_base == 'classification' ? $value['object_sub_description_ref_type_id']['classification'] : $value['object_sub_description_ref_type_id']['type']));
+							}
+							
 							$arr_object_sub_descriptions[] = [
 								'object_sub_description_name' => $value['object_sub_description_name'],
 								'object_sub_description_value_type_base' => $object_sub_description_value_type_base,
 								'object_sub_description_value_type_settings' => $object_sub_description_value_type_settings,
 								'object_sub_description_use_object_description_id' => (int)$value['object_sub_description_use_object_description_id'],
-								'object_sub_description_ref_type_id' => (int)($object_sub_description_value_type_base == 'reversal' ? $value['object_sub_description_ref_type_id']['reversal'] : ($object_sub_description_value_type_base == 'classification' ? $value['object_sub_description_ref_type_id']['classification'] : $value['object_sub_description_ref_type_id']['type'])),
+								'object_sub_description_ref_type_id' => $object_sub_description_ref_type_id,
 								'object_sub_description_is_required' => (int)$value['object_sub_description_is_required'],
 								'object_sub_description_in_name' => (int)$value['object_sub_description_in_name'],
 								'object_sub_description_in_search' => (int)$value['object_sub_description_in_search'],
@@ -3181,11 +3313,23 @@ class data_model extends base_module {
 				return;
 			}
 			
-			$storage = new StoreTypeObjects($id, false, $_SESSION['USER_ID']);
-			
-			$storage->clearTypeObjects();
-								
-			$this->msg = true;
+			if ($this->is_confirm === null) {
+				
+				$arr_type_set = StoreType::getTypeSet($id);
+				$str_what = StoreType::getTypeClassName($arr_type_set['type']['class']).' <strong>'.$arr_type_set['type']['name'].'</strong>';
+				
+				Labels::setVariable('what', $str_what);
+				$this->html = getLabel('conf_empty');
+				$this->do_confirm = true;
+				return;
+			} else if ($this->is_confirm) {
+
+				$storage = new StoreTypeObjects($id, false, $_SESSION['USER_ID']);
+				
+				$storage->clearTypeObjects();
+									
+				$this->msg = true;
+			}
 		}
 		
 		if ($method == "del" && (int)$id) {
@@ -3195,11 +3339,24 @@ class data_model extends base_module {
 				return;
 			}
 			
-			$store_type = new StoreType($id, $_SESSION['USER_ID']);
-			
-			$store_type->delType();
-								
-			$this->msg = true;
+			if ($this->is_confirm === null) {
+				
+				$arr_type_set = StoreType::getTypeSet($id);
+				$str_what = StoreType::getTypeClassName($arr_type_set['type']['class']).' <strong>'.$arr_type_set['type']['name'].'</strong>';
+				
+				Labels::setVariable('what', $str_what);
+				$this->html = getLabel('conf_delete');
+				$this->do_confirm = true;
+				return;
+			} else if ($this->is_confirm) {
+				
+				$store_type = new StoreType($id, $_SESSION['USER_ID']);
+				
+				$store_type->delType();
+				
+				$this->refresh_table = true;			
+				$this->msg = true;
+			}
 		}
 	}
 	

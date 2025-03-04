@@ -12,11 +12,11 @@ Update the new nodegoat setup with this repository:
 1. Compile nodegoat's services, see [Programs](SETUP.md#programs).
 1. Login to your nodegoat CMS (cms.yournodegoathost.com), go to User Management, and add a new user to 'User' with the appropriate page clearances (see the [1100CC Guides](https://lab1100.com/1100cc/guides#create-user)).
 1. You can now login with your new user account to your nodegoat HOME (yournodegoathost.com).
-1. Configure the 1100CC Jobs for nodegoat, see [Jobs](SETUP.md#jobs).
+1. Manage the 1100CC Admin & Jobs for nodegoat, see [Admin & Jobs](SETUP.md#admin--jobs).
 
-### Jobs
-1. Login to your nodegoat CMS, go to Jobs, and make sure the Jobs process is running (see the [1100CC Guides](https://lab1100.com/1100cc/guides#run-jobs)).
-1. Run 'nodegoat Object Cache (Reset)' manually once to prepare nodegoat's default routines.
+### Admin & Jobs
+1. Login to your nodegoat CMS, go to Admin, and run 'Setup 1100CC' once to prepare nodegoat's default routines.
+1. Go to Jobs, and make sure the Jobs process is running (see the [1100CC Guides](https://lab1100.com/1100cc/guides#run-jobs)).
 
 ## Database
 
@@ -44,6 +44,37 @@ Import additional SQL to their respective databases:
 * [nodegoat_home.changes.sql](/setup/nodegoat_home.changes.sql) to the nodegoat_home database.
 * [nodegoat_home.various.sql](/setup/nodegoat_home.various.sql) to the nodegoat_home database.
 * [nodegoat_content.sql](/setup/nodegoat_content.sql) to the nodegoat_content database.
+
+### PostgreSQL
+
+See [1100CC SETUP](https://github.com/LAB1100/1100CC/blob/master/SETUP.md#postgresql) for more information about running nodegoat using PostgreSQL. nodegoat additionally requires the `postgis` extention enabled in its database. The PGLoader script can be extended with:
+
+```sql
+LOAD DATABASE
+	FROM mysql://root:?PASSWORD?@127.0.0.1/nodegoat_content
+	INTO postgresql://postgres:?PASSWORD?@127.0.0.1/CC1100
+	--WITH schema only
+	
+	CAST
+		type int with extra auto_increment to serial drop typemod keep default keep not null,
+		type int to int drop typemod keep default keep not null,
+		type bigint to bigint drop typemod keep default keep not null,
+			column data_type_object_definitions_modules.object to json,
+			column data_type_object_sub_definitions_modules.object to json
+			
+	MATERIALIZE VIEWS data_type_object_sub_location_geometry_import AS $$ SELECT object_sub_id, AsWKT(geometry) AS geometry, version FROM data_type_object_sub_location_geometry $$
+
+	EXCLUDING TABLE NAMES MATCHING 'data_type_object_sub_location_geometry'
+
+	ALTER TABLE NAMES MATCHING 'data_type_object_sub_location_geometry_import' RENAME TO 'data_type_object_sub_location_geometry'
+
+	AFTER LOAD DO
+		
+		$$ ALTER TABLE nodegoat_content.data_type_object_sub_location_geometry ADD CONSTRAINT data_type_object_sub_location_geometry_object_sub_id PRIMARY KEY ("object_sub_id", "version"); $$,
+		$$ ALTER TABLE nodegoat_content.data_type_object_sub_location_geometry ALTER COLUMN "geometry" TYPE GEOMETRY(GEOMETRY, 0) USING ST_GeomFromText("geometry", 0); $$,
+		$$ CREATE INDEX ON nodegoat_content.data_type_object_sub_location_geometry USING GIST ("geometry"); $$
+;
+```
 
 ## Software
 

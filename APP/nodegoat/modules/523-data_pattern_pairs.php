@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -330,7 +330,7 @@ class data_pattern_pairs extends base_module {
 
 			$arr_sql_columns = ['nodegoat_ptop.pattern_value', 'nodegoat_t.name', 'nodegoat_ptop.composition', 'nodegoat_ptop.date'];
 			$arr_sql_columns_search = [['field' => 'nodegoat_ptop.pattern_value', 'json' => true], 'nodegoat_t.name'];
-			$arr_sql_columns_as = ['nodegoat_t.name AS type_name', 'nodegoat_ptop.composition', 'nodegoat_ptop.date', 'LOWER(HEX(nodegoat_ptop.identifier)) AS identifier', 'nodegoat_ptop.pattern_value', 'nodegoat_ptop.type_id'];
+			$arr_sql_columns_as = ['nodegoat_t.name AS type_name', 'nodegoat_ptop.composition', 'nodegoat_ptop.date', 'LOWER('.DBFunctions::convertTo('nodegoat_ptop.identifier', DBFunctions::TYPE_STRING, DBFunctions::TYPE_BINARY, DBFunctions::FORMAT_STRING_HEX).') AS identifier', 'nodegoat_ptop.pattern_value', 'nodegoat_ptop.type_id'];
 			
 			if (Settings::get('domain_administrator_mode')) {
 				$arr_sql_columns[1] = 'CASE WHEN nodegoat_t.label != \'\' THEN CONCAT(nodegoat_t.label, \' \', nodegoat_t.name) ELSE nodegoat_t.name END';

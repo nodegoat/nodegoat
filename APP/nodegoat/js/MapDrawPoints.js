@@ -1,17 +1,17 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
  * See http://nodegoat.net/release for the latest version of nodegoat and its license.
  */
 
-function MapDrawPoints(element, obj_parent, options) {
+function MapDrawPoints(element, PARENT, options) {
 
 	var elm = $(element),
-	obj = this,
+	SELF = this,
 	settings = $.extend({
 		arr_visual: false
 	}, options || {});
@@ -27,13 +27,9 @@ function MapDrawPoints(element, obj_parent, options) {
 	pos_offset_x = 0,
 	pos_offset_y = 0,
 	pos_offset_extra_x = 0,
-	pos_offset_extra_y = 0,
-	
-	obj_map = false;
+	pos_offset_extra_y = 0;
 	
 	this.init = function() {
-		
-		obj_map = obj_parent.obj_map;
 					
 		renderer = document.createElementNS(stage_ns, 'svg');
 		renderer.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns', stage_ns);
@@ -43,12 +39,12 @@ function MapDrawPoints(element, obj_parent, options) {
 		
 		stage = renderer.ownerDocument;
 				
-		key_move = obj_map.move(rePosition);
+		key_move = PARENT.obj_map.move(rePosition);
 	};
 	
 	this.close = function() {
 		
-		obj_map.move(null, key_move);
+		PARENT.obj_map.move(null, key_move);
 	};
 	
 	var rePosition = function(move, pos, zoom, calc_zoom) {
@@ -82,7 +78,7 @@ function MapDrawPoints(element, obj_parent, options) {
 			pos_offset_y = pos.offset.y + pos_offset_extra_y;
 			
 			if (redraw) {
-				obj_parent.doDraw();
+				PARENT.doDraw();
 			}
 		}
 	};
@@ -91,7 +87,7 @@ function MapDrawPoints(element, obj_parent, options) {
 		
 		arr_data = arr_data_source;
 		
-		obj_parent.doDraw();
+		PARENT.doDraw();
 	};
 	
 	this.drawData = function() {
@@ -112,7 +108,7 @@ function MapDrawPoints(element, obj_parent, options) {
 			
 			var arr_point = arr_data.points[key];
 			
-			var xy = obj_map.plotPoint(arr_point.latitude, arr_point.longitude);
+			var xy = PARENT.obj_map.plotPoint(arr_point.latitude, arr_point.longitude);
 						
 			var dot = addDot(xy, options.arr_visual.dot.color);
 		}

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -15,9 +15,21 @@ class register_by_user extends register_by {
 		parent::moduleProperties();
 		static::$label = getLabel('ttl_register_users');
 	}
-	
-	protected $main_table = false;
-	protected $columns = [];
+		
+	function __construct() {
+			
+		parent::__construct();
+		
+		$this->sql_main_table = DB::getTableName('TABLE_USER_DETAILS');
+		
+		$sql_clearance = 'CASE '.DB::getTableName('TABLE_USER_DETAILS').'.clearance';
+		foreach (cms_nodegoat_details::getClearanceLevels() as $arr_level) {
+			$sql_clearance .= ' WHEN '.(int)$arr_level['id'].' THEN \''.DBFunctions::strEscape($arr_level['label']).'\'';
+		}
+		$sql_clearance .= ' ELSE \'\' END';
+		
+		$this->arr_columns[] = ['label' => getLabel('lbl_clearance'), 'table' => DB::getTableName('TABLE_USER_DETAILS'), 'column' => 'clearance', 'column_as' => $sql_clearance];
+	}
 
 	protected function contentsForm() {
 				

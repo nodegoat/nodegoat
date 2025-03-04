@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -44,8 +44,6 @@ class StorePublishInstances {
 				".implode(",", $arr_sql_insert)."
 				".DBFunctions::onConflict('project_id', false)."
 			");
-
-			$i = 0;
 			
 			foreach ($arr['projects'] as $project_id) {
 				

@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -286,7 +286,7 @@ class TraceTypesObjectsNetwork {
 		return $this->arr_type_object_network_paths;
 	}
 	
-	public function getTypeObjectsSql() {
+	public function getTypeObjectsSQL() {
 		
 		// Generate the queries to get the objects for each type between 'from' and the 'to' object
 				

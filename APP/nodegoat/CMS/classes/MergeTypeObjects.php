@@ -2,7 +2,7 @@
 
 /**
  * nodegoat - web-based data management, network analysis & visualisation environment.
- * Copyright (C) 2024 LAB1100.
+ * Copyright (C) 2025 LAB1100.
  * 
  * nodegoat runs on 1100CC (http://lab1100.com/1100cc).
  * 
@@ -124,7 +124,11 @@ class MergeTypeObjects extends StoreTypeObjects {
 					$arr_merge_object_set['object_subs'][$cur_object_sub_id]['object_sub'] = ['object_sub_id' => $cur_object_sub_id, 'object_sub_details_id' => $object_sub_details_id];
 				}
 				
-				foreach ((array)$arr_object_sub['object_sub_definitions'] as $object_sub_description_id => $arr_sub_object_definition) {
+				if (!$arr_object_sub['object_sub_definitions']) {
+					continue;
+				}
+				
+				foreach ($arr_object_sub['object_sub_definitions'] as $object_sub_description_id => $arr_sub_object_definition) {
 				
 					$arr_object_sub_description = $arr_object_sub_details['object_sub_descriptions'][$object_sub_description_id];
 
@@ -150,7 +154,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 	}
 	
 	protected function generateBody() {
-		
+				
 		if (!$this->is_master) { // Create new object
 		
 			$this->addTypeObjectVersion(1);
@@ -685,6 +689,7 @@ class MergeTypeObjects extends StoreTypeObjects {
 							} else if ($arr_object_description['object_description_has_multi']) {
 								
 								$value = $arr_object['object_definitions'][$object_description_id]['object_definition_ref_object_id'];
+								$value = FormatTypeObjects::formatToSQLValue($arr_object_description['object_description_value_type'], $value);
 								$value = array_diff($value, $this->arr_merge_object_ids);
 								$value[] = $this->object_id;
 							} else {
@@ -797,15 +802,8 @@ class MergeTypeObjects extends StoreTypeObjects {
 							if ($arr_object_sub_description['object_sub_description_ref_type_id']) {
 
 								if ($arr_object_description['object_sub_description_is_dynamic']) {
-									
 									$value = $func_parse_references('object_sub_definition', $arr_object['object_subs'][$object_sub_id]['object_sub_definitions'][$object_sub_description_id]['object_sub_definition_ref_object_id']);
-								} else if ($arr_object_sub_description['object_sub_description_has_multi']) {
-									
-									$value = $arr_object['object_subs'][$object_sub_id]['object_sub_definitions'][$object_sub_description_id]['object_sub_definition_ref_object_id'];
-									$value = array_diff($value, $this->arr_merge_object_ids);
-									$value[] = $this->object_id;
 								} else {
-									
 									$value = $this->object_id;
 								}
 								
@@ -1082,5 +1080,47 @@ class MergeTypeObjects extends StoreTypeObjects {
 						
 			$storage->delTypeObject($accept);
 		}
+	}
+	
+	public static function parseTypeMerge($type_id, $arr) {
+
+		$arr_append = [];
+		$arr_selection_user = [];
+		
+		if ($arr['append']) {
+			
+			$arr_type_set = StoreType::getTypeSet($type_id);
+							
+			foreach ($arr_type_set['object_descriptions'] as $object_description_id => $arr_object_description) {
+									
+				$str_id = 'object_description_'.$object_description_id;
+				
+				if (in_array($str_id, $arr['append'])) {
+					
+					$arr_append['object_definitions'][$object_description_id] = true;
+					$arr_selection_user[] = $str_id;
+				}
+			}
+					
+			foreach ($arr_type_set['object_sub_details'] as $object_sub_details_id => $arr_object_sub_details) {
+				
+				if (!$arr_object_sub_details['object_sub_details']['object_sub_details_is_single']) {
+					continue;
+				}
+				
+				foreach ($arr_object_sub_details['object_sub_descriptions'] as $object_sub_description_id => $arr_object_sub_description) {
+					
+					$str_id = 'object_sub_description_'.$object_sub_description_id;
+					
+					if (in_array($str_id, $arr['append'])) {
+						
+						$arr_append['object_subs'][$object_sub_details_id]['object_sub_definitions'][$object_sub_description_id] = true;
+						$arr_selection_user[] = $str_id;
+					}
+				}
+			}
+		}
+		
+		return ['append' => $arr_append, 'selection_user' => $arr_selection_user];
 	}
 }
